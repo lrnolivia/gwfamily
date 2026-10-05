@@ -1,0 +1,71 @@
+import {adultOn} from './birthdays.mjs';
+import {UserError,command,familyState,json,readPost,validDate} from './family-service.mjs';
+import {authEnvironment,authReady,createRateStorage} from './auth.mjs';
+import {can} from './policy.mjs';
+export function registerPublic(app,authFactory){
+ app.get('/api/config',c=>{const e=authEnvironment(c.env);return c.json({configured:authReady(e),email:authReady(e)&&e.AUTH_EMAIL_ENABLED==='true'&&Boolean(e.EMAIL),providers:[e.GOOGLE_CLIENT_ID&&e.GOOGLE_CLIENT_SECRET?'google':null,e.APPLE_CLIENT_ID&&e.APPLE_CLIENT_SECRET?'apple':null,e.MICROSOFT_CLIENT_ID&&e.MICROSOFT_CLIENT_SECRET?'microsoft':null].filter(Boolean),origin:e.AUTH_ORIGIN})});
+ app.get('/api/session',async c=>{
+  const e=authEnvironment(c.env);if(!authReady(e))return c.json({signedIn:false,configured:false});
+  const session=await authFactory(e).api.getSession({headers:c.req.raw.headers});if(!session)return c.json({signedIn:false,configured:true});
+  if(!session.user.emailVerified)return c.json({signedIn:true,verified:false,status:'unverified'});
+  const member=await e.DB.prepare('SELECT status FROM members WHERE id=?').bind(session.user.id).first();
+  return c.json({signedIn:true,verified:true,user:{id:session.user.id,name:session.user.name,email:session.user.email},status:member?.status||'new'});
+ });
+ app.post('/api/enroll',async c=>{
+  const e=authEnvironment(c.env);if(!authReady(e))throw new UserError('Sign-in is not configured',503);
+  if(c.req.header('Origin')!==e.AUTH_ORIGIN)throw new UserError('Invalid request origin',403);
+  const session=await authFactory(e).api.getSession({headers:c.req.raw.headers});if(!session?.user.emailVerified)throw new UserError('Verify your email before joining',401);
+  const value=await c.req.json();if(typeof value.name!=='string'||!value.name.trim()||value.name.length>80||!validDate(value.birthday)||value.privacyAccepted!==true)throw new UserError('Enter your name and birthday, then confirm the privacy notice');
+  if(value.birthdayCelebration===true&&!adultOn(value.birthday))throw new UserError('Public birthday celebrations are available for adult profiles only');
+  const owner=Boolean(e.BOOTSTRAP_OWNER_EMAIL)&&e.BOOTSTRAP_OWNER_EMAIL.toLowerCase()===session.user.email.toLowerCase();
+  await e.DB.batch([
+   e.DB.prepare('INSERT OR IGNORE INTO members(id,status,roles_json,can_post,is_leader) VALUES(?,?,?,?,?)').bind(session.user.id,owner?'active':'pending',owner?'["admin","moderator","planner","treasurer"]':'[]',owner?1:0,owner?1:0),
+   e.DB.prepare('UPDATE user SET name=?,updatedAt=? WHERE id=?').bind(value.name.trim(),Date.now(),session.user.id),
+   e.DB.prepare('INSERT INTO profiles(member_id,birthday,completed,birthday_celebration) VALUES(?,?,1,?) ON CONFLICT(member_id) DO UPDATE SET birthday=excluded.birthday,completed=1,birthday_celebration=excluded.birthday_celebration,updated_at=CURRENT_TIMESTAMP').bind(session.user.id,value.birthday,value.birthdayCelebration===true?1:0)
+  ]);
+  const member=await e.DB.prepare('SELECT status FROM members WHERE id=?').bind(session.user.id).first();return c.json({status:member.status});
+ });
+
+}
+export function registerFamily(app){
+ app.get('/api/state',async c=>c.json(await familyState(c.env.DB,c.get('actor'))));
+ app.post('/api/commands',async c=>c.json(await command(c.env.DB,c.get('actor'),await c.req.json())));
+ app.get('/api/directory',async c=>{
+  const actor=c.get('actor'),rows=(await c.env.DB.prepare(`SELECT m.id,u.name,u.image,p.contact_json FROM members m JOIN user u ON u.id=m.id JOIN profiles p ON p.member_id=m.id WHERE m.status='active'`).bind().all()).results||[];
+  const cards=rows.flatMap(m=>{const v=json(m.contact_json);if(!v.name)return [];const self=m.id===actor.id,allowed=self||(v.optIn===true&&(v.visibility==='All approved family members'||v.visibility==='Family leaders'&&actor.isLeader||v.visibility==='Selected family members'&&v.selectedIds?.includes(actor.id)));if(!allowed)return [];const {selectedIds,visibility,optIn,...card}=v;return [{memberId:m.id,...card,photo:v.useProfile?m.image:v.photo,name:card.name||m.name}]});return c.json({cards});
+ });
+ app.get('/api/manage',async c=>{
+  const actor=c.get('actor');if(!can(actor,'manage_reunion')&&!can(actor,'manage_members')&&!can(actor,'confirm_fees'))throw new UserError('Planner permission required',403);
+  const members=can(actor,'manage_members')?(await c.env.DB.prepare('SELECT m.id,m.status,m.roles_json,m.can_post,u.name,u.email FROM members m JOIN user u ON u.id=m.id ORDER BY m.created_at').bind().all()).results:[];
+  const rsvps=can(actor,'manage_reunion')?(await c.env.DB.prepare('SELECT r.*,u.name FROM rsvps r JOIN user u ON u.id=r.member_id').bind().all()).results:[];
+  const claims=can(actor,'manage_reunion')?(await c.env.DB.prepare('SELECT c.*,u.name FROM shirt_claims c JOIN user u ON u.id=c.member_id ORDER BY c.created_at DESC').bind().all()).results:[];
+  const fees=can(actor,'confirm_fees')?(await c.env.DB.prepare('SELECT f.*,u.name FROM fee_reports f JOIN user u ON u.id=f.member_id ORDER BY f.created_at DESC').bind().all()).results:[];
+  return c.json({members,rsvps,claims,fees});
+ });
+ app.post('/api/media',async c=>{
+  const actor=c.get('actor'),db=c.env.DB,bucket=c.env.R2;if(!bucket)throw new UserError('Media storage is not configured',503);
+  const rate=await createRateStorage(db).consume('upload:'+actor.id,{window:3600,max:30});if(!rate.allowed)throw new UserError('Upload limit reached. Please try again later.',429);
+  const form=await c.req.formData(),file=form.get('file');if(!file||typeof file.arrayBuffer!=='function'||file.size===0||file.size>20*1024*1024)throw new UserError('Choose a file under 20 MB');
+  const allowed=['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/webm','audio/mpeg','audio/mp4','audio/ogg','audio/wav','application/pdf','text/plain'];if(!allowed.includes(file.type))throw new UserError('Use a supported photo, video, audio, PDF, or text file');
+  const data=await file.arrayBuffer(),head=new Uint8Array(data,0,Math.min(16,data.byteLength)),sig=String.fromCharCode(...head);
+  if(file.type==='image/png'&&!(head[0]===137&&sig.slice(1,4)==='PNG')||file.type==='image/jpeg'&&!(head[0]===255&&head[1]===216)||file.type==='image/gif'&&!sig.startsWith('GIF8')||file.type==='image/webp'&&!(sig.startsWith('RIFF')&&sig.slice(8,12)==='WEBP')||file.type==='application/pdf'&&!sig.startsWith('%PDF-'))throw new UserError('The file contents do not match its type');
+  const id=crypto.randomUUID(),key=`family/${actor.id}/${id}`,name=String(file.name||'Attachment').replace(/[\x00-\x1f\x7f/\\]/g,'_').slice(0,150);
+  await bucket.put(key,data,{httpMetadata:{contentType:file.type}});
+  try{await db.prepare('INSERT INTO media(id,owner_id,object_key,name,mime_type,size_bytes) VALUES(?,?,?,?,?,?)').bind(id,actor.id,key,name,file.type,file.size).run()}catch(error){await bucket.delete(key);throw error}
+  return c.json({id,url:'/api/media/'+id,name,type:file.type,size:file.size},201);
+ });
+ app.get('/api/media/:id',async c=>{
+  const actor=c.get('actor'),db=c.env.DB,row=await db.prepare('SELECT * FROM media WHERE id=? AND deleted_at IS NULL').bind(c.req.param('id')).first();if(!row)throw new UserError('File not found',404);
+  let allowed=row.owner_id===actor.id;
+  if(!allowed){
+   const posts=(await db.prepare(`SELECT p.* FROM posts p WHERE p.deleted_at IS NULL AND (p.group_id IS NULL OR EXISTS(SELECT 1 FROM family_group_members gm WHERE gm.group_id=p.group_id AND gm.member_id=?))`).bind(actor.id).all()).results;
+   allowed=posts.some(p=>{const m=json(p.metadata_json);return [...(m.files||[]),...(m.backgroundMedia?[m.backgroundMedia]:[])].some(f=>f.id===row.id)});
+   if(!allowed){const cs=(await db.prepare('SELECT c.files_json,p.id FROM comments c JOIN posts p ON p.id=c.post_id WHERE c.deleted_at IS NULL AND p.deleted_at IS NULL').bind().all()).results;for(const x of cs){if(json(x.files_json,[]).some(f=>f.id===row.id)&&await readPost(db,actor,x.id)){allowed=true;break}}}
+   if(!allowed)allowed=Boolean(await db.prepare("SELECT u.id FROM user u JOIN members m ON m.id=u.id WHERE u.image=? AND m.status='active'").bind('/api/media/'+row.id).first());
+   if(!allowed){const memories=(await db.prepare('SELECT data_json FROM memories WHERE deleted_at IS NULL').bind().all()).results;allowed=memories.some(m=>json(m.data_json).image==='/api/media/'+row.id)}
+   if(!allowed){const contacts=(await db.prepare("SELECT p.member_id,p.contact_json FROM profiles p JOIN members m ON m.id=p.member_id WHERE m.status='active'").bind().all()).results;allowed=contacts.some(p=>{const v=json(p.contact_json);return v.photo==='/api/media/'+row.id&&v.optIn===true&&(v.visibility==='All approved family members'||v.visibility==='Family leaders'&&actor.isLeader||v.visibility==='Selected family members'&&v.selectedIds?.includes(actor.id))})}
+  }
+  if(!allowed)throw new UserError('File not found',404);const object=await c.env.R2.get(row.object_key);if(!object)throw new UserError('File not found',404);
+  const inline=/^(image\/(png|jpeg|gif|webp)|video\/|audio\/)/.test(row.mime_type);return new Response(object.body,{headers:{'Content-Type':row.mime_type,'Content-Length':String(row.size_bytes),'Content-Disposition':`${inline?'inline':'attachment'}; filename*=UTF-8''${encodeURIComponent(row.name)}`,'X-Content-Type-Options':'nosniff','Cache-Control':'private, no-store','Content-Security-Policy':"default-src 'none'; sandbox"}});
+ });
+}

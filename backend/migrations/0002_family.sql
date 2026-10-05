@@ -1,0 +1,25 @@
+PRAGMA foreign_keys = ON;
+CREATE TABLE members(id TEXT PRIMARY KEY REFERENCES user(id), family_name TEXT NOT NULL DEFAULT '', member_group TEXT NOT NULL DEFAULT 'family' CHECK(member_group IN ('family','loved_ones')), is_leader INTEGER NOT NULL DEFAULT 0 CHECK(is_leader IN (0,1)), status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','active','suspended')), roles_json TEXT NOT NULL DEFAULT '[]', can_post INTEGER NOT NULL DEFAULT 0 CHECK(can_post IN (0,1)), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE family_groups(id TEXT PRIMARY KEY,name TEXT NOT NULL, name_override TEXT, created_by TEXT NOT NULL REFERENCES members(id), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE family_group_members(group_id TEXT NOT NULL REFERENCES family_groups(id),member_id TEXT NOT NULL REFERENCES members(id),is_manager INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(group_id,member_id));
+CREATE TABLE posts(id TEXT PRIMARY KEY,author_id TEXT NOT NULL REFERENCES members(id),group_id TEXT REFERENCES family_groups(id),body TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,deleted_at TEXT);
+CREATE INDEX posts_feed ON posts(created_at,id);
+CREATE INDEX posts_author ON posts(author_id,created_at);
+CREATE INDEX posts_group ON posts(group_id,created_at);
+CREATE TABLE comments(id TEXT PRIMARY KEY,post_id TEXT NOT NULL REFERENCES posts(id),author_id TEXT NOT NULL REFERENCES members(id),parent_id TEXT REFERENCES comments(id),body TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,deleted_at TEXT);
+CREATE INDEX comments_post ON comments(post_id,created_at);
+CREATE TABLE reactions(member_id TEXT NOT NULL REFERENCES members(id),post_id TEXT REFERENCES posts(id),comment_id TEXT REFERENCES comments(id),emoji TEXT NOT NULL,CHECK((post_id IS NULL)!=(comment_id IS NULL)));
+CREATE UNIQUE INDEX reactions_post ON reactions(member_id,post_id,emoji) WHERE post_id IS NOT NULL;
+CREATE UNIQUE INDEX reactions_comment ON reactions(member_id,comment_id,emoji) WHERE comment_id IS NOT NULL;
+CREATE TABLE notification_preferences(member_id TEXT PRIMARY KEY REFERENCES members(id),scope TEXT NOT NULL DEFAULT 'leaders' CHECK(scope IN ('all','family','loved_ones','selected','leaders','off')), selected_ids_json TEXT NOT NULL DEFAULT '[]');
+CREATE TABLE notifications(id TEXT PRIMARY KEY,recipient_id TEXT NOT NULL REFERENCES members(id),kind TEXT NOT NULL,subject_id TEXT,read_at TEXT,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE products(id TEXT PRIMARY KEY,name TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',active INTEGER NOT NULL DEFAULT 1);
+CREATE TABLE shirt_claims(id TEXT PRIMARY KEY,member_id TEXT NOT NULL REFERENCES members(id),status TEXT NOT NULL DEFAULT 'claimed' CHECK(status IN ('claimed','ordered','ready','shipped','delivered')),lines_json TEXT NOT NULL,tracking_url TEXT,received_at TEXT,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE fee_reports(id TEXT PRIMARY KEY,member_id TEXT NOT NULL REFERENCES members(id),status TEXT NOT NULL DEFAULT 'reported' CHECK(status IN ('reported','confirmed','rejected')),confirmed_by TEXT REFERENCES members(id),created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE invitations(id TEXT PRIMARY KEY,token_hash TEXT UNIQUE NOT NULL,created_by TEXT NOT NULL REFERENCES members(id),expires_at TEXT NOT NULL,revoked_at TEXT,redeemed_by TEXT REFERENCES members(id),redeemed_at TEXT);
+CREATE TABLE conversations(id TEXT PRIMARY KEY,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE conversation_members(conversation_id TEXT NOT NULL REFERENCES conversations(id),member_id TEXT NOT NULL REFERENCES members(id),PRIMARY KEY(conversation_id,member_id));
+CREATE TABLE messages(id TEXT PRIMARY KEY,conversation_id TEXT NOT NULL REFERENCES conversations(id),author_id TEXT NOT NULL REFERENCES members(id),body TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE audit_log(id TEXT PRIMARY KEY,actor_id TEXT NOT NULL REFERENCES members(id),action TEXT NOT NULL,subject_id TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+
+CREATE TABLE favorites(member_id TEXT NOT NULL REFERENCES members(id),favorite_member_id TEXT NOT NULL REFERENCES members(id),PRIMARY KEY(member_id,favorite_member_id),CHECK(member_id != favorite_member_id));
