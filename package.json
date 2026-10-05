@@ -1,0 +1,1 @@
+{"name":"grnwht","private":true,"version":"0.1.0","scripts":{"build":"node --check dist/app.js && node --check dist/photos.js","test":"node --test tests/*.test.mjs"}}
