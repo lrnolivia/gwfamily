@@ -11,6 +11,10 @@ async function pageFor(width=390,theme='dark',platform='ios',state=initialState(
 async function noOverflow(page,label){assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),label+' overflow')}
 async function close(page){await page.getByRole('button',{name:'Close dialog',exact:true}).click()}
 try{
+ const returning=await pageFor();let releaseConfig;const configGate=new Promise(resolve=>{releaseConfig=resolve});
+ await returning.route('**/api/config',async route=>{await configGate;await route.fulfill({contentType:'application/json',body:JSON.stringify({configured:true,email:true,providers:[],origin:url})})});
+ await returning.route('**/api/session',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({signedIn:false,configured:true})}));
+ await returning.reload();await returning.getByRole('status').filter({hasText:'Getting things ready'}).waitFor();assert.equal(await returning.getByRole('navigation',{name:'Main navigation'}).count(),0);assert.equal(await returning.getByRole('heading',{name:'Family feed',exact:true}).count(),0);releaseConfig();await returning.getByRole('button',{name:'Email me a code',exact:true}).waitFor();results.push('returning preview state never flashes while live session loads');await returning.close();
  for(const width of [390,768,1280])for(const theme of ['light','dark'])for(const platform of ['ios','android']){
   const page=await pageFor(width,theme,platform);await noOverflow(page,'home');assert.equal(await page.locator('.bottom').count(),1);
   if(platform==='android')assert.equal(await page.locator('.liquid-glass,.liquid-glass-effect,svg.liquid-glass-svg').count(),0);
