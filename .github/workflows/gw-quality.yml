@@ -8,6 +8,12 @@ concurrency:
   cancel-in-progress: true
 jobs:
   verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    env:
+      GW_BROWSER: ${{ matrix.browser }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -26,7 +32,7 @@ jobs:
         working-directory: backend
       - run: npm test && npm run build
         working-directory: backend
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium ${{ matrix.browser }}
       - name: Full recovery browser checks
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 --directory dist > /tmp/gw-http.log 2>&1 &
@@ -39,7 +45,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: gw-family-qa-${{ github.sha }}
+          name: gw-family-qa-${{ github.sha }}-${{ matrix.browser }}
           path: |
             docs/recovery-qa
             docs/live-qa
