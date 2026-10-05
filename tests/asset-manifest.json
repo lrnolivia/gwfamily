@@ -1,0 +1,22 @@
+[
+  {
+    "path": "tree-artwork.png",
+    "url": "https://greenwhitefamily.com/tree-artwork.png",
+    "sha256": "449056bf214b445d6922667102d93749cf62196f1b83ad43f2ab510319cd88ba"
+  },
+  {
+    "path": "app-icon.svg",
+    "url": "https://greenwhitefamily.com/app-icon.svg",
+    "sha256": "0bdbe7bb38701ecb1e0c3222116a1b13e653eb7f828dafabbe6cefccf073b8d5"
+  },
+  {
+    "path": "photos/garden.jpg",
+    "url": "https://greenwhitefamily.com/photos/garden.jpg",
+    "sha256": "fa2066a1d9ba1cc3c72597a91e61df6a5b6a8757eca320a0bcc731609b9b38bb"
+  },
+  {
+    "path": "photos/generations.jpg",
+    "url": "https://greenwhitefamily.com/photos/generations.jpg",
+    "sha256": "489cf2fdf49398e48951329e8f3a603ca453e810bf09eea58d51f1ea6601e29d"
+  }
+]

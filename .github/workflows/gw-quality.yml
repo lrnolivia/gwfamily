@@ -1,0 +1,35 @@
+name: GW Family quality
+on:
+  push:
+    branches: ['grnwht/**']
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: gw-quality-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: node tests/prepare-assets.mjs
+      - run: npm run build
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - name: Full recovery browser checks
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory dist > /tmp/gw-http.log 2>&1 &
+          node tests/recovery-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gw-family-qa-${{ github.sha }}
+          path: docs/recovery-qa
+          retention-days: 7
