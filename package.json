@@ -1,1 +1,19 @@
-{"name":"grnwht","private":true,"version":"0.1.0","scripts":{"build":"node --check dist/app.js && node --check dist/photos.js","test":"node --test tests/*.test.mjs"}}
+{
+  "name": "grnwht",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "esbuild src/react-app.jsx --bundle --format=iife --jsx=automatic --outfile=dist/react-app.js",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@paper-design/shaders-react": "0.0.81",
+    "@sohumsuthar/liquid-glass": "3.1.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.0",
+    "esbuild": "0.25.10"
+  }
+}

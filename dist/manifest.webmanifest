@@ -1,0 +1,18 @@
+{
+  "id": "/",
+  "name": "Green & White Family",
+  "short_name": "GW Family",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#091f17",
+  "theme_color": "#091f17",
+  "icons": [
+    {
+      "src": "app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,209 @@
+/* Green & White shared surface geometry and viewport-aware overlays. */
+:root{
+  --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;
+  --space-5:20px;--space-6:24px;--space-8:32px;
+  --radius-card:24px;--radius-sheet:32px;--radius-control:16px;
+  --vv-top:0px;--vv-left:0px;--vv-width:100vw;--vv-height:100dvh;
+}
+html[data-platform=android]{--radius-sheet:28px;--radius-card:24px}
+.card{border-radius:var(--radius-card)}
+.card .next-step{border-radius:calc(var(--radius-card) - 15px)}
+.brand>img{width:78px;height:54px;max-width:none;object-fit:contain}
+@media(max-width:650px){
+  .brand>img{width:68px;height:48px;max-width:none}
+  .brand{gap:5px}
+}
+@media(max-width:360px){
+  .brand>img{width:62px;height:44px}
+  .wordmark-top{font-size:17px}
+  .wordmark-bottom{font-size:35px}
+  .header-actions{gap:1px}
+}
+/* Peer cards share a row and height. Their own controls stay top-aligned. */
+#main>.columns:not(.home-grid){align-items:stretch}
+#main>.columns:not(.home-grid)>.card{height:100%;align-self:stretch}
+.home-grid{align-items:start}
+.home-grid>.stack,.home-grid>.home-context{min-width:0;width:100%}
+.home-grid>.stack>.card{min-width:0}
+.home-grid>.stack{display:block}
+.home-grid>.stack>.card{margin-bottom:18px}
+.home-grid .feed-label{min-height:34px;margin:4px 0 14px}
+.home-grid .feed-label h2{font-family:var(--serif-font);font-size:24px;font-weight:400}
+.home-context{align-self:start}
+.home-context .stack{display:grid;align-content:start}
+.home-context .reunion-hub{height:auto}
+@media(max-width:650px){
+  .home-grid{grid-template-columns:minmax(0,1fr)}
+  .post-actions{flex-wrap:wrap}
+}
+/* The sheet follows the visible viewport when a software keyboard appears. */
+#sheet[open]{box-sizing:border-box;max-height:calc(var(--vv-height) - 24px - env(safe-area-inset-bottom,0px));overflow:auto}
+#sheet.comments-surface[open]{
+  --comments-height:min(86vh,calc(var(--vv-height) - 12px - env(safe-area-inset-bottom,0px)));
+  inset:auto;left:calc(var(--vv-left) + (var(--vv-width) - min(680px,var(--vv-width) - 24px))/2);
+  top:calc(var(--vv-top) + (var(--vv-height) - var(--comments-height))/2);
+  margin:0;width:min(680px,calc(var(--vv-width) - 24px));
+  height:var(--comments-height);max-height:var(--comments-height);
+  display:flex;flex-direction:column;border-radius:var(--radius-sheet);
+}
+#sheet.comments-surface #sheet-body{display:flex;flex-direction:column;flex:1;min-height:0}
+#sheet.comments-surface .comments-list{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}
+#sheet.comments-surface .conversation-composer{flex:none;position:sticky;bottom:0;margin-top:0}
+#sheet.composer-surface{
+  top:calc(var(--vv-top) + 12px);left:calc(var(--vv-left) + (var(--vv-width) - min(560px,var(--vv-width) - 24px))/2);
+  right:auto;bottom:auto;margin:0;width:min(560px,calc(var(--vv-width) - 24px));
+  max-height:calc(var(--vv-height) - 24px);border-radius:var(--radius-sheet)
+}
+#sheet.focus-surface{
+  max-height:calc(var(--vv-height) - 24px);
+  border-radius:var(--radius-sheet)
+}
+@media(max-width:650px){
+  #sheet.comments-surface[open]{
+    --comments-height:min(88vh,calc(var(--vv-height) - 8px));
+    left:var(--vv-left);top:calc(var(--vv-top) + var(--vv-height) - var(--comments-height));
+    width:var(--vv-width);max-width:var(--vv-width);height:var(--comments-height);
+    max-height:var(--comments-height);border-radius:var(--radius-sheet) var(--radius-sheet) 0 0;
+    padding-bottom:max(12px,env(safe-area-inset-bottom,0px))
+  }
+  #sheet.focus-surface{
+    inset:auto;left:var(--vv-left);top:var(--vv-top);width:var(--vv-width);
+    height:var(--vv-height);max-height:var(--vv-height);border-radius:0
+  }
+  #sheet.composer-surface{top:calc(var(--vv-top) + max(12px,env(safe-area-inset-top,0px)))}
+}
+#sheet:not([open]){display:none!important}
+/* A short conversation hugs its content; long threads scroll within the sheet. */
+#sheet.comments-surface[open]{
+  height:fit-content;max-height:calc(var(--vv-height) - 24px);
+  top:calc(var(--vv-top) + var(--vv-height)/2);bottom:auto;
+  transform:translateY(-50%);animation:none
+}
+#sheet.comments-surface[open] #sheet-body{flex:0 1 auto;overflow:hidden}
+#sheet.comments-surface[open] .comments-list{
+  flex:0 1 auto;max-height:max(80px,calc(var(--vv-height) - 196px));
+  overflow:auto;margin-bottom:8px
+}
+#sheet.comments-surface[open] .conversation-composer{position:relative;bottom:auto}
+.inline-reply{margin:8px 0 14px 42px;min-width:0;animation:reply-in .22s ease-out}
+.inline-reply .conversation-composer{padding:4px 0 8px;margin:0}
+.inline-reply .replying-to{padding:0 0 5px;font-size:12px;color:var(--text)}
+.inline-reply .replying-to button{color:var(--text)}
+@keyframes reply-in{from{opacity:.35;transform:translateY(-5px)}to{opacity:1;transform:none}}
+@media(max-width:650px){
+  #sheet.comments-surface[open]{
+    height:fit-content;max-height:calc(var(--vv-height) - 8px);
+    top:auto;bottom:max(0px,calc(100dvh - var(--vv-top) - var(--vv-height)));
+    transform:none
+  }
+  .inline-reply{margin-left:22px}
+}
+.feed-preview-thread{border-radius:15px;background:var(--raised);padding:3px 7px}
+.feed-preview-thread .feed-comment{background:transparent;min-height:34px}
+.feed-reply{position:relative;margin-left:16px}
+.feed-reply::before{content:'';position:absolute;left:-14px;top:4px;width:11px;height:16px;
+  border-left:1.5px solid var(--line);border-bottom:1.5px solid var(--line);
+  border-bottom-left-radius:11px}
+.poll-choice-end{display:inline-flex;align-items:center;gap:8px}
+.poll-indicator{flex:none;display:inline-grid;place-items:center;width:21px;height:21px;
+  border:2px solid var(--muted);border-radius:50%;background:var(--surface)}
+.poll-indicator.selected{border-color:var(--accent);background:var(--accent);color:var(--ink)}
+.poll-indicator .glyph{width:13px;height:13px}
+@media(prefers-reduced-motion:reduce){.inline-reply{animation:none}}
+/* Attached file chooser escapes the writing box and dialog via native popover. */
+.writing-box{overflow:visible}
+.attach-menu{position:absolute;left:6px;bottom:6px;z-index:5}
+.attach-menu>button{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:var(--muted)}
+.attach-options[popover]{
+  position:fixed;inset:auto;margin:0;width:min(232px,calc(var(--vv-width) - 24px));
+  max-height:calc(var(--vv-height) - 24px);overflow:auto;
+  padding:7px;border-radius:18px;background:var(--raised);
+  color:var(--text);border:1px solid var(--line);box-shadow:0 12px 32px #00170d55
+}
+.attach-options label{display:flex;align-items:center;gap:9px;margin:0;min-height:48px;padding:10px;cursor:pointer}
+.attach-options label:focus-within{outline:2px solid var(--accent);outline-offset:-2px;border-radius:12px}
+#reaction-popout[popover]{
+  position:fixed;inset:auto;margin:0;width:min(292px,calc(var(--vv-width) - 24px));
+  max-height:calc(var(--vv-height) - 24px);overflow:auto;
+  padding:12px;border-radius:20px;background:var(--raised);color:var(--text);
+  border:1px solid var(--line);box-shadow:0 12px 32px #00170d55
+}
+.reaction-quick{display:flex;justify-content:space-between;gap:2px}
+.reaction-quick button,.reaction-results button{min-width:40px;min-height:40px;font-size:22px}
+#reaction-search{margin:6px 0;padding:9px 12px;min-height:40px;font-size:14px;border-radius:13px}
+.reaction-results{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px;max-height:148px;overflow:auto}
+.reaction-results button{min-width:0}
+#profile-popout,#notifications-popout,#member-popout,#emoji-popout{
+  inset:auto;max-width:calc(var(--vv-width) - 24px);max-height:calc(var(--vv-height) - 24px);overflow:auto
+}
+/* Each reply directly curves to its parent; disclosure uses a slim pill. */
+.thread-replies{margin:7px 0 0 22px;padding:0;border:0}
+.thread-replies>summary{
+  display:inline-flex;align-items:center;list-style:none;min-height:30px;
+  padding:3px 10px;margin:2px 0 6px;border-radius:14px;background:var(--soft);
+  font-size:11px;font-weight:650;color:var(--muted);cursor:pointer
+}
+.thread-replies>summary::-webkit-details-marker{display:none}
+.thread-replies>.thread-comment{position:relative;margin:8px 0 8px 18px}
+.thread-replies>.thread-comment::before{
+  content:'';position:absolute;left:-21px;top:8px;width:18px;height:23px;
+  border-left:2px solid var(--line);border-bottom:2px solid var(--line);
+  border-bottom-left-radius:16px;pointer-events:none
+}
+.depth-1 .chat-bubble{background:color-mix(in srgb,var(--raised) 78%,var(--accent) 22%)}
+.depth-2 .chat-bubble{background:color-mix(in srgb,var(--raised) 86%,var(--accent) 14%)}
+.depth-3 .chat-bubble{background:var(--raised)}
+.small-reaction-chips button,.reaction-pill{font-size:13px;min-height:28px;padding:2px 7px;border-radius:12px}
+.small-reaction-chips button{position:relative}
+.small-reaction-chips button::after{content:'';position:absolute;inset:-8px}
+.small-reaction-chips span:not(.reaction-pill),.reaction-pill small{font-size:10px}
+.membership-chips{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-top:5px}
+.member-full-profile .membership-chips{justify-content:center;margin:10px 0}
+.membership-chip{display:inline-flex;align-items:center;justify-content:center;
+  min-height:25px;padding:3px 8px;border-radius:13px;background:var(--soft);
+  color:var(--text);font-size:11px;font-weight:650}
+.membership-chip .glyph{width:12px;height:12px;margin-right:4px}
+button.membership-chip{min-height:34px;text-decoration:underline;text-underline-offset:2px}
+.membership-shield{width:26px;padding:4px}
+.membership-shield svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round}
+.group-profile{display:grid;gap:12px}
+.group-members{display:grid;gap:8px}
+.group-members button{display:flex;align-items:center;gap:10px;text-align:left;min-height:44px}
+.group-members .avatar{width:32px;height:32px}
+/* Exact loew.fi engine layers; content remains above refracted backdrop. */
+html[data-platform-style=glass] #gw-glass-root{display:block}
+#gw-glass-root{position:fixed;left:50%;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:5;width:min(calc(100% - 32px),440px)}
+.gw-glass-nav{--lg-radius:40px;width:100%;padding:6px}
+.gw-glass-nav-content{width:100%}
+.gw-glass-nav-content>div{width:100%}
+.gw-glass-nav .bottom{position:relative;left:auto;bottom:auto;transform:none;width:100%;border:0;box-shadow:none;background:transparent;padding:0}
+.gw-glass-nav .bottom button{height:56px;min-height:56px;border-radius:28px;transition:background-color .25s cubic-bezier(.2,.8,.2,1),color .2s}
+.gw-glass-nav .bottom button[aria-current=page]{background:var(--accent);color:var(--ink)}
+.gw-glass-menu{--lg-radius:20px}
+.gw-glass-menu>.gw-menu-content{position:relative;z-index:3}
+.gw-lens-island{position:absolute;width:0;height:0;pointer-events:none}
+html[data-theme=dark] .gw-glass-nav>.liquid-glass-tint,
+html[data-theme=dark] .gw-glass-menu>.liquid-glass-tint{background:rgba(9,31,23,.71)}
+html[data-theme=light] .gw-glass-nav>.liquid-glass-tint,
+html[data-theme=light] .gw-glass-menu>.liquid-glass-tint{background:rgba(204,232,212,.48)}
+html[data-platform=android] .gw-glass-nav,
+html[data-platform=android] .gw-glass-menu{--lg-refract:none;background:var(--surface)}
+html[data-platform=android] .gw-glass-nav .liquid-glass-effect,
+html[data-platform=android] .gw-glass-menu .liquid-glass-effect{display:none}
+html[data-platform-style=standard] .gw-glass-nav{background:var(--nav)}
+html[data-platform-style=standard] .gw-glass-nav .liquid-glass-effect{display:none}
+html[data-platform=android] .gw-glass-nav .bottom button{min-height:64px}
+html[data-platform=android] .gw-glass-nav .bottom button[aria-current=page]>.glyph{
+  width:64px;height:32px;padding:5px 18px;border-radius:28px;background:var(--accent)
+}
+button{transition:background-color .18s ease,color .18s ease,box-shadow .18s ease}
+button:hover,button:active{transform:none}
+.button:active,.send-button:active,.post-fab:active{filter:brightness(.94)}
+button:focus-visible,[role=button]:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+@media(prefers-reduced-transparency:reduce){
+  .gw-glass-nav,.gw-glass-menu{background:var(--surface)!important}
+  .gw-glass-nav .liquid-glass-effect,.gw-glass-menu .liquid-glass-effect{display:none}
+}
