@@ -48,7 +48,7 @@ export function reducer(state,action){
     case 'RESET_PREVIEW':return initialState();
     case 'ADD_PERSON':{
       if(validateMember(action.member,{signup:action.signup,child:action.child}))return state;
-      const id='preview-person-'+(state.lastId+1),m={...action.member,id,name:action.member.name.trim(),circle:'family',groupId:null,photo:null,bio:'',origin:'local-preview',registered:!!action.signup,managedBy:action.child?state.selfId:null,moderator:false,leader:false};
+      const id='preview-person-'+(state.lastId+1),m={...action.member,id,name:action.member.name.trim(),circle:'family',groupId:null,photo:action.signup?action.member.photo||null:null,bio:'',origin:'local-preview',registered:!!action.signup,managedBy:action.child?state.selfId:null,moderator:false,leader:false};
       return {...state,members:[...state.members,m],selfId:action.signup?id:state.selfId,lastId:state.lastId+1};
     }
     case 'UPDATE_DEPENDENT':{
