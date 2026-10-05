@@ -98,8 +98,9 @@ export function reducer(state,action){
     case 'TOGGLE_FAVORITE':return {...state,favorites:state.favorites.includes(action.id)?
       state.favorites.filter(x=>x!==action.id):[...state.favorites,action.id]};
     case 'RENAME_GROUP':return {...state,groups:state.groups.map(g=>g.id===action.id?{...g,name:action.name,nameEdited:true}:g)};
+    case 'FEATURE_MEMORY':{const ids=new Set(state.featuredMemoryIds||[]);if(action.approved)ids.add(action.id);else ids.delete(action.id);return {...state,featuredMemoryIds:[...ids],primaryMemoryId:action.primary?action.id:state.primaryMemoryId===action.id&&!action.approved?null:state.primaryMemoryId,featuredPhotos:state.memories.filter(m=>ids.has(m.id))}};
     case 'SAVE_MEMORY':return {...state,memories:state.memories.map(m=>m.id===action.memory.id?action.memory:m)};
-    case 'ADD_MEMORY':return {...state,memories:[...state.memories,{...action.memory,id:'memory-'+(state.lastId+1)}],lastId:state.lastId+1};
+    case 'ADD_MEMORY':return {...state,memories:[...state.memories,{...action.memory,id:action.memory.id||'memory-'+(state.lastId+1)}],lastId:state.lastId+1};
     case 'POLL_VOTE':return {...state,pollSelections:{...state.pollSelections,[action.postId]:action.options}};
     case 'BAG_ADD':{
       const bag=state.bag.filter(x=>x.productId!==action.item.productId);

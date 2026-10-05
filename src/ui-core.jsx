@@ -88,14 +88,14 @@ export function Popover({open,onClose,anchor,children,kind='menu',className=''})
     <div id={id} popover="auto" className={'gw-material-menu '+className} onToggle={onToggle}><FloatingSurfaceContext.Provider value={true}>{children}</FloatingSurfaceContext.Provider></div>;
 }
 export function InlineFilters({label,children}){const [open,setOpen]=useState(false),id=useId();return <div className={'inline-filters '+(open?'is-open':'')}><Control className="filter-trigger" aria-label={label} aria-expanded={open} aria-controls={id} onClick={()=>setOpen(v=>!v)}><Glyph name="settings"/></Control><div id={id} className="inline-filter-reveal" inert={!open}><div className="inline-filter-bar">{children}</div></div></div>}
-export function Sheet({title,kind='normal',onClose,children}) {
+export function Sheet({title,kind='normal',onClose,children,style}) {
   const app=useApp(),glass=app?.platform!=='android';
   const ref=useRef(null);
   useEffect(()=>{const el=ref.current;if(el&&!el.open)el.showModal();return ()=>{if(el?.open)el.close()}},[]);
-  const className=kind==='comments'?'comments-surface':kind==='post'?'focus-surface':kind==='composer'?'composer-surface':kind==='filter'?'filter-surface':kind==='viewer'?'focus-surface memory-sheet':'';
+  const className=kind==='profile'?'profile-sheet':kind==='comments'?'comments-surface':kind==='post'?'focus-surface':kind==='composer'?'composer-surface':kind==='filter'?'filter-surface':kind==='viewer'?'focus-surface memory-sheet':'';
   const content=<FloatingSurfaceContext.Provider value={true}><div className="sheet-head"><h2 id="sheet-title">{title}</h2><Control type="button" id="close" className="icon-button" aria-label="Close dialog" onClick={onClose}><Glyph name="close"/></Control></div>
     <div id="sheet-body">{app?.data?.error&&<p className="note" role="alert">{app.data.error}</p>}{app?.data?.pending&&<p role="status" className="small muted">Saving…</p>}{children}</div></FloatingSurfaceContext.Provider>;
-  return <dialog id="sheet" ref={ref} className={className} aria-labelledby="sheet-title"
+  return <dialog id="sheet" ref={ref} className={className} style={style} aria-labelledby="sheet-title"
     onCancel={e=>{e.preventDefault();onClose()}} onClick={e=>{if(e.target===ref.current)onClose()}}>
     {glass?<LiquidGlass lens lensOptions={{bezel:14,refraction:1.05,dispersion:2,radius:32}} className="sheet-glass"><span className="glass-shadow" aria-hidden="true"/>{content}</LiquidGlass>:content}
   </dialog>;

@@ -3,7 +3,7 @@ import {UserError,command,familyState,json,readPost,validDate} from './family-se
 import {authEnvironment,authReady,createRateStorage} from './auth.mjs';
 import {can} from './policy.mjs';
 export function registerPublic(app,authFactory){
- app.get('/api/config',c=>{const e=authEnvironment(c.env);return c.json({configured:authReady(e),email:authReady(e)&&e.AUTH_EMAIL_ENABLED==='true'&&Boolean(e.EMAIL),providers:[e.GOOGLE_CLIENT_ID&&e.GOOGLE_CLIENT_SECRET?'google':null,e.APPLE_CLIENT_ID&&e.APPLE_CLIENT_SECRET?'apple':null,e.MICROSOFT_CLIENT_ID&&e.MICROSOFT_CLIENT_SECRET?'microsoft':null].filter(Boolean),origin:e.AUTH_ORIGIN})});
+ app.get('/api/config',c=>{const e=authEnvironment(c.env);return c.json({configured:authReady(e),email:authReady(e)&&e.AUTH_EMAIL_ENABLED==='true'&&Boolean(e.EMAIL),providers:[e.AUTH_GOOGLE_ACCESS_AUD||e.GOOGLE_CLIENT_ID&&e.GOOGLE_CLIENT_SECRET?'google':null,e.APPLE_CLIENT_ID&&e.APPLE_CLIENT_SECRET?'apple':null,e.MICROSOFT_CLIENT_ID&&e.MICROSOFT_CLIENT_SECRET?'microsoft':null].filter(Boolean),googleMode:e.AUTH_GOOGLE_ACCESS_AUD?'access':'native',origin:e.AUTH_ORIGIN})});
  app.get('/api/session',async c=>{
   const e=authEnvironment(c.env);if(!authReady(e))return c.json({signedIn:false,configured:false});
   const session=await authFactory(e).api.getSession({headers:c.req.raw.headers});if(!session)return c.json({signedIn:false,configured:true});
@@ -17,15 +17,29 @@ export function registerPublic(app,authFactory){
   const session=await authFactory(e).api.getSession({headers:c.req.raw.headers});if(!session?.user.emailVerified)throw new UserError('Verify your email before joining',401);
   const value=await c.req.json();if(typeof value.name!=='string'||!value.name.trim()||value.name.length>80||!validDate(value.birthday)||value.privacyAccepted!==true)throw new UserError('Enter your name and birthday, then confirm the privacy notice');
   if(value.birthdayCelebration===true&&!adultOn(value.birthday))throw new UserError('Public birthday celebrations are available for adult profiles only');
+  const profileColor=/^#[0-9a-f]{6}$/i.test(value.profileColor||'')?value.profileColor:'#4f996c';
   const owner=Boolean(e.BOOTSTRAP_OWNER_EMAIL)&&e.BOOTSTRAP_OWNER_EMAIL.toLowerCase()===session.user.email.toLowerCase();
   await e.DB.batch([
    e.DB.prepare('INSERT OR IGNORE INTO members(id,status,roles_json,can_post,is_leader) VALUES(?,?,?,?,?)').bind(session.user.id,owner?'active':'pending',owner?'["admin","moderator","planner","treasurer"]':'[]',owner?1:0,owner?1:0),
    e.DB.prepare('UPDATE user SET name=?,updatedAt=? WHERE id=?').bind(value.name.trim(),Date.now(),session.user.id),
-   e.DB.prepare('INSERT INTO profiles(member_id,birthday,completed,birthday_celebration) VALUES(?,?,1,?) ON CONFLICT(member_id) DO UPDATE SET birthday=excluded.birthday,completed=1,birthday_celebration=excluded.birthday_celebration,updated_at=CURRENT_TIMESTAMP').bind(session.user.id,value.birthday,value.birthdayCelebration===true?1:0)
+   e.DB.prepare('INSERT INTO profiles(member_id,birthday,completed,birthday_celebration,profile_color) VALUES(?,?,1,?,?) ON CONFLICT(member_id) DO UPDATE SET birthday=excluded.birthday,completed=1,birthday_celebration=excluded.birthday_celebration,profile_color=excluded.profile_color,updated_at=CURRENT_TIMESTAMP').bind(session.user.id,value.birthday,value.birthdayCelebration===true?1:0,profileColor)
   ]);
   const member=await e.DB.prepare('SELECT status FROM members WHERE id=?').bind(session.user.id).first();return c.json({status:member.status});
  });
 
+
+ app.post('/api/onboarding/photo',async c=>{
+  const e=authEnvironment(c.env);if(!authReady(e)||!e.R2)throw new UserError('Photo storage is not configured',503);
+  if(c.req.header('Origin')!==e.AUTH_ORIGIN)throw new UserError('Invalid request origin',403);
+  const session=await authFactory(e).api.getSession({headers:c.req.raw.headers});if(!session?.user.emailVerified)throw new UserError('Sign in before adding a photo',401);
+  const member=await e.DB.prepare('SELECT status FROM members WHERE id=?').bind(session.user.id).first();if(!member||!['active','pending'].includes(member.status))throw new UserError('Complete your details before adding a photo',403);
+  const rate=await createRateStorage(e.DB).consume('onboarding-photo:'+session.user.id,{window:3600,max:6});if(!rate.allowed)throw new UserError('Photo upload limit reached. Try again later.',429);
+  const form=await c.req.formData(),file=form.get('file');if(!file||typeof file.arrayBuffer!=='function'||!file.size||file.size>10*1024*1024||!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type))throw new UserError('Choose a JPEG, PNG, WebP or GIF under 10 MB');
+  const bytes=await file.arrayBuffer(),head=new Uint8Array(bytes,0,Math.min(16,bytes.byteLength)),sig=String.fromCharCode(...head);
+  if(file.type==='image/png'&&!(head[0]===137&&sig.slice(1,4)==='PNG')||file.type==='image/jpeg'&&!(head[0]===255&&head[1]===216)||file.type==='image/gif'&&!sig.startsWith('GIF8')||file.type==='image/webp'&&!(sig.startsWith('RIFF')&&sig.slice(8,12)==='WEBP'))throw new UserError('The photo contents do not match its type');
+  const id=crypto.randomUUID(),key=`family/${session.user.id}/${id}`,url='/api/media/'+id;await e.R2.put(key,bytes,{httpMetadata:{contentType:file.type}});
+  try{await e.DB.batch([e.DB.prepare('INSERT INTO media(id,owner_id,object_key,name,mime_type,size_bytes) VALUES(?,?,?,?,?,?)').bind(id,session.user.id,key,'Profile photo',file.type,file.size),e.DB.prepare('UPDATE user SET image=?,updatedAt=? WHERE id=?').bind(url,Date.now(),session.user.id)])}catch(error){await e.R2.delete(key);throw error}return c.json({url},201);
+ });
 }
 export function registerFamily(app){
  app.get('/api/state',async c=>c.json(await familyState(c.env.DB,c.get('actor'))));
