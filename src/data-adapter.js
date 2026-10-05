@@ -70,6 +70,7 @@ export function reducer(state,action){
     case 'SET_MEMORY_FILTERS':return {...state,memoryFilters:action.value};
     case 'SET_NOTIFICATION_SCOPE':return {...state,notificationScope:action.value};
     case 'SET_SELECTED_NOTIFICATION_IDS':return {...state,selectedNotificationIds:action.ids};
+    case 'DISMISS_NOTICE':return {...state,notifications:(state.notifications||[]).filter(n=>n.id!==action.id)};
     case 'MARK_NOTICE_READ':return {...state,readNotices:[...new Set([...state.readNotices,action.id])]};
     case 'SET_COMPOSE':return {...state,compose:{...state.compose,...action.values}};
     case 'SET_DRAFT_FILES':return {...state,drafts:{...state.drafts,files:{...state.drafts.files,[action.key]:action.files}}};

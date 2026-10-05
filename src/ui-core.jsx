@@ -11,10 +11,11 @@ export const useApp=()=>useContext(AppContext);
 // material layers. Keep the native button as the host so existing layout and
 // keyboard semantics survive; Android returns only the native button.
 export const Control=React.forwardRef(function Control({className='',children,glassLens,...props},forwardedRef){
-  const platform=useApp()?.platform||'ios',ref=useRef(null),glass=platform==='ios'&&/\b(button|send-button|icon-button|filter-trigger)\b/.test(className)&&!/\b(list-row|brand|avatar)\b/.test(className);
+  const app=useApp(),platform=app?.platform||'ios',ref=useRef(null),glass=platform==='ios'&&/\b(button|send-button|icon-button|filter-trigger)\b/.test(className)&&!/\b(list-row|brand|avatar)\b/.test(className);
   const lens=glass&&(glassLens??/\b(button|send-button|icon-button|fab)\b/.test(className));
   const radius=/\b(icon-button|send-button|fab|avatar)\b/.test(className)?28:/\bbutton\b/.test(className)?25:40;
   const lensState=useLiquidLens(lens?ref:{current:null},{bezel:6,refraction:.9,dispersion:0,radius});
+  if(app?.data?.pending&&/\b(button|send-button)\b/.test(className))props.disabled=true;
   const setRef=node=>{ref.current=node;if(typeof forwardedRef==='function')forwardedRef(node);else if(forwardedRef)forwardedRef.current=node};
   if(!glass)return React.createElement('button',{...props,ref:setRef,className},children);
   return React.createElement('button',{...props,ref:setRef,
@@ -87,12 +88,12 @@ export function Popover({open,onClose,anchor,children,kind='menu',className=''})
 }
 export function InlineFilters({label,children}){const [open,setOpen]=useState(false),id=useId();return <div className={'inline-filters '+(open?'is-open':'')}><Control className="filter-trigger" aria-label={label} aria-expanded={open} aria-controls={id} onClick={()=>setOpen(v=>!v)}><Glyph name="settings"/></Control><div id={id} className="inline-filter-reveal" inert={!open}><div className="inline-filter-bar">{children}</div></div></div>}
 export function Sheet({title,kind='normal',onClose,children}) {
-  const glass=useApp()?.platform!=='android';
+  const app=useApp(),glass=app?.platform!=='android';
   const ref=useRef(null);
   useEffect(()=>{const el=ref.current;if(el&&!el.open)el.showModal();return ()=>{if(el?.open)el.close()}},[]);
   const className=kind==='comments'?'comments-surface':kind==='post'?'focus-surface':kind==='composer'?'composer-surface':kind==='filter'?'filter-surface':kind==='viewer'?'focus-surface memory-sheet':'';
   const content=<><div className="sheet-head"><h2 id="sheet-title">{title}</h2><Control type="button" id="close" className="icon-button" aria-label="Close dialog" onClick={onClose}><Glyph name="close"/></Control></div>
-    <div id="sheet-body">{children}</div></>;
+    <div id="sheet-body">{app?.data?.error&&<p className="note" role="alert">{app.data.error}</p>}{app?.data?.pending&&<p role="status" className="small muted">Saving…</p>}{children}</div></>;
   return <dialog id="sheet" ref={ref} className={className} aria-labelledby="sheet-title"
     onCancel={e=>{e.preventDefault();onClose()}} onClick={e=>{if(e.target===ref.current)onClose()}}>
     {glass?<LiquidGlass lens lensOptions={{bezel:14,refraction:1.05,dispersion:2,radius:32}} className="sheet-glass"><span className="glass-shadow" aria-hidden="true"/>{content}</LiquidGlass>:content}

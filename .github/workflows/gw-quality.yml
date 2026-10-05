@@ -22,14 +22,25 @@ jobs:
       - run: node tests/prepare-assets.mjs
       - run: npm run build
       - run: npm test
+      - run: npm ci --ignore-scripts
+        working-directory: backend
+      - run: npm test && npm run build
+        working-directory: backend
       - run: npx playwright install --with-deps chromium
       - name: Full recovery browser checks
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 --directory dist > /tmp/gw-http.log 2>&1 &
           node tests/recovery-browser.mjs
+      - name: Live API integration browser checks
+        run: |
+          node backend/tests/fixture-server.mjs > /tmp/gw-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4174/api/config && break; sleep 1; done
+          node tests/live-browser.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: gw-family-qa-${{ github.sha }}
-          path: docs/recovery-qa
+          path: |
+            docs/recovery-qa
+            docs/live-qa
           retention-days: 7
