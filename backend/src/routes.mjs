@@ -1,3 +1,4 @@
+import {adultOn} from './birthdays.mjs';
 import {UserError,command,familyState,json,readPost,validDate} from './family-service.mjs';
 import {authEnvironment,authReady,createRateStorage} from './auth.mjs';
 import {can} from './policy.mjs';
@@ -15,11 +16,12 @@ export function registerPublic(app,authFactory){
   if(c.req.header('Origin')!==e.AUTH_ORIGIN)throw new UserError('Invalid request origin',403);
   const session=await authFactory(e).api.getSession({headers:c.req.raw.headers});if(!session?.user.emailVerified)throw new UserError('Verify your email before joining',401);
   const value=await c.req.json();if(typeof value.name!=='string'||!value.name.trim()||value.name.length>80||!validDate(value.birthday)||value.privacyAccepted!==true)throw new UserError('Enter your name and birthday, then confirm the privacy notice');
+  if(value.birthdayCelebration===true&&!adultOn(value.birthday))throw new UserError('Public birthday celebrations are available for adult profiles only');
   const owner=Boolean(e.BOOTSTRAP_OWNER_EMAIL)&&e.BOOTSTRAP_OWNER_EMAIL.toLowerCase()===session.user.email.toLowerCase();
   await e.DB.batch([
    e.DB.prepare('INSERT OR IGNORE INTO members(id,status,roles_json,can_post,is_leader) VALUES(?,?,?,?,?)').bind(session.user.id,owner?'active':'pending',owner?'["admin","moderator","planner","treasurer"]':'[]',owner?1:0,owner?1:0),
    e.DB.prepare('UPDATE user SET name=?,updatedAt=? WHERE id=?').bind(value.name.trim(),Date.now(),session.user.id),
-   e.DB.prepare('INSERT INTO profiles(member_id,birthday,completed) VALUES(?,?,1) ON CONFLICT(member_id) DO UPDATE SET birthday=excluded.birthday,completed=1,updated_at=CURRENT_TIMESTAMP').bind(session.user.id,value.birthday)
+   e.DB.prepare('INSERT INTO profiles(member_id,birthday,completed,birthday_celebration) VALUES(?,?,1,?) ON CONFLICT(member_id) DO UPDATE SET birthday=excluded.birthday,completed=1,birthday_celebration=excluded.birthday_celebration,updated_at=CURRENT_TIMESTAMP').bind(session.user.id,value.birthday,value.birthdayCelebration===true?1:0)
   ]);
   const member=await e.DB.prepare('SELECT status FROM members WHERE id=?').bind(session.user.id).first();return c.json({status:member.status});
  });
@@ -61,6 +63,7 @@ export function registerFamily(app){
    if(!allowed){const cs=(await db.prepare('SELECT c.files_json,p.id FROM comments c JOIN posts p ON p.id=c.post_id WHERE c.deleted_at IS NULL AND p.deleted_at IS NULL').bind().all()).results;for(const x of cs){if(json(x.files_json,[]).some(f=>f.id===row.id)&&await readPost(db,actor,x.id)){allowed=true;break}}}
    if(!allowed)allowed=Boolean(await db.prepare("SELECT u.id FROM user u JOIN members m ON m.id=u.id WHERE u.image=? AND m.status='active'").bind('/api/media/'+row.id).first());
    if(!allowed){const memories=(await db.prepare('SELECT data_json FROM memories WHERE deleted_at IS NULL').bind().all()).results;allowed=memories.some(m=>json(m.data_json).image==='/api/media/'+row.id)}
+   if(!allowed){const contacts=(await db.prepare("SELECT p.member_id,p.contact_json FROM profiles p JOIN members m ON m.id=p.member_id WHERE m.status='active'").bind().all()).results;allowed=contacts.some(p=>{const v=json(p.contact_json);return v.photo==='/api/media/'+row.id&&v.optIn===true&&(v.visibility==='All approved family members'||v.visibility==='Family leaders'&&actor.isLeader||v.visibility==='Selected family members'&&v.selectedIds?.includes(actor.id))})}
   }
   if(!allowed)throw new UserError('File not found',404);const object=await c.env.R2.get(row.object_key);if(!object)throw new UserError('File not found',404);
   const inline=/^(image\/(png|jpeg|gif|webp)|video\/|audio\/)/.test(row.mime_type);return new Response(object.body,{headers:{'Content-Type':row.mime_type,'Content-Length':String(row.size_bytes),'Content-Disposition':`${inline?'inline':'attachment'}; filename*=UTF-8''${encodeURIComponent(row.name)}`,'X-Content-Type-Options':'nosniff','Cache-Control':'private, no-store','Content-Security-Policy':"default-src 'none'; sandbox"}});

@@ -1,3 +1,4 @@
+import {celebrateBirthdays} from './birthdays.mjs';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { createAuth,authEnvironment } from './auth.mjs';
@@ -30,5 +31,6 @@ app.put('/api/me/favorites/:id',async c=>{const actor=c.get('actor'),id=c.req.pa
 app.delete('/api/me/favorites/:id',async c=>{await c.env.DB.prepare('DELETE FROM favorites WHERE member_id=? AND favorite_member_id=?').bind(c.get('actor').id,c.req.param('id')).run();return c.json({favorite:false})});
 app.put('/api/me/notifications',async c=>{const data=await c.req.json();if(!['all','family','loved_ones','leaders','selected','off'].includes(data.scope)||!Array.isArray(data.selectedMemberIds||[])||(data.selectedMemberIds||[]).length>200)return c.json({error:'Invalid notification preferences'},400);const selected=[...new Set(data.selectedMemberIds||[])];if(selected.some(id=>typeof id!=='string'||id.length>100))return c.json({error:'Invalid member selection'},400);await c.env.DB.prepare('INSERT INTO notification_preferences(member_id,scope,selected_ids_json) VALUES(?,?,?) ON CONFLICT(member_id) DO UPDATE SET scope=excluded.scope,selected_ids_json=excluded.selected_ids_json').bind(c.get('actor').id,data.scope,JSON.stringify(selected)).run();return c.json({scope:data.scope,selectedMemberIds:selected,pushEnabled:false})});
 app.notFound(c=>c.json({error:'Not found'},404));return app}
-export default createApp();
+const app=createApp();
+export default {fetch:(request,env,ctx)=>app.fetch(request,env,ctx),scheduled:(controller,env,ctx)=>{if(env.BIRTHDAY_POSTS_ENABLED==='true')ctx.waitUntil(celebrateBirthdays(authEnvironment(env).DB,new Date(controller.scheduledTime)))}};
 

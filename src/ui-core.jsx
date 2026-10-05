@@ -6,18 +6,19 @@ import {useLiquidLens} from '@sohumsuthar/liquid-glass/hooks/useLiquidLens';
 import paths from './glyph-paths.js';
 
 export const AppContext=createContext(null);
+const FloatingSurfaceContext=createContext(false);
 export const useApp=()=>useContext(AppContext);
 // The loew.fi Send control uses the same package lens, interactive gel and four
 // material layers. Keep the native button as the host so existing layout and
 // keyboard semantics survive; Android returns only the native button.
 export const Control=React.forwardRef(function Control({className='',children,glassLens,...props},forwardedRef){
-  const app=useApp(),platform=app?.platform||'ios',ref=useRef(null),glass=platform==='ios'&&/\b(button|send-button|icon-button|filter-trigger)\b/.test(className)&&!/\b(list-row|brand|avatar)\b/.test(className);
+  const floating=useContext(FloatingSurfaceContext),app=useApp(),platform=app?.platform||'ios',ref=useRef(null),glass=!floating&&platform==='ios'&&/\b(button|send-button|icon-button|filter-trigger)\b/.test(className)&&!/\b(list-row|brand|avatar)\b/.test(className);
   const lens=glass&&(glassLens??/\b(button|send-button|icon-button|fab)\b/.test(className));
   const radius=/\b(icon-button|send-button|fab|avatar)\b/.test(className)?28:/\bbutton\b/.test(className)?25:40;
   const lensState=useLiquidLens(lens?ref:{current:null},{bezel:6,refraction:.9,dispersion:0,radius});
   if(app?.data?.pending&&/\b(button|send-button)\b/.test(className))props.disabled=true;
   const setRef=node=>{ref.current=node;if(typeof forwardedRef==='function')forwardedRef(node);else if(forwardedRef)forwardedRef.current=node};
-  if(!glass)return React.createElement('button',{...props,ref:setRef,className},children);
+  if(!glass)return React.createElement('button',{...props,ref:setRef,className:[className,floating?'on-floating-surface':''].filter(Boolean).join(' ')},children);
   return React.createElement('button',{...props,ref:setRef,
     className:['liquid-glass','lg-interactive','gw-optic-control',className].filter(Boolean).join(' '),
     style:{...props.style,...(lens&&lensState.filter?{'--lg-refract':lensState.filter}:null)}},
@@ -83,8 +84,8 @@ export function Popover({open,onClose,anchor,children,kind='menu',className=''})
     kind==='button'?{bezel:9,refraction:.9,dispersion:3,radius:28}:{bezel:9,refraction:.9,dispersion:2,radius:28};
   const onToggle=e=>{if(e.newState==='closed')onClose?.()};
   return glass?<LiquidGlass id={id} popover="auto" lens lensOptions={options} className={'gw-glass-menu '+className}
-    onToggle={onToggle}>{children}</LiquidGlass>:
-    <div id={id} popover="auto" className={'gw-material-menu '+className} onToggle={onToggle}>{children}</div>;
+    onToggle={onToggle}><FloatingSurfaceContext.Provider value={true}>{children}</FloatingSurfaceContext.Provider></LiquidGlass>:
+    <div id={id} popover="auto" className={'gw-material-menu '+className} onToggle={onToggle}><FloatingSurfaceContext.Provider value={true}>{children}</FloatingSurfaceContext.Provider></div>;
 }
 export function InlineFilters({label,children}){const [open,setOpen]=useState(false),id=useId();return <div className={'inline-filters '+(open?'is-open':'')}><Control className="filter-trigger" aria-label={label} aria-expanded={open} aria-controls={id} onClick={()=>setOpen(v=>!v)}><Glyph name="settings"/></Control><div id={id} className="inline-filter-reveal" inert={!open}><div className="inline-filter-bar">{children}</div></div></div>}
 export function Sheet({title,kind='normal',onClose,children}) {
@@ -92,8 +93,8 @@ export function Sheet({title,kind='normal',onClose,children}) {
   const ref=useRef(null);
   useEffect(()=>{const el=ref.current;if(el&&!el.open)el.showModal();return ()=>{if(el?.open)el.close()}},[]);
   const className=kind==='comments'?'comments-surface':kind==='post'?'focus-surface':kind==='composer'?'composer-surface':kind==='filter'?'filter-surface':kind==='viewer'?'focus-surface memory-sheet':'';
-  const content=<><div className="sheet-head"><h2 id="sheet-title">{title}</h2><Control type="button" id="close" className="icon-button" aria-label="Close dialog" onClick={onClose}><Glyph name="close"/></Control></div>
-    <div id="sheet-body">{app?.data?.error&&<p className="note" role="alert">{app.data.error}</p>}{app?.data?.pending&&<p role="status" className="small muted">Saving…</p>}{children}</div></>;
+  const content=<FloatingSurfaceContext.Provider value={true}><div className="sheet-head"><h2 id="sheet-title">{title}</h2><Control type="button" id="close" className="icon-button" aria-label="Close dialog" onClick={onClose}><Glyph name="close"/></Control></div>
+    <div id="sheet-body">{app?.data?.error&&<p className="note" role="alert">{app.data.error}</p>}{app?.data?.pending&&<p role="status" className="small muted">Saving…</p>}{children}</div></FloatingSurfaceContext.Provider>;
   return <dialog id="sheet" ref={ref} className={className} aria-labelledby="sheet-title"
     onCancel={e=>{e.preventDefault();onClose()}} onClick={e=>{if(e.target===ref.current)onClose()}}>
     {glass?<LiquidGlass lens lensOptions={{bezel:14,refraction:1.05,dispersion:2,radius:32}} className="sheet-glass"><span className="glass-shadow" aria-hidden="true"/>{content}</LiquidGlass>:content}

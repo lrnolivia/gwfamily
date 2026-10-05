@@ -1,3 +1,4 @@
+import {adultOn,publicBirthdays} from './birthdays.mjs';
 import { can, validateShirtSelection,shouldNotify } from './policy.mjs';
 import { createRateStorage } from './auth.mjs';
 
@@ -38,7 +39,8 @@ export async function familyState(db,actor){
  const reports=can(actor,'moderate')?list(await db.prepare('SELECT * FROM moderation_reports ORDER BY created_at DESC LIMIT 100').bind().all()):[];
  const memorials=list(await db.prepare('SELECT id,name,maiden_name,founder,story FROM memorials').bind().all());
  const relationships=list(await db.prepare('SELECT from_id,to_id,kind FROM family_relationships').bind().all());
- const state={mode:'live',schema:3,feedFilter:'all',peopleFilter:'all',memoryFilters:{},onboarding:'done',selfId:actor.id,capabilities:{post:can(actor,'post'),manageReunion:can(actor,'manage_reunion'),moderate:can(actor,'moderate'),manageMembers:can(actor,'manage_members'),treasurer:can(actor,'confirm_fees')},profileComplete:Boolean(me?.completed),
+ const birthdayCalendar=await publicBirthdays(db);
+ const state={birthdayCalendar,birthdayCelebration:Boolean(me?.birthday_celebration),mode:'live',schema:3,feedFilter:'all',peopleFilter:'all',memoryFilters:{},onboarding:'done',selfId:actor.id,capabilities:{post:can(actor,'post'),manageReunion:can(actor,'manage_reunion'),moderate:can(actor,'moderate'),manageMembers:can(actor,'manage_members'),treasurer:can(actor,'confirm_fees')},profileComplete:Boolean(me?.completed),
  members:members.map(m=>({id:m.id,name:m.name,photo:m.image,bio:m.bio||'',profileColor:m.profile_color||'#4f996c',themeSong:m.theme_song||'',socials:json(m.socials_json),circle:m.member_group==='loved_ones'?'loved':'family',leader:!!m.is_leader,moderator:json(m.roles_json,[]).some(r=>['admin','moderator'].includes(r)),groupId:groupMembers.find(g=>g.member_id===m.id)?.group_id||null,registered:true,origin:'live',...(m.id===actor.id?{birthday:me?.birthday,gender:me?.gender}:{} )})).concat(dependents.map(d=>({id:d.id,name:d.name,birthday:d.birthday,gender:d.gender,managedBy:actor.id,circle:'family',origin:'dependent',registered:false}))),
  groups:groups.map(g=>({id:g.id,name:g.name,memberIds:groupMembers.filter(m=>m.group_id===g.id).map(m=>m.member_id)})),
  posts:posts.map(p=>{const meta=json(p.metadata_json);const poll=meta.poll?{...meta.poll,votes:{}}:null;if(poll)for(const v of votes.filter(v=>v.post_id===p.id&&v.member_id!==actor.id))for(const i of json(v.options_json,[]))poll.votes[i]=(poll.votes[i]||0)+1;return {...meta,id:p.id,authorId:p.author_id,groupId:p.group_id,text:p.body,createdAt:stamp(p.created_at),poll}}),
@@ -61,6 +63,10 @@ export async function command(db,actor,input){
  const sql=[],result={ok:true};const q=(query,...args)=>sql.push(db.prepare(query).bind(...args));
  const audit=(action,id)=>q('INSERT INTO audit_log(id,actor_id,action,subject_id) VALUES(?,?,?,?)',uuid(),actor.id,action,id);
  switch(input.type){
+ case 'SET_BIRTHDAY_CELEBRATION':{
+  const profile=await db.prepare('SELECT birthday FROM profiles WHERE member_id=?').bind(actor.id).first();if(input.enabled===true&&!adultOn(profile?.birthday))throw new UserError('Public birthday celebrations are available for adult profiles only');
+  q('UPDATE profiles SET birthday_celebration=?,updated_at=CURRENT_TIMESTAMP WHERE member_id=?',input.enabled===true?1:0,actor.id);break;
+ }
  case 'SAVE_MEMBER':{
   const m=input.member||{};if(m.id!==actor.id)throw new UserError('You can only edit your own profile',403);const name=text(m.name,80,true),bio=text(m.bio||'',400);const color=/^#[0-9a-f]{6}$/i.test(m.profileColor||'')?m.profileColor:'#4f996c';const social={};for(const [k,v] of Object.entries(m.socials||{})){if(!['Instagram','Facebook','YouTube','TikTok','Bluesky','LinkedIn'].includes(k))throw new UserError('Unsupported social service');social[k]=webUrl(v,profileHosts)}
   if(m.birthday&&!validDate(m.birthday))throw new UserError('Enter a valid birthday');const oldPhoto=(await db.prepare('SELECT image FROM user WHERE id=?').bind(actor.id).first())?.image;const photo=m.photo?(m.photo===oldPhoto?[{url:oldPhoto}]:await ownedFiles(db,actor,[{url:m.photo}])):[];
