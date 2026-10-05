@@ -320,3 +320,8 @@ html[data-profile-route=true] body{background:var(--bg);color:var(--text)}html[d
 /* Closed inline filters are inert; open memory filters wrap within the content width. */
 .inline-filter-reveal[inert]{visibility:hidden}
 .memory-actions .inline-filters.is-open{width:100%;flex-basis:100%}.memory-actions .inline-filters.is-open .inline-filter-reveal{flex:1;min-width:0}.memory-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;max-width:100%;gap:12px;overflow:visible}.memory-filters label{width:auto;min-width:0}.memory-filters select{width:100%;min-width:0;max-width:100%}.memory-filters .button{white-space:normal}@media(min-width:768px){.memory-filters{grid-template-columns:repeat(3,minmax(0,1fr))}}
+/* Keep the real lens at the edge while making form content legible over busy pages. */
+html[data-platform=ios][data-theme] #sheet>.sheet-glass>.liquid-glass-tint{background:color-mix(in srgb,var(--surface) 94%,transparent)!important}
+#sheet::backdrop{background:rgba(0,0,0,.28);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+#sheet.profile-sheet::backdrop{backdrop-filter:grayscale(1) blur(8px);-webkit-backdrop-filter:grayscale(1) blur(8px)}
+@media(prefers-reduced-transparency:reduce){html[data-platform=ios][data-theme] #sheet>.sheet-glass>.liquid-glass-tint{background:var(--surface)!important}}
