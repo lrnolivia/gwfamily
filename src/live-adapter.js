@@ -18,6 +18,7 @@ export function useFamilyData(){
   const generation=epoch.current;
   try{const [cfg,sess]=await Promise.all([api('/api/config'),api('/api/session')]);if(!alive.current||generation!==epoch.current)return;setConfig(cfg);setSession(sess);
    if(sess.status==='active'&&!preview){const next=await api('/api/state');if(alive.current&&generation===epoch.current){const local=ref.current.mode==='live'&&ref.current.selfId===next.selfId?Object.fromEntries(localFields.map(k=>[k,ref.current[k]])):{};save({...next,...local})}}
+   return sess;
   }catch(e){if(alive.current&&generation===epoch.current){setConfig({configured:false,email:false,providers:[]});setError(e.status===404?'':e.message)}}finally{if(alive.current&&generation===epoch.current)setLoading(false)}
  }
  useEffect(()=>{alive.current=true;refresh();return()=>{alive.current=false}},[preview]);
