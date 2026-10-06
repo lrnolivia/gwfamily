@@ -3,7 +3,10 @@ import {createNotificationChannel,mergeNotificationPages,normalizeNotificationSe
 const PAGE_SIZE=30;
 const blank=(identity,state)=>({identity,items:[],unreadCount:0,nextCursor:null,readAllCutoff:null,settings:normalizeNotificationSettings(state?.notificationSettings,state),ready:false,loading:true,refreshing:false,busy:false,error:''});
 export function useNotifications(data){
- const {state}=data,enabled=state.onboarding==='done'&&(state.mode==='preview'?data.preview:state.mode==='live'&&data.session?.status==='active');
+ // The explicit preview flag records a user's mode choice. A static/unconfigured
+ // host also renders saved preview state once bootstrap finishes, without it.
+ const {state}=data,previewReady=data.preview||!data.loading&&data.config?.configured===false;
+ const enabled=state.onboarding==='done'&&(state.mode==='preview'?previewReady:state.mode==='live'&&data.session?.status==='active');
  const identity=enabled?`${state.mode}:${state.selfId}`:'inactive',current=useRef({identity,data});current.current={identity,data};
  const runtime=useRef(null),channel=useRef(null),[snapshot,setSnapshot]=useState(()=>blank(identity,state));
  const valid=run=>run?.active&&!run.accountInvalidated&&runtime.current===run&&current.current.identity===run.identity;

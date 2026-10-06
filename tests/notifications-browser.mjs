@@ -5,12 +5,14 @@ import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {initialState,PREVIEW_KEY} from '../src/data-adapter.js';
 import {DEFAULT_NOTIFICATION_CATEGORIES} from '../src/notification-model.js';
+import {sharedPageDefaults} from '../src/shared-content-schema.js';
 if(!process.env.CI&&process.env.GW_HOSTED_BROWSER_QA!=='1')throw new Error('Notification browser QA runs only in the authorized hosted CI environment.');
 const base=process.env.GW_NOTIFICATIONS_URL||'http://127.0.0.1:4173';
 assert.ok(/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(base),'Use the isolated hosted static fixture only.');
-const output='docs/notifications-qa',results=[],errors=[],requests=[],contexts=[],broadcasts=[];
+const output='docs/notifications-qa',results=[],errors=[],requests=[],contexts=[],broadcasts=[],events=[];
+let currentCheck='fixture boot',browser;
 await mkdir(output,{recursive:true});
-const engine=process.env.GW_BROWSER==='webkit'?'webkit':'chromium',browser=await(engine==='webkit'?webkit:chromium).launch({headless:true});
+const engine=process.env.GW_BROWSER==='webkit'?'webkit':'chromium';
 const oldPost={id:'older-authorized-post',authorId:'bob',text:'An authorized older fixture post outside the feed window.',createdAt:1000,memberIds:[],files:[]};
 const comment={id:'older-comment',authorId:'bob',text:'The exact older fixture reply.',createdAt:2000,parentId:null,files:[]};
 function account(id){return {id,settings:{accountId:id,scope:'leaders',globalOff:false,selectedIds:[],categories:{...DEFAULT_NOTIFICATION_CATEGORIES},revision:0,pushEnabled:false},notices:Array.from({length:id==='alice'?135:2},(_,i)=>({id:id+'-notice-'+(i+1),sequence:i+1,kind:'reply.created',category:'replies',title:`${id==='alice'?'Fixture':'Other account'} update ${i+1}`,text:'A fictional update for hosted QA.',createdAt:Date.now()-i*1000,readAt:null,target:{kind:'comment',id:comment.id,containerId:oldPost.id,anchorId:comment.id}}))}}
@@ -19,6 +21,10 @@ function stateFor(id){return {...initialState(),mode:'live',schema:3,selfId:id,o
  members:[{id:'alice',name:'QA Alice',circle:'family',registered:true,adult:true,profileColor:'#4f996c'},{id:'bob',name:'QA Bob',circle:'family',registered:true,adult:true,profileColor:'#754c95'}],groups:[],memories:[],memorials:[],relationships:[],posts:[{id:'recent-fixture',authorId:'bob',text:'The current fixture feed.',createdAt:Date.now(),files:[]}],comments:{},reactions:{},notifications:[],readNotices:[],notificationSettings:{...accounts[id].settings},notificationUnreadCount:visible(accounts[id]).filter(n=>!n.readAt).length};}
 function visible(account){return account.settings.globalOff?[]:account.notices.filter(n=>!n.dismissedAt&&account.settings.categories[n.category]);}
 function json(route,body,status=200){return route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});}
+function sharedPageRecord(pathname){
+ const page=decodeURIComponent(pathname.slice('/api/page-content/'.length));
+ return {page,content:sharedPageDefaults(page),revision:0,canEdit:false,updatedAt:null};
+}
 async function attachRoutes(context,viewer){
  await context.route('**/*',async route=>{
   const request=route.request(),url=new URL(request.url());if(url.origin!==base)return route.abort();
@@ -50,14 +56,20 @@ async function attachRoutes(context,viewer){
   }
   if(url.pathname==='/api/conversations')return json(route,{conversations:[],invitations:[],unreadCount:0,invitationCount:0});
   if(url.pathname==='/api/conversations/recipients')return json(route,{members:[]});
-  if(url.pathname.startsWith('/api/page-content/'))return json(route,{content:{},revision:0,canEdit:false});
+  if(method==='GET'&&/^\/api\/page-content\/[^/]+$/.test(url.pathname))return json(route,sharedPageRecord(url.pathname));
   if(url.pathname.endsWith('/typing'))return json(route,{typers:[]});
   return json(route,{error:'Unexpected synthetic fixture API call: '+method+' '+url.pathname},500);
  });
 }
 async function pageFor(viewer,{width=390,context:existing}={}){
  const context=existing||await browser.newContext({viewport:{width,height:844},reducedMotion:'reduce'});if(!existing){contexts.push(context);await attachRoutes(context,viewer);}
- const page=await context.newPage();page.setDefaultTimeout(12000);page.on('pageerror',error=>errors.push(error.message));
+ const page=await context.newPage();page.setDefaultTimeout(12000);
+ const record=(type,detail)=>{events.push({check:currentCheck,type,...detail});if(events.length>120)events.shift()};
+ const requestDetails=request=>{const url=new URL(request.url());return {path:url.origin+url.pathname,method:request.method(),resource:request.resourceType()}};
+ page.on('pageerror',error=>{if(errors.length<50)errors.push(error.message.slice(0,2000));record('pageerror',{error:String(error.stack||error.message).slice(0,3000)})});
+ page.on('requestfailed',request=>record('requestfailed',{...requestDetails(request),error:request.failure()?.errorText}));
+ page.on('response',response=>{if(response.status()>=400)record('http-error',{...requestDetails(response.request()),status:response.status()})});
+ page.on('console',message=>{if(message.type()==='error')record('console-error',{text:message.text().slice(0,1500)})});
  await page.exposeFunction('__qaBroadcast',payload=>broadcasts.push(payload));
  await page.addInitScript(()=>{
   localStorage.setItem('gw-install-dismissed','true');localStorage.setItem('gw-preview-notice:v1','seen');
@@ -68,13 +80,17 @@ async function pageFor(viewer,{width=390,context:existing}={}){
  await page.goto(base+'/');await expect(page.getByRole('navigation',{name:'Main navigation',exact:true})).toBeVisible();return {page,context};
 }
 const bell=page=>page.locator('header').getByRole('button',{name:/^Notifications(?:,|$)/});
+// A native settings dialog intentionally hides the header from the accessibility
+// tree. Its rendered badge still updates; recheck accessibility after closing.
+const backgroundBell=page=>page.locator('header button.notification-entry');
 const panel=page=>page.getByRole('region',{name:'Notifications',exact:true});
 async function showInbox(page){await page.bringToFront();if(await bell(page).getAttribute('aria-expanded')!=='true')await bell(page).click();await expect(panel(page)).toBeVisible();}
 async function refresh(page){await page.bringToFront();const previous=requests.filter(r=>r.path==='/api/notifications').length;await page.evaluate(()=>window.dispatchEvent(new Event('online')));await expect.poll(()=>requests.filter(r=>r.path==='/api/notifications').length).toBeGreaterThan(previous);}
-async function check(name,run){await run();results.push({check:name,status:'passed'});console.log('NOTIFICATION PASS:',name);}
+async function check(name,run){currentCheck=name;await run();results.push({check:name,status:'passed'});console.log('NOTIFICATION PASS:',name);}
 async function checkFit(page){const bounds=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,controls:[...document.querySelectorAll('.notification-panel button,.notification-settings button,.notification-settings input')].filter(e=>e.getClientRects().length&&!e.closest('[inert]')&&(!e.closest('[popover]')||e.closest('[popover]').matches(':popover-open'))).map(e=>({name:e.getAttribute('aria-label')||e.textContent,left:e.getBoundingClientRect().left,right:e.getBoundingClientRect().right})).filter(r=>r.left<0||r.right>innerWidth+1)}));assert.ok(bounds.scroll<=bounds.width+1&&!bounds.controls.length,JSON.stringify(bounds));}
 let failure;
 try{
+ browser=await(engine==='webkit'?webkit:chromium).launch({headless:true});
  const viewer={id:'alice'},first=await pageFor(viewer),alice=first.page;
  await check('authoritative unread badge covers 135 updates while page contains 30',async()=>{
   await expect(bell(alice)).toHaveAccessibleName('Notifications, 135 unread');await showInbox(alice);await expect(panel(alice).locator('[data-notice-id]')).toHaveCount(30);
@@ -100,12 +116,13 @@ try{
   assert.ok(broadcasts.length);for(const payload of broadcasts)assert.deepEqual(payload,{type:'invalidate',version:1});
  });
  await check('settings preserve Following through global Off and normalize Loved Ones',async()=>{
+  const before=visible(accounts.alice).filter(notice=>!notice.readAt).length;
   await showInbox(alice);await panel(alice).getByRole('button',{name:'Notification settings',exact:true}).click();const settings=alice.getByRole('region',{name:'Notification choices',exact:true});
   await chooseRadio(settings.getByRole('radio',{name:'Loved Ones',exact:true}));await expect(settings.getByRole('radio',{name:'Loved Ones',exact:true})).toBeChecked();
-  await chooseRadio(settings.getByRole('radio',{name:'Off',exact:true}));await expect(settings.getByRole('checkbox',{name:'Replies',exact:true})).toBeDisabled();await expect(bell(alice)).toHaveAccessibleName('Notifications');
+  await chooseRadio(settings.getByRole('radio',{name:'Off',exact:true}));await expect(settings.getByRole('checkbox',{name:'Replies',exact:true})).toBeDisabled();await expect(backgroundBell(alice)).toHaveAttribute('aria-label','Notifications');
   await chooseRadio(settings.getByRole('radio',{name:'On',exact:true}));await expect(settings.getByRole('radio',{name:'Loved Ones',exact:true})).toBeChecked();
-  await settings.getByRole('checkbox',{name:'Replies',exact:true}).uncheck();await expect(bell(alice)).toHaveAccessibleName('Notifications');await settings.getByRole('checkbox',{name:'Replies',exact:true}).check();
-  await alice.getByRole('button',{name:'Close dialog',exact:true}).click();
+  await settings.getByRole('checkbox',{name:'Replies',exact:true}).uncheck();await expect(backgroundBell(alice)).toHaveAttribute('aria-label','Notifications');await settings.getByRole('checkbox',{name:'Replies',exact:true}).check();
+  await alice.getByRole('button',{name:'Close dialog',exact:true}).click();await expect(bell(alice)).toHaveAccessibleName(`Notifications, ${before} unread`);
  });
  await check('read-all uses a server cutoff and leaves a later arrival unread',async()=>{
   await showInbox(alice);const cutoff=Math.max(...accounts.alice.notices.map(n=>n.sequence));accounts.alice.notices.push({id:'alice-new-after-cutoff',sequence:cutoff+1,kind:'reply.created',category:'replies',title:'A later fixture arrival',createdAt:Date.now(),target:{kind:'post',id:oldPost.id}});
@@ -113,7 +130,7 @@ try{
  });
  await check('account switch rejects stale settings writes and clears old-account inbox',async()=>{
   await panel(alice).getByRole('button',{name:'Notification settings',exact:true}).click();const previous=structuredClone(accounts.bob.settings);viewer.id='bob';await alice.getByRole('region',{name:'Notification choices'}).getByRole('checkbox',{name:'Reactions',exact:true}).uncheck();
-  await expect(bell(alice)).toHaveAccessibleName('Notifications, 2 unread');assert.deepEqual(accounts.bob.settings,previous);await alice.getByRole('button',{name:'Close dialog',exact:true}).click();await showInbox(alice);await expect(panel(alice).locator('[data-notice-id^="alice-"]')).toHaveCount(0);await expect(panel(alice).locator('[data-notice-id^="bob-"]')).toHaveCount(2);
+  await expect(backgroundBell(alice)).toHaveAttribute('aria-label','Notifications, 2 unread');assert.deepEqual(accounts.bob.settings,previous);await alice.getByRole('button',{name:'Close dialog',exact:true}).click();await expect(bell(alice)).toHaveAccessibleName('Notifications, 2 unread');await showInbox(alice);await expect(panel(alice).locator('[data-notice-id^="alice-"]')).toHaveCount(0);await expect(panel(alice).locator('[data-notice-id^="bob-"]')).toHaveCount(2);
  });
  await check('notification controls fit 320/390/768/1280 across approved materials and palettes',async()=>{
   for(const variant of [{width:320,theme:'light',material:'android'},{width:390,theme:'dark',material:'ios'},{width:768,theme:'light',material:'ios'},{width:1280,theme:'dark',material:'android'}]){
@@ -126,8 +143,28 @@ try{
   await showInbox(p.page);await panel(p.page).getByRole('button',{name:'Mark A sample reply is waiting read',exact:true}).click();await panel(p.page).getByRole('button',{name:'Dismiss A sample memory includes you',exact:true}).click();await panel(p.page).getByRole('button',{name:'Reset sample activity',exact:true}).click();await expect(bell(p.page)).toHaveAccessibleName('Notifications, 3 unread');assert.equal(requests.filter(r=>r.method!=='GET').length,before);
  });
  assert.deepEqual(errors,[],'No browser runtime errors');
-}catch(error){failure=error;results.push({check:'browser suite',status:'failed',error:error.stack||error.message});}
-finally{await writeFile(output+'/'+engine+'-results.json',JSON.stringify({engine,synthetic:true,externalWrites:false,results,errors,broadcasts},null,2));for(const context of contexts)await context.close();await browser.close();}
+}catch(error){
+ failure=error;results.push({check:currentCheck,status:'failed',error:error.stack||error.message});
+ console.error('::error title=GW notification browser '+annotation(engine+' '+currentCheck,true)+'::'+annotation(String(error.stack||error.message)));
+ const diagnostics=await captureFailure();
+ console.error('NOTIFICATION FAILURE DIAGNOSTICS:',JSON.stringify({check:currentCheck,errors,events:events.slice(-20),pages:diagnostics}));
+ await writeFile(output+'/'+engine+'-failure.json',JSON.stringify({engine,check:currentCheck,errors,events,requests:requests.slice(-100).map(({viewer,path,method})=>({viewer,path,method})),pages:diagnostics},null,2));
+}
+finally{await writeFile(output+'/'+engine+'-results.json',JSON.stringify({engine,synthetic:true,externalWrites:false,results,errors,broadcasts},null,2));for(const context of contexts)await context.close();await browser?.close();}
 if(failure)throw failure;
 
 async function chooseRadio(radio){await expect(radio).toBeEnabled();await radio.locator('..').click();await expect(radio).toBeChecked();}
+function annotation(value,property=false){const escaped=String(value).replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');return property?escaped.replaceAll(':','%3A').replaceAll(',','%2C'):escaped;}
+async function bounded(operation,ms=4000){let timer;try{return await Promise.race([operation,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Diagnostic exceeded '+ms+'ms')),ms)})])}finally{clearTimeout(timer)}}
+async function captureFailure(){
+ // A failed diagnostic must not replace the original assertion or stall CI.
+ const pages=contexts.flatMap(context=>context.pages()).filter(page=>!page.isClosed()).slice(-4);
+ return Promise.all(pages.map(async(page,index)=>{
+  const result={url:page.url()};
+  try{result.dom=await bounded(page.evaluate(()=>({title:document.title,app:document.querySelector('.app')?.className,body:document.body?.innerText.slice(0,3500),
+   bells:[...document.querySelectorAll('header .notification-entry')].map(el=>({label:el.getAttribute('aria-label'),hidden:el.getAttribute('aria-hidden'),inert:!!el.closest('[inert]'),display:getComputedStyle(el).display})),
+   dialogs:[...document.querySelectorAll('dialog')].map(el=>({open:el.open,title:el.querySelector('h2')?.textContent,text:el.innerText.slice(0,1000)})),alerts:[...document.querySelectorAll('[role="alert"]')].map(el=>el.textContent.slice(0,500))})));}catch(error){result.domError=error.message}
+  try{result.screenshot=`${engine}-failure-${index+1}.png`;await page.screenshot({path:output+'/'+result.screenshot,timeout:4000,fullPage:false})}catch(error){result.screenshotError=error.message}
+  return result;
+ }));
+}

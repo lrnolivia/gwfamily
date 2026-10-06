@@ -55,6 +55,25 @@ test('preview hook persists local read/settings/reset and never touches live API
  const unexpected=()=>{throw new Error('Live API called from preview')},data=dataFor('alice',{list:unexpected,read:unexpected,dismiss:unexpected,saveSettings:unexpected,open:unexpected});data.state={...initialState(),onboarding:'done'};data.preview=true;const host=await harness(data);
  try{host.render();await host.flush();assert.equal(host.render().unreadCount,3);await host.render().read('preview-notice-reply');assert.equal(host.render().unreadCount,2);await host.render().saveSettings({globalOff:true});assert.equal(host.render().unreadCount,0);await host.render().resetPreview();assert.equal(host.render().unreadCount,3);assert.equal(host.channels.length,0);assert.equal(data.pending,0)}finally{host.close()}
 });
+test('static preview fallback becomes ready after unconfigured bootstrap without an explicit preview session flag',async()=>{
+ const unexpected=()=>{throw new Error('Live API called from static preview')},data=dataFor('alice',{list:unexpected,read:unexpected,dismiss:unexpected,readAll:unexpected,saveSettings:unexpected,open:unexpected});
+ // This is the adapter state after the isolated static host returns no API.
+ // Loading a saved preview does not set the explicit gw-active-mode flag.
+ data.state={...initialState(),onboarding:'done'};data.preview=false;data.session=null;data.config={configured:false};data.loading=true;
+ const host=await harness(data);
+ try{
+  host.render();await host.flush();assert.equal(host.render().enabled,false);assert.equal(host.render().ready,false);
+  data.loading=false;host.render();await host.flush();assert.equal(host.render().enabled,true);assert.equal(host.render().ready,true);assert.equal(host.render().unreadCount,3);
+  await host.render().saveSettings({globalOff:true});assert.equal(host.render().settings.globalOff,true);assert.equal(host.render().unreadCount,0);
+  await host.render().saveSettings({globalOff:false});await host.render().read('preview-notice-reply');assert.equal(host.render().unreadCount,2);
+  await host.render().resetPreview();assert.equal(host.render().unreadCount,3);assert.equal(host.channels.length,0);assert.equal(data.pending,0);
+ }finally{host.close()}
+});
+test('a saved preview stays inactive while a configured service resolves its signed-in state',async()=>{
+ const data=dataFor();data.state={...initialState(),onboarding:'done'};data.preview=false;data.loading=false;data.config={configured:true};data.session={status:'signed_out'};
+ const host=await harness(data);
+ try{host.render();await host.flush();assert.equal(host.render().enabled,false);assert.equal(host.render().ready,false);assert.equal(host.render().items.length,0);assert.equal(host.channels.length,0)}finally{host.close()}
+});
 test('unavailable and unknown typed targets stay neutral with no hydration or navigation',async()=>{
  const data=dataFor('alice',{open:async()=>({accountId:'alice',available:true,target:{kind:'url',id:'https://evil.example'}})}),host=await harness(data);
  try{host.render();await host.flush();const result=await host.render().open('alice-3');assert.deepEqual(result,{available:false});assert.equal(data.hydrations,0);assert.equal(result.route,undefined);assert.equal(host.render().error,'This update is no longer available.')}finally{host.close()}

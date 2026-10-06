@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import vm from 'node:vm';
 import {initialState,reducer,loadLocalState,PREVIEW_KEY} from '../src/data-adapter.js';
+import {SHARED_PAGE_SCHEMA,sharedPageDefaults,validateSharedPageContent} from '../src/shared-content-schema.js';
 import {DEFAULT_NOTIFICATION_CATEGORIES,normalizeNotificationSettings,notificationCategory,notificationTargetRoute,mergeNotificationPages,mergeNotificationResource,previewNotificationPage,previewOpenNotification,createNotificationChannel,isNotificationInvalidation,NOTIFICATION_INVALIDATION} from '../src/notification-model.js';
 const source=file=>fs.readFileSync(new URL('../src/'+file,import.meta.url),'utf8');
 const settings=(state,patch)=>reducer(state,{type:'SET_NOTIFICATION_SETTINGS',patch,revision:state.notificationSettings.revision});
@@ -85,4 +87,29 @@ test('notification hook checks identity before commits, clears on account switch
 });
 test('UI uses shared choice controls, direct open actions, authoritative counts, and reduced motion',()=>{
  const ui=source('notifications.jsx'),css=source('notifications.css'),adapter=source('live-adapter.js');assert.match(ui,/ChoiceControl label="Whose posts and memories\?"/);assert.match(ui,/aria-label="Activity updates"/);assert.match(ui,/data-notice-id/);assert.match(ui,/n\.unreadCount/);assert.match(ui,/This device|Push on this device/);assert.match(css,/prefers-reduced-motion:reduce/);assert.match(css,/var\(--flat-font/);assert.match(adapter,/expectedAccountId/);assert.match(adapter,/withLinkedResource/);
+});
+test('hosted notification fixture returns renderable canonical page content, including hero defaults',()=>{
+ const fixture=fs.readFileSync(new URL('./notifications-browser.mjs',import.meta.url),'utf8');
+ const start=fixture.indexOf('function sharedPageRecord('),end=fixture.indexOf('async function attachRoutes(');
+ assert.ok(start>=0&&end>start,'Fixture must use the schema-complete shared-page response');
+ const record=vm.runInNewContext(fixture.slice(start,end)+';sharedPageRecord;',{sharedPageDefaults,decodeURIComponent});
+ for(const page of Object.keys(SHARED_PAGE_SCHEMA)){
+  const result=JSON.parse(JSON.stringify(record('/api/page-content/'+encodeURIComponent(page))));
+  assert.equal(result.page,page);assert.equal(result.canEdit,false);assert.equal(result.revision,0);
+  assert.deepEqual(result.content,validateSharedPageContent(page,result.content));
+  assert.equal(result.content.hero.mode,'default');assert.deepEqual(result.content.hero.media,[]);
+ }
+ assert.match(fixture,/return json\(route,sharedPageRecord\(url\.pathname\)\)/);
+ assert.doesNotMatch(fixture,/content:\{\},revision:0/);
+});
+test('hosted notification failures annotate the exact check and retain bounded diagnostics',()=>{
+ const fixture=fs.readFileSync(new URL('./notifications-browser.mjs',import.meta.url),'utf8');
+ assert.match(fixture,/currentCheck=name/);assert.match(fixture,/::error title=GW notification browser /);
+ assert.match(fixture,/page\.on\('pageerror'/);assert.match(fixture,/page\.on\('requestfailed'/);assert.match(fixture,/page\.on\('response'/);
+ assert.match(fixture,/events\.length>120/);assert.match(fixture,/slice\(-4\)/);assert.match(fixture,/screenshot\(\{[^}]*timeout:4000/);assert.match(fixture,/result\.dom=await bounded\(/);
+ assert.match(fixture,/toHaveAccessibleName\('Notifications, 135 unread'\)/);
+ assert.doesNotMatch(fixture,/waitForTimeout|networkidle/);
+ const start=fixture.indexOf('function annotation('),end=fixture.indexOf('async function bounded(');
+ const annotation=vm.runInNewContext(fixture.slice(start,end)+';annotation;');
+ assert.equal(annotation('check,colon:%\n',true),'check%2Ccolon%3A%25%0A');
 });

@@ -4,6 +4,7 @@ import {chromium, webkit, expect} from '@playwright/test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {mkdir, writeFile} from 'node:fs/promises';
+import {diagnosticUrl, installCommunicationsLifecycle, observeCommunicationsPage} from './communications-browser-diagnostics.mjs';
 
 if (!process.env.CI && process.env.GW_HOSTED_BROWSER_QA !== '1') {
   throw new Error('Communications browser QA runs only in the authorized hosted CI environment.');
@@ -12,32 +13,63 @@ const base = process.env.GW_COMMUNICATIONS_URL || 'http://127.0.0.1:4175';
 assert.ok(/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(base), 'Fixture origin must remain local to hosted CI.');
 const output = 'docs/communications-qa';
 const results = [], errors = [], sessions = [], typingRequests = [];
+const browserReads = new WeakMap(), traceStarted = Date.now();
+let currentCheck = 'fixture setup';
 const engineName = process.env.GW_BROWSER === 'webkit' ? 'webkit' : 'chromium';
 const browser = await (engineName === 'webkit' ? webkit : chromium).launch({headless: true});
 await mkdir(output, {recursive: true});
 
 async function check(name, run) {
+  currentCheck = name;
   await run();
   results.push({check: name, status: 'passed'});
   console.log('COMMUNICATIONS PASS:', name);
+}
+async function settleBrowserReads(page, {since, required = []} = {}) {
+  const trace = browserReads.get(page), options = {since: since ?? trace.lastDrained, required};
+  // Completion, rather than a delay or networkidle, keeps real polling enabled.
+  // This suite deliberately exercises denied reads and failed sends, so only
+  // explicitly required normal-route reads carry a successful-status contract.
+  await expect.poll(() => trace.readiness(options), {
+    message: 'Current communications route requests finish before document navigation.', timeout: 15000,
+  }).toEqual({missing: [], pending: []});
+  assert.deepEqual(trace.requiredReadFailures(options), [], 'Required authenticated route reads succeed.');
+  trace.lastDrained = trace.sequence;
+  trace.log('route-reads-settled', {since: options.since, required, pending: trace.snapshot().pending});
+}
+async function authenticatedRouteReady(page, {since, type, id} = {}) {
+  await expect(page.locator('.app:not(.is-onboarding) > header')).toBeVisible();
+  await expect(page.locator('.onboard')).toHaveCount(0);
+  const required = ['/api/state', '/api/conversations', '/api/conversations/recipients', '/api/notifications', '/api/page-content/global'];
+  if (type === 'chat') {
+    required.push(`/api/conversations/${encodeURIComponent(id)}`, `/api/conversations/${encodeURIComponent(id)}/messages`);
+    await expect(composer(page)).toBeVisible();
+  }
+  if (type === 'home') required.push('/api/page-content/home');
+  await settleBrowserReads(page, {since, required});
 }
 async function person(id, width = 390) {
   const context = await browser.newContext({viewport: {width, height: 844}, reducedMotion: 'reduce'});
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
-  sessions.push({id, context, page});
-  page.on('pageerror', error => errors.push({user: id, error: error.message}));
+  const trace = observeCommunicationsPage({page, context, label: id, base, errors, getCheck: () => currentCheck, started: traceStarted});
+  browserReads.set(page, trace);
+  sessions.push({id, context, page, trace});
   page.on('request', request => {
     if (new URL(request.url()).pathname.endsWith('/typing') && request.method() === 'POST') {
       typingRequests.push({user: id, url: request.url(), body: request.postDataJSON()});
     }
   });
+  await page.addInitScript(installCommunicationsLifecycle);
   await page.addInitScript(() => {
     localStorage.setItem('gw-install-dismissed', 'true');
     localStorage.setItem('gw-preview-notice:v1', 'seen');
   });
+  trace.log('signin-start');
   await page.goto(`${base}/__test/signin?user=${id}`);
   await page.getByRole('navigation', {name: 'Main navigation', exact: true}).waitFor();
+  await authenticatedRouteReady(page, {since: 0, type: 'home'});
+  trace.log('signin-ready');
   return page;
 }
 async function api(page, path, {method = 'GET', data} = {}) {
@@ -84,12 +116,33 @@ async function summary(page, id) {
   return (await ok(page, '/api/conversations')).conversations.find(conversation => conversation.id === id);
 }
 async function navigate(page, type, id) {
-  await page.goto(`${base}/?qa=${randomUUID()}#/${type}${id ? '/' + encodeURIComponent(id) : ''}`, {waitUntil: 'domcontentloaded'});
-  await expect(page.locator('main')).toBeVisible();
+  const trace = browserReads.get(page);
+  await settleBrowserReads(page);
+  const since = trace.sequence, target = `${base}/?qa=${randomUUID()}#/${type}${id ? '/' + encodeURIComponent(id) : ''}`;
+  trace.log('navigation-start', {target: diagnosticUrl(target), pending: trace.snapshot().pending});
+  await page.goto(target, {waitUntil: 'domcontentloaded'});
+  await expect(page).toHaveURL(target);
+  // main also exists during onboarding and cannot prove route readiness.
+  await authenticatedRouteReady(page, {since, type, id});
+  trace.log('navigation-ready', {target: diagnosticUrl(target), pending: trace.snapshot().pending});
+}
+async function reloadRoute(page, type, id, control) {
+  const trace = browserReads.get(page);
+  await settleBrowserReads(page);
+  const since = trace.sequence, target = page.url();
+  trace.log('reload-start', {target: diagnosticUrl(target), source: control ? 'update-control' : 'page-reload', pending: trace.snapshot().pending});
+  if (control) await Promise.all([page.waitForEvent('domcontentloaded'), control.click()]);
+  else await page.reload({waitUntil: 'domcontentloaded'});
+  await expect(page).toHaveURL(target);
+  await authenticatedRouteReady(page, {since, type, id});
+  trace.log('reload-ready', {target: diagnosticUrl(target), pending: trace.snapshot().pending});
 }
 async function inbox(page) {
+  browserReads.get(page).log('inbox-navigation-start');
   await page.locator('header').getByRole('button', {name: /^Messages(?:\b|$)/}).click();
   await expect(page).toHaveURL(/#\/inbox$/);
+  await expect(page.getByRole('heading', {name: 'Messages', exact: true})).toBeVisible();
+  browserReads.get(page).log('inbox-navigation-ready');
 }
 const composer = page => page.getByRole('textbox', {name: 'Write a message', exact: true});
 const sendButton = page => page.getByRole('button', {name: 'Send message', exact: true});
@@ -208,6 +261,10 @@ try {
     assert.equal(await bob.getByText(secret, {exact: true}).count(), 0);
     await bob.getByRole('button', {name: 'Accept invitation', exact: true}).click();
     await expect.poll(async () => (await api(bob, `/api/conversations/${directId}`)).status).toBe(200);
+    // Acceptance already navigates into chat. An independent API 200 does not
+    // establish that its paired browser detail/messages reads have finished.
+    await expect(bob).toHaveURL(new RegExp('#/chat/' + directId + '$'));
+    await expect(messageRow(bob, secret)).toHaveCount(1);
     await navigate(bob, 'chat', directId);
     await expect(messageRow(bob, secret)).toHaveCount(1);
   });
@@ -235,7 +292,7 @@ try {
     await expect(messageRow(alice, text)).toContainText(/read/i, {timeout: 20000});
     await send(bob, 'Cross-device fixture reply from Bob');
     await expect(messageRow(alice, 'Cross-device fixture reply from Bob')).toHaveCount(1, {timeout: 20000});
-    await bob.reload({waitUntil: 'domcontentloaded'});
+    await reloadRoute(bob, 'chat', directId);
     await expect(messageRow(bob, text)).toHaveCount(1);
     await expect(messageRow(bob, 'Cross-device fixture reply from Bob')).toHaveCount(1);
   });
@@ -318,7 +375,7 @@ try {
       await alice.evaluate(() => window.dispatchEvent(new Event('online')));
       await expect(alice.getByRole('button', {name: 'Reload updated app', exact: true})).toBeVisible();
       await expect(composer(alice)).toHaveValue(nextDraft);
-      await alice.getByRole('button', {name: 'Reload updated app', exact: true}).click();
+      await reloadRoute(alice, 'chat', directId, alice.getByRole('button', {name: 'Reload updated app', exact: true}));
       await expect(composer(alice)).toHaveValue(nextDraft);
       await expect(alice.locator('.message-outbox')).toContainText(text);
       assert.equal(await messageRow(alice, text).count(), 0, 'The preserved draft is still unsent after reload.');
@@ -532,7 +589,7 @@ try {
       await expect(alice.getByRole('alert').filter({hasText: 'Synthetic fixture comment failure'})).toBeVisible();
       await expect(field).toHaveValue(text);
       await expect(alice.getByRole('button', {name: 'Reload updated app', exact: true})).toBeEnabled();
-      await alice.getByRole('button', {name: 'Reload updated app', exact: true}).click();
+      await reloadRoute(alice, 'post', commentPostId, alice.getByRole('button', {name: 'Reload updated app', exact: true}));
       await expect(field).toHaveValue(text);
       await alice.screenshot({path: `${output}/comment-draft-reload-${engineName}.png`});
     } finally {
@@ -638,6 +695,7 @@ try {
     }
   });
 
+  for (const {page} of sessions) await settleBrowserReads(page);
   assert.deepEqual(errors, [], 'No unhandled browser exceptions.');
 } catch (error) {
   failure = error.stack || error.message;
@@ -650,9 +708,17 @@ try {
   }
   throw error;
 } finally {
-  await writeFile(`${output}/results-${engineName}.json`, JSON.stringify({
-    browser: engineName, results, errors, ...(failure ? {failure} : {}),
-    limitations: ['Reduced-height viewport is a keyboard layout simulation. No physical-device keyboard or installed-PWA claim.'],
-  }, null, 2));
-  await browser.close();
+  const persist = () => Promise.all([
+    writeFile(`${output}/results-${engineName}.json`, JSON.stringify({
+      browser: engineName, results, errors, ...(failure ? {failure} : {}),
+      limitations: ['Reduced-height viewport is a keyboard layout simulation. No physical-device keyboard or installed-PWA claim.'],
+    }, null, 2)),
+    writeFile(`${output}/network-${engineName}.json`, JSON.stringify({browser: engineName, pages: sessions.map(({id, trace}) => ({
+      user: id, droppedEvents: trace.droppedEvents, pending: trace.snapshot().pending, events: trace.events,
+    }))}, null, 2)),
+  ]);
+  await persist();
+  currentCheck = 'browser cleanup';
+  for (const {trace} of sessions) trace.log('browser-close-start', {pending: trace.snapshot().pending});
+  try {await browser.close();} finally {await persist();}
 }
