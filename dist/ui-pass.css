@@ -15,8 +15,8 @@ html[data-platform=android]{--radius-sheet:28px;--radius-card:24px}
 }
 @media(max-width:360px){
   .brand>img{width:62px;height:44px}
-  .wordmark-top{font-size:17px}
-  .wordmark-bottom{font-size:35px}
+  .wordmark-top{font-size:1.0625rem}
+  .wordmark-bottom{font-size:2.1875rem}
   .header-actions{gap:1px}
 }
 /* Peer cards share a row and height. Their own controls stay top-aligned. */
@@ -28,7 +28,7 @@ html[data-platform=android]{--radius-sheet:28px;--radius-card:24px}
 .home-grid>.stack{display:block}
 .home-grid>.stack>.card{margin-bottom:18px}
 .home-grid .feed-label{min-height:34px;margin:4px 0 14px}
-.home-grid .feed-label h2{font-family:var(--serif-font);font-size:24px;font-weight:400}
+.home-grid .feed-label h2{font-family:var(--serif-font);font-size:1.5rem;font-weight:400}
 .home-context{align-self:start}
 .home-context .stack{display:grid;align-content:start}
 .home-context .reunion-hub{height:auto}
@@ -87,7 +87,7 @@ html[data-platform=android]{--radius-sheet:28px;--radius-card:24px}
 #sheet.comments-surface[open] .conversation-composer{position:relative;bottom:auto}
 .inline-reply{margin:8px 0 14px 42px;min-width:0;animation:reply-in .22s ease-out}
 .inline-reply .conversation-composer{padding:4px 0 8px;margin:0}
-.inline-reply .replying-to{padding:0 0 5px;font-size:12px;color:var(--text)}
+.inline-reply .replying-to{padding:0 0 5px;font-size:0.75rem;color:var(--text)}
 .inline-reply .replying-to button{color:var(--text)}
 @keyframes reply-in{from{opacity:.35;transform:translateY(-5px)}to{opacity:1;transform:none}}
 @media(max-width:650px){
@@ -129,8 +129,8 @@ html[data-platform=android]{--radius-sheet:28px;--radius-card:24px}
   border:1px solid var(--line);box-shadow:0 12px 32px #00170d55
 }
 .reaction-quick{display:flex;justify-content:space-between;gap:2px}
-.reaction-quick button,.reaction-results button{min-width:40px;min-height:40px;font-size:22px}
-#reaction-search{margin:6px 0;padding:9px 12px;min-height:40px;font-size:14px;border-radius:13px}
+.reaction-quick button,.reaction-results button{min-width:40px;min-height:40px;font-size:1.375rem}
+#reaction-search{margin:6px 0;padding:9px 12px;min-height:40px;font-size:0.875rem;border-radius:13px}
 .reaction-results{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px;max-height:148px;overflow:auto}
 .reaction-results button{min-width:0}
 #profile-popout,#notifications-popout,#member-popout,#emoji-popout{
@@ -141,7 +141,7 @@ html[data-platform=android]{--radius-sheet:28px;--radius-card:24px}
 .thread-replies>summary{
   display:inline-flex;align-items:center;list-style:none;min-height:30px;
   padding:3px 10px;margin:2px 0 6px;border-radius:14px;background:var(--soft);
-  font-size:11px;font-weight:650;color:var(--muted);cursor:pointer
+  font-size:0.6875rem;font-weight:650;color:var(--muted);cursor:pointer
 }
 .thread-replies>summary::-webkit-details-marker{display:none}
 .thread-replies>.thread-comment{position:relative;margin:8px 0 8px 18px}
@@ -153,15 +153,15 @@ html[data-platform=android]{--radius-sheet:28px;--radius-card:24px}
 .depth-1 .chat-bubble{background:color-mix(in srgb,var(--raised) 78%,var(--accent) 22%)}
 .depth-2 .chat-bubble{background:color-mix(in srgb,var(--raised) 86%,var(--accent) 14%)}
 .depth-3 .chat-bubble{background:var(--raised)}
-.small-reaction-chips button,.reaction-pill{font-size:13px;min-height:28px;padding:2px 7px;border-radius:12px}
+.small-reaction-chips button,.reaction-pill{font-size:0.8125rem;min-height:28px;padding:2px 7px;border-radius:12px}
 .small-reaction-chips button{position:relative}
 .small-reaction-chips button::after{content:'';position:absolute;inset:-8px}
-.small-reaction-chips span:not(.reaction-pill),.reaction-pill small{font-size:10px}
+.small-reaction-chips span:not(.reaction-pill),.reaction-pill small{font-size:0.625rem}
 .membership-chips{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-top:5px}
 .member-full-profile .membership-chips{justify-content:center;margin:10px 0}
 .membership-chip{display:inline-flex;align-items:center;justify-content:center;
   min-height:25px;padding:3px 8px;border-radius:13px;background:var(--soft);
-  color:var(--text);font-size:11px;font-weight:650}
+  color:var(--text);font-size:0.6875rem;font-weight:650}
 .membership-chip .glyph{width:12px;height:12px;margin-right:4px}
 button.membership-chip{min-height:34px;text-decoration:underline;text-underline-offset:2px}
 .membership-shield{width:26px;padding:4px}
