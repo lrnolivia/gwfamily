@@ -17,7 +17,7 @@ const oldPost={id:'older-authorized-post',authorId:'bob',text:'An authorized old
 const comment={id:'older-comment',authorId:'bob',text:'The exact older fixture reply.',createdAt:2000,parentId:null,files:[]};
 let linkedComments=[comment];
 function account(id){return {id,settings:{accountId:id,scope:'leaders',globalOff:false,selectedIds:[],categories:{...DEFAULT_NOTIFICATION_CATEGORIES},revision:0,pushEnabled:false},notices:Array.from({length:id==='alice'?135:2},(_,i)=>({id:id+'-notice-'+(i+1),sequence:i+1,kind:'reply.created',category:'replies',title:`${id==='alice'?'Fixture':'Other account'} update ${i+1}`,text:'A fictional update for hosted QA.',createdAt:Date.now()-i*1000,readAt:null,target:{kind:'comment',id:comment.id,containerId:oldPost.id,anchorId:comment.id}}))}}
-const accounts={alice:account('alice'),bob:account('bob')};let holdOpen=null,holdSettings=null;
+const accounts={alice:account('alice'),bob:account('bob')};let holdOpen=null,holdSettings=null,holdReadAll=null;
 function stateFor(id){return {...initialState(),mode:'live',schema:3,selfId:id,onboarding:'done',profileComplete:true,capabilities:{},
  members:[{id:'alice',name:'QA Alice',circle:'family',registered:true,adult:true,profileColor:'#4f996c'},{id:'bob',name:'QA Bob',circle:'family',registered:true,adult:true,profileColor:'#754c95'}],groups:[],memories:[],memorials:[],relationships:[],posts:[{id:'recent-fixture',authorId:'bob',text:'The current fixture feed.',createdAt:Date.now(),files:[]}],comments:{},reactions:{},notifications:[],readNotices:[],notificationSettings:{...accounts[id].settings},notificationUnreadCount:visible(accounts[id]).filter(n=>!n.readAt).length};}
 function visible(account){return account.settings.globalOff?[]:account.notices.filter(n=>!n.dismissedAt&&account.settings.categories[n.category]);}
@@ -46,7 +46,10 @@ async function attachRoutes(context,viewer){
     const {expectedAccountId,revision,categories,...rest}=payload;a.settings={...a.settings,...rest,categories:{...a.settings.categories,...categories},revision:revision+1};if(a.settings.scope==='loved')a.settings.scope='loved_ones';
    }return json(route,a.settings);
   }
-  if(url.pathname==='/api/notifications/read-all'){for(const notice of visible(a))if(notice.sequence<=payload.cutoff&&notice.kind!=='message.created')notice.readAt||=Date.now();return json(route,{accountId:viewer.id,ok:true});}
+  if(url.pathname==='/api/notifications/read-all'){
+   if(holdReadAll){const pending=holdReadAll;holdReadAll=null;pending.started();await pending.promise;}
+   for(const notice of visible(a))if(notice.sequence<=payload.cutoff&&notice.kind!=='message.created')notice.readAt||=Date.now();return json(route,{accountId:viewer.id,ok:true});
+  }
   const match=/^\/api\/notifications\/([^/]+)\/(open|read|dismiss)$/.exec(url.pathname);
   if(match){
    const notice=a.notices.find(n=>n.id===decodeURIComponent(match[1]));if(match[2]==='open'){
@@ -268,8 +271,21 @@ try{
   await alice.getByRole('button',{name:'Close dialog',exact:true}).click();await expect(bell(alice)).toHaveAccessibleName(`Notifications, ${before} unread`);
  });
  await check('read-all uses a server cutoff and leaves a later arrival unread',async()=>{
-  await showInbox(alice);const cutoff=Math.max(...accounts.alice.notices.map(n=>n.sequence));accounts.alice.notices.push({id:'alice-new-after-cutoff',sequence:cutoff+1,kind:'reply.created',category:'replies',title:'A later fixture arrival',createdAt:Date.now(),target:{kind:'post',id:oldPost.id}});
-  await panel(alice).getByRole('button',{name:'Mark all read',exact:true}).click();await expect(bell(alice)).toHaveAccessibleName('Notifications, 1 unread');assert.equal(accounts.alice.notices.at(-1).readAt,undefined);
+  await showInbox(alice);const previous=structuredClone(accounts.alice.notices),cutoff=Math.max(...previous.map(n=>n.sequence)),writesBefore=requests.length;
+  let release,started=false;holdReadAll={promise:new Promise(r=>release=r),started:()=>{started=true}};
+  try{
+   await panel(alice).getByRole('button',{name:'Mark all read',exact:true}).click();await expect.poll(()=>started).toBe(true);
+   assert.deepEqual(requests.slice(writesBefore).filter(r=>r.path==='/api/notifications/read-all'),[
+    {viewer:'alice',path:'/api/notifications/read-all',method:'POST',payload:{cutoff,expectedAccountId:'alice'}},
+   ]);
+   assert.deepEqual(accounts.alice.notices,previous,'Read-all must remain uncommitted while its response is held');
+   // Arrive only after the actual request has captured its cutoff. Inserting
+   // before the click lets a normal background refresh include the new notice.
+   accounts.alice.notices.push({id:'alice-new-after-cutoff',sequence:cutoff+1,kind:'reply.created',category:'replies',title:'A later fixture arrival',createdAt:Date.now(),target:{kind:'post',id:oldPost.id}});
+  }finally{holdReadAll=null;release();}
+  await expect(bell(alice)).toHaveAccessibleName('Notifications, 1 unread');assert.equal(accounts.alice.notices.at(-1).readAt,undefined);
+  assert.ok(visible(accounts.alice).filter(n=>n.sequence<=cutoff&&n.kind!=='message.created').every(n=>n.readAt),'Every eligible notice through the sent cutoff is read');
+  assert.deepEqual(visible(accounts.alice).filter(n=>!n.readAt).map(n=>n.id),['alice-new-after-cutoff']);
  });
  await check('account switch rejects stale settings writes and clears old-account inbox',async()=>{
   await panel(alice).getByRole('button',{name:'Notification settings',exact:true}).click();const previous=structuredClone(accounts.bob.settings),oldSettings=structuredClone(accounts.alice.settings),writesBefore=settingsWrites().length;
