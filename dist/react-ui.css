@@ -216,7 +216,7 @@ html[data-platform=android] .bottom.material-nav{height:72px;padding:7px}
 html[data-theme=light] .reunion-hub>.button{background:#245c3b;color:#fffef4;border:1px solid #245c3b}html[data-theme=light][data-platform=ios] .reunion-hub>.button{--gw-control-color:#245c3b;--gw-control-alpha:95%;color:#fffef4}
 @media(max-width:650px){.inline-filters{max-width:100%}.feed-label:has(.inline-filters.is-open) .inline-filters{width:100%}.memory-actions{max-width:100%}.memory-actions .inline-filters.is-open{flex-basis:100%;order:2}.inline-filter-reveal{max-width:calc(100% - 44px)}.post-head .membership-chips{gap:4px}}
 @media(prefers-reduced-transparency:reduce){html[data-platform=ios] #sheet>.sheet-glass>.liquid-glass-tint{background:var(--surface)}}
-.field-memory-gallery{min-width:0}.field-memory-gallery figure{position:relative}.field-memory-open{border:0;background:transparent;color:var(--text);overflow:hidden;border-radius:inherit;cursor:pointer}.field-memory-open:focus-visible{outline:3px solid var(--accent);outline-offset:-4px}.field-memory-caption{position:absolute;inset:auto 0 0;padding:28px 12px 12px;background:linear-gradient(transparent,#000000e0);color:#fff;font-size:0.8125rem;text-align:left}.field-memory-gallery img{display:block}.field-memory-gallery a:focus-visible{outline-offset:-3px}
+.field-memory-gallery{min-width:0}.field-memory-gallery figure{position:relative}.field-memory-open{border:0;background:transparent;color:var(--text);overflow:hidden;border-radius:inherit;cursor:pointer}.field-memory-open:focus-visible{outline:3px solid var(--accent);outline-offset:-4px}.field-memory-caption{position:absolute;inset:auto 0 0;padding:28px 12px 12px;background:linear-gradient(transparent,#00160ee0);color:#fff;font-size:0.8125rem;text-align:left}.field-memory-gallery img{display:block}.field-memory-gallery a:focus-visible{outline-offset:-3px}
 
 /* Recovery: a quiet, persistent preview boundary without changing approved panels. */
 .preview-notice{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 20px;font-size:0.75rem;color:var(--muted);line-height:1.5}
@@ -423,13 +423,6 @@ html[data-platform] .button{line-height:1.4!important}
 
 .build-update-notice{position:fixed;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:150;display:flex;gap:12px;align-items:center;width:min(620px,calc(100% - 24px));padding:14px 18px;border-radius:20px;background:var(--surface);color:var(--text);box-shadow:0 6px 24px #0005;font-size:.875rem}.build-update-notice button{flex:none;background:var(--accent);color:var(--ink);padding:10px 14px;border-radius:20px;font-weight:700}
 
-/* Every menu row retains a complete, symmetric hit surface, including endpoints. */
-.list-row,.list-row:first-child,.list-row:last-child,.profile-menu .list-row{display:flex;align-items:center;min-height:64px;padding:calc(14px * var(--text-scale,1)) 16px;border:0!important;border-radius:14px;gap:14px;box-sizing:border-box}
-.list-row>span:not(.arrow):not(.avatar){min-width:0;flex:1}.list-row strong,.list-row p{margin:0;line-height:1.4}.list-row>.arrow,.list-row>.glyph:last-child{margin-left:auto;flex:none}.list-row>.glyph{align-self:center}
-.list-row:is(:hover,:active,:focus-visible){background:var(--soft)!important}
-/* Tablet/desktop dock is one centered group, with a separate action beside it. */
-@media(min-width:700px){
- html[data-platform] .bottom,html[data-platform] .bottom.liquid-glass{left:calc(50% - 36px);right:auto;margin-inline:0;transform:translateX(-50%);width:480px}
- html[data-platform] :is(.fab-glass,.material-fab){left:calc(50% + 220px);right:auto;bottom:calc(24px + env(safe-area-inset-bottom))!important;width:56px;height:56px;z-index:30}
-}
-@media(min-width:700px) and (display-mode:standalone){html[data-platform] :is(.fab-glass,.material-fab){bottom:calc(max(4px,env(safe-area-inset-bottom)) + 8px)!important}}
+
+/* Fixed warning color is intentionally independent of personal themes. */
+.email-delivery-warning{background:#ffdf00!important;color:#201b00!important;border:0;border-radius:16px;padding:16px 18px;font-size:.875rem;line-height:1.5}.email-delivery-warning strong{display:block;font-weight:750;margin-bottom:4px}.email-delivery-warning p{margin:0;color:inherit!important}
