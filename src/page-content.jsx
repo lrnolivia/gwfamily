@@ -1,4 +1,6 @@
 import {PageMarkdownEditor,PageMarkdownBody} from './page-markdown.jsx';
+import {CarouselControls,useCarouselSwipe} from './carousel-controls.jsx';
+import {carouselKeyboardDestination,wrapCarouselIndex} from './carousel-model.js';
 import {plainTextToMarkdown} from './page-markdown-model.js';
 import React,{createContext,useCallback,useContext,useEffect,useId,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {Button,Control,Glyph,useApp} from './ui-core.jsx';
@@ -195,16 +197,24 @@ function EditGlyph(){return <svg className="glyph page-edit-glyph" viewBox="0 0 
 function useReducedMotion(){const [reduced,setReduced]=useState(()=>typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches);useEffect(()=>{const query=matchMedia('(prefers-reduced-motion: reduce)'),update=()=>setReduced(query.matches);update();query.addEventListener('change',update);return()=>query.removeEventListener('change',update)},[]);return reduced}
 function imageInChildren(children){for(const child of React.Children.toArray(children)){if(React.isValidElement(child)){if(child.type==='img')return child.props.src;const nested=imageInChildren(child.props.children);if(nested)return nested}}return undefined}
 function PageHero({hero,preview,editing,poster}){
- const [index,setIndex]=useState(0),[playing,setPlaying]=useState(false),[paused,setPaused]=useState(false),reduced=useReducedMotion(),video=useRef(null);
- const media=hero.media.filter(file=>safePageMediaUrl(file.url,preview)),current=media[Math.min(index,Math.max(0,media.length-1))];
+ const [index,setIndex]=useState(0),[playing,setPlaying]=useState(false),[paused,setPaused]=useState(false),reduced=useReducedMotion(),video=useRef(null),photoId=useId();
+ const media=hero.media.filter(file=>safePageMediaUrl(file.url,preview)),current=media[Math.min(index,Math.max(0,media.length-1))],carousel=hero.mode==='gallery'&&media.length>1;
+ const step=amount=>{setPlaying(false);setIndex(value=>wrapCarouselIndex(value+amount,media.length))};
+ const swipe=useCarouselSwipe({enabled:carousel,onStep:step});
  useEffect(()=>{setIndex(0)},[hero.mode,hero.media.map(item=>item.id).join('|')]);
  useEffect(()=>{if(reduced||editing){setPlaying(false);video.current?.pause()}},[reduced,editing]);
  useEffect(()=>{if(!playing||paused||reduced||editing||media.length<2)return;const next=()=>{if(document.visibilityState==='visible')setIndex(value=>(value+1)%media.length)};const timer=setInterval(next,6000);return()=>clearInterval(timer)},[playing,paused,reduced,editing,media.length]);
  if(!current)return <div className="page-media-unavailable" role="status">This page photo isn’t available. A leader can choose another file.</div>;
  if(hero.mode==='video')return <video ref={video} className="page-hero-asset" src={current.url} poster={poster} aria-label={current.alt||'Family page video'} muted autoPlay={!reduced&&!editing} loop playsInline controls preload="metadata"/>;
- return <div className="page-hero-gallery" role={hero.mode==='gallery'?'region':undefined} aria-roledescription={hero.mode==='gallery'?'carousel':undefined} aria-label={hero.mode==='gallery'?'Family page photos':undefined} onMouseEnter={()=>setPaused(true)} onMouseLeave={()=>setPaused(false)} onFocus={()=>setPaused(true)} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))setPaused(false)}} onKeyDown={e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;if(media.length>1&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();setPlaying(false);setIndex(value=>(value+(e.key==='ArrowRight'?1:-1)+media.length)%media.length)}}}>
-  <img className="page-hero-asset" src={current.url} alt={current.alt||''}/>
-  {hero.mode==='gallery'&&media.length>1&&<div className="page-gallery-controls"><Control type="button" aria-label="Previous page photo" onClick={()=>{setPlaying(false);setIndex(value=>(value-1+media.length)%media.length)}}><Glyph name="arrow" className="page-previous"/></Control><span aria-live={playing?'off':'polite'}>{Math.min(index+1,media.length)} / {media.length}</span><Control type="button" aria-label={playing?'Pause page photos':'Play page photos'} aria-pressed={playing} disabled={reduced||editing} onClick={()=>setPlaying(value=>!value)}>{playing?'Pause':'Play'}</Control><Control type="button" aria-label="Next page photo" onClick={()=>{setPlaying(false);setIndex(value=>(value+1)%media.length)}}><Glyph name="arrow"/></Control></div>}
+ return <div className={'page-hero-gallery'+(carousel?' gw-carousel-stage':'')} role={hero.mode==='gallery'?'region':undefined} aria-roledescription={hero.mode==='gallery'?'carousel':undefined} aria-label={hero.mode==='gallery'?'Family page photos':undefined} {...swipe} onMouseEnter={()=>setPaused(true)} onMouseLeave={()=>setPaused(false)} onFocus={()=>setPaused(true)} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))setPaused(false)}} onKeyDown={event=>{
+  if(!carousel||event.altKey||event.ctrlKey||event.metaKey||event.shiftKey||event.target.closest('input,textarea,select,[contenteditable="true"]'))return;
+  const next=carouselKeyboardDestination(event.key,index,media.length);
+  if(next===null)return;
+  event.preventDefault();setPlaying(false);setIndex(next);
+ }}>
+  <div className="gw-carousel-photo"><img id={photoId} className="page-hero-asset" src={current.url} alt={current.alt||''} draggable={false}/>
+   {carousel&&<><CarouselControls previousLabel="Previous page photo" nextLabel="Next page photo" controls={photoId} onPrevious={()=>step(-1)} onNext={()=>step(1)}/><div className="gw-carousel-status page-gallery-status"><span aria-live={playing?'off':'polite'} aria-atomic="true">{Math.min(index+1,media.length)} / {media.length}</span><Control type="button" aria-label={playing?'Pause page photos':'Play page photos'} aria-pressed={playing} disabled={reduced||editing} onClick={()=>setPlaying(value=>!value)}>{playing?'Pause':'Play'}</Control></div></>}
+  </div>
  </div>;
 }
 export function EditableMedia({page,field='hero',children,className='',poster,emptyLabel='Page photo or video',...props}){
