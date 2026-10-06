@@ -19,7 +19,7 @@ import {BackgroundPicker,BackgroundEffect,BackgroundMedia,posterStyle} from './b
 import {InstallGuide,isInstalled} from './install.jsx';
 import React,{useEffect,useLayoutEffect,useMemo,useReducer,useState,useRef} from 'react';
 import{createRoot}from'react-dom/client';
-import{LiquidGlass}from'./ui-core.jsx';
+import{LiquidGlass}from'@sohumsuthar/liquid-glass';
 import{Control,ActionRow,AppContext,Avatar,Button,Glyph,GlassSystem,Popover,Sheet,InlineFilters,useViewport}from'./ui-core.jsx';
 import{initialState,loadLocalState,saveLocalState,resetPreview,reducer,surnameSuggestion,memberMatches}from'./data-adapter.js';
 import{PostCard,CommentsView,ComposerBox}from'./conversation.jsx';

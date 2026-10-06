@@ -1,9 +1,4 @@
-// WebKit uses native blur/tint glass rather than stacking an SVG feImage
-// displacement graph on live backdrop surfaces. iOS browsers share WebKit;
-// desktop Chromium browsers are excluded from this policy.
-export function usesNativeGlassOnly(userAgent='') {
-  return /AppleWebKit\//i.test(userAgent)&&!/(?:Chrome|Chromium|Edg|OPR)\//i.test(userAgent);
-}
-export function nativeGlassOnly() {
-  return typeof navigator!=='undefined'&&usesNativeGlassOnly(navigator.userAgent);
-}
+// Retired diagnostic module. WebKit SVG suppression and single-pass experiments
+// did not fix the same-tab reload failure; the app uses the original glass engine.
+// No runtime imports, exports, feature gates, or platform overrides remain here.
+// Remove this empty file when the source transport supports file deletion.
