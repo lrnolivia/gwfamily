@@ -1,3 +1,4 @@
+import {canRehearseFirstLoad} from './first-load-policy.mjs';
 import {registerPushRoutes} from './push-routes.mjs';
 import {readCalendar} from './calendar.mjs';
 import {registerNotifications} from './notification-routes.mjs';
@@ -11,11 +12,11 @@ import {can} from './policy.mjs';
 export function registerPublic(app,authFactory){
  app.get('/api/config',c=>{const e=authEnvironment(c.env);return c.json({configured:authReady(e),email:authReady(e)&&e.AUTH_EMAIL_ENABLED==='true'&&Boolean(e.EMAIL),providers:[e.AUTH_GOOGLE_ACCESS_AUD||e.GOOGLE_CLIENT_ID&&e.GOOGLE_CLIENT_SECRET?'google':null,e.APPLE_CLIENT_ID&&e.APPLE_CLIENT_SECRET?'apple':null,e.MICROSOFT_CLIENT_ID&&e.MICROSOFT_CLIENT_SECRET?'microsoft':null].filter(Boolean),googleMode:e.AUTH_GOOGLE_ACCESS_AUD?'access':'native',origin:e.AUTH_ORIGIN})});
  app.get('/api/session',async c=>{
-  const e=authEnvironment(c.env);if(!authReady(e))return c.json({signedIn:false,configured:false});
-  const session=await authFactory(e).api.getSession({headers:c.req.raw.headers});if(!session)return c.json({signedIn:false,configured:true});
-  if(!session.user.emailVerified)return c.json({signedIn:true,verified:false,status:'unverified'});
+  const e=authEnvironment(c.env);if(!authReady(e))return c.json({signedIn:false,configured:false,canRehearseFirstLoad:false});
+  const session=await authFactory(e).api.getSession({headers:c.req.raw.headers});if(!session)return c.json({signedIn:false,configured:true,canRehearseFirstLoad:false});
+  if(!session.user.emailVerified)return c.json({signedIn:true,verified:false,status:'unverified',canRehearseFirstLoad:false});
   const member=await e.DB.prepare('SELECT status FROM members WHERE id=?').bind(session.user.id).first();
-  return c.json({signedIn:true,verified:true,user:{id:session.user.id,name:session.user.name,email:session.user.email},status:member?.status||'new'});
+  return c.json({signedIn:true,verified:true,user:{id:session.user.id,name:session.user.name,email:session.user.email},status:member?.status||'new',canRehearseFirstLoad:canRehearseFirstLoad(e,session,member)});
  });
  app.post('/api/enroll',async c=>{
   const e=authEnvironment(c.env);if(!authReady(e))throw new UserError('Sign-in is not configured',503);
