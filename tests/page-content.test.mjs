@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {build} from 'esbuild';
 import {SHARED_PAGE_SCHEMA,sharedPageDefaults,validateSharedPageContent} from '../src/shared-content-schema.js';
-const source=await readFile(new URL('../src/page-content.jsx',import.meta.url),'utf8');
+const source=await readFile(new URL('../src/page-content.jsx',import.meta.url),'utf8')+'\n'+await readFile(new URL('../src/page-content-model.js',import.meta.url),'utf8');
 const css=await readFile(new URL('../src/page-content.css',import.meta.url),'utf8');
-const compiled=await build({stdin:{contents:"export {pageContentPayload,pageContentFingerprint,pageContentDirty,pageDraftKey,safePageMediaUrl,mergePageDraft,pageContentRequest,resetPageContentPreview,pageBrowserStorage,reconcilePageRecord,collectPageDrafts} from './src/page-content.jsx'",resolveDir:new URL('..',import.meta.url).pathname},bundle:true,write:false,format:'esm',platform:'node',loader:{'.css':'empty'},logLevel:'silent'});
+const compiled=await build({stdin:{contents:"export {pageContentPayload,pageContentFingerprint,pageContentDirty,pageDraftKey,safePageMediaUrl,mergePageDraft,pageContentRequest,resetPageContentPreview,pageBrowserStorage,reconcilePageRecord,collectPageDrafts} from './src/page-content-model.js'",resolveDir:new URL('..',import.meta.url).pathname},bundle:true,write:false,format:'esm',platform:'node',loader:{'.css':'empty'},logLevel:'silent'});
 const {pageContentPayload,pageContentFingerprint,pageContentDirty,pageDraftKey,safePageMediaUrl,mergePageDraft,pageContentRequest,resetPageContentPreview,pageBrowserStorage,reconcilePageRecord,collectPageDrafts}=await import('data:text/javascript;base64,'+Buffer.from(compiled.outputFiles[0].text).toString('base64'));
 const clone=value=>JSON.parse(JSON.stringify(value));
 
@@ -111,19 +111,20 @@ test('background loading keeps dirty focused fields enabled while preserving cur
 
 test('media upload owns a named progress status without suppressing pending-work protection',()=>{
  const panel=source.slice(source.indexOf('function PageMediaPanel('),source.indexOf('function PageHistory('));
- assert.match(panel,/<Sheet title="Page media" busy=\{uploading\} suppressGlobalPending=\{uploading\} kind="filter"/);
+ assert.match(panel,/<section className="page-inline-editor" aria-label="Page media" aria-busy=\{uploading\}/);
  assert.match(panel,/role="status" aria-label="Page media upload">\{progress\}/);
  assert.match(panel,/const finishWork=editor\.beginWork\(\);setUploading\(true\)/);
  assert.match(panel,/setProgress\('Uploading '/);
  assert.match(panel,/finishWork\(\);if\(alive\.current\)\{setUploading\(false\);setProgress/);
  assert.match(panel,/Uploaded privately\./);
  assert.match(panel,/Save the page to use /);
- assert.match(panel,/onClose=\{\(\)=>\{if\(!uploading\)onClose\(\)\}\}/);
+ assert.doesNotMatch(panel,/<Sheet/);
  assert.match(panel,/<Button icon="check" disabled=\{uploading\} onClick=\{onClose\}>Done<\/Button>/);
 });
 
 
-test('media and history panels use visual-viewport widths and explicit busy close locks',()=>{
- assert.match(source,/<Sheet title="Page history"[^>]*busy=\{restoring\}/);
- for(const width of [420,460])assert.ok(source.includes("width:'min("+width+"px, calc(var(--vv-width) - 24px))'"));
+test('media and history controls stay inline and preserve busy locks',()=>{
+ assert.match(source,/<section className="page-inline-editor" aria-label="Page history" aria-busy=\{restoring\}/);
+ assert.match(source,/disabled=\{restoring\} onClick=\{onClose\}>Close history/);
+ assert.doesNotMatch(source,/<Sheet/);
 });

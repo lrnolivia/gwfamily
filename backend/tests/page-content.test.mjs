@@ -1,3 +1,4 @@
+import {defaultPanelLayout,HERO_FIELDS} from '../../src/shared-panels.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
@@ -30,7 +31,8 @@ function setup(){
  };
  return {...value,env,app,call,get,write,restore,upload,objects};
 }
-const copy=(heading,hero={mode:'default',media:[]})=>({text:{heading},hero});
+const unlocked=page=>{const layout=defaultPanelLayout(page);if(layout.panels[0])layout.panels[0].locked=false;return layout};
+const copy=(heading,hero={mode:'default',media:[]})=>({text:{heading},hero,...(hero.mode!=='default'?{panelLayout:unlocked('home')}:{})});
 
 test('source defaults are returned to active family without database seeds; public and pending users cannot read',async()=>{
  const {get,call,sqlite}=setup();
@@ -69,7 +71,7 @@ test('writes sanitize bounded allowlisted plain text and store only default over
 test('all schema pages edit independently while global refuses hero media',async()=>{
  const {get,write,upload}=setup();
  for(const [page,schema]of Object.entries(SHARED_PAGE_SCHEMA)){
-  const key=Object.keys(schema.fields)[0],result=await write({text:{[key]:'Updated '+page}},0,'alice',page);assert.equal(result.status,200,page);assert.equal((await get(page)).data.content.text[key],'Updated '+page);
+  const key=Object.keys(schema.fields)[0],result=await write({text:{[key]:'Updated '+page},...(HERO_FIELDS[page]?.includes(key)?{panelLayout:unlocked(page)}:{})},0,'alice',page);assert.equal(result.status,200,page);assert.equal((await get(page)).data.content.text[key],'Updated '+page);
  }
  const file=upload('global-image');assert.equal((await write({text:{footerTagline:'Family'},hero:{mode:'image',media:[file]}},1,'alice','global')).status,400);
 });

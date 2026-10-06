@@ -5,7 +5,7 @@ const sheet=fs.readFileSync(new URL('../src/ui-core.jsx',import.meta.url),'utf8'
 test('sheets retain generic pending feedback unless an explicitly scoped child owns it',()=>{
  assert.match(sheet,/suppressGlobalPending=false,busy=false/);
  assert.match(sheet,/app\?\.data\?\.pending&&!suppressGlobalPending&&<p role="status"/);
- assert.match(cms,/<Sheet title="Page media" busy=\{uploading\} suppressGlobalPending=\{uploading\}/);
+ assert.match(cms,/<section className="page-inline-editor" aria-label="Page media" aria-busy=\{uploading\}/);
  assert.match(cms,/role="status" aria-label="Page media upload"/);
 });
 test('busy panels disable close and preserve keyboard/backdrop dismissal locks',()=>{
