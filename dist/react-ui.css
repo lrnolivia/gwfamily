@@ -446,7 +446,7 @@ html[data-theme][data-platform] .button.secondary{background:var(--raised)!impor
 html[data-theme][data-platform] .gw-optic-control.button.secondary>.liquid-glass-tint{background:var(--raised)!important;opacity:1!important}
 html[data-theme][data-platform] .button>.gw-optic-content{color:inherit!important}
 html[data-theme][data-platform] .button:disabled{background:var(--raised)!important;color:var(--muted)!important;--gw-control-color:var(--raised);--gw-control-alpha:100%;opacity:.45;box-shadow:none!important}
-html[data-theme][data-platform] :is(.gw-glass-menu,.sheet-glass)>.liquid-glass-tint{background:color-mix(in srgb,var(--surface) 94%,transparent)!important}
+html[data-theme][data-platform] :is(.gw-glass-menu,.sheet-glass)>.liquid-glass-tint{background:color-mix(in srgb,var(--surface) 96%,transparent)!important}
 html[data-profile-route=true] .reunion-hub{background:var(--raised);color:var(--text);border-color:var(--line)}
 html[data-profile-route=true] .reunion-hub :is(.muted,.list-row p,.list-row>.glyph){color:var(--muted)}
 html[data-profile-route=true] .reunion-hub .next-step{background:var(--surface)}

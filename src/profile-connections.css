@@ -38,3 +38,7 @@
 .profile-connections :is(.social-service-option,.connection-add,.song-result-choice,.song-search-action):hover{background:var(--soft)}
 @media(max-width:380px){.profile-connections .social-service-chooser{grid-template-columns:minmax(0,1fr)}.profile-connections .song-search-input{gap:5px;padding-left:10px}.profile-connections .song-search-input>.glyph{display:none}.profile-connections .song-search-action{padding-inline:4px}.profile-connections .selected-song-main{gap:8px}.profile-connections .selected-song-main .song-artwork{width:44px;height:44px}}
 .profile-connections .song-paste-toggle{display:inline-flex;align-items:center;gap:5px}.profile-connections .song-paste-toggle .glyph{width:16px;height:16px}
+/* Primary connection actions use the same opaque accent/foreground contract. */
+.profile-connections :is(.connection-add,.song-search-action){background:var(--control,var(--accent));color:var(--control-text,var(--ink));border-color:var(--control-edge,var(--accent));border-radius:14px;padding-inline:14px}
+.profile-connections .song-search-action:disabled{background:var(--raised);color:var(--muted);opacity:.45}
+.profile-connections .music-services button[aria-pressed=true]{background:var(--control,var(--accent));color:var(--control-text,var(--ink));border-color:var(--control-edge,var(--accent))}

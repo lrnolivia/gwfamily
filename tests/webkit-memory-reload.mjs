@@ -69,10 +69,9 @@ try {
   }));
   assert.ok(glass.layers>0,name+' retains glass material layers');
   assert.ok(glass.blur.some(value=>value?.includes('blur(')),name+' retains native backdrop glass');
-  assert.ok(glass.svgImages>0,name+' retains real SVG displacement images');
-  if(!options.hasTouch)assert.ok(glass.filters.some(value=>value.includes('url(')),name+' retains refraction filters');
-  else assert.ok(glass.filters.every(value=>value==='none'),name+' preserves package touch fallback');
-  assert.ok(glass.passes.every(value=>value===1),name+' uses one displacement pass per filter');
+  assert.equal(glass.svgImages,0,name+' allocates no SVG displacement images');
+  assert.ok(glass.filters.every(value=>value==='none'),name+' has no SVG displacement filter');
+  assert.deepEqual(glass.passes,[],name+' allocates no displacement graphs');
   const geometry=await page.locator('.field-memory-gallery').evaluate(el=>({width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height,scrollWidth:document.documentElement.scrollWidth,viewport:innerWidth}));
   assert.ok(geometry.width>0&&geometry.height>0&&geometry.scrollWidth<=geometry.viewport+1,name+' has bounded gallery geometry');
   await page.screenshot({path:`docs/live-qa/safari-reload-${name}-before.png`,timeout:15000});
