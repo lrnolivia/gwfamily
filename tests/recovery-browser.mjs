@@ -1,8 +1,8 @@
-import {chromium} from '@playwright/test';
+import {chromium,webkit} from '@playwright/test';
 import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {initialState,PREVIEW_KEY} from '../src/data-adapter.js';
-const url='http://127.0.0.1:4173',browser=await chromium.launch({headless:true,executablePath:process.env.PW_CHROME||undefined}),results=[],errors=[],writes=[];
+const url='http://127.0.0.1:4173',browser=await (process.env.GW_BROWSER==='webkit'?webkit:chromium).launch({headless:true,executablePath:process.env.PW_CHROME||undefined}),results=[],errors=[],writes=[];
 await mkdir('docs/recovery-qa',{recursive:true});
 async function pageFor(width=390,theme='dark',platform='ios',state=initialState()){
  const page=await browser.newPage({viewport:{width,height:844},reducedMotion:'reduce'});page.setDefaultTimeout(7000);page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(!['GET','HEAD'].includes(r.method()))writes.push(r.url())});

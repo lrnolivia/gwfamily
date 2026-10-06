@@ -82,7 +82,7 @@ export function Popover({open,onClose,anchor,children,kind='menu',className='',s
   },[id,open,anchor,glass]);
   const options=kind==='nav'?{bezel:16,refraction:1.2,dispersion:5,radius:40}:
     kind==='button'?{bezel:9,refraction:.9,dispersion:3,radius:28}:{bezel:9,refraction:.9,dispersion:2,radius:28};
-  const onToggle=e=>{if(e.newState==='closed'&&e.currentTarget.isConnected)onClose?.()};
+  const onToggle=e=>{if(e.newState==='closed'&&e.currentTarget.isConnected&&document.getElementById(id)===e.currentTarget&&!e.currentTarget.matches(':popover-open'))onClose?.()};
   return glass?<LiquidGlass id={id} style={style} popover="auto" lens lensOptions={options} className={'gw-glass-menu '+className}
     onToggle={onToggle}><FloatingSurfaceContext.Provider value={true}>{children}</FloatingSurfaceContext.Provider></LiquidGlass>:
     <div id={id} style={style} popover="auto" className={'gw-material-menu '+className} onToggle={onToggle}><FloatingSurfaceContext.Provider value={true}>{children}</FloatingSurfaceContext.Provider></div>;
