@@ -1,17 +1,5 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {DatabaseSync} from 'node:sqlite';import {readFileSync} from 'node:fs';import {createApp} from '../src/worker.mjs';
-function setup(){const db=new DatabaseSync(':memory:');for(const file of ['0001_auth.sql','0002_family.sql'])db.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));db.exec(`INSERT INTO user(id,name,email,emailVerified,createdAt,updatedAt) VALUES('a','A','a@example.invalid',1,0,0),('b','B','b@example.invalid',1,0,0);INSERT INTO members(id,status,can_post) VALUES('a','active',1),('b','pending',0);INSERT INTO products(id,name) VALUES('forest','Family shirt');`);const DB = {
-  prepare(sql) {
-    return {
-      bind(...values) {
-        return {
-          async first() { return db.prepare(sql).get(...values) || null; },
-          async all() { return { results: db.prepare(sql).all(...values) }; },
-          async run() { return { meta: { changes: db.prepare(sql).run(...values).changes } }; }
-        };
-      }
-    };
-  }
-};
+import test from 'node:test';import assert from 'node:assert/strict';import {DatabaseSync} from 'node:sqlite';import {readFileSync} from 'node:fs';import {database} from './test-db.mjs';import {createApp} from '../src/worker.mjs';
+function setup(){const {sqlite:db,DB}=database();db.exec(`INSERT INTO user(id,name,email,emailVerified,createdAt,updatedAt) VALUES('a','A','a@example.invalid',1,0,0),('b','B','b@example.invalid',1,0,0);INSERT INTO members(id,status,can_post) VALUES('a','active',1),('b','pending',0);INSERT INTO products(id,name) VALUES('forest','Family shirt');`);
 const env={DB,BETTER_AUTH_SECRET:'test-only-no-real-service',AUTH_ORIGIN:'https://gwf.loew.fi'};const app=createApp(()=>({api:{async getSession({headers}){const id=headers.get('X-Test-User');return id?{user:{id,emailVerified:true}}:null}},handler(){return new Response('unused')}}));const request=(path,method='GET',body,user='a',origin=env.AUTH_ORIGIN)=>app.request('https://gwf.loew.fi'+path,{method,headers:{'X-Test-User':user,Origin:origin,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})},env);return{db,env,app,request}}
 test('migrations load and protected routes fail closed',async()=>{const {request,app}=setup();assert.equal((await request('/api/me','GET',null,'')).status,401);assert.equal((await request('/api/me','GET',null,'b')).status,403);assert.equal((await app.request('https://gwf.loew.fi/api/me',{},{})).status,503)});
 test('active member posts and replies, foreign origin rejected',async()=>{const {request}=setup();assert.equal((await request('/api/posts','POST',{body:'Hello'},'a','https://evil.invalid')).status,403);const p=await(await request('/api/posts','POST',{body:'Hello'})).json();const c=await(await request('/api/posts/'+p.id+'/comments','POST',{body:'First'})).json();assert.equal((await request('/api/posts/'+p.id+'/comments','POST',{body:'Reply',parentId:c.id})).status,201);const list=await(await request('/api/posts/'+p.id+'/comments')).json();assert.equal(list.comments.length,2);assert.equal(list.comments.find(row=>row.parent_id).parent_id,c.id)});

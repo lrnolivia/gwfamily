@@ -72,6 +72,19 @@ jobs:
         if: always() && steps.frontend_build.outcome == 'success'
         timeout-minutes: 6
         run: CI=true node tests/choice-control-browser.mjs
+      - name: Durable activity inbox checks
+        if: always() && steps.frontend_build.outcome == 'success'
+        timeout-minutes: 6
+        run: |
+          if ! curl -fsS http://127.0.0.1:4173/; then
+            python3 -m http.server 4173 --bind 127.0.0.1 --directory dist > /tmp/gw-http.log 2>&1 &
+            for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ && break; sleep 1; done
+          fi
+          CI=true node tests/notifications-browser.mjs
+      - name: Guided install and optional help checks
+        if: always() && steps.frontend_build.outcome == 'success'
+        timeout-minutes: 6
+        run: CI=true node tests/install-tutorial-browser.mjs
       - name: Safari same-tab memory upload reload regression
         if: always() && matrix.browser == 'webkit' && steps.frontend_build.outcome == 'success' && steps.backend_build.outcome == 'success'
         timeout-minutes: 5
@@ -96,4 +109,6 @@ jobs:
             docs/navigation-qa
             docs/page-content-qa
             docs/choice-control-qa
+            docs/help-qa
+            docs/notifications-qa
           retention-days: 7
