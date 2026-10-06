@@ -1,0 +1,2 @@
+import test from'node:test';import assert from'node:assert/strict';import{textSizes,validTextStep}from'../src/text-size.js';
+test('text size preference is bounded with a system default',()=>{assert.equal(textSizes[1],1);assert.equal(validTextStep(-1),1);assert.equal(validTextStep(20),1);assert.equal(validTextStep('2'),2);assert.equal(validTextStep('bad'),1);assert.ok(Math.min(...textSizes)>=.9&&Math.max(...textSizes)<=1.3)});

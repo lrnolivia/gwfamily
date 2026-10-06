@@ -35,10 +35,10 @@ export function Avatar({member,size}){return member?.photo?<img className={'avat
 export function MemberBadges({member,interactive=false}){
   const {state,go}=useApp();
   if(!member)return null;
-  const group=state.groups.find(g=>g.id===member.groupId);
+  const household=(state.households||[]).find(h=>h.memberIds.includes(member.id));const group=state.groups.find(g=>g.id===member.groupId);
   return <span className="membership-chips">
     {member.circle&&<span className="membership-chip"><Glyph name={member.circle==='loved'?'heart':'people'}/>{member.circle==='loved'?'Loved Ones':'Family'}</span>}
-    {group&&(interactive?<Control type="button" className="membership-chip membership-group" onClick={e=>{e.stopPropagation();go({type:'group',id:group.id})}}><Glyph name="home"/>{group.name}</Control>:<span className="membership-chip membership-group"><Glyph name="home"/>{group.name}</span>)}
+    {household?<Control type="button" className="membership-chip membership-group" aria-label={'Household: '+household.name} onClick={e=>{e.stopPropagation();go({type:'household',id:household.id})}}><Glyph name="home"/>{household.name}</Control>:group&&(interactive?<Control type="button" className="membership-chip membership-group" onClick={e=>{e.stopPropagation();go({type:'group',id:group.id})}}><Glyph name="home"/>{group.name}</Control>:<span className="membership-chip membership-group"><Glyph name="home"/>{group.name}</span>)}
     {member.leader&&<span className="membership-chip membership-shield" role="img" aria-label="Family leader" title="Family leader"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 6v5c0 5-3 8-7 10-4-2-7-5-7-10V6zM8.5 11.8l2.3 2.3 4.7-4.7"/></svg></span>}
   </span>
 }
@@ -74,15 +74,15 @@ export function Popover({open,onClose,anchor,children,kind='menu',className='',s
       const below=(r?.bottom??top)+8,above=(r?.top??top)-h-8;
       const y=below+h<=top+height-12?below:above>=top+12?above:Math.max(top+12,top+height-h-12);
       el.style.left=x+'px';el.style.top=y+'px';if(r)el.style.transformOrigin=(r.left+r.width/2-x)+'px '+(r.top+r.height/2-y)+'px';el.style.maxHeight=(height-24)+'px';el.style.maxWidth=(width-24)+'px'};
-    if(!el.matches(':popover-open'))el.showPopover();place();
+    if(!el.matches(':popover-open'))el.showPopover();place();const observer=new ResizeObserver(place);observer.observe(el);
     const follow=()=>{if(!className.includes('member-mini-pop'))return;const r=anchor?.getBoundingClientRect?.();if(!anchor?.isConnected||!r||r.bottom<=0||r.top>=innerHeight||r.right<=0||r.left>=innerWidth){onClose?.();return}place()};window.addEventListener('scroll',follow,true);
     window.visualViewport?.addEventListener('resize',place);window.visualViewport?.addEventListener('scroll',place);
-    return ()=>{window.removeEventListener('scroll',follow,true);window.visualViewport?.removeEventListener('resize',place);window.visualViewport?.removeEventListener('scroll',place);
+    return ()=>{observer.disconnect();window.removeEventListener('scroll',follow,true);window.visualViewport?.removeEventListener('resize',place);window.visualViewport?.removeEventListener('scroll',place);
       if(el.matches(':popover-open'))el.hidePopover()};
   },[id,open,anchor,glass]);
   const options=kind==='nav'?{bezel:16,refraction:1.2,dispersion:5,radius:40}:
     kind==='button'?{bezel:9,refraction:.9,dispersion:3,radius:28}:{bezel:9,refraction:.9,dispersion:2,radius:28};
-  const onToggle=e=>{if(e.newState==='closed')onClose?.()};
+  const onToggle=e=>{if(e.newState==='closed'&&e.currentTarget.isConnected&&document.getElementById(id)===e.currentTarget&&!e.currentTarget.matches(':popover-open'))onClose?.()};
   return glass?<LiquidGlass id={id} style={style} popover="auto" lens lensOptions={options} className={'gw-glass-menu '+className}
     onToggle={onToggle}><FloatingSurfaceContext.Provider value={true}>{children}</FloatingSurfaceContext.Provider></LiquidGlass>:
     <div id={id} style={style} popover="auto" className={'gw-material-menu '+className} onToggle={onToggle}><FloatingSurfaceContext.Provider value={true}>{children}</FloatingSurfaceContext.Provider></div>;
