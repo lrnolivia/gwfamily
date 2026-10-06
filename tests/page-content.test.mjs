@@ -107,3 +107,23 @@ test('saving one visited page preserves recovered drafts on pages not yet revisi
 
 test('active-card glow is cleared when a family tab detaches it, without observing attributes',()=>{assert.match(source,/const main=document\.getElementById\('main'\)/);assert.match(source,/new MutationObserver\(\(\)=>\{if\(activeSurface\.current\?\.isConnected===false\)activateSurface\(null\)\}/);assert.match(source,/observer\.observe\(main,\{childList:true,subtree:true\}\)/);assert.match(source,/return\(\)=>observer\.disconnect\(\)/);assert.doesNotMatch(source,/observer\.observe\(main,[^\n]*attributes:/)});
 test('background loading keeps dirty focused fields enabled while preserving current keystrokes',()=>{assert.match(source,/busy=editor\.record\?\.status==='saving'/);assert.match(source,/disabled=\{busy\} onChange=\{e=>change\(e\.target\.value\)\}/);assert.match(source,/const freshest=ref\.current\[page\]\|\|before/);assert.match(source,/reconcilePageRecord\(page,result,keepDraft\?freshest:null,stored\)/)});
+
+
+test('media upload owns a named progress status without suppressing pending-work protection',()=>{
+ const panel=source.slice(source.indexOf('function PageMediaPanel('),source.indexOf('function PageHistory('));
+ assert.match(panel,/<Sheet title="Page media" busy=\{uploading\} suppressGlobalPending=\{uploading\} kind="filter"/);
+ assert.match(panel,/role="status" aria-label="Page media upload">\{progress\}/);
+ assert.match(panel,/const finishWork=editor\.beginWork\(\);setUploading\(true\)/);
+ assert.match(panel,/setProgress\('Uploading '/);
+ assert.match(panel,/finishWork\(\);if\(alive\.current\)\{setUploading\(false\);setProgress/);
+ assert.match(panel,/Uploaded privately\./);
+ assert.match(panel,/Save the page to use /);
+ assert.match(panel,/onClose=\{\(\)=>\{if\(!uploading\)onClose\(\)\}\}/);
+ assert.match(panel,/<Button icon="check" disabled=\{uploading\} onClick=\{onClose\}>Done<\/Button>/);
+});
+
+
+test('media and history panels use visual-viewport widths and explicit busy close locks',()=>{
+ assert.match(source,/<Sheet title="Page history"[^>]*busy=\{restoring\}/);
+ for(const width of [420,460])assert.ok(source.includes("width:'min("+width+"px, calc(var(--vv-width) - 24px))'"));
+});

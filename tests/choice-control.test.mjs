@@ -81,6 +81,15 @@ test('search selection is explicit, required queries do not count as a selected 
  assert.match(source,/visualViewport/);
  assert.doesNotMatch(source,/<select|aria-modal/);
 });
+test('empty search feedback does not intercept the next form action',()=>{
+ const empty=render({label:'Owner',variant:'search',options:[],required:true});
+ assert.match(empty,/class="choice-popover"[^>]*data-empty="true"/);
+ assert.match(empty,/role="status"[^>]*>No choices match/);
+ assert.doesNotMatch(render({label:'Owner',variant:'search',options:['Alex']}),/data-empty="true"/);
+ assert.match(source,/data-empty=\{!matches\.length\|\|undefined\}/);
+ assert.match(css,/\.choice-popover\[data-empty=true\],\.choice-popover::backdrop\{pointer-events:none\}/);
+ assert.match(source,/window\.addEventListener\('pointerdown',outside,true\)/);
+});
 test('migrated forms no longer render classic selects',()=>{
  for(const file of ['family','planner','profiles','memories','merchandise-manager','households']){
   const text=fs.readFileSync(new URL(`../src/${file}.jsx`,import.meta.url),'utf8');

@@ -41,7 +41,12 @@ try{
   await page.evaluate(()=>window.fixture.palette('dark','#c9aa52'));
   await page.getByRole('radio',{name:'Coming',exact:true}).focus();await page.keyboard.press('ArrowRight');await expect(page.getByRole('radio',{name:'Deciding',exact:true})).toBeChecked();
   const count=page.getByRole('combobox',{name:'How many people?'});await count.focus();await expect(count).toHaveAttribute('aria-expanded','true');await count.fill('20');await count.press('Enter');await expect(count).toHaveValue('20');await expect(count).toHaveAttribute('aria-expanded','false');
-  const owner=page.getByRole('combobox',{name:'New owner'});await owner.focus();await owner.fill('not a family member');await page.getByRole('button',{name:'Save choices'}).click();await expect(page.getByLabel('Saved choices')).toHaveText('0');await expect(owner).toHaveAttribute('aria-invalid','true');
+  const owner=page.getByRole('combobox',{name:'New owner'});await owner.focus();await owner.fill('not a family member');
+  await expect(page.getByRole('status')).toHaveText('No choices match. Try another search.');
+  await expect(owner).toHaveAttribute('aria-expanded','true');
+  // The empty top-layer popup can overlap this action. A normal pointer click
+  // must reach the form, which must still reject an unselected required owner.
+  await page.getByRole('button',{name:'Save choices'}).click();await expect(page.getByLabel('Saved choices')).toHaveText('0');await expect(owner).toHaveAttribute('aria-invalid','true');
   await owner.fill('jose');await expect(page.getByRole('option',{name:'José Williams'})).toBeVisible();await owner.press('Enter');await page.getByRole('button',{name:'Save choices'}).click();await expect(page.getByLabel('Saved choices')).toHaveText('1');assert.deepEqual(await page.evaluate(()=>window.formValues),{plans:'Deciding',count:'20',owner:'one'});
   await owner.focus();await owner.press('Home');await owner.press('ArrowDown');const active=await owner.getAttribute('aria-activedescendant');assert.equal(await page.locator(`[id="${active}"]`).innerText(),'Alex Green');await owner.press('Escape');await expect(owner).toHaveValue('José Williams');
   await owner.click();await page.evaluate(()=>window.fixture.disable(true));await expect(owner).toBeDisabled();await expect(owner).toHaveAttribute('aria-expanded','false');await page.evaluate(()=>window.fixture.disable(false));
@@ -58,4 +63,4 @@ try{
   await expect(page.getByLabel('Sent messages')).toHaveText('0');results.push({width,checks:['native radio keyboard','search and explicit selection','required validation','FormData parity','disabled choice skipping','Escape preserves sheet','disabled closes popup','mobile overflow','Send empty/enabled/busy palette matrix'],status:'passed'});await context.close();
  }
  assert.deepEqual(errors,[]);await writeFile(output+'/results.json',JSON.stringify({engine:process.env.GW_BROWSER||'chromium',results,errors},null,2));console.log('Choice control hosted QA passed',results);
-}finally{await browser.close()}
+}catch(error){console.error(error);console.log('::error title=GW choices browser::'+String(error.stack||error.message).replaceAll('%','%25').replaceAll('\n','%0A').replaceAll('\r','%0D'));throw error}finally{await browser.close()}

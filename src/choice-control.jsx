@@ -113,7 +113,7 @@ export function ChoiceControl({label,options=[],value='',onChange,variant='auto'
    <button type="button" className="choice-change" aria-label={(open?'Close choices for ':'Show choices for ')+(accessibleName||label)} aria-expanded={open} aria-controls={listId} disabled={disabled} tabIndex={-1} onMouseDown={event=>event.preventDefault()} onClick={()=>{if(open)close();else{input.current?.focus();begin()}}}>{open?'Done':'Change'}</button>
   </div>
   {name&&<input type="hidden" name={name} form={form} value={String(value??'')} disabled={disabled}/>}
-  <div ref={popup} popover="manual" className="choice-popover" data-open={open} onToggle={event=>{if(event.newState==='closed'&&!event.currentTarget.matches(':popover-open'))close()}}>
+  <div ref={popup} popover="manual" className="choice-popover" data-open={open} data-empty={!matches.length||undefined} onToggle={event=>{if(event.newState==='closed'&&!event.currentTarget.matches(':popover-open'))close()}}>
    <div ref={list} id={listId} className="choice-options" role="listbox" aria-label={accessibleName||label}>
     {matches.map((option,index)=><button key={option.value} id={id+'-option-'+index} type="button" role="option" className="choice-option" tabIndex={-1} aria-selected={option.value===String(value??'')} aria-disabled={option.disabled||undefined} disabled={disabled||option.disabled} data-active={index===activeIndex} onMouseDown={event=>event.preventDefault()} onPointerMove={()=>{if(!option.disabled)setActive(index)}} onClick={()=>choose(option)}><span>{option.label}</span><ChoiceMark checked={option.value===String(value??'')}/></button>)}
    </div>

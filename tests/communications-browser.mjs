@@ -362,7 +362,12 @@ try {
     await expect(picker).toBeEnabled();
     await picker.fill('Bob');
     await alice.getByRole('option', {name: 'Bob', exact: true}).click();
+    await expect(alice.getByRole('button', {name: 'Remove Bob', exact: true})).toBeVisible();
+    await expect(picker).toHaveAttribute('aria-expanded', 'false');
+    const createdResponse = alice.waitForResponse(response => response.url() === base + '/api/conversations' && response.request().method() === 'POST');
     await alice.getByRole('button', {name: 'Create group and invite', exact: true}).click();
+    const creation = await createdResponse;
+    assert.ok(creation.ok(), 'Group creation reaches the server once and succeeds: ' + creation.status());
     await expect(alice).toHaveURL(/#\/chat\/[^/?]+$/);
     groupId = decodeURIComponent(new URL(alice.url()).hash.split('/').at(-1));
     const group = (await ok(alice, `/api/conversations/${groupId}`)).conversation;

@@ -104,6 +104,35 @@ async function mediaPanel(page, key = 'home') {
   await expect(dialog).toBeVisible();
   return dialog;
 }
+async function uploadPageMedia(page, dialog, picker, files) {
+  const uploadStatus = dialog.getByRole('status', {name: 'Page media upload', exact: true});
+  const selected = Array.isArray(files) ? files : [files];
+  let entered = false, release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const handler = async route => {if (route.request().method() === 'POST') {entered = true; await gate;} await route.continue();};
+  await page.route('**/api/media', handler);
+  try {
+    await picker.setInputFiles(files);
+    await expect.poll(() => entered).toBe(true);
+    await expect(uploadStatus).toHaveText('Uploading 1 of ' + selected.length + '…');
+    await expect(dialog.getByRole('status')).toHaveCount(1);
+    await expect(dialog.getByText('Saving…', {exact: true})).toHaveCount(0);
+    await expect(picker).toBeDisabled();
+    await expect(dialog.getByRole('button', {name: 'Done', exact: true})).toBeDisabled();
+    await expect(dialog.getByRole('button', {name: 'Close dialog', exact: true})).toBeDisabled();
+    for (const name of ['Photo', 'Gallery', 'Video']) await expect(dialog.getByRole('button', {name, exact: true})).toBeDisabled();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeVisible();
+    await expect(uploadStatus).toHaveText('Uploading 1 of ' + selected.length + '…');
+    release();
+    await expect(uploadStatus).toContainText('Uploaded privately.');
+    await expect(uploadStatus).toContainText('Save the page to use ' + (selected.length === 1 ? 'it.' : 'these files.'));
+    await expect(dialog.getByRole('status')).toHaveCount(1);
+    await expect(picker).toBeEnabled();
+    await expect(dialog.getByRole('button', {name: 'Done', exact: true})).toBeEnabled();
+    await expect(dialog.getByRole('button', {name: 'Close dialog', exact: true})).toBeEnabled();
+  } finally {release(); await page.unroute('**/api/media', handler);}
+}
 async function closeDialog(page) {
   await page.getByRole('dialog').getByRole('button', {name: 'Close dialog', exact: true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -123,8 +152,13 @@ async function noClip(page) {
   assert.ok(geometry.scroll <= geometry.width + 1 && !geometry.clipped.length, 'Controls fit the viewport: ' + JSON.stringify(geometry));
 }
 async function panelFits(page, selector) {
-  const geometry = await page.locator(selector).evaluate(element => ({box: element.getBoundingClientRect().toJSON(), width: innerWidth, height: innerHeight}));
-  assert.ok(geometry.box.left >= -1 && geometry.box.right <= geometry.width + 1 && geometry.box.top >= -1 && geometry.box.bottom <= geometry.height + 1,
+  const geometry = await page.locator(selector).evaluate(element => {
+    const viewport = window.visualViewport, css = getComputedStyle(element);
+    return {box: element.getBoundingClientRect().toJSON(), left: viewport?.offsetLeft || 0, top: viewport?.offsetTop || 0,
+      width: viewport?.width || innerWidth, height: viewport?.height || innerHeight,
+      positioning: {left: css.left, right: css.right, top: css.top, transform: css.transform}};
+  });
+  assert.ok(geometry.box.left >= geometry.left - 1 && geometry.box.right <= geometry.left + geometry.width + 1 && geometry.box.top >= geometry.top - 1 && geometry.box.bottom <= geometry.top + geometry.height + 1,
     'The panel remains within the visible viewport: ' + JSON.stringify(geometry));
 }
 async function noImageDesaturation(page) {
@@ -335,9 +369,9 @@ try {
     await dialog.getByRole('button', {name: 'Gallery', exact: true}).click();
     const picker = dialog.getByLabel('Choose page photos', {exact: true});
     await expect(picker).toHaveAttribute('multiple', '');
-    await picker.setInputFiles([uploadPhoto('synthetic-first.png'), uploadPhoto('synthetic-second.png', 40)]);
+    await uploadPageMedia(owner, dialog, picker, [uploadPhoto('synthetic-first.png'), uploadPhoto('synthetic-second.png', 40)]);
     await expect(dialog.locator('.page-media-files > li')).toHaveCount(2);
-    await expect(dialog.getByRole('status')).toContainText('Uploaded privately.');
+    await expect(dialog.getByRole('status', {name: 'Page media upload', exact: true})).toContainText('Uploaded privately.');
     await dialog.getByLabel('Photo or video description', {exact: true}).nth(0).fill('Synthetic green color fixture one');
     await dialog.getByLabel('Photo or video description', {exact: true}).nth(1).fill('Synthetic green color fixture two');
     await dialog.getByRole('button', {name: 'Move photo 2 earlier', exact: true}).click();
@@ -404,8 +438,8 @@ try {
   await check('Video uploads render muted inline with a poster and native pause controls; reduced motion prevents autoplay', async () => {
     const dialog = await mediaPanel(owner);
     await dialog.getByRole('button', {name: 'Video', exact: true}).click();
-    await dialog.getByLabel('Choose page video', {exact: true}).setInputFiles({name: 'synthetic-green-clip.mp4', mimeType: 'video/mp4', buffer: videoBytes});
-    await expect(dialog.getByRole('status')).toContainText('Uploaded privately.');
+    await uploadPageMedia(owner, dialog, dialog.getByLabel('Choose page video', {exact: true}), {name: 'synthetic-green-clip.mp4', mimeType: 'video/mp4', buffer: videoBytes});
+    await expect(dialog.getByRole('status', {name: 'Page media upload', exact: true})).toContainText('Uploaded privately.');
     await dialog.getByLabel('Photo or video description', {exact: true}).fill('Synthetic muted green video fixture');
     await dialog.getByRole('button', {name: 'Done', exact: true}).click();
     await save(owner);
@@ -509,10 +543,24 @@ try {
       await noClip(otherOwner);
       await field(otherOwner, 'family.heading').getByRole('button', {name: 'Done editing Page heading', exact: true}).click();
       const dialog = await mediaPanel(otherOwner, 'family');
+      await panelFits(otherOwner, 'dialog[open]');
       for (const label of ['Photo', 'Gallery', 'Video']) {
+        await expect(dialog.getByRole('button', {name: label, exact: true})).toBeInViewport({ratio: 1});
         await dialog.getByRole('button', {name: label, exact: true}).click();
         await expect(dialog.getByRole('button', {name: label, exact: true})).toHaveAttribute('aria-pressed', 'true');
         await noClip(otherOwner);
+        await panelFits(otherOwner, 'dialog[open]');
+      }
+      if (viewport.height < 500) {
+        await dialog.getByRole('button', {name: 'Gallery', exact: true}).click();
+        await uploadPageMedia(otherOwner, dialog, dialog.getByLabel('Choose page photos', {exact: true}), [uploadPhoto('synthetic-landscape-first.png'), uploadPhoto('synthetic-landscape-second.png')]);
+        await expect(dialog.locator('.page-media-files > li')).toHaveCount(2);
+        await panelFits(otherOwner, 'dialog[open]');
+        const body = dialog.locator('#sheet-body');
+        assert.ok(await body.evaluate(element => element.scrollHeight > element.clientHeight), 'A short landscape viewport scrolls the media body instead of moving the dialog offscreen.');
+        await dialog.getByRole('button', {name: 'Use original media', exact: true}).click();
+        await expect(dialog.locator('.page-media-files > li')).toHaveCount(0);
+        await expect(dialog.getByRole('button', {name: 'Close dialog', exact: true})).toBeInViewport({ratio: 1});
         await panelFits(otherOwner, 'dialog[open]');
       }
       await otherOwner.screenshot({path: `${output}/media-panel-${viewport.width}x${viewport.height}-${engineName}.png`});

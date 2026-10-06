@@ -26,6 +26,10 @@
 .choice-control[data-disabled=true] .choice-search-field{opacity:.6}
 .choice-popover.choice-popover{position:fixed;inset:auto;margin:0;display:none;overflow:hidden;padding:6px;border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--text);font:inherit;box-sizing:border-box;z-index:180}
 .choice-popover[data-open=true]{display:flex;flex-direction:column}
+/* Empty search feedback is informational. It can overlap the next form action,
+   so let that action receive the pointer and dismiss the choices normally. The
+   non-modal top-layer backdrop must likewise never intercept outside clicks. */
+.choice-popover[data-empty=true],.choice-popover::backdrop{pointer-events:none}
 .choice-popover::backdrop{background:transparent}
 .choice-options{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--control,var(--accent)) var(--surface);scroll-padding:6px}
 .choice-options>.choice-option{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-width:0;min-height:46px;padding:11px 12px;border:1px solid transparent;border-radius:9px;text-align:start;font:inherit;font-size:.875rem;line-height:1.4;background:transparent;color:var(--text)}
