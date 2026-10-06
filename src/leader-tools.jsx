@@ -1,3 +1,4 @@
+import {leaderPreview} from './leader-preview.js';
 import React,{useEffect,useState} from 'react';
 import {Button,Control,Glyph,useApp} from './ui-core.jsx';
 import {api} from './live-adapter.js';
@@ -7,7 +8,7 @@ export function LeaderTools({section='overview'}){
  const {state,go,theme}=useApp(),preview=state.mode==='preview',caps=state.capabilities||{},canPlan=preview||caps.manageReunion,canPeople=preview||caps.manageMembers,canFees=preview||caps.treasurer;
  const [data,setData]=useState(null),[error,setError]=useState(''),[refresh,setRefresh]=useState(0);
  const allowed=canPlan||canPeople||canFees;
- useEffect(()=>{if(!allowed)return;let alive=true;setError('');if(preview){setData({members:[],rsvps:[],claims:[],fees:[],feeMembers:[],preview:true});return}api('/api/manage').then(value=>{if(alive)setData(value)}).catch(e=>{if(alive)setError(e.message)});return()=>{alive=false}},[allowed,preview,refresh]);
+ useEffect(()=>{if(!allowed)return;let alive=true;setError('');if(preview){setData(leaderPreview(state));return}api('/api/manage').then(value=>{if(alive)setData(value)}).catch(e=>{if(alive)setError(e.message)});return()=>{alive=false}},[allowed,preview,refresh,preview?state:null]);
  if(!allowed)return <section className="stack"><h1>Leader Tools</h1><p>You don’t have access to these tools.</p><Button secondary onClick={()=>go({type:'you'})}>Back to You</Button></section>;
  const tabs=[['overview','Overview','grid'],canPlan&&['details','Reunion details','calendar'],canPeople&&['members','People','people'],canPlan&&['shirts','Merchandise','shirt'],canFees&&['fees','Fees','wallet']].filter(Boolean),active=tabs.some(([id])=>id===section)?section:'overview';
  const open=id=>go({type:'leader-tools',section:id});const pending=data?.members.filter(m=>m.status==='pending').length||0,going=data?.rsvps.filter(r=>r.status==='Planning to come')||[],unverified=data?.fees.filter(f=>f.status==='reported').length||0,openOrders=data?.claims.filter(o=>!['delivered','cancelled'].includes(o.status)).length||0;

@@ -109,12 +109,14 @@ export function reducer(state,action){
     }
     case 'BAG_REMOVE':return {...state,bag:state.bag.filter(x=>x.productId!==action.productId)};
     case 'MARK_ANNOUNCEMENT_SEEN':return {...state,announcementViews:[...new Set([...(state.announcementViews||[]),action.id])]};
-    case 'CLAIM_ORDER':return {...state,order:{id:'preview-order-'+Date.now(),status:'claimed',claimedAt:Date.now(),items:state.bag},bag:[]};
+    case 'CLAIM_ORDER':{const order={id:'preview-order-'+Date.now(),status:'claimed',claimedAt:Date.now(),items:state.bag};return {...state,order,previewOrders:[order,...(state.previewOrders||[])],bag:[]}}
     case 'SAVE_PRODUCT':{const p={...action.product,id:action.product.id||'preview-item-'+Date.now()};return {...state,products:[...(state.products||[]).filter(x=>x.id!==p.id),p]}}
-    case 'UPDATE_CLAIM':return {...state,order:state.order?{...state.order,status:action.status}:null};
+    case 'UPDATE_CLAIM':return {...state,order:state.order?.id===action.id?{...state.order,status:action.status}:state.order,previewOrders:(state.previewOrders||[]).map(o=>o.id===action.id?{...o,status:action.status}:o)};
+    case 'APPROVE_MEMBER':return {...state,members:state.members.map(m=>m.id===action.id?{...m,previewStatus:action.status,previewRoles:action.roles,canPost:action.canPost}:m)};
+    case 'CONFIRM_FEE':return {...state,fees:action.status,previewFeeReports:(state.previewFeeReports||[]).map(f=>f.id===action.id?{...f,status:action.status}:f)};
     case 'ORDER_RECEIVED':return {...state,order:state.order?{...state.order,status:'received',receivedAt:Date.now()}:null};
     case 'SET_PAYMENT':return {...state,payment:action.value};
-    case 'SET_FEES':return {...state,fees:action.value};
+    case 'SET_FEES':return {...state,fees:action.value,previewFeeReports:[{id:'preview-fee-'+Date.now(),status:'reported'},...(state.previewFeeReports||[])]};
     case 'RSVP':return {...state,rsvp:action.value};
     case 'DETAILS':return {...state,details:action.value};
     case 'REPORT':return {...state,reports:[...state.reports,{id:'report-'+(state.lastId+1),targetId:action.targetId,
