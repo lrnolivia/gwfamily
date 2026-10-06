@@ -1,3 +1,4 @@
+import {signInCodeEmail,signInLinkEmail} from './email-template.mjs';
 import {googleAccess} from './google-access.mjs';
 import { betterAuth } from 'better-auth';
 import { emailOTP, magicLink } from 'better-auth/plugins';
@@ -44,12 +45,11 @@ export function createAuth(rawEnv) {
     plugins:[...(env.AUTH_GOOGLE_ACCESS_AUD?[googleAccess(env)]:[]),
       emailOTP({expiresIn:600,otpLength:6,allowedAttempts:3,storeOTP:'hashed',sendVerificationOTP:async({email,otp})=>
         send(email,'Your Green & White sign-in code',`Your code is ${otp}. It expires in 10 minutes. If you did not request this, ignore this email.`,
-          `<p>Your Green &amp; White sign-in code:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px">${otp}</p><p>It expires in 10 minutes. If you did not request this, ignore this email.</p>`)}),
+          signInCodeEmail(otp))}),
       magicLink({expiresIn:600,storeToken:'hashed',sendMagicLink:async({email,url})=>{
         const safe = new URL(url); if(safe.origin!==env.AUTH_ORIGIN)throw new Error('Invalid sign-in origin');
-        const escaped=safe.href.replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;');
         return send(email,'Sign in to Green & White',`Sign in: ${safe.href}\nThis link works once and expires in 10 minutes. If you did not request it, ignore this email.`,
-          `<p><a href="${escaped}">Sign in to Green &amp; White</a></p><p>This link works once and expires in 10 minutes. If you did not request it, ignore this email.</p>`);
+          signInLinkEmail(safe.href));
       }})
     ],user:{deleteUser:{enabled:false}}
   });
