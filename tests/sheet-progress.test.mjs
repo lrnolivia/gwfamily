@@ -15,12 +15,16 @@ test('busy panels disable close and preserve keyboard/backdrop dismissal locks',
  assert.match(sheet,/if\(e.target===ref.current\)close\(\)/);
 });
 
-test('filter sheet geometry cannot mix right-docked placement with a centered transform',()=>{
+test('all unanchored sheets center on both visible viewport axes with safe internal scrolling',()=>{
  const css=fs.readFileSync(new URL('../src/sheet-geometry.css',import.meta.url),'utf8');
- assert.match(css,/html\[data-platform\] #sheet\.filter-surface\[open\]\{/);
- assert.match(css,/left:calc\(var\(--vv-left\) \+ var\(--vv-width\)\/2\)/);
- assert.match(css,/right:auto;bottom:auto;transform:translateX\(-50%\)/);
- assert.match(css,/height:auto;min-height:0;max-height:calc\(var\(--vv-height\) - 24px\)/);
+ assert.match(css,/html\[data-platform\] #sheet\[open\]\{/);
+ assert.match(css,/top:calc\(var\(--vv-top,0px\) \+ var\(--vv-height,100dvh\)\/2\)/);
+ assert.match(css,/left:calc\(var\(--vv-left,0px\) \+ var\(--vv-width,100vw\)\/2\)/);
+ assert.match(css,/right:auto;bottom:auto;transform:translate\(-50%,-50%\)/);
+ assert.match(css,/height:auto;min-height:0;max-height:var\(--sheet-max-height\)/);
  assert.match(css,/display:flex;flex-direction:column;overflow:hidden/);
  assert.match(css,/overflow-x:hidden;overflow-y:auto/);
+ assert.match(css,/safe-area-inset-top/);assert.match(css,/safe-area-inset-bottom/);
+ assert.match(css,/@keyframes gw-centered-sheet-enter\{from\{opacity:0\}to\{opacity:1\}\}/);
+ assert.doesNotMatch(css,/\.(?:gw-glass-menu|gw-material-menu|choice-popover)[^{]*\{/);
 });

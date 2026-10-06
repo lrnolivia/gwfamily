@@ -1,28 +1,37 @@
-/* Filter panels share one visual-viewport boundary. This selector intentionally
-   outranks the legacy right-docked filter geometry; left/right and transform
-   must come from the same rule so Safari cannot shift the panel offscreen. */
-html[data-platform] #sheet.filter-surface[open]{
- position:fixed;top:calc(var(--vv-top) + 12px);left:calc(var(--vv-left) + var(--vv-width)/2);
- right:auto;bottom:auto;transform:translateX(-50%);margin:0;
- width:min(680px,calc(var(--vv-width) - 24px));max-width:calc(var(--vv-width) - 24px);
- height:auto;min-height:0;max-height:calc(var(--vv-height) - 24px);
+/* All unanchored Sheet dialogs share one visible-viewport center. Anchored
+   Popover/ChoiceControl menus keep their independent anchor placement. Use
+   symmetric safe margins so keyboard and zoom offsets never move the center. */
+html[data-platform] #sheet[open]{
+ --sheet-margin-x:max(12px,env(safe-area-inset-left,0px),env(safe-area-inset-right,0px));
+ --sheet-margin-y:max(12px,env(safe-area-inset-top,0px),env(safe-area-inset-bottom,0px));
+ --sheet-max-width:calc(var(--vv-width,100vw) - var(--sheet-margin-x)*2);
+ --sheet-max-height:calc(var(--vv-height,100dvh) - var(--sheet-margin-y)*2);
+ position:fixed;top:calc(var(--vv-top,0px) + var(--vv-height,100dvh)/2);
+ left:calc(var(--vv-left,0px) + var(--vv-width,100vw)/2);
+ right:auto;bottom:auto;transform:translate(-50%,-50%);margin:0;
+ width:min(680px,var(--sheet-max-width));max-width:var(--sheet-max-width);
+ height:auto;min-height:0;max-height:var(--sheet-max-height);
  display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box;border-radius:28px;
+ animation:gw-centered-sheet-enter 180ms ease-out;
 }
-html[data-platform=ios] #sheet.filter-surface[open]>.sheet-glass{
- width:100%;height:auto;min-height:0;max-height:calc(var(--vv-height) - 24px);
+html[data-platform=ios] #sheet[open]>.sheet-glass{
+ width:100%;height:auto;min-height:0;max-height:var(--sheet-max-height);
  flex:1 1 auto;border-radius:28px;--lg-radius:28px;
 }
-html[data-platform=ios] #sheet.filter-surface[open]>.sheet-glass>.liquid-glass-content{
+html[data-platform=ios] #sheet[open]>.sheet-glass>.liquid-glass-content{
  display:flex;flex-direction:column;height:auto;min-height:0;
- max-height:calc(var(--vv-height) - 24px);overflow:hidden;box-sizing:border-box;
+ max-height:var(--sheet-max-height);overflow:hidden;box-sizing:border-box;
 }
-html[data-platform] #sheet.filter-surface[open] .sheet-head{flex:0 0 auto}
-html[data-platform] #sheet.filter-surface[open] #sheet-body{
- flex:1 1 auto;min-height:0;max-height:calc(var(--vv-height) - 126px);
+html[data-platform] #sheet[open] .sheet-head{flex:0 0 auto}
+html[data-platform] #sheet[open] #sheet-body{
+ flex:1 1 auto;min-height:0;max-height:none;
  overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;
 }
-/* The legacy sheet-in animation replaces transform with translateY. Fade only,
-   keeping the panel's single horizontal centering transform intact. */
-html[data-platform] #sheet.filter-surface[open]{animation:gw-filter-sheet-enter 180ms ease-out}
-@keyframes gw-filter-sheet-enter{from{opacity:0}to{opacity:1}}
-@media(prefers-reduced-motion:reduce){html[data-platform] #sheet.filter-surface[open]{animation:none!important}}
+/* Comment threads retain their own scroll region and pinned composer. */
+html[data-platform] #sheet.comments-surface[open]{height:min(620px,var(--sheet-max-height))}
+html[data-platform=ios] #sheet.comments-surface[open]>.sheet-glass,
+html[data-platform=ios] #sheet.comments-surface[open]>.sheet-glass>.liquid-glass-content{height:100%;max-height:100%}
+html[data-platform] #sheet.comments-surface[open] #sheet-body{overflow:hidden;flex:1 1 0}
+/* A transform animation would override the two-axis centering. Fade only. */
+@keyframes gw-centered-sheet-enter{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){html[data-platform] #sheet[open]{animation:none!important}}

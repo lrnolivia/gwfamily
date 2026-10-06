@@ -5,12 +5,18 @@ import { createAuth,authEnvironment } from './auth.mjs';
 import {registerPublic,registerFamily} from './routes.mjs';
 import {UserError,command,readPost,visiblePostSql} from './family-service.mjs';
 import { can, isMember, claimShirts } from './policy.mjs';
+import {recordUnexpectedError} from './error-diagnostics.mjs';
 export function createApp(authFactory=createAuth){const app=new Hono();
 app.use('*',async(c,next)=>{c.env=authEnvironment(c.env);await next()});
 app.use('/api/media',bodyLimit({maxSize:21*1024*1024,onError:c=>c.json({error:'Upload is too large'},413)}));
 app.use('/api/onboarding/photo',bodyLimit({maxSize:11*1024*1024,onError:c=>c.json({error:'Photo is too large'},413)}));
 app.use('/api/*',async(c,next)=>{if(['/api/media','/api/onboarding/photo'].includes(c.req.path))return next();return bodyLimit({maxSize:65536,onError:c=>c.json({error:'Request is too large'},413)})(c,next)});
-app.onError((err,c)=>c.json({error:err instanceof UserError?err.message:err instanceof SyntaxError?'Invalid request body':'Request could not be completed'},err instanceof UserError?err.status:err instanceof SyntaxError?400:500));
+app.onError((err,c)=>{
+ if(err instanceof UserError)return c.json({error:err.message},err.status);
+ if(err instanceof SyntaxError)return c.json({error:'Invalid request body'},400);
+ const requestId=recordUnexpectedError(err,c);c.header('X-Request-ID',requestId);
+ return c.json({error:'Request could not be completed',requestId},500);
+});
 app.use('*',async(c,next)=>{c.header('X-Content-Type-Options','nosniff');c.header('Referrer-Policy','no-referrer');c.header('Cache-Control','no-store');await next()});
 app.get('/health',c=>c.json({service:'gwfamily',status:'ok'}));
 registerPublic(app,authFactory);
@@ -33,4 +39,3 @@ app.delete('/api/me/favorites/:id',async c=>{await c.env.DB.prepare('DELETE FROM
 app.notFound(c=>c.json({error:'Not found'},404));return app}
 const app=createApp();
 export default {fetch:(request,env,ctx)=>app.fetch(request,env,ctx),scheduled:(controller,env,ctx)=>{if(env.BIRTHDAY_POSTS_ENABLED==='true')ctx.waitUntil(celebrateBirthdays(authEnvironment(env).DB,new Date(controller.scheduledTime)))}};
-
