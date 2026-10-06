@@ -4,6 +4,7 @@ import {buildDisplacementLUT,renderDisplacementMap} from '@sohumsuthar/liquid-gl
 import {useLiquidGlassEffects} from '@sohumsuthar/liquid-glass/hooks';
 import {useLiquidLens} from '@sohumsuthar/liquid-glass/hooks/useLiquidLens';
 import paths from './glyph-paths.js';
+import {bindViewportBounds} from './viewport-bounds.js';
 
 export const AppContext=createContext(null);
 const FloatingSurfaceContext=createContext(false);
@@ -52,15 +53,7 @@ export function GlassSystem(){
   return <LiquidGlassFilter displacementMap={map}/>;
 }
 export function useViewport(){
-  useEffect(()=>{
-    const update=()=>{const v=window.visualViewport;const root=document.documentElement;
-      root.style.setProperty('--vv-left',(v?.offsetLeft||0)+'px');
-      root.style.setProperty('--vv-top',(v?.offsetTop||0)+'px');
-      root.style.setProperty('--vv-width',(v?.width||innerWidth)+'px');
-      root.style.setProperty('--vv-height',(v?.height||innerHeight)+'px')};
-    update();window.addEventListener('resize',update);window.visualViewport?.addEventListener('resize',update);window.visualViewport?.addEventListener('scroll',update);
-    return ()=>{window.removeEventListener('resize',update);window.visualViewport?.removeEventListener('resize',update);window.visualViewport?.removeEventListener('scroll',update)};
-  },[]);
+  useEffect(()=>bindViewportBounds(),[]);
 }
 export function Popover({open,onClose,anchor,children,kind='menu',className='',style}) {
   const glass=useApp()?.platform!=='android';
@@ -88,15 +81,15 @@ export function Popover({open,onClose,anchor,children,kind='menu',className='',s
     <div id={id} style={style} popover="auto" className={'gw-material-menu '+className} onToggle={onToggle}><FloatingSurfaceContext.Provider value={true}>{children}</FloatingSurfaceContext.Provider></div>;
 }
 export function InlineFilters({label,children}){const [open,setOpen]=useState(false),id=useId();return <div className={'inline-filters '+(open?'is-open':'')}><Control className="filter-trigger" aria-label={label} aria-expanded={open} aria-controls={id} onClick={()=>setOpen(v=>!v)}><Glyph name="settings"/></Control><div id={id} className="inline-filter-reveal" inert={!open}><div className="inline-filter-bar">{children}</div></div></div>}
-export function Sheet({title,kind='normal',onClose,children,style}) {
-  const app=useApp(),glass=app?.platform!=='android';
+export function Sheet({title,kind='normal',onClose,children,style,suppressGlobalPending=false,busy=false}) {
+  const app=useApp(),glass=app?.platform!=='android',close=()=>{if(!busy)onClose?.()};
   const ref=useRef(null);
   useEffect(()=>{const el=ref.current;if(el&&!el.open)el.showModal();return ()=>{if(el?.open)el.close()}},[]);
   const className=kind==='profile'?'profile-sheet':kind==='comments'?'comments-surface':kind==='post'?'focus-surface':kind==='composer'?'composer-surface':kind==='filter'?'filter-surface':kind==='viewer'?'focus-surface memory-sheet':'';
-  const content=<FloatingSurfaceContext.Provider value={true}><div className="sheet-head"><h2 id="sheet-title">{title}</h2><Control type="button" id="close" className="icon-button" aria-label="Close dialog" onClick={onClose}><Glyph name="close"/></Control></div>
-    <div id="sheet-body">{app?.data?.error&&<p className="note" role="alert">{app.data.error}</p>}{app?.data?.pending&&<p role="status" className="small muted">Saving…</p>}{children}</div></FloatingSurfaceContext.Provider>;
+  const content=<FloatingSurfaceContext.Provider value={true}><div className="sheet-head"><h2 id="sheet-title">{title}</h2><Control type="button" id="close" className="icon-button" aria-label="Close dialog" disabled={busy} onClick={close}><Glyph name="close"/></Control></div>
+    <div id="sheet-body">{app?.data?.error&&<p className="note" role="alert">{app.data.error}</p>}{app?.data?.pending&&!suppressGlobalPending&&<p role="status" className="small muted">Saving…</p>}{children}</div></FloatingSurfaceContext.Provider>;
   return <dialog id="sheet" ref={ref} className={className} style={style} aria-labelledby="sheet-title"
-    onCancel={e=>{e.preventDefault();onClose()}} onClick={e=>{if(e.target===ref.current)onClose()}}>
+    onCancel={e=>{e.preventDefault();close()}} onClick={e=>{if(e.target===ref.current)close()}}>
     {glass?<LiquidGlass lens lensOptions={{bezel:14,refraction:1.05,dispersion:2,radius:32}} className="sheet-glass"><span className="glass-shadow" aria-hidden="true"/>{content}</LiquidGlass>:content}
   </dialog>;
 }

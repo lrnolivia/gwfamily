@@ -1,0 +1,129 @@
+/* Edit mode swaps chrome tokens only. Photos, video, and the saved personal
+   palette are untouched, and removing the attribute restores them immediately. */
+:root{
+ --page-edit-bg:#20201e;--page-edit-surface:#292926;--page-edit-raised:#343430;
+ --page-edit-text:#f6f3ed;--page-edit-muted:#cac5bb;--page-edit-line:#74726a;
+ --page-edit-control:#d4d0c5;--page-edit-control-text:#23231f;
+ --page-save-bg:#c5e5ce;--page-save-ink:#193725;--page-error:#ffbeb7;
+ --page-edit-shadow:0 5px 16px #00000024;--page-glow:rgba(212,208,197,.24);--page-glow-strong:rgba(212,208,197,.38);
+}
+html[data-theme=light]{
+ --page-edit-bg:#f3f1ec;--page-edit-surface:#e9e6df;--page-edit-raised:#fffdf7;
+ --page-edit-text:#272720;--page-edit-muted:#58574f;--page-edit-line:#929083;
+ --page-edit-control:#55564e;--page-edit-control-text:#fffdf7;
+ --page-save-bg:#275839;--page-save-ink:#fffdf7;--page-error:#9b2622;--page-glow:rgba(80,79,68,.17);--page-glow-strong:rgba(80,79,68,.26);
+}
+html[data-page-edit-mode=true]{
+ --bg:var(--page-edit-bg)!important;--surface:var(--page-edit-surface)!important;
+ --raised:var(--page-edit-raised)!important;--soft:var(--page-edit-raised)!important;
+ --nav:var(--page-edit-surface)!important;--text:var(--page-edit-text)!important;
+ --muted:var(--page-edit-muted)!important;--line:var(--page-edit-line)!important;
+ --accent:var(--page-edit-control)!important;--ink:var(--page-edit-control-text)!important;
+ --control:var(--page-edit-control)!important;--control-text:var(--page-edit-control-text)!important;
+ --control-edge:var(--page-edit-control)!important;--profile-color:var(--page-edit-control)!important;
+}
+html[data-page-edit-mode=true] .reunion-hub{background:var(--surface)!important;color:var(--text)!important;border-color:var(--line)!important}
+html[data-page-edit-mode=true] .reunion-hub :is(.muted,.list-row p,.list-row>.glyph){color:var(--muted)!important}
+html[data-page-edit-mode=true] .reunion-hub .next-step{background:var(--raised)!important}
+html[data-page-edit-mode=true] .reunion-hub .list-row{border-color:var(--line)!important}
+.page-edit-toolbar{margin:0 0 18px;min-width:0}
+.page-edit-entry{display:flex;justify-content:flex-end;align-items:center;gap:10px;color:var(--muted);font-size:.75rem}
+.page-edit-entry-button{display:inline-flex;gap:7px;align-items:center;min-height:40px;font-size:.8125rem;font-weight:650;color:var(--text);padding:6px 10px;border-radius:10px}
+.page-edit-entry-button:hover{background:var(--raised)}
+.page-edit-modebar{display:flex;gap:14px;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--raised);border:1px solid var(--line);border-radius:14px}
+.page-edit-mode-label{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:center;column-gap:8px;min-width:0}
+.page-edit-mode-label strong{font-size:.875rem;line-height:1.4}
+.page-edit-mode-label>span{grid-column:2;font-size:.75rem;color:var(--muted);line-height:1.5}
+.page-edit-mode-label>.page-edit-glyph{grid-row:1/3}
+.page-editor-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.page-mode-done,.page-history-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:8px 10px;border-radius:9px;font-size:.8125rem;font-weight:650}
+.page-mode-done:hover,.page-history-button:hover{background:var(--surface)}
+html[data-theme][data-platform] .page-save-button.button:not(:disabled){--gw-control-color:var(--page-save-bg)!important;--control:var(--page-save-bg);--control-text:var(--page-save-ink);background:var(--page-save-bg)!important;color:var(--page-save-ink)!important;border-color:var(--page-save-bg)!important}
+.page-save-button.button{font-size:.8125rem;min-height:44px;padding:10px 15px;white-space:nowrap}
+.page-editor-help{font-size:.75rem;line-height:1.5;color:var(--muted);max-width:65ch;margin:9px 0}
+.page-editor-error{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap;color:var(--page-error);font-size:.8125rem;line-height:1.5;margin:10px 0}
+.page-editor-error button{font-weight:700;text-decoration:underline;text-underline-offset:3px;min-height:44px;color:inherit}
+.page-content-load-error{display:flex;gap:12px;align-items:center;justify-content:space-between;font-size:.75rem;color:var(--muted)}
+.page-copy-value,.page-copy-target{white-space:pre-wrap;overflow-wrap:anywhere}
+.page-editable-copy{min-width:0;overflow:visible!important}
+.page-copy-frame{display:inline-grid;position:relative;vertical-align:baseline;max-width:100%;min-width:1.5em;border-radius:3px}
+.page-copy-frame::after{content:'';pointer-events:none;position:absolute;inset:-4px;border:1px dashed var(--line);border-radius:3px;z-index:1}
+.page-copy-target{cursor:text;min-width:0;outline-offset:5px}
+.page-copy-frame:hover::after{border-color:var(--text)}
+.page-copy-frame:focus-within::after,.page-copy-frame.is-active::after{border-style:solid;border-color:var(--control)}
+.page-copy-frame.is-active{isolation:isolate}
+.page-copy-frame.is-active .page-copy-target{visibility:hidden;pointer-events:none}
+.page-copy-input-wrap{position:absolute;inset:-4px;width:calc(var(--page-input-width, 100%) + 8px);min-height:44px;z-index:3;background:var(--raised);border-radius:3px;box-shadow:var(--page-edit-shadow)}
+.page-copy-input-wrap .page-copy-input{position:absolute;inset:0;width:100%;height:100%;min-height:44px;min-width:0;margin:0;padding:4px 77px 4px 4px;resize:none;border:1px solid var(--control);border-radius:3px;background:var(--raised);color:var(--text);font:inherit;letter-spacing:inherit;line-height:inherit;caret-color:var(--text);box-shadow:none;text-transform:none}
+.page-copy-input-wrap .page-copy-input:focus{outline:2px solid var(--control);outline-offset:1px}
+.page-field-done{position:absolute;top:2px;right:2px;bottom:2px;min-width:69px;min-height:40px;max-height:48px;display:flex;gap:4px;align-items:center;justify-content:center;padding:5px;border-radius:2px;background:var(--control);color:var(--control-text);font:650 .75rem/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:normal;text-transform:none;z-index:1}
+.page-field-done .glyph{width:16px;height:16px}
+.page-field-done:focus-visible{outline-color:var(--text);outline-offset:2px}
+.page-empty-copy{color:var(--muted);font:400 .8125rem/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;text-transform:none;letter-spacing:normal}
+.page-editable-media{position:relative;min-width:0;border-radius:15px;isolation:isolate}
+.page-media-content{overflow:hidden;border-radius:inherit}
+.page-media-content>.photo{margin:0}
+.page-editable-media.is-editable::after{content:'';position:absolute;inset:-3px;pointer-events:none;border:1px dashed var(--line);border-radius:inherit;z-index:3}
+.page-editable-media.is-editable:focus-within::after{border-style:solid}
+.page-media-edit{position:absolute;inset:0;width:100%;height:100%;display:grid;place-items:center;background:#12131055;border-radius:inherit;z-index:2;transition:background 180ms ease-out}
+.page-media-edit:hover{background:#12131066}
+.page-media-edit>span{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;min-height:44px;border-radius:11px;background:var(--raised);color:var(--text);font-size:.875rem;font-weight:650;box-shadow:0 5px 16px #00000038}
+.page-media-edit:focus-visible{outline:3px solid var(--control);outline-offset:3px}
+
+.page-hero-asset{display:block;width:100%;height:100%;max-height:420px;aspect-ratio:3/2;object-fit:cover;border-radius:inherit}
+.home-hero .page-hero-asset{height:210px;aspect-ratio:auto}
+.page-hero-gallery{position:relative;border-radius:inherit}
+.page-gallery-controls{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:flex;gap:5px;align-items:center;padding:3px 5px;border-radius:12px;background:#151812dc;color:#fffdf7;max-width:calc(100% - 16px);font-size:.75rem;white-space:nowrap}
+.page-gallery-controls button{min-width:40px;min-height:40px;border-radius:8px;padding:6px;display:grid;place-items:center;color:inherit}
+.page-gallery-controls button:hover{background:#ffffff1f}
+.page-gallery-controls>span{font-variant-numeric:tabular-nums;padding:0 3px}
+.page-gallery-controls .page-previous{transform:rotate(180deg)}
+.page-media-placeholder,.page-media-unavailable{display:grid;place-items:center;min-height:140px;padding:24px;background:var(--raised);color:var(--muted);font-size:.8125rem;text-align:center}
+.page-media-panel{display:grid;gap:12px;min-width:0}
+.page-media-panel>.page-editor-help{margin:0}
+.page-media-modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:4px;background:var(--bg);border-radius:12px;gap:3px}
+.page-media-modes>button{min-height:42px;border-radius:8px;font-size:.8125rem;font-weight:650}
+.page-media-modes>button[aria-pressed=true]{background:var(--control);color:var(--control-text)}
+.page-media-modes>button:not([aria-pressed=true]):hover{background:var(--raised)}
+.page-media-files{list-style:none;display:grid;gap:14px;padding:0;margin:0;max-height:310px;overflow:auto;overscroll-behavior:contain}
+.page-media-files>li{display:grid;grid-template-columns:70px minmax(0,1fr);gap:10px;align-items:start}
+.page-media-file-preview{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden}
+.page-media-file-preview :is(img,video){width:100%;height:100%;object-fit:cover}
+.page-media-file-preview button{position:absolute;top:0;right:0;width:36px;height:36px;display:grid;place-items:center;background:#171914d9;color:#fffdf7;border-radius:0 0 0 8px}
+.page-media-file-details{min-width:0}
+.page-media-file-details>span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem;color:var(--muted)}
+.page-media-file-details label{font-size:.6875rem;margin:4px 0 0}
+.page-media-file-details input{font-size:.8125rem;min-height:40px;border-radius:8px;padding:8px;caret-color:var(--text)}
+.page-media-order{display:flex;gap:12px;font-size:.75rem}
+.page-media-order button{min-height:36px;text-decoration:underline;text-underline-offset:3px}
+.page-media-panel-actions{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.page-history-panel{display:grid;gap:12px;min-width:0}
+.page-history-panel>label{margin:0}
+.page-history-panel>.page-editor-help{margin:0}
+.page-revision-list{list-style:none;padding:0;margin:0;display:grid;gap:0;max-height:330px;overflow:auto;overscroll-behavior:contain}
+.page-revision-list>li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line);font-size:.8125rem}
+.page-revision-list>li>div{display:grid;gap:3px}
+.page-revision-list span{font-size:.75rem;color:var(--muted)}
+.page-restore-confirm,.page-discard-prompt,.page-conflict-review{padding:12px 0;display:grid;gap:10px;font-size:.8125rem;border-top:1px solid var(--line);margin-top:12px}
+.page-conflict-values{display:grid;gap:4px;overflow-wrap:anywhere}
+.page-conflict-values p{color:var(--muted);white-space:pre-wrap}
+.page-edit-toolbar button:disabled,.page-media-panel button:disabled,.page-history-panel button:disabled{opacity:.5;cursor:default}
+/* Only the actively edited surface pulses. Copy and media never move. */
+body,.app,.card,section,.intro,footer,.bottom,.muted,.page-edit-modebar,dialog,.page-copy-input-wrap{transition:background-color 360ms ease-out,color 360ms ease-out,border-color 360ms ease-out,box-shadow 360ms ease-out,outline-color 360ms ease-out}
+.page-active-edit-card{outline:1px solid var(--line);outline-offset:3px;animation:page-active-glow 3s ease-in-out infinite}
+@keyframes page-active-glow{0%,100%{box-shadow:0 5px 20px 3px var(--page-glow)}50%{box-shadow:0 6px 24px 5px var(--page-glow-strong)}}
+@media(max-width:650px){
+ .page-edit-modebar{align-items:flex-start;flex-wrap:wrap;gap:9px;padding:12px}
+ .page-edit-mode-label{flex:1 1 100%}
+ .page-edit-modebar>.page-editor-actions{width:100%;justify-content:flex-end;gap:5px}
+ .page-history-button{margin-right:auto}
+ .page-save-button.button{padding:9px 11px;font-size:.75rem}
+ .page-mode-done{padding:8px}
+ .home-hero .page-hero-asset{height:auto;aspect-ratio:3/2}
+ .page-media-files{max-height:280px}
+}
+@media(prefers-reduced-motion:reduce){
+ .page-active-edit-card{animation:none!important;box-shadow:0 5px 20px 3px var(--page-glow)}
+ body,.app,.card,section,.intro,footer,.bottom,.muted,.page-edit-modebar,dialog,.page-copy-input-wrap,.page-media-edit{transition:none!important}
+}
+@media(prefers-contrast:more){.page-copy-frame::after,.page-editable-media.is-editable::after{border-style:solid;border-width:2px}.page-media-edit>span{outline:2px solid var(--text)}}

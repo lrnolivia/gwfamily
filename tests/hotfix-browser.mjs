@@ -34,8 +34,8 @@ try{
  const draft=await pageFor(390,'dark','ios');let fresh=false;const current=await draft.locator('meta[name="gw-build"]').getAttribute('content');
  await draft.route('**/build.json',route=>route.fulfill({json:{version:fresh?'ffffffffffffffffffff':current}}));
  await draft.getByRole('button',{name:'Post an update',exact:true}).click();await draft.getByRole('textbox',{name:"What's on your mind"}).fill('Keep this unsaved family story');fresh=true;
- await draft.evaluate(()=>window.dispatchEvent(new Event('online')));await draft.locator('.build-update-notice button').waitFor({state:'attached'});
+ await draft.evaluate(()=>window.dispatchEvent(new Event('online')));await draft.getByRole('button',{name:'Reload updated app',exact:true}).waitFor({state:'attached'});
  assert.equal(await draft.getByRole('textbox',{name:"What's on your mind"}).inputValue(),'Keep this unsaved family story');assert.equal(await draft.locator('dialog[open]').count(),1,'update does not dismiss the draft');await draft.getByRole('button',{name:'Close dialog',exact:true}).click();await draft.getByRole('button',{name:'Reload updated app'}).waitFor();await draft.getByRole('button',{name:'Post an update',exact:true}).click();assert.equal(await draft.getByRole('textbox',{name:"What's on your mind"}).inputValue(),'Keep this unsaved family story','draft survives dismissing and reopening the composer with an update ready');
  results.push({check:'new build notice preserves unsaved composer',status:'passed'});await draft.close();
  assert.deepEqual(errors,[]);console.log(JSON.stringify({results,errors}));
-}finally{await writeFile('docs/recovery-qa/hotfix-results.json',JSON.stringify({results,errors},null,2));await browser.close()}
+}catch(error){console.error(error);console.log('::error title=GW hotfix browser::'+String(error.stack||error.message).replaceAll('%','%25').replaceAll('\n','%0A').replaceAll('\r','%0D'));throw error}finally{await writeFile('docs/recovery-qa/hotfix-results.json',JSON.stringify({results,errors},null,2));await browser.close()}

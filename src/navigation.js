@@ -1,6 +1,6 @@
 import {useEffect,useState} from 'react';
 export const mainPages=new Set(['home','reunion','family','you']);
-const pages=new Set([...mainPages,'profile','post','memory','group','shop','planner','leader-tools','household','household-manage','household-invite','edit-profile','contact','birthdays']);
+const pages=new Set([...mainPages,'profile','post','memory','group','shop','planner','leader-tools','household','household-manage','household-invite','edit-profile','contact','birthdays','inbox','chat','chat-new','chat-settings']);
 export function routeFromHash(hash){try{const [path,query='']=String(hash||'').replace(/^#\/?/,'').split('?'),[type,id]=path.split('/');if(!pages.has(type))return {type:'home'};const p=new URLSearchParams(query);return {type,...(id?{id:decodeURIComponent(id)}:{}),...(p.get('section')?{section:p.get('section')}:{}),...(p.get('tab')?{tab:p.get('tab')}:{} )}}catch{return {type:'home'}}}
 export function routeHash(route){const q=new URLSearchParams();for(const key of ['tab','section'])if(route[key])q.set(key,route[key]);return '#/'+encodeURIComponent(route.type)+(route.id?'/'+encodeURIComponent(route.id):'')+(q.size?'?'+q:'')}
 export function useFamilyNavigation(){

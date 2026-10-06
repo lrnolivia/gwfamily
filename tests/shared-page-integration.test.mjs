@@ -1,0 +1,31 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {SHARED_PAGE_SCHEMA} from '../src/shared-content-schema.js';
+const names=['react-app.jsx','features.jsx','family.jsx','memories.jsx','contact-directory.jsx','messaging.jsx'];
+const files=Object.fromEntries(names.map(name=>[name,fs.readFileSync(new URL('../src/'+name,import.meta.url),'utf8')]));
+const source=Object.values(files).join('\n');
+test('every shared schema page and copy field has a rendered integration point',()=>{
+ const pairs=new Set([...source.matchAll(/<EditableText\s+page="([^"]+)"\s+field="([^"]+)"/g)].map(([,page,field])=>page+'.'+field));
+ for(const field of ['nextRsvpTitle','nextRsvpBody','nextShirtsTitle','nextShirtsBody','nextFeesTitle','nextFeesBody'])pairs.add('home.'+field);
+ for(const field of ['emptyTitle','emptyBody','caughtUpTitle','caughtUpBody'])pairs.add('inbox.'+field);
+ for(const [page,schema]of Object.entries(SHARED_PAGE_SCHEMA)){
+  for(const field of Object.keys(schema.fields))assert.ok(pairs.has(page+'.'+field),page+'.'+field+' is reachable in page content');
+  if(schema.hero)assert.ok(source.includes('<EditableMedia page="'+page+'" field="hero"'),page+' has an editable hero slot');
+ }
+});
+test('public entry, personal profiles, posts, menus and structured values retain separate boundaries',()=>{
+ assert.match(files['react-app.jsx'],/<PageContentProvider enabled=\{!needsEntry\}>/);
+ assert.match(files['react-app.jsx'],/<footer>\{needsEntry\?<p>Green/);
+ assert.match(files['react-app.jsx'],/state.details.date\|\|<EditableText page="home" field="heroBodyFallback"/);
+ assert.match(files['react-app.jsx'],/relatedPages=\{route.type==='family'\?\['people','memories','tree'\]/);
+ for(const name of ['profiles.jsx','conversation.jsx','households.jsx'])assert.doesNotMatch(fs.readFileSync(new URL('../src/'+name,import.meta.url),'utf8'),/EditableText|EditableMedia/);
+ const menu=files['react-app.jsx'].slice(files['react-app.jsx'].indexOf('function ProfileMenuContent'),files['react-app.jsx'].indexOf('function TextSizeControls'));
+ assert.doesNotMatch(menu,/EditableText|EditableMedia/);
+});
+test('update reload includes shared-page writes, drafts and safe recovery checks',()=>{
+ assert.match(files['react-app.jsx'],/pending=data.pending\|\|pageContent.pending/);
+ assert.match(files['react-app.jsx'],/pageContent.hasUnsavedDrafts/);
+ assert.match(files['react-app.jsx'],/pageContent.storageSafe!==false/);
+ assert.match(files['react-app.jsx'],/resetPreview\(\);resetPageContentPreview\(\)/);
+});

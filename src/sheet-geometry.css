@@ -1,0 +1,28 @@
+/* Filter panels share one visual-viewport boundary. This selector intentionally
+   outranks the legacy right-docked filter geometry; left/right and transform
+   must come from the same rule so Safari cannot shift the panel offscreen. */
+html[data-platform] #sheet.filter-surface[open]{
+ position:fixed;top:calc(var(--vv-top) + 12px);left:calc(var(--vv-left) + var(--vv-width)/2);
+ right:auto;bottom:auto;transform:translateX(-50%);margin:0;
+ width:min(680px,calc(var(--vv-width) - 24px));max-width:calc(var(--vv-width) - 24px);
+ height:auto;min-height:0;max-height:calc(var(--vv-height) - 24px);
+ display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box;border-radius:28px;
+}
+html[data-platform=ios] #sheet.filter-surface[open]>.sheet-glass{
+ width:100%;height:auto;min-height:0;max-height:calc(var(--vv-height) - 24px);
+ flex:1 1 auto;border-radius:28px;--lg-radius:28px;
+}
+html[data-platform=ios] #sheet.filter-surface[open]>.sheet-glass>.liquid-glass-content{
+ display:flex;flex-direction:column;height:auto;min-height:0;
+ max-height:calc(var(--vv-height) - 24px);overflow:hidden;box-sizing:border-box;
+}
+html[data-platform] #sheet.filter-surface[open] .sheet-head{flex:0 0 auto}
+html[data-platform] #sheet.filter-surface[open] #sheet-body{
+ flex:1 1 auto;min-height:0;max-height:calc(var(--vv-height) - 126px);
+ overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;
+}
+/* The legacy sheet-in animation replaces transform with translateY. Fade only,
+   keeping the panel's single horizontal centering transform intact. */
+html[data-platform] #sheet.filter-surface[open]{animation:gw-filter-sheet-enter 180ms ease-out}
+@keyframes gw-filter-sheet-enter{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){html[data-platform] #sheet.filter-surface[open]{animation:none!important}}
