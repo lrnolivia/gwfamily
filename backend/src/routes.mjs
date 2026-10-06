@@ -1,3 +1,4 @@
+import {registerMessaging} from './messaging.mjs';
 import {registerHouseholdInvites} from './household-invites.mjs';
 import {adultOn} from './birthdays.mjs';
 import {UserError,command,familyState,json,readPost,validDate} from './family-service.mjs';
@@ -42,7 +43,7 @@ export function registerPublic(app,authFactory){
   try{await e.DB.batch([e.DB.prepare('INSERT INTO media(id,owner_id,object_key,name,mime_type,size_bytes) VALUES(?,?,?,?,?,?)').bind(id,session.user.id,key,'Profile photo',file.type,file.size),e.DB.prepare('UPDATE user SET image=?,updatedAt=? WHERE id=?').bind(url,Date.now(),session.user.id)])}catch(error){await e.R2.delete(key);throw error}return c.json({url},201);
  });
 }
-export function registerFamily(app){registerHouseholdInvites(app);
+export function registerFamily(app){registerHouseholdInvites(app);registerMessaging(app);
  app.get('/api/state',async c=>c.json(await familyState(c.env.DB,c.get('actor'))));
  app.post('/api/commands',async c=>c.json(await command(c.env.DB,c.get('actor'),await c.req.json())));
  app.get('/api/directory',async c=>{

@@ -1,0 +1,50 @@
+/* Import last. Native geometry is independent of Glass/Flat and light/dark.
+   env() is the browser's current viewport inset, not screen-minus-innerHeight.
+   Browser chrome is already outside that viewport and must not be added again.
+   The shell's existing 7px padding can occupy the safe area. Its interactive
+   button rectangles still finish at or above the full OS-provided inset. */
+:root {
+  --gw-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --gw-safe-left: env(safe-area-inset-left, 0px);
+  --gw-safe-right: env(safe-area-inset-right, 0px);
+  --gw-nav-side-clearance: max(12px, var(--gw-safe-left), var(--gw-safe-right));
+  --gw-nav-edge-gap: 4px;
+  --gw-nav-bottom: max(var(--gw-nav-edge-gap), calc(var(--gw-safe-bottom) - 7px));
+  --gw-nav-height: 72px;
+  --gw-nav-fab-bottom: calc(var(--gw-nav-bottom) + var(--gw-nav-height) + 12px);
+}
+html[data-mobile-os=ios] { --gw-nav-edge-gap: 2px; }
+html[data-mobile-os=android],
+html[data-mobile-os=ios]:is([data-display-mode=standalone], [data-display-mode=fullscreen]) { --gw-nav-edge-gap: 0px; }
+
+html[data-mobile-os] .bottom.bottom {
+  bottom: var(--gw-nav-bottom) !important;
+  height: var(--gw-nav-height);
+  padding: 7px;
+  box-sizing: border-box;
+}
+html[data-mobile-os] :is(.fab-glass, .material-fab) {
+  bottom: var(--gw-nav-fab-bottom) !important;
+}
+html[data-mobile-os] .app:has(>.bottom)::after {
+  height: calc(var(--gw-nav-bottom) + var(--gw-nav-height) + 24px);
+}
+@media (max-width: 699.98px) {
+  html[data-mobile-os] .bottom.bottom {
+    /* The capsule is centered, so reserve the larger notch inset on BOTH sides. */
+    width: min(480px, calc(100vw - var(--gw-nav-side-clearance) - var(--gw-nav-side-clearance)));
+  }
+  html[data-mobile-os] :is(.fab-glass, .material-fab) {
+    right: max(16px, calc(var(--gw-safe-right) + 8px));
+  }
+}
+@media (min-width: 700px) {
+  :root { --gw-nav-fab-bottom: calc(var(--gw-nav-bottom) + 8px); }
+}
+/* Leave composer/popup visualViewport positioning untouched. A confirmed
+   software keyboard temporarily removes the unrelated dock and its hitboxes. */
+html[data-keyboard-open=true] :is(.bottom, .fab-glass, .material-fab),
+html[data-keyboard-open=true] .app:has(>.bottom)::after {
+  visibility: hidden;
+  pointer-events: none;
+}
