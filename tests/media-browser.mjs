@@ -1,9 +1,10 @@
+import {createTestPng} from './png-fixtures.mjs';
 import {chromium,webkit} from '@playwright/test';
 import assert from 'node:assert/strict';
 const engine=process.env.GW_BROWSER==='webkit'?webkit:chromium;
 const browser=await engine.launch({headless:true});
 const origin='http://127.0.0.1:4174';
-const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aHMkAAAAASUVORK5CYII=','base64');
+const png=createTestPng();
 let page;
 try {
  page=await browser.newPage();

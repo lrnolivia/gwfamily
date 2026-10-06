@@ -1,3 +1,4 @@
+import {directorySelection as validateDirectorySelection} from './member-directory.mjs';
 import {merchandiseOptions,orderLines} from './merchandise.mjs';
 import {householdState,householdCommand} from './households.mjs';
 import {adultOn,publicBirthdays,ageOn} from './birthdays.mjs';
@@ -5,6 +6,7 @@ import { can, validateShirtSelection,shouldNotify } from './policy.mjs';
 import { createRateStorage } from './auth.mjs';
 
 export class UserError extends Error { constructor(message,status=400){super(message);this.status=status} }
+const directorySelection=(...args)=>validateDirectorySelection(...args).catch(e=>{if(e.status)throw new UserError(e.message,e.status);throw e});
 export const json=(text,fallback={})=>{try{return JSON.parse(text)}catch{return fallback}};
 const text=(v,max,required=false)=>{if(typeof v!=='string'||v.length>max||(required&&!v.trim()))throw new UserError('Check the entered text');return v.trim()};
 const uuid=()=>crypto.randomUUID();
@@ -81,7 +83,7 @@ export async function command(db,actor,input){
  }
  case 'SAVE_CONTACT':{
   const c=input.contact||{},visibility=c.visibility||'Only me';if(!['Only me','Selected family members','Family leaders','All approved family members'].includes(visibility))throw new UserError('Choose who can see your details');
-  const selectedIds=Array.isArray(c.selectedIds)?[...new Set(c.selectedIds)].slice(0,200):[];if(selectedIds.some(id=>typeof id!=='string'||id.length>100))throw new UserError('Check the selected family members');
+  const selectedIds=await directorySelection(db,c.selectedIds??[],{max:200});
   const photo=c.photo?(await ownedFiles(db,actor,[{url:c.photo}]))[0].url:null;
   const value={name:text(c.name,80,true),email:text(c.email||'',160),phone:text(c.phone||'',40),address:text(c.address||'',300),social:webUrl(c.social||'',profileHosts),visibility,selectedIds,optIn:c.optIn===true,useProfile:c.useProfile!==false,photo};
   q(`INSERT INTO profiles(member_id,contact_json) VALUES(?,?) ON CONFLICT(member_id) DO UPDATE SET contact_json=excluded.contact_json,updated_at=CURRENT_TIMESTAMP`,actor.id,JSON.stringify(value));break;
@@ -95,9 +97,10 @@ export async function command(db,actor,input){
   let poll=null;if(p.poll){const options=p.poll.options;if(!Array.isArray(options)||options.length<2||options.length>12||!['single','multiple'].includes(p.poll.mode))throw new UserError('A poll needs two to twelve choices');poll={question:text(p.poll.question,160,true),options:options.map(x=>text(x,120,true)),mode:p.poll.mode,votes:{}}}
   if(!body&&!files.length&&!poll)throw new UserError('Write something or add an attachment');
   if(p.groupId&&!await db.prepare('SELECT member_id FROM family_group_members WHERE group_id=? AND member_id=?').bind(p.groupId,actor.id).first())throw new UserError('Group membership required',403);
+  const memberIds=await directorySelection(db,p.memberIds??[],{ancestors:true});
   const asLeader=p.asLeader===true;if((asLeader||p.pinned||p.firstView)&&!actor.isLeader)throw new UserError('Only leaders can publish leader announcements',403);if((p.pinned||p.firstView)&&!asLeader)throw new UserError('Choose Post as Leader to pin or announce this post');
   const background=typeof p.background==='string'&&p.background.length<100&&/^[a-zA-Z0-9#|, .()-]*$/.test(p.background)?p.background:null;
-  result.id=uuid();q('INSERT INTO posts(id,author_id,group_id,body,metadata_json) VALUES(?,?,?,?,?)',result.id,actor.id,p.groupId||null,body,JSON.stringify({files,poll,background,backgroundMedia,asLeader,pinned:asLeader&&p.pinned===true,firstView:asLeader&&p.firstView===true}));break;
+  result.id=uuid();q('INSERT INTO posts(id,author_id,group_id,body,metadata_json) VALUES(?,?,?,?,?)',result.id,actor.id,p.groupId||null,body,JSON.stringify({files,poll,background,backgroundMedia,memberIds,asLeader,pinned:asLeader&&p.pinned===true,firstView:asLeader&&p.firstView===true}));break;
  }
  case 'MARK_ANNOUNCEMENT_SEEN':{const post=await readPost(db,actor,input.id);if(!post||!json(post.metadata_json).firstView)throw new UserError('Announcement not found',404);q('INSERT OR IGNORE INTO announcement_views(post_id,member_id) VALUES(?,?)',post.id,actor.id);break;}
  case 'ADD_COMMENT':{
@@ -125,6 +128,12 @@ export async function command(db,actor,input){
  case 'DETAILS':{
   requireCan(actor,'manage_reunion');const before=json((await db.prepare("SELECT data_json FROM reunion_settings WHERE id='current'").bind().first())?.data_json),d=input.value||{},value={...before};
   for(const key of ['date','time','endDate','rsvpDeadline','location','address','contact','schedule'])value[key]=text(d[key]||'',key==='schedule'?4000:300);
+  if(d.organizerMemberId!==undefined||before.organizerMemberId){
+   const selected=d.organizerMemberId!==undefined?d.organizerMemberId:before.organizerMemberId;
+   const ids=await directorySelection(db,selected?[selected]:[]);
+   value.organizerMemberId=ids[0]||null;
+   value.contact=ids.length?(await db.prepare('SELECT name FROM user WHERE id=?').bind(ids[0]).first())?.name||'':'';
+  }
   for(const k of ['date','endDate','rsvpDeadline'])if(value[k]&&!/^\d{4}-\d{2}-\d{2}$/.test(value[k]))throw new UserError('Check the event dates');
   q("INSERT INTO reunion_settings(id,data_json,updated_by) VALUES('current',?,?) ON CONFLICT(id) DO UPDATE SET data_json=excluded.data_json,updated_by=excluded.updated_by,updated_at=CURRENT_TIMESTAMP",JSON.stringify(value),actor.id);audit('update-reunion','current');break;
  }
@@ -154,7 +163,7 @@ export async function command(db,actor,input){
   result.id=p.id||uuid();q('INSERT INTO products(id,name,description,data_json,active) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,description=excluded.description,data_json=excluded.data_json,active=excluded.active',result.id,name,text(p.description||'',1000),JSON.stringify({color:/^#[a-fA-F0-9]{6}$/.test(p.color||'')?p.color:'#24452f',price:text(p.price||'',60),photo:typeof photo==='string'?photo:photo?.url||null,options}),p.active===false?0:1);audit('merchandise-save',result.id);break;
  }
  case 'SET_NOTIFICATION_SCOPE':case 'SET_SELECTED_NOTIFICATION_IDS':{
-  const before=await db.prepare('SELECT * FROM notification_preferences WHERE member_id=?').bind(actor.id).first();const scope=input.type==='SET_NOTIFICATION_SCOPE'?(input.value==='loved'?'loved_ones':input.value):before?.scope||'leaders';let ids=input.type==='SET_SELECTED_NOTIFICATION_IDS'?input.ids:json(before?.selected_ids_json,[]);if(!['all','family','loved_ones','leaders','selected','off'].includes(scope)||!Array.isArray(ids)||ids.length>200||ids.some(id=>typeof id!=='string'||id.length>100))throw new UserError('Check notification choices');q('INSERT INTO notification_preferences(member_id,scope,selected_ids_json) VALUES(?,?,?) ON CONFLICT(member_id) DO UPDATE SET scope=excluded.scope,selected_ids_json=excluded.selected_ids_json',actor.id,scope,JSON.stringify([...new Set(ids)]));break;
+  const before=await db.prepare('SELECT * FROM notification_preferences WHERE member_id=?').bind(actor.id).first();const scope=input.type==='SET_NOTIFICATION_SCOPE'?(input.value==='loved'?'loved_ones':input.value):before?.scope||'leaders';let ids=input.type==='SET_SELECTED_NOTIFICATION_IDS'?input.ids:json(before?.selected_ids_json,[]);if(!['all','family','loved_ones','leaders','selected','off'].includes(scope)||!Array.isArray(ids)||ids.length>200||ids.some(id=>typeof id!=='string'||id.length>100))throw new UserError('Check notification choices');ids=await directorySelection(db,ids,{max:200});q('INSERT INTO notification_preferences(member_id,scope,selected_ids_json) VALUES(?,?,?) ON CONFLICT(member_id) DO UPDATE SET scope=excluded.scope,selected_ids_json=excluded.selected_ids_json',actor.id,scope,JSON.stringify([...new Set(ids)]));break;
  }
  case 'MARK_NOTICE_READ':case 'DISMISS_NOTICE':q(`UPDATE notifications SET ${input.type==='MARK_NOTICE_READ'?'read_at':'dismissed_at'}=CURRENT_TIMESTAMP WHERE id=? AND recipient_id=?`,input.id,actor.id);break;
  case 'RENAME_GROUP':{
@@ -166,9 +175,9 @@ export async function command(db,actor,input){
  }
  case 'ADD_MEMORY':case 'SAVE_MEMORY':{
   requireCan(actor,'post');const m=input.memory||{};if(m.id&&!/^[a-zA-Z0-9-]{8,80}$/.test(m.id))throw new UserError('Invalid memory identifier');if(input.type==='SAVE_MEMORY'){const old=await db.prepare('SELECT author_id FROM memories WHERE id=? AND deleted_at IS NULL').bind(m.id||'').first();if(!old)throw new UserError('Memory not found',404);if(old.author_id!==actor.id&&!can(actor,'moderate'))throw new UserError('You cannot edit this memory',403)}
-  const oldMemory=input.type==='SAVE_MEMORY'?await db.prepare('SELECT data_json FROM memories WHERE id=?').bind(m.id).first():null;const sameImage=oldMemory&&json(oldMemory.data_json).image===m.image;const files=sameImage?[{url:m.image,type:json(oldMemory.data_json).mediaType||'image/jpeg'}]:await ownedFiles(db,actor,[{url:m.image}]);if(!/^(image|video|audio)\//.test(files[0].type)&&files[0].type!=='application/pdf')throw new UserError('Choose a photo, video, audio or PDF memory');const memberIds=Array.isArray(m.memberIds)?m.memberIds:[];if(memberIds.length>100||memberIds.some(i=>typeof i!=='string'||i.length>100))throw new UserError('Check the tagged people');for(const id of memberIds){if(!await db.prepare("SELECT id FROM members WHERE id=? AND status='active'").bind(id).first())throw new UserError('Choose an approved family member to tag');}
+  const oldMemory=input.type==='SAVE_MEMORY'?await db.prepare('SELECT data_json FROM memories WHERE id=?').bind(m.id).first():null;const sameImage=oldMemory&&json(oldMemory.data_json).image===m.image;const files=sameImage?[{url:m.image,type:json(oldMemory.data_json).mediaType||'image/jpeg'}]:await ownedFiles(db,actor,[{url:m.image}]);if(!/^(image|video|audio)\//.test(files[0].type)&&files[0].type!=='application/pdf')throw new UserError('Choose a photo, video, audio or PDF memory');const memberIds=await directorySelection(db,m.memberIds??[],{ancestors:true});
   const capturedDate=m.capturedDate||'';if(capturedDate&&(!/^\d{4}-\d{2}-\d{2}$/.test(capturedDate)||capturedDate<'1600-01-01'||capturedDate>new Date().toISOString().slice(0,10)||Number.isNaN(Date.parse(capturedDate+'T12:00:00Z'))||new Date(capturedDate+'T12:00:00Z').toISOString().slice(0,10)!==capturedDate))throw new UserError('Check the memory date');
-  const value={title:text(m.title||'',120),image:files[0].url,mediaType:files[0].type,capturedDate,dateStatus:['suggested','confirmed','approximate'].includes(m.dateStatus)?m.dateStatus:'unknown',dateSource:text(m.dateSource||'',60),category:text(m.category||'',60),event:text(m.event||'',100),year:text(m.year||'',4),milestone:text(m.milestone||'',100),tags:Array.isArray(m.tags)?m.tags.slice(0,20).map(x=>text(x,40)):[],memberIds};result.id=m.id||uuid();if(input.type==='ADD_MEMORY'){q('INSERT INTO memories(id,author_id,data_json) VALUES(?,?,?)',result.id,actor.id,JSON.stringify(value));q('INSERT INTO posts(id,author_id,body,metadata_json) VALUES(?,?,?,?)',result.id,actor.id,value.title||'Shared a memory',JSON.stringify({files,memoryId:result.id}))}else{q('UPDATE memories SET data_json=? WHERE id=?',JSON.stringify(value),result.id);q('UPDATE posts SET body=?,metadata_json=? WHERE id=?',value.title||'Shared a memory',JSON.stringify({files,memoryId:result.id}),result.id);if(!sameImage)q('DELETE FROM featured_memories WHERE memory_id=?',result.id)}break;
+  const value={title:text(m.title||'',120),image:files[0].url,mediaType:files[0].type,capturedDate,dateStatus:['suggested','confirmed','approximate'].includes(m.dateStatus)?m.dateStatus:'unknown',dateSource:text(m.dateSource||'',60),category:text(m.category||'',60),event:text(m.event||'',100),year:text(m.year||'',4),milestone:text(m.milestone||'',100),tags:Array.isArray(m.tags)?m.tags.slice(0,20).map(x=>text(x,40)):[],memberIds};result.id=m.id||uuid();if(input.type==='ADD_MEMORY'){q('INSERT INTO memories(id,author_id,data_json) VALUES(?,?,?)',result.id,actor.id,JSON.stringify(value));q('INSERT INTO posts(id,author_id,body,metadata_json) VALUES(?,?,?,?)',result.id,actor.id,value.title||'Shared a memory',JSON.stringify({files,memoryId:result.id,memberIds}))}else{q('UPDATE memories SET data_json=? WHERE id=?',JSON.stringify(value),result.id);q('UPDATE posts SET body=?,metadata_json=? WHERE id=?',value.title||'Shared a memory',JSON.stringify({files,memoryId:result.id,memberIds}),result.id);if(!sameImage)q('DELETE FROM featured_memories WHERE memory_id=?',result.id)}break;
  }
  case 'REPORT':{
   if(!await accessibleTarget(db,actor,input.targetId))throw new UserError('Item not found',404);result.id=uuid();q('INSERT INTO moderation_reports(id,reporter_id,target_id,reason) VALUES(?,?,?,?)',result.id,actor.id,input.targetId,text(input.reason,1000,true));break;
