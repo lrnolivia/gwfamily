@@ -1,3 +1,4 @@
+import {CALENDAR_COMMANDS,calendarCommand,calendarDetailsFor,calendarLeader} from './calendar.mjs';
 import {listNotifications,notificationSettingsStatements} from './notification-service.mjs';
 import {commandFingerprint} from './command-identity.mjs';
 import {directorySelection as validateDirectorySelection} from './member-directory.mjs';
@@ -34,10 +35,12 @@ export async function familyState(db,actor){
  const votes=list(await db.prepare(`SELECT v.* FROM poll_votes v JOIN posts p ON p.id=v.post_id WHERE ${visiblePostSql}`).bind(actor.id).all());
  const dependents=list(await db.prepare('SELECT * FROM dependents WHERE guardian_id=? AND deleted_at IS NULL').bind(actor.id).all());
  const prefs=await db.prepare('SELECT * FROM notification_preferences WHERE member_id=?').bind(actor.id).first();
- const details=json((await db.prepare("SELECT data_json FROM reunion_settings WHERE id='current'").bind().first())?.data_json);
+ const details=calendarDetailsFor(json((await db.prepare("SELECT data_json FROM reunion_settings WHERE id='current'").bind().first())?.data_json),actor);
  const fees=await db.prepare('SELECT status FROM fee_reports WHERE member_id=? ORDER BY created_at DESC,id DESC LIMIT 1').bind(actor.id).first();
  const claim=await db.prepare('SELECT * FROM shirt_claims WHERE member_id=? ORDER BY created_at DESC,id DESC LIMIT 1').bind(actor.id).first();
  const rsvp=await db.prepare('SELECT status,count FROM rsvps WHERE member_id=?').bind(actor.id).first();
+ const planningOrders=list(await db.prepare('SELECT id,status,lines_json,created_at FROM shirt_claims WHERE member_id=? ORDER BY created_at DESC,id DESC').bind(actor.id).all());
+ const planningFees=list(await db.prepare('SELECT id,status,created_at FROM fee_reports WHERE member_id=? ORDER BY created_at DESC,id DESC').bind(actor.id).all());
  const inbox=await listNotifications(db,actor,{limit:100});const notices=inbox.notifications;
  const saved=list(await db.prepare('SELECT target_id FROM saved_items WHERE member_id=?').bind(actor.id).all());
  const memories=list(await db.prepare('SELECT * FROM memories WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 200').bind().all());
@@ -47,7 +50,7 @@ export async function familyState(db,actor){
  const relationships=list(await db.prepare('SELECT from_id,to_id,kind FROM family_relationships').bind().all());
  const birthdayCalendar=await publicBirthdays(db);
  const announcementViews=list(await db.prepare('SELECT post_id FROM announcement_views WHERE member_id=?').bind(actor.id).all()).map(v=>v.post_id);
- const state={announcementViews,birthdayCalendar,birthdayCelebration:Boolean(me?.birthday_celebration),mode:'live',schema:3,feedFilter:'all',peopleFilter:'all',memoryFilters:{},onboarding:'done',selfId:actor.id,capabilities:{post:can(actor,'post'),manageReunion:can(actor,'manage_reunion'),moderate:can(actor,'moderate'),manageMembers:can(actor,'manage_members'),treasurer:can(actor,'confirm_fees')},profileComplete:Boolean(me?.completed),
+ const state={announcementViews,birthdayCalendar,birthdayCelebration:Boolean(me?.birthday_celebration),mode:'live',schema:3,feedFilter:'all',peopleFilter:'all',memoryFilters:{},onboarding:'done',selfId:actor.id,capabilities:{manageCalendar:calendarLeader(actor),post:can(actor,'post'),manageReunion:can(actor,'manage_reunion'),moderate:can(actor,'moderate'),manageMembers:can(actor,'manage_members'),treasurer:can(actor,'confirm_fees')},profileComplete:Boolean(me?.completed),
  members:members.map(m=>({id:m.id,name:m.name,photo:m.image,bio:m.bio||'',profileColor:m.profile_color||'#4f996c',themeSong:m.theme_song||'',socials:json(m.socials_json),circle:m.member_group==='loved_ones'?'loved':'family',leader:!!m.is_leader,moderator:json(m.roles_json,[]).some(r=>['admin','moderator'].includes(r)),groupId:groupMembers.find(g=>g.member_id===m.id)?.group_id||null,registered:true,origin:'live',...(m.share_age&&ageOn(m.birthday)!==null?{age:ageOn(m.birthday)}:{}),...(m.id===actor.id?{birthday:me?.birthday,gender:me?.gender,shareAge:!!me?.share_age}:{} )})).concat(dependents.map(d=>({id:d.id,name:d.name,birthday:d.birthday,gender:d.gender,managedBy:actor.id,circle:'family',origin:'dependent',registered:false}))),
  groups:groups.map(g=>({id:g.id,name:g.name,memberIds:groupMembers.filter(m=>m.group_id===g.id).map(m=>m.member_id)})),
  posts:posts.map(p=>{const meta=json(p.metadata_json);const poll=meta.poll?{...meta.poll,votes:{}}:null;if(poll)for(const v of votes.filter(v=>v.post_id===p.id&&v.member_id!==actor.id))for(const i of json(v.options_json,[]))poll.votes[i]=(poll.votes[i]||0)+1;return {...meta,id:p.id,authorId:p.author_id,groupId:p.group_id,text:p.body,createdAt:stamp(p.created_at),poll}}),
@@ -58,6 +61,7 @@ export async function familyState(db,actor){
  notifications:notices,readNotices:notices.filter(n=>n.readAt).map(n=>n.id),notificationUnreadCount:inbox.unreadCount,notificationSettings:inbox.settings,notificationReadAllCutoff:inbox.readAllCutoff,
  notificationScope:prefs?.scope==='loved_ones'?'loved':prefs?.scope||'leaders',selectedNotificationIds:json(prefs?.selected_ids_json,[]),
  favorites:saved.map(s=>s.target_id),contact:json(me?.contact_json),drafts:{post:'',comments:{},replies:{},files:{}},compose:{},bag:[],order:claim?{id:claim.id,status:claim.status,items:json(claim.lines_json,[]),trackingUrl:claim.tracking_url,claimedAt:stamp(claim.created_at)}:null,
+ planningRecords:{accountId:actor.id,orders:planningOrders.map(o=>({id:o.id,status:o.status,items:json(o.lines_json,[]),createdAt:stamp(o.created_at)})),feeReports:planningFees.map(f=>({id:f.id,status:f.status,createdAt:stamp(f.created_at)}))},
  details,payment:details.payment||{paypal:'',cashApp:'',amount:''},fees:fees?.status||'unpaid',rsvp,reports:reports.map(r=>({id:r.id,targetId:r.target_id,reason:r.reason,status:r.status})),inviteDrafts:[],lastId:0};
  for(const r of reactions){const id=r.post_id||r.comment_id;state.reactionMembers[id]??={};(state.reactionMembers[id][r.emoji]??=[]).push(r.member_id);state.reactionCounts[id]??={};state.reactionCounts[id][r.emoji]=(state.reactionCounts[id][r.emoji]||0)+1;if(r.member_id===actor.id)(state.reactions[id]??=[]).push(r.emoji)}
  const featured=list(await db.prepare('SELECT f.* FROM featured_memories f JOIN memories m ON m.id=f.memory_id WHERE m.deleted_at IS NULL ORDER BY f.is_primary DESC,f.approved_at DESC').bind().all());
@@ -69,6 +73,7 @@ export async function familyState(db,actor){
 export async function command(db,actor,input){
  if(!input||typeof input.type!=='string'||typeof input.requestId!=='string'||!/^[a-zA-Z0-9-]{8,80}$/.test(input.requestId))throw new UserError('This action needs a valid request identifier');
  const fingerprint=await commandFingerprint(input);
+ if(CALENDAR_COMMANDS.has(input.type)){const rate=await createRateStorage(db).consume('calendar:write:'+actor.id,{window:60,max:60});if(!rate.allowed)throw new UserError('Please wait a minute before trying again',429);try{return await calendarCommand(db,actor,input,fingerprint)}catch(error){if(error.status)throw new UserError(error.message,error.status);throw error}}
  const previous=await db.prepare('SELECT * FROM command_receipts WHERE member_id=? AND request_id=?').bind(actor.id,input.requestId).first();if(previous){if(previous.fingerprint&&(previous.fingerprint!==fingerprint||previous.operation!==input.type))throw new UserError('This request identifier was already used for different content',409);return json(previous.result_json)}
  const rate=await createRateStorage(db).consume('write:'+actor.id,{window:60,max:90});if(!rate.allowed)throw new UserError('Please wait a minute before trying again',429);
  const sql=[],result={ok:true};const q=(query,...args)=>sql.push(db.prepare(query).bind(...args));
@@ -130,7 +135,8 @@ export async function command(db,actor,input){
  }
  case 'DETAILS':{
   requireCan(actor,'manage_reunion');const before=json((await db.prepare("SELECT data_json FROM reunion_settings WHERE id='current'").bind().first())?.data_json),d=input.value||{},value={...before};
-  for(const key of ['date','time','endDate','rsvpDeadline','location','address','contact','schedule'])value[key]=text(d[key]||'',key==='schedule'?4000:300);
+  for(const key of ['date','time','endDate','rsvpDeadline','location','address','contact'])value[key]=text(d[key]||'',300);
+  if(d.schedule!==undefined&&d.schedule!==(before.schedule||''))throw new UserError(calendarLeader(actor)?'Use Calendar & Events to change the schedule safely.':'Family Leader permission is required to change the calendar schedule',calendarLeader(actor)?409:403);
   if(d.organizerMemberId!==undefined||before.organizerMemberId){
    const selected=d.organizerMemberId!==undefined?d.organizerMemberId:before.organizerMemberId;
    const ids=await directorySelection(db,selected?[selected]:[]);
@@ -138,12 +144,13 @@ export async function command(db,actor,input){
    value.contact=ids.length?(await db.prepare('SELECT name FROM user WHERE id=?').bind(ids[0]).first())?.name||'':'';
   }
   for(const k of ['date','endDate','rsvpDeadline'])if(value[k]&&!/^\d{4}-\d{2}-\d{2}$/.test(value[k]))throw new UserError('Check the event dates');
-  q("INSERT INTO reunion_settings(id,data_json,updated_by) VALUES('current',?,?) ON CONFLICT(id) DO UPDATE SET data_json=excluded.data_json,updated_by=excluded.updated_by,updated_at=CURRENT_TIMESTAMP",JSON.stringify(value),actor.id);audit('update-reunion','current');break;
+  const detailPatch=Object.fromEntries(['date','time','endDate','rsvpDeadline','location','address','contact','organizerMemberId'].filter(k=>Object.hasOwn(value,k)).map(k=>[k,value[k]]));
+  q("INSERT INTO reunion_settings(id,data_json,updated_by) VALUES('current',?,?) ON CONFLICT(id) DO UPDATE SET data_json=json_set(json_patch(reunion_settings.data_json,excluded.data_json),'$.organizerMemberId',CASE WHEN json_type(excluded.data_json,'$.organizerMemberId') IS NULL THEN json_extract(reunion_settings.data_json,'$.organizerMemberId') ELSE json_extract(excluded.data_json,'$.organizerMemberId') END,'$.calendar.revision',COALESCE(json_extract(reunion_settings.data_json,'$.calendar.revision'),0)+1),updated_by=excluded.updated_by,updated_at=CURRENT_TIMESTAMP",JSON.stringify(detailPatch),actor.id);audit('update-reunion','current');break;
  }
  case 'SET_PAYMENT':{
   requireCan(actor,'set_payment_destination');const p=input.value||{},before=json((await db.prepare("SELECT data_json FROM reunion_settings WHERE id='current'").bind().first())?.data_json);
   const paypal=webUrl(p.paypal||'',['paypal.me']),cashApp=webUrl(p.cashApp||'',['cash.app']);if(paypal&&!/^\/[A-Za-z0-9_-]+\/?$/.test(new URL(paypal).pathname))throw new UserError('Use a verified PayPal.Me profile link');if(cashApp&&!/^\/\$[A-Za-z0-9_-]+\/?$/.test(new URL(cashApp).pathname))throw new UserError('Use a verified Cash App profile link');
-  before.payment={paypal,cashApp,amount:text(p.amount||'',80)};q("INSERT INTO reunion_settings(id,data_json,updated_by) VALUES('current',?,?) ON CONFLICT(id) DO UPDATE SET data_json=excluded.data_json,updated_by=excluded.updated_by,updated_at=CURRENT_TIMESTAMP",JSON.stringify(before),actor.id);audit('payment-destination-update','current');break;
+  before.payment={paypal,cashApp,amount:text(p.amount||'',80)};q("INSERT INTO reunion_settings(id,data_json,updated_by) VALUES('current',?,?) ON CONFLICT(id) DO UPDATE SET data_json=json_patch(reunion_settings.data_json,excluded.data_json),updated_by=excluded.updated_by,updated_at=CURRENT_TIMESTAMP",JSON.stringify({payment:before.payment}),actor.id);audit('payment-destination-update','current');break;
  }
  case 'SET_FEES':{
   if(!['paid','reported'].includes(input.value))throw new UserError('Ask the treasurer to correct a payment report');result.id=uuid();q("INSERT INTO fee_reports(id,member_id,status) VALUES(?,?,'reported')",result.id,actor.id);break;

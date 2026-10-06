@@ -163,7 +163,11 @@ html[data-platform=android]{--radius-sheet:28px;--radius-card:24px}
   min-height:25px;padding:3px 8px;border-radius:13px;background:var(--soft);
   color:var(--text);font-size:0.6875rem;font-weight:650}
 .membership-chip .glyph{width:12px;height:12px;margin-right:4px}
-button.membership-chip{min-height:34px;text-decoration:underline;text-underline-offset:2px}
+button.membership-chip{min-height:34px;text-decoration:none;cursor:pointer}
+button.membership-chip.membership-group,a.membership-chip.membership-group,button.membership-chip.membership-group:hover,a.membership-chip.membership-group:hover,button.membership-chip.membership-group:focus-visible,a.membership-chip.membership-group:focus-visible,button.membership-chip.membership-group:active,a.membership-chip.membership-group:active{text-decoration:none}
+button.membership-chip.membership-group:hover,a.membership-chip.membership-group:hover{box-shadow:inset 0 0 0 1px currentColor}
+button.membership-chip.membership-group:focus-visible,a.membership-chip.membership-group:focus-visible{outline:3px solid var(--control,var(--accent));outline-offset:3px}
+button.membership-chip.membership-group:active,a.membership-chip.membership-group:active{box-shadow:inset 0 0 0 2px currentColor}
 .membership-shield{width:26px;padding:4px}
 .membership-shield svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round}
 .group-profile{display:grid;gap:12px}

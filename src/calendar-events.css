@@ -1,0 +1,34 @@
+/* Operate surface: inherit GW typography, material controls, and theme tokens. */
+.calendar-manager,.calendar-member{min-width:0}
+.calendar-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.calendar-heading h2,.calendar-heading h3,.calendar-heading h4{margin:0;overflow-wrap:anywhere}
+.calendar-heading>div{min-width:0;flex:1 1 15rem}
+.calendar-heading p{margin:.45rem 0 0;max-width:65ch}
+.calendar-settings,.calendar-event-editor{max-width:54rem;padding-block:1rem}
+.calendar-settings fieldset,.calendar-event-editor fieldset{border:0;margin:0;padding:0;min-width:0}
+.calendar-settings .field-row,.calendar-event-editor .field-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+.calendar-settings label,.calendar-event-editor label{min-width:0}
+.calendar-manager input,.calendar-manager select,.calendar-manager textarea{width:100%;min-width:0;box-sizing:border-box;color:var(--text);caret-color:var(--accent);font:inherit}
+.calendar-manager textarea{resize:vertical;min-height:7rem}
+.calendar-checkbox{display:flex;align-items:center;gap:.7rem;min-height:44px}
+.calendar-checkbox input{width:1.2rem;height:1.2rem;accent-color:var(--accent);flex:none}
+.calendar-manager summary{min-height:44px;display:list-item;cursor:pointer;padding-block:.6rem}
+.calendar-manager :is(input,select,textarea,summary):focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.calendar-filters,.calendar-actions{display:flex;flex-wrap:wrap;gap:.65rem;align-items:center}
+.calendar-filters [aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:2px}
+.calendar-agenda{padding:0;margin:0;list-style:none;display:grid;gap:0}
+.calendar-agenda>li{padding-block:1.3rem;border-bottom:1px solid var(--line);min-width:0}
+.calendar-agenda>li:first-child{border-top:1px solid var(--line)}
+.calendar-agenda h3,.calendar-agenda h4{margin:0;font-size:1.1rem}
+.calendar-agenda p{max-width:65ch;margin:.55rem 0;overflow-wrap:anywhere}
+.calendar-when{font-variant-numeric:tabular-nums}
+.calendar-location{display:flex;gap:.5rem;align-items:baseline}
+.calendar-location .glyph{flex:none;width:1rem;height:1rem}
+.calendar-description{white-space:pre-wrap}
+.calendar-visibility{font-size:.85rem;color:var(--muted)}
+.calendar-error,.calendar-archive-confirm{padding:1rem;border:1px solid var(--line);border-radius:12px}
+.calendar-error p,.calendar-archive-confirm p{margin:0 0 .75rem;max-width:65ch}
+.calendar-archive-confirm{margin-top:1rem}
+.calendar-manager button:disabled{cursor:wait}
+.calendar-manager .button{min-height:44px}
+@media(max-width:540px){.calendar-settings .field-row,.calendar-event-editor .field-row{grid-template-columns:minmax(0,1fr)}.calendar-heading>.button{flex:0 1 auto}.calendar-manager{gap:1rem}}
