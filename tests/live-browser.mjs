@@ -27,15 +27,21 @@ function assertBrowserErrors(message) {
 async function settleBrowserReads(page, {since, required = []} = {}) {
   const trace = browserReads.get(page), options = {since: since ?? trace.lastDrained, required};
   let drainedThrough = options.since;
-  const assertRequiredReads = () => assert.deepEqual(trace.requiredReadFailures(options), [], 'Required authenticated Live API reads succeed.');
-  await expect.poll(() => {
+  const assertRequiredReads = (allowPendingReplacement = false) => assert.deepEqual(trace.requiredReadFailures({...options, allowPendingReplacement}), [], 'Required authenticated Live API reads succeed.');
+  try {
+    await expect.poll(() => {
+      assertRequiredReads(true);
+      const readiness = trace.readiness(options);
+      if (!readiness.missing.length && !readiness.pending.length) drainedThrough = trace.sequence;
+      return readiness;
+    }, {message: 'Current-document Live API requests finish before deliberate navigation or closure.', timeout: 15000})
+      .toEqual({missing: [], pending: []});
     assertRequiredReads();
-    const readiness = trace.readiness(options);
-    if (!readiness.missing.length && !readiness.pending.length) drainedThrough = trace.sequence;
-    return readiness;
-  }, {message: 'Current-document Live API requests finish before deliberate navigation or closure.', timeout: 15000})
-    .toEqual({missing: [], pending: []});
-  assertRequiredReads();
+  } catch (error) {
+    trace.reportRequiredReadFailures(options);
+    throw error;
+  }
+  trace.recordReadCancellations(options, drainedThrough);
   trace.lastDrained = drainedThrough;
   trace.log('route-reads-settled', {since: options.since, through: drainedThrough, required, pending: trace.snapshot().pending});
 }
@@ -113,9 +119,11 @@ try{
 } finally {
  const scenarioFailed = !!failure;
  const persist = () => Promise.all([
-   writeFile(`${output}/results.json`, JSON.stringify({browser: engineName, passed, pageErrors: errors, ...errorReport(), ...(failure ? {failure} : {})}, null, 2)),
+   writeFile(`${output}/results.json`, JSON.stringify({browser: engineName, passed, pageErrors: errors, ...errorReport(),
+     classifiedReadCancellations: sessions.flatMap(({id, trace}) => trace.classifiedReadCancellations.map(value => ({user: id, ...value}))), ...(failure ? {failure} : {})}, null, 2)),
    writeFile(`${output}/network-${engineName}.json`, JSON.stringify({browser: engineName, pages: sessions.map(({id, trace}) => ({
-     user: id, droppedEvents: trace.droppedEvents, pending: trace.snapshot().pending, transitions: trace.transitions, events: trace.events,
+     user: id, documentEpoch: trace.documentEpoch, documentTimeOrigin: trace.documentTimeOrigin, reads: trace.reads,
+     classifiedReadCancellations: trace.classifiedReadCancellations, droppedEvents: trace.droppedEvents, pending: trace.snapshot().pending, transitions: trace.transitions, events: trace.events,
    }))}, null, 2)),
  ]);
  await persist();

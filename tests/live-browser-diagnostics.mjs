@@ -1,6 +1,7 @@
 // Body-free, bounded request/lifecycle evidence for hosted Live API checks.
 // No browser dependency: the observation and readiness contracts run in Node.
 import {diagnosticUrl} from './communications-browser-diagnostics.mjs';
+import {classifyReloadReadCancellation, inspectReloadReadCancellation, isPendingReloadReadCancellation} from './reload-read-diagnostics.mjs';
 
 export const LIVE_LIFECYCLE_PREFIX = '__GW_LIVE_LIFECYCLE__';
 const EVENT_LIMIT = 700, READ_LIMIT = 300;
@@ -45,6 +46,42 @@ export function liveFailureAnnotation(detail, trace) {
   return '::error title=GW live request failure::' + encode(compact);
 }
 
+// Emit the original required-read failure only after settlement fails. Keep
+// false/unknown predicates visible when full hosted artifacts are unavailable.
+export function liveReadFailureAnnotation(read, trace, {since, required = []} = {}) {
+  const {checks, reload, beforeunloadEvent, replacementRead} = inspectReloadReadCancellation(read, trace);
+  const lifecycle = trace.events.filter(event => event.type === 'document-lifecycle' &&
+    event.timeOrigin === read.documentTimeOrigin && ['notification-fetch-attempt', 'notification-fetch', 'notification-abort', 'beforeunload', 'pagehide'].includes(event.event));
+  const compact = {
+    read: {id: read.id, method: safeText(read.method, 12), path: safeText(read.path, 150), sourceUrl: diagnosticUrl(read.frameUrl).slice(0, 220),
+      epoch: read.documentEpoch, timeOrigin: read.documentTimeOrigin, startEvent: read.startedEvent, endEvent: read.finishedEvent,
+      start: read.startedMs, response: read.responseMs, end: read.finishedMs, status: read.status, failure: safeText(read.failure, 150)},
+    current: {epoch: trace.documentEpoch, timeOrigin: trace.documentTimeOrigin, since, required},
+    reload: reload ? {target: diagnosticUrl(reload.target).slice(0, 220), sourceEpoch: reload.sourceEpoch, sourceTimeOrigin: reload.sourceTimeOrigin,
+      targetEpoch: reload.targetEpoch, targetTimeOrigin: reload.targetTimeOrigin, startEvent: reload.startedEvent,
+      commitEvent: reload.committedEvent, documentEvent: reload.documentStartedEvent,
+      start: reload.startedMs, commit: reload.committedMs, documentStart: reload.documentStartedMs} : null,
+    checks, beforeunloadEvent, replacementRead,
+    lifecycle: lifecycle.slice(-4).map(event => ({event: event.event, sequence: event.eventSequence, ms: event.ms,
+      timeOrigin: event.timeOrigin, request: event.request, aborted: event.aborted,
+      stack: event.stack ? safeText(event.stack, 500) : undefined})),
+  };
+  const encode = value => JSON.stringify(value).replaceAll('%', '%25').replaceAll('\n', '%0A').replaceAll('\r', '%0D');
+  while (encode(compact).length > 3800 && compact.lifecycle.some(event => event.stack)) {
+    for (const event of compact.lifecycle) if (event.stack) event.stack = event.stack.slice(0, Math.floor(event.stack.length / 2)) || undefined;
+  }
+  while (encode(compact).length > 3800 && compact.lifecycle.length) compact.lifecycle.shift();
+  while (encode(compact).length > 3800 && compact.current.required.length) compact.current.required = compact.current.required.slice(1);
+  // Percent-heavy routes expand threefold in workflow-command encoding. Keep
+  // all identity/check fields and shorten only display text as a last resort.
+  while (encode(compact).length > 3800 && (compact.read.sourceUrl || compact.reload?.target || compact.read.path || compact.read.failure)) {
+    for (const [object, key] of [[compact.read, 'sourceUrl'], [compact.reload, 'target'], [compact.read, 'path'], [compact.read, 'failure']]) {
+      if (object?.[key]) object[key] = object[key].slice(0, Math.floor(object[key].length / 2));
+    }
+  }
+  return '::error title=GW live required read failure::' + encode(compact);
+}
+
 export function installLiveLifecycle() {
   if (window !== window.top) return;
   const emit = (event, detail = {}) => console.log('__GW_LIVE_LIFECYCLE__' + JSON.stringify({
@@ -83,7 +120,7 @@ export function installLiveLifecycle() {
 
 export function observeLivePage({page, context, label, base, errors, getCheck, started = Date.now()}) {
   const trace = {sequence: 0, eventSequence: 0, documentEpoch: 0, documentTimeOrigin: null, documentUrl: null,
-    lastDrained: 0, events: [], droppedEvents: 0, reads: [], pending: new Map(), transitions: [], pageErrors: [], domErrors: []};
+    lastDrained: 0, events: [], droppedEvents: 0, reads: [], pending: new Map(), transitions: [], pageErrors: [], domErrors: [], classifiedReadCancellations: []};
   const requests = new WeakMap(), frames = new WeakMap();
   let frameSequence = 0;
   const frameInfo = frame => {
@@ -100,7 +137,9 @@ export function observeLivePage({page, context, label, base, errors, getCheck, s
     transitions: trace.transitions.slice(-4).map(value => ({...value})), recentEvents: trace.events.slice(-40)});
   trace.beginTransition = (type, target = page.url()) => {
     const transition = {type, target: diagnosticUrl(target), sourceEpoch: trace.documentEpoch, sourceTimeOrigin: trace.documentTimeOrigin,
-      startedMs: Date.now() - started, startedEvent: trace.eventSequence + 1};
+      startedMs: Date.now() - started, startedEvent: trace.eventSequence + 1,
+      drainedEvent: trace.events.findLast(event => event.type === 'route-reads-settled' &&
+        event.documentEpoch === trace.documentEpoch && event.documentTimeOrigin === trace.documentTimeOrigin)?.eventSequence};
     trace.transitions.push(transition);
     if (trace.transitions.length > 50) trace.transitions.shift();
     trace.log(type + '-start', {...transition, ms: transition.startedMs, pending: trace.snapshot().pending});
@@ -112,9 +151,26 @@ export function observeLivePage({page, context, label, base, errors, getCheck, s
       read.finishedMs !== undefined && !read.failure && read.status >= 200 && read.status < 300)),
     pending: [...trace.pending.values()].map(({id, path, method}) => ({id, path, method})),
   });
-  trace.requiredReadFailures = ({since = trace.lastDrained, required = []} = {}) => trace.reads
+  trace.requiredReadFailures = ({since = trace.lastDrained, required = [], allowPendingReplacement = false} = {}) => trace.reads
     .filter(read => read.id > since && required.includes(read.path) && read.finishedMs !== undefined &&
-      (read.failure || !(read.status >= 200 && read.status < 300))).map(read => ({...read}));
+      (read.failure || !(read.status >= 200 && read.status < 300)) && !classifyReloadReadCancellation(read, trace) &&
+      !(allowPendingReplacement && isPendingReloadReadCancellation(read, trace))).map(read => ({...read}));
+  trace.reportRequiredReadFailures = options => {
+    for (const read of trace.requiredReadFailures(options)) {
+      trace.log('required-read-failure', {read, since: options.since, required: options.required});
+      console.log(liveReadFailureAnnotation(read, trace, options));
+    }
+  };
+  trace.recordReadCancellations = ({since, required}, through) => {
+    for (const read of trace.reads.filter(read => read.id > since && read.id <= through && required.includes(read.path))) {
+      const evidence = classifyReloadReadCancellation(read, trace);
+      if (evidence && !trace.classifiedReadCancellations.some(value => value.read.id === read.id)) {
+        const detail = {read: {...read}, evidence};
+        trace.classifiedReadCancellations.push(detail);
+        trace.log('superseded-document-read-cancelled', detail);
+      }
+    }
+  };
 
   page.on('request', request => {
     const url = new URL(request.url()), sameOriginApi = url.origin === base && url.pathname.startsWith('/api/');
@@ -137,7 +193,7 @@ export function observeLivePage({page, context, label, base, errors, getCheck, s
       trace.pending.set(entry.id, entry);
       if (entry.method === 'GET') {trace.reads.push(entry); if (trace.reads.length > READ_LIMIT) trace.reads.shift();}
     }
-    trace.log('request', {...entry});
+    trace.log('request', {...entry, ms: entry.startedMs});
   });
   page.on('response', response => {
     const entry = requests.get(response.request()); if (!entry) return;
@@ -151,7 +207,7 @@ export function observeLivePage({page, context, label, base, errors, getCheck, s
     entry.finishedMs = Date.now() - started; entry.finishedEvent = trace.eventSequence + 1;
     if (event === 'requestfailed') entry.failure = safeText(request.failure()?.errorText || 'Unknown request failure');
     trace.pending.delete(entry.id);
-    trace.log(event, {...entry});
+    trace.log(event, {...entry, ms: entry.finishedMs});
   });
   page.on('framenavigated', frame => {
     const ms = Date.now() - started;

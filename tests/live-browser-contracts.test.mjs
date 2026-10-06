@@ -5,7 +5,7 @@ import {EventEmitter} from 'node:events';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {reportReloadInspectorErrors} from './reload-inspector-diagnostics.mjs';
-import {LIVE_LIFECYCLE_PREFIX, installLiveLifecycle, observeLivePage, liveFailureAnnotation} from './live-browser-diagnostics.mjs';
+import {LIVE_LIFECYCLE_PREFIX, installLiveLifecycle, observeLivePage, liveFailureAnnotation, liveReadFailureAnnotation} from './live-browser-diagnostics.mjs';
 
 const base = 'http://127.0.0.1:4174';
 const source = readFileSync(new URL('./live-browser.mjs', import.meta.url), 'utf8');
@@ -89,11 +89,15 @@ test('Live drain cannot acknowledge a required failure that arrives while its as
     page.emit('request', late); finish(page, late, 403);
   }})}});
   vm.runInContext(helper, context);
-  await assert.rejects(context.settleBrowserReads(page, {since: 0, required: ['/api/notifications']}), /Required authenticated Live API reads succeed/);
+  const realLog = console.log, annotations = []; console.log = value => annotations.push(value);
+  try {
+    await assert.rejects(context.settleBrowserReads(page, {since: 0, required: ['/api/notifications']}), /Required authenticated Live API reads succeed/);
+  } finally {console.log = realLog;}
+  assert.equal(annotations.length, 1); assert.match(annotations[0], /^::error title=GW live required read failure::/);
   assert.equal(trace.lastDrained, 0);
 });
 
-test('Live normal authenticated reads reject 401, 403, 503 and all transport failures without exceptions for navigation', () => {
+test('Live normal authenticated reads reject 401, 403, 503 and unproven transport failures during navigation', () => {
   for (const status of [401, 403, 503]) {
     const {page, trace} = observed(), req = request(page);
     page.emit('request', req); finish(page, req, status);
@@ -349,4 +353,137 @@ test('Live transition timestamps retain one observation across clock-tick bounda
       assert.equal(trace.events.find(value => value.eventSequence === transition[event]).ms, transition[ms]);
     }
   } finally {Date.now = realNow;}
+});
+
+function observedOutgoingCancellation({order = 'commit-first', arrival = 'after-reload'} = {}) {
+  const value = observed(), {page, trace} = value;
+  const original = request(page); page.emit('request', original); finish(page, original);
+  const since = trace.sequence, cancelled = request(page, '/api/notifications?limit=30', {failure: 'net::ERR_ABORTED'});
+  if (arrival === 'drain-race') page.emit('request', cancelled);
+  trace.log('route-reads-settled', {since: 0, through: since, pending: trace.snapshot().pending});
+  if (arrival === 'after-drain') page.emit('request', cancelled);
+  trace.beginTransition('reload');
+  if (arrival === 'after-reload') page.emit('request', cancelled);
+  lifecycle(page, 'notification-fetch', 100, {request: 2, aborted: false});
+  lifecycle(page, 'beforeunload');
+  lifecycle(page, 'notification-abort', 100, {request: 2, aborted: true, stack: 'at cancelReads (' + base + '/react-app.js:120:2)'});
+  page.emit('requestfailed', cancelled);
+  if (order === 'commit-first') page.emit('framenavigated', page.frame);
+  lifecycle(page, 'new-document', 200);
+  if (order === 'init-first') page.emit('framenavigated', page.frame);
+  const next = request(page); page.emit('request', next);
+  return {...value, since, cancelled, next};
+}
+function settlementContext(page, trace, poll) {
+  const helper = source.slice(source.indexOf('async function settleBrowserReads('), source.indexOf('async function authenticatedRouteReady('));
+  const context = vm.createContext({browserReads: new WeakMap([[page, trace]]), assert: vmAssert, expect: {poll}});
+  vm.runInContext(helper, context);
+  return options => context.settleBrowserReads(page, options);
+}
+test('Live full observer preserves and reports only positively correlated outgoing cancellations after a successful drain', async () => {
+  for (const order of ['commit-first', 'init-first']) for (const arrival of ['after-reload', 'drain-race', 'after-drain']) {
+    const {page, trace, since, next} = observedOutgoingCancellation({order, arrival});
+    const options = {since, required: ['/api/notifications']}, read = trace.reads.find(value => value.failure);
+    assert.equal(trace.requiredReadFailures(options).length, 1, 'Replacement response body is still missing.');
+    assert.deepEqual(trace.requiredReadFailures({...options, allowPendingReplacement: true}), []);
+    finish(page, next);
+    assert.deepEqual(trace.requiredReadFailures(options), []);
+    assert.equal(trace.classifiedReadCancellations.length, 0, 'Filtering a probe is not an acknowledged classification.');
+    const settle = settlementContext(page, trace, probe => ({async toEqual(wanted) {
+      assert.equal(JSON.stringify(probe()), JSON.stringify(wanted));
+    }}));
+    await settle(options);
+    assert.equal(trace.classifiedReadCancellations.length, 1);
+    assert.equal(trace.classifiedReadCancellations[0].read.failure, 'net::ERR_ABORTED');
+    assert.equal(trace.classifiedReadCancellations[0].evidence.sourceEpoch, 1);
+    assert.equal(trace.classifiedReadCancellations[0].evidence.targetEpoch, 2);
+    assert.equal(trace.reads.find(value => value.id === read.id), read);
+    assert.equal(trace.events.find(value => value.type === 'requestfailed').failure, 'net::ERR_ABORTED');
+    assert.equal(trace.events.filter(value => value.type === 'superseded-document-read-cancelled').length, 1);
+  }
+});
+test('Live waits within the existing poll for a proven outgoing cancellation replacement without annotating transient probes', async () => {
+  const {page, trace, since, next} = observedOutgoingCancellation(), annotations = [];
+  const realLog = console.log; console.log = value => annotations.push(value);
+  try {
+    const settle = settlementContext(page, trace, probe => ({async toEqual(wanted) {
+      const first = probe();
+      assert.deepEqual([...first.missing], ['/api/notifications']); assert.equal(first.pending.length, 1);
+      assert.equal(trace.classifiedReadCancellations.length, 0);
+      finish(page, next);
+      assert.equal(JSON.stringify(probe()), JSON.stringify(wanted));
+    }}));
+    await settle({since, required: ['/api/notifications']});
+  } finally {console.log = realLog;}
+  assert.deepEqual(annotations, []); assert.equal(trace.classifiedReadCancellations.length, 1);
+});
+test('Live times out missing replacement proof and emits one compact final failure with raw cancellation and negative checks', async () => {
+  const {page, trace, since} = observedOutgoingCancellation(), annotations = [];
+  const realLog = console.log; console.log = value => annotations.push(value);
+  try {
+    const settle = settlementContext(page, trace, probe => ({async toEqual() {
+      assert.equal(probe().missing.length, 1); assert.equal(probe().missing.length, 1);
+      assert.equal(annotations.length, 0);
+      throw new Error('Synthetic existing poll deadline');
+    }}));
+    await assert.rejects(settle({since, required: ['/api/notifications']}), /existing poll deadline/);
+  } finally {console.log = realLog;}
+  assert.equal(annotations.length, 1); assert.equal(trace.classifiedReadCancellations.length, 0);
+  const summary = JSON.parse(annotations[0].split('::').slice(2).join('::').replaceAll('%0A', '\n').replaceAll('%0D', '\r').replaceAll('%25', '%'));
+  assert.equal(summary.read.method, 'GET'); assert.equal(summary.read.failure, 'net::ERR_ABORTED');
+  assert.equal(summary.read.sourceUrl, base + '/#/home');
+  assert.equal(summary.read.epoch, 1); assert.equal(summary.current.epoch, 2);
+  assert.equal(summary.reload.sourceTimeOrigin, 100); assert.equal(summary.reload.targetTimeOrigin, 200);
+  assert.equal(summary.checks.failureAfterReload, true); assert.equal(summary.checks.replacementRead, false);
+  assert.ok(summary.lifecycle.some(value => value.event === 'notification-abort' && value.stack.includes('cancelReads')));
+});
+test('Live current-document cancellation is immediately fatal despite a later successful retry', async () => {
+  const {page, trace, since, next} = observedOutgoingCancellation(); finish(page, next);
+  const failed = request(page, '/api/notifications', {failure: 'net::ERR_ABORTED'}); page.emit('request', failed); page.emit('requestfailed', failed);
+  const retry = request(page); page.emit('request', retry); finish(page, retry);
+  const realLog = console.log, annotations = []; console.log = value => annotations.push(value);
+  try {
+    const settle = settlementContext(page, trace, probe => ({async toEqual() {probe(); throw new Error('Must not reach readiness');}}));
+    await assert.rejects(settle({since, required: ['/api/notifications']}), /Required authenticated Live API reads succeed/);
+  } finally {console.log = realLog;}
+  assert.equal(annotations.length, 1); assert.equal(trace.classifiedReadCancellations.length, 0);
+});
+test('Live request and completion timestamps retain the same observation across clock ticks', () => {
+  const realNow = Date.now; let now = 10000; Date.now = () => ++now;
+  try {
+    const {page, trace} = observedOutgoingCancellation();
+    for (const read of trace.reads) {
+      assert.equal(trace.events.find(value => value.eventSequence === read.startedEvent).ms, read.startedMs);
+      if (read.finishedEvent) assert.equal(trace.events.find(value => value.eventSequence === read.finishedEvent).ms, read.finishedMs);
+    }
+    const latest = trace.reads.at(-1), req = request(page); page.emit('request', req); finish(page, req);
+    // The unmatched pending request stays visible; only finished bodies count.
+    assert.equal(trace.pending.has(latest.id), true);
+  } finally {Date.now = realNow;}
+});
+test('Live required-read annotations remain query-free and bounded with encoded abort stacks', () => {
+  const {trace, since} = observedOutgoingCancellation(), read = trace.reads.find(value => value.failure);
+  for (const event of trace.events.filter(value => value.event === 'notification-abort')) event.stack = '%'.repeat(4000);
+  read.frameUrl += '?secret=never-log-query';
+  const annotation = liveReadFailureAnnotation(read, trace, {since, required: ['/api/notifications']});
+  assert.ok(annotation.length < 4096); assert.doesNotMatch(annotation, /never-log-query/);
+  assert.doesNotThrow(() => JSON.parse(annotation.split('::').slice(2).join('::').replaceAll('%25', '%')));
+});
+test('Live artifacts preserve classified read originals independently of the inspector error classifier', () => {
+  assert.match(source, /classifiedReadCancellations: sessions\.flatMap/);
+  assert.match(source, /classifiedReadCancellations: trace\.classifiedReadCancellations/);
+  assert.match(source, /documentTimeOrigin: trace\.documentTimeOrigin, reads: trace\.reads/);
+  assert.match(source, /catch \(error\) \{\s+trace\.reportRequiredReadFailures\(options\);\s+throw error;/);
+  assert.match(source, /assertRequiredReads\(true\)/);
+});
+
+test('Live required-read annotations bound percent-heavy route targets without losing negative proof', () => {
+  const {trace, since} = observedOutgoingCancellation(), read = trace.reads.find(value => value.failure);
+  read.frameUrl = base + '/#/' + '%'.repeat(980);
+  trace.transitions.at(-1).target = read.frameUrl;
+  const annotation = liveReadFailureAnnotation(read, trace, {since, required: ['/api/notifications']});
+  assert.ok(annotation.length < 4096);
+  const summary = JSON.parse(annotation.split('::').slice(2).join('::').replaceAll('%25', '%'));
+  assert.equal(summary.read.id, read.id); assert.equal(summary.read.epoch, 1); assert.equal(summary.current.epoch, 2);
+  assert.equal(summary.checks.matchingTarget, false); assert.equal(summary.checks.replacementRead, false);
 });
