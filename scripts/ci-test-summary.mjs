@@ -1,6 +1,6 @@
 // Run only in the authorized canonical GitHub CI lane. No suite is filtered.
 import {spawn} from 'node:child_process';
-import {testFailureAnnotations,testFailureCommand} from './ci-test-summary-model.mjs';
+import {testFailureAnnotations,testFailureCommand,testSuiteCounts} from './ci-test-summary-model.mjs';
 const suite=/^[A-Za-z0-9 _-]{1,40}$/.test(process.argv[2]||'')?process.argv[2]:'GW suite';
 let captured='',truncated=false,started=false;
 const child=spawn('npm',['test'],{cwd:process.cwd(),env:process.env,stdio:['inherit','pipe','pipe']});
@@ -11,6 +11,8 @@ child.on('spawn',()=>{started=true});
 child.on('error',error=>{process.stderr.write(String(error.message)+'\n');process.exitCode=1});
 child.on('close',(code,signal)=>{
  const exitCode=typeof code==='number'?code:1;
+ const counts=testSuiteCounts(captured);
+ if(counts)process.stdout.write('::notice::'+suite+' complete required-suite counts '+JSON.stringify(counts)+'; exit '+exitCode+'\n');
  if(exitCode!==0){
   const records=testFailureAnnotations(captured);
   for(const record of records)process.stdout.write(testFailureCommand(record,suite)+'\n');

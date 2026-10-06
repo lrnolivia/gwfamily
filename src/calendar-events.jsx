@@ -1,12 +1,13 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {Button,Control,Glyph,useApp} from './ui-core.jsx';
+import {EditableText} from './page-content.jsx';
 import {api,sendCommand,isAmbiguousCommandError} from './live-adapter.js';
 import {applyCalendarCommand,calendarRecord,canManageCalendar,eventWhen,normalizeEvent,sortedEvents,visibleCalendar} from './calendar-model.js';
 import './calendar-events.css';
 
 export function MemberCalendar(){
  const {state,go}=useApp(),calendar=visibleCalendar(state.details),events=sortedEvents(calendar.events),canEdit=canManageCalendar(state);
- return <section className="calendar-member stack" aria-label="Reunion calendar"><div className="calendar-heading"><h2>Reunion calendar</h2>{canEdit&&<Button secondary onClick={()=>go({type:'leader-tools',section:'calendar'})}>Manage calendar</Button>}</div>{calendar.schedule&&<p className="schedule-preview">{calendar.schedule}</p>}{events.length?<ol className="calendar-agenda">{events.map(event=><li key={event.id}><h3>{event.title}</h3><p className="calendar-when">{eventWhen(event)}</p>{event.location&&<p className="calendar-location"><Glyph name="pin"/>{event.location}</p>}{event.description&&<p className="calendar-description">{event.description}</p>}</li>)}</ol>:<div className="empty"><Glyph name="calendar"/><p>The schedule is on its way.</p><p className="small muted">Family Leaders will share activities and times here.</p></div>}</section>;
+ return <section className="calendar-member stack" aria-label="Reunion schedule"><div className="calendar-heading"><h2>Reunion schedule</h2>{canEdit&&<Button secondary onClick={()=>go({type:'leader-tools',section:'calendar'})}>Manage calendar</Button>}</div>{calendar.schedule&&<p className="schedule-preview">{calendar.schedule}</p>}{events.length?<ol className="calendar-agenda">{events.map(event=><li key={event.id}><h3>{event.title}</h3><p className="calendar-when">{eventWhen(event)}</p>{event.location&&<p className="calendar-location"><Glyph name="pin"/>{event.location}</p>}{event.description&&<p className="calendar-description">{event.description}</p>}</li>)}</ol>:<div className="empty"><Glyph name="calendar"/><EditableText page="reunion" field="scheduleEmptyTitle" as="p">The schedule is on its way.</EditableText><EditableText page="reunion" field="scheduleEmptyBody" as="p" className="small muted">Family Leaders will share activities and times here.</EditableText></div>}</section>;
 }
 export function CalendarEventsManager(){
  const {state,data,dispatch,setToast}=useApp(),account=state.selfId,preview=state.mode==='preview';

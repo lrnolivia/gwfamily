@@ -47,7 +47,7 @@ export function InstallGuideVisual({platform,step}){
  if(!sequence)return null; // Unknown browsers get honest written help, never a fabricated OS.
  const id=platform==='apple'&&step===0?safariVisualLayouts[safariLayout]:sequence[step];
  return <div className="install-visual-group">
-  {platform==='apple'&&step===0&&<ViewSwitcher label="Safari example" className="install-layout-choices" value={safariLayout} onChange={setSafariLayout} help="Choose the toolbar you see. This only changes the example." options={[{value:'compact',label:'iPhone: Compact',icon:'phone'},{value:'direct',label:'iPhone: Top / Bottom',icon:'phone'},{value:'ipad',label:'iPad',icon:'phone'}]}/>}
+  {platform==='apple'&&step===0&&<div className="install-layout-choices"><ViewSwitcher label="Safari example" value={safariLayout} onChange={setSafariLayout} options={[{value:'compact',label:'iPhone: Compact',icon:'phone'},{value:'direct',label:'iPhone: Top / Bottom',icon:'phone'},{value:'ipad',label:'iPad',icon:'phone'}]}/><p className="choice-help">Choose the toolbar you see. This only changes the example.</p></div>}
   <NativeControlRecreation key={id} id={id}/>
   {platform==='windows'&&step===0&&<NativeControlRecreation id="windows-edge-install-menu"/>}
  </div>;

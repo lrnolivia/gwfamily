@@ -41,7 +41,10 @@ test('each recreation has verified content identity, honest version uncertainty 
 });
 test('iOS has compact, direct Share and iPad examples plus a complete Add screen',async()=>{
  assert.deepEqual(Object.keys(renderer.safariVisualLayouts),['compact','direct','ipad']);
- const html=renderer.renderVisual('apple',0);assert.match(html,/Safari example/);for(const label of ['iPhone: Compact','iPhone: Top \/ Bottom','iPad'])assert.ok(html.includes(label),label);assert.match(html,/role="tablist"/);assert.match(html,/role="tab"/);assert.match(html,/aria-selected="true"/);assert.doesNotMatch(html,/type="radio"/);assert.match(html,/only changes the example/);
+ const html=renderer.renderVisual('apple',0);assert.match(html,/Safari example/);for(const label of ['iPhone: Compact','iPhone: Top \/ Bottom','iPad'])assert.ok(html.includes(label),label);assert.match(html,/role="tablist"/);assert.equal((html.match(/role="tab"/g)||[]).length,3);assert.equal((html.match(/aria-selected="true"/g)||[]).length,1);assert.equal((html.match(/tabindex="0"/g)||[]).length,1);assert.equal((html.match(/tabindex="-1"/g)||[]).length,2);assert.doesNotMatch(html,/type="radio"/);assert.match(html,/only changes the example/);
+ assert.match(html,/<\/button><\/div><p class="choice-help">Choose the toolbar you see\. This only changes the example\.<\/p>/,'Example-only explanation is rendered after the tablist, never inside its navigation controls');
+ assert.deepEqual(renderer.safariVisualLayouts,{compact:'ios-safari-compact',direct:'ios-safari-direct-share',ipad:'ipados-safari-share'});
+ const visual=await source('install-guide-visuals.jsx');assert.match(visual,/value=\{safariLayout\} onChange=\{setSafariLayout\}/);assert.doesNotMatch(visual,/<ViewSwitcher[^>]*\bhelp=/,'ViewSwitcher has no help prop contract');
  const add=await readFile(new URL('../dist/install-guide/ios-safari-add-screen.svg',import.meta.url),'utf8');
  for(const label of ['Add to Home Screen','Open as Web App','greenwhitefamily.com','Green &amp; White','Cancel','>Add<'])assert.ok(add.includes(label),label);assert.match(add,/#34c759/);assert.match(add,/data:image\/png;base64,/);
 });
@@ -59,6 +62,26 @@ test('guide preserves full-page Back, optional sheet dismissal and explicit inst
 test('current menu wording and older-version fallbacks are bounded honestly',()=>{
  assert.match(installSteps.android[1].text,/Install and create shortcut, then Install/);assert.match(installSteps.android[1].text,/Older versions or other browsers/);assert.match(installSteps.windows[0].text,/Cast, save, and share, then Install page as app/);assert.match(installSteps.chromeos[0].text,/Cast, save, and share, then Install page as app/);assert.match(installSteps.mac[0].text,/Sonoma 14/);for(const platform of ['mac','windows','chromeos'])assert.match(installSteps[platform].map(step=>step.text).join(' '),/Installation is optional/);
 });
-test('hosted fixture serves only cropped self-hosted guide assets and tests every supported OS',async()=>{
- const fixture=await readFile(new URL('./install-tutorial-browser.mjs',import.meta.url),'utf8');assert.match(fixture,/src\/install-guide-visuals\.css/);assert.match(fixture,/contentType:'image\/svg\+xml'/);assert.match(fixture,/url\.origin==='http:\/\/help-fixture\.local'/);assert.match(fixture,/\['macOS','Windows','ChromeOS'\]/);assert.match(fixture,/img\.complete&&img\.naturalWidth>0/);assert.ok(fixture.indexOf('GW_HOSTED_BROWSER_QA')<fixture.indexOf('.launch('));assert.match(fixture,/physicalDeviceValidation:false/);
+test('hosted fixture serves only exact cropped self-hosted guide assets and denies network writes',async()=>{
+ const fixture=await readFile(new URL('./install-tutorial-browser.mjs',import.meta.url),'utf8');
+ assert.match(fixture,/src\/install-guide-visuals\.css/);assert.match(fixture,/contentType:'image\/svg\+xml'/);
+ const fixtureUrl=/const FIXTURE_URL='([^']+)'/.exec(fixture);assert.ok(fixtureUrl);assert.equal(fixtureUrl[1],'https://gw-help-fixture.invalid/__review/help/');
+ assert.match(fixture,/request\.url\(\)===FIXTURE_URL/);assert.match(fixture,/url\.origin===new URL\(FIXTURE_URL\)\.origin&&url\.pathname==='\/__review\/help\/install-guide\/'\+file/);
+ const allowlist=/const ASSET_ALLOWLIST=Object\.freeze\(\[([\s\S]*?)\]\)/.exec(fixture);assert.ok(allowlist);
+ const files=[...allowlist[1].matchAll(/'([^']+\.svg)'/g)].map(match=>match[1]);assert.equal(files.length,16);assert.equal(new Set(files).size,16);assert.deepEqual(files.slice().sort(),Object.values(installGuideAssets).map(asset=>asset.file).sort());
+ assert.match(fixture,/request\.method\(\)!=='GET'[\s\S]*?writes\.push[\s\S]*?return route\.abort\(\)/);
+ assert.match(fixture,/deniedRequests\.push\(\{phase,url:request\.url\(\)\}\);return route\.abort\(\)/);
+ assert.match(fixture,/assert\.deepEqual\(writes,\[\]/);assert.match(fixture,/assert\.deepEqual\(deniedRequests,\[\]/);assert.match(fixture,/Every allowlisted SVG was actually requested/);assert.match(fixture,/img\.complete&&img\.naturalWidth>0/);
+ assert.doesNotMatch(fixture,/route\.continue\(|localhost|127\.0\.0\.1|createServer|listen\(/);
+ assert.ok(fixture.indexOf('GW_HOSTED_BROWSER_QA')<fixture.indexOf("await import('esbuild')"));assert.ok(fixture.indexOf('GW_HOSTED_BROWSER_QA')<fixture.indexOf('.launch('));
+ for(const marker of ["serviceWorkers:'block'","permissions:[]",'physicalDeviceValidation:false','actualInstallation:false','notificationDelivery:false'])assert.ok(fixture.includes(marker),marker);
+});
+test('hosted fixture covers every OS and Safari tab with synthetic privacy-preserving Back and consent flows',async()=>{
+ const fixture=await readFile(new URL('./install-tutorial-browser.mjs',import.meta.url),'utf8');
+ const osLoop=/for\(const \[name,assetCount\] of (\[\[[^\n]+?\]\])\)/.exec(fixture);assert.ok(osLoop,'Exact named OS/assets matrix must remain inspectable');
+ assert.deepEqual(JSON.parse(osLoop[1].replaceAll("'",'"')),[['iPhone / iPad',3],['Android',3],['macOS',3],['Windows',4],['ChromeOS',3],['Other browser',0]]);
+ for(const [label,id] of [['iPhone: Compact','ios-safari-compact'],['iPhone: Top / Bottom','ios-safari-direct-share'],['iPad','ipados-safari-share']])assert.ok(fixture.includes("['"+label+"','"+id+"']"),label);
+ assert.match(fixture,/getByRole\('tablist',\{name:'Instructions for'/);assert.match(fixture,/getByRole\('tablist',\{name:'Safari example'/);assert.doesNotMatch(fixture,/getByRole\('radio'/);
+ for(const marker of ['An unsent synthetic update','A separate unsent synthetic draft',"window.fixture.account('fixture-b')","window.fixture.account('fixture-a')",'Progress never stores draft or content',"getByRole('button',{name:'Back',exact:true}).click()",'Preserved synthetic draft',"mockInstallPrompt('dismissed')","mockInstallPrompt('failure')",'Mock install prompt only; no device installation or notification delivery is performed.'])assert.ok(fixture.includes(marker),marker);
+ assert.match(fixture,/if\(!\['dismissed','failure'\]\.includes\(mode\)\)/);assert.doesNotMatch(fixture,/new Event\('appinstalled'|outcome:'accepted'|requestPermission|pushManager|navigator\.share|serviceWorker\.register|physicalDeviceValidation:true|actualInstallation:true|notificationDelivery:true/);
 });
