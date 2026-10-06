@@ -1,3 +1,4 @@
+import {registerPageContent,publishedPageReferencesMedia} from './page-content.mjs';
 import {registerMessaging} from './messaging.mjs';
 import {registerHouseholdInvites} from './household-invites.mjs';
 import {adultOn} from './birthdays.mjs';
@@ -43,7 +44,7 @@ export function registerPublic(app,authFactory){
   try{await e.DB.batch([e.DB.prepare('INSERT INTO media(id,owner_id,object_key,name,mime_type,size_bytes) VALUES(?,?,?,?,?,?)').bind(id,session.user.id,key,'Profile photo',file.type,file.size),e.DB.prepare('UPDATE user SET image=?,updatedAt=? WHERE id=?').bind(url,Date.now(),session.user.id)])}catch(error){await e.R2.delete(key);throw error}return c.json({url},201);
  });
 }
-export function registerFamily(app){registerHouseholdInvites(app);registerMessaging(app);
+export function registerFamily(app){registerHouseholdInvites(app);registerMessaging(app);registerPageContent(app);
  app.get('/api/state',async c=>c.json(await familyState(c.env.DB,c.get('actor'))));
  app.post('/api/commands',async c=>c.json(await command(c.env.DB,c.get('actor'),await c.req.json())));
  app.get('/api/directory',async c=>{
@@ -83,6 +84,7 @@ export function registerFamily(app){registerHouseholdInvites(app);registerMessag
   }
   if(!allowed)allowed=!!await db.prepare('SELECT id FROM households WHERE photo_url=?').bind('/api/media/'+row.id).first();
   if(!allowed){const products=(await db.prepare('SELECT data_json FROM products WHERE active=1 AND deleted_at IS NULL').bind().all()).results;allowed=products.some(p=>json(p.data_json).photo==='/api/media/'+row.id)}
+  if(!allowed)allowed=await publishedPageReferencesMedia(db,actor,row.id);
   if(!allowed)throw new UserError('File not found',404);const object=await c.env.R2.get(row.object_key);if(!object)throw new UserError('File not found',404);
   const inline=/^(image\/(png|jpeg|gif|webp)|video\/|audio\/)/.test(row.mime_type);return new Response(object.body,{headers:{'Content-Type':row.mime_type,'Content-Length':String(row.size_bytes),'Content-Disposition':`${inline?'inline':'attachment'}; filename*=UTF-8''${encodeURIComponent(row.name)}`,'X-Content-Type-Options':'nosniff','Cache-Control':'private, no-store','Content-Security-Policy':inline?"default-src 'none'; img-src 'self' data:; media-src 'self' blob:; style-src 'unsafe-inline'; sandbox allow-same-origin":"default-src 'none'; sandbox"}});
  });

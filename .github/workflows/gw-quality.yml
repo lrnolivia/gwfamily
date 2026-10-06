@@ -61,6 +61,17 @@ jobs:
             python3 -m http.server 4173 --bind 127.0.0.1 --directory dist > /tmp/gw-http.log 2>&1 &
           fi
           CI=true node tests/navigation-insets-browser.mjs
+      - name: Shared page editor browser checks
+        if: always() && steps.frontend_build.outcome == 'success' && steps.backend_build.outcome == 'success'
+        timeout-minutes: 10
+        run: |
+          node backend/tests/page-content-fixture-server.mjs > /tmp/gw-page-content-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4176/api/config && break; sleep 1; done
+          CI=true node tests/page-content-browser.mjs
+      - name: Choice and Send keyboard checks
+        if: always() && steps.frontend_build.outcome == 'success'
+        timeout-minutes: 6
+        run: CI=true node tests/choice-control-browser.mjs
       - name: Safari same-tab memory upload reload regression
         if: always() && matrix.browser == 'webkit' && steps.frontend_build.outcome == 'success' && steps.backend_build.outcome == 'success'
         timeout-minutes: 5
@@ -83,4 +94,6 @@ jobs:
             docs/live-qa
             docs/communications-qa
             docs/navigation-qa
+            docs/page-content-qa
+            docs/choice-control-qa
           retention-days: 7

@@ -8,6 +8,14 @@
 .profile-style-preview img.avatar.profile-style-avatar{object-fit:cover}
 .gw-form label.check-row{display:flex;align-items:flex-start;gap:10px;font-weight:400}
 .gw-form label.check-row input[type=checkbox]{flex:0 0 20px;width:20px;height:20px;min-height:20px;margin:2px 0 0;padding:0}
-@media(max-width:600px){.app>header:has(.messages-entry){flex-wrap:wrap;gap:12px}.app>header:has(.messages-entry)>.header-actions{margin-left:auto;flex:none;gap:6px!important}}
+@media(max-width:600px){.app>header:has(.messages-entry){flex-wrap:wrap;gap:12px}.app>header:has(.messages-entry)>.header-actions{margin-left:auto;flex:none;gap:12px!important}}
 @media(max-width:360px){.app>header:has(.messages-entry)>.brand{max-width:100%}.app>header:has(.messages-entry)>.header-actions{width:100%;justify-content:flex-end}}
 .messages-page .row{flex-wrap:wrap}
+
+/* Updates participate in document flow so every header control stays usable. */
+.app>.build-update-notice{position:static;inset:auto;transform:none;display:flex;align-items:center;justify-content:space-between;width:100%;max-width:860px;margin:0 auto 20px;box-sizing:border-box;z-index:auto}
+.build-update-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0}
+.build-update-notice .update-later{background:transparent;color:var(--text);border:1px solid var(--line)}
+.build-update-reminder{max-width:860px;margin:0 auto 12px;text-align:right}
+.build-update-reminder>button{min-height:40px;padding:8px 12px;background:var(--surface);color:var(--text);border-radius:12px;font-size:.8125rem}
+@media(max-width:600px){.app>.build-update-notice{align-items:flex-start;flex-direction:column;gap:12px}.build-update-actions{width:100%}.build-update-actions>button{min-height:44px}}

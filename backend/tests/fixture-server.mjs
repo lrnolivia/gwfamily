@@ -2,7 +2,7 @@
 import {createServer} from 'node:http';import {readFile} from 'node:fs/promises';import path from 'node:path';import {fileURLToPath} from 'node:url';
 import {database,seed} from './test-db.mjs';import {createApp} from '../src/worker.mjs';
 const {sqlite,DB}=database();seed(sqlite);sqlite.exec("INSERT INTO user(id,name,email,emailVerified,createdAt,updatedAt) VALUES('fresh','Fresh','fresh@example.test',1,0,0);INSERT INTO profiles(member_id,birthday,completed) VALUES('pending','1990-01-01',1);");const root=fileURLToPath(new URL('../../dist/',import.meta.url));
-const store=new Map();const env={DB,BETTER_AUTH_SECRET:'local-fixture-only-secret-with-no-production-access',AUTH_ORIGIN:'https://greenwhitefamily.com',R2:{async put(k,v){store.set(k,v)},async get(k){return store.has(k)?{body:store.get(k)}:null},async delete(k){store.delete(k)}}};
+const store=new Map();const env={DB,BETTER_AUTH_SECRET:'local-fixture-only-secret-with-no-production-access',AUTH_ORIGIN:'https://greenwhitefamily.com',R2:{async put(k,v){store.set(k,v)},async head(k){return store.has(k)?{size:store.get(k).byteLength}:null},async get(k){return store.has(k)?{body:store.get(k)}:null},async delete(k){store.delete(k)}}};
 const auth=()=>({api:{async getSession({headers}){const match=/(?:^|; )fixture-user=([^;]+)/.exec(headers.get('cookie')||'');return match?{user:{id:match[1],emailVerified:true,email:match[1]+'@example.test',name:match[1]}}:null}},handler:async()=>new Response('{}',{status:404,headers:{'Content-Type':'application/json'}})});
 const app=createApp(auth);
 const port=Number(process.env.GW_FIXTURE_PORT||4174),fixtureOrigin=`http://127.0.0.1:${port}`;
