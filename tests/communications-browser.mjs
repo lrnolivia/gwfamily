@@ -691,12 +691,12 @@ try {
     assert.ok(!initialProfile.photo, 'Fixture deliberately tests an account with no profile photo.');
     const photoControl = alice.getByRole('region', {name: 'Profile appearance', exact: true}).locator('.image-upload-control');
     const placeholder = photoControl.locator('.image-upload-placeholder');
-    const choose = photoControl.getByRole('button', {name: 'Choose profile photo', exact: true});
+    const choose = photoControl.locator('button.image-upload-choose').and(photoControl.getByRole('button', {name: 'Choose profile photo', exact: true}));
     const picker = photoControl.locator('input[type="file"]');
     await expect(placeholder).toHaveText('No photo chosen');
     await expect(photoControl.locator('.image-upload-preview > img')).toHaveCount(0);
     await expect(picker).toHaveAttribute('accept', 'image/png,image/jpeg,image/webp,image/gif');
-    await expect(picker).toHaveAttribute('aria-label', 'Choose profile photo');
+    await expect(picker).toHaveAttribute('aria-label', 'Profile photo file picker');
     await expect(picker).toHaveAttribute('tabindex', '-1');
     const checkbox = alice.getByRole('checkbox', {name: 'Show my age on my family profile', exact: true});
     for (const width of [320, 390, 768]) {

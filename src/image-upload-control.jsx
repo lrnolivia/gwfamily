@@ -24,7 +24,7 @@ export function ImageUploadControl({src='',alt='',label='Photo',shape='panel',ac
    {hasImage?<img src={src} alt={alt} onError={previewError}/>:<div className="image-upload-placeholder"><Glyph name="image"/><span>{failed?'Current photo unavailable':emptyLabel}</span></div>}
    <Control type="button" className="image-upload-choose" disabled={disabled||busy} aria-label={(hasImage?'Edit ':'Choose ')+label.toLowerCase()} aria-describedby={description} onClick={()=>picker.current?.click()}><span className="image-upload-action"><EditImageGlyph/>{busy?'Uploading…':action}</span></Control>
   </div>
-  <input ref={picker} id={id+'-file'} className="sr-only" type="file" tabIndex={-1} aria-label={'Choose '+label.toLowerCase()} accept={accept} multiple={multiple} disabled={disabled||busy} onChange={event=>{const files=[...event.currentTarget.files];event.currentTarget.value='';if(files.length)onFiles?.(files)}}/>
+  <input ref={picker} id={id+'-file'} className="sr-only" type="file" tabIndex={-1} aria-label={label+' file picker'} accept={accept} multiple={multiple} disabled={disabled||busy} onChange={event=>{const files=[...event.currentTarget.files];event.currentTarget.value='';if(files.length)onFiles?.(files)}}/>
   {progress&&<p id={id+'-progress'} className="image-upload-progress" role="status">{progress}</p>}
   {error&&<p id={id+'-error'} className="image-upload-error" role="alert">{error}</p>}
  </div>;

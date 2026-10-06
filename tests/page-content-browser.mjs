@@ -605,7 +605,7 @@ try {
     changed.text.heading = theirs;
     await patch(otherOwner, 'home', changed, latest.revision);
     await saveButton(owner).click();
-    await expect(owner.getByRole('alert')).toContainText('Your draft is kept');
+    await expect(owner.locator('.page-editor-error[role="alert"]')).toContainText('Your draft is kept');
     await expect(field(owner, 'home.heading')).toContainText(mine);
     await expect(saveButton(owner)).toBeDisabled();
     assert.equal((await record(bob)).content.text.heading, theirs);
