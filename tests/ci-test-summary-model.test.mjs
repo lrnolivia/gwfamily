@@ -25,3 +25,6 @@ test('build diagnostics retain exact bounded errors from the unchanged full buil
 test('browser failure annotations are bounded and redact tokens and URL query state',()=>{
  const row=browserFailureAnnotation('TimeoutError: missing synthetic control at https://fixture.invalid/path?secret=private#fragment\nError: authorization=privateToken Bearer otherToken\n');assert.match(row.message,/missing synthetic control/);assert.match(row.message,/https:\/\/fixture.invalid\/path/);assert.doesNotMatch(row.message,/private|otherToken|#fragment|\?secret/);assert.ok(row.message.length<=1400);assert.ok(!testFailureCommand(row,'browser').includes('\n'));
 });
+test('WebKit phase timeout diagnostics remain visible without duplicating workflow commands',()=>{
+ const row=browserFailureAnnotation('::error title=duplicate::encoded failure\nWEBKIT DIAGNOSTIC image-preview upload-and-modal page.waitForFunction: Timeout 6500ms exceeded.\nWEBKIT DIAGNOSTIC RESULT {"case":"image-preview","outcome":"failed","phase":"upload-and-modal"}\n');assert.match(row.message,/image-preview upload-and-modal/);assert.match(row.message,/"outcome":"failed"/);assert.doesNotMatch(row.message,/encoded failure/);
+});

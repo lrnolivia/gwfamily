@@ -31,7 +31,13 @@ const field = (page, key) => page.locator(`[data-page-field="${key}"]`);
 const toolbar = page => page.locator('.page-edit-toolbar');
 const saveButton = page => toolbar(page).getByRole('button', {name: 'Save changes', exact: true});
 const modeDone = page => toolbar(page).locator('.page-mode-done');
-const contentPayload = value => ({text: {...value.text}, hero: {mode: value.hero.mode, media: value.hero.media.map(({id, alt = ''}) => ({id, alt}))}});
+// API probes preserve the complete normalized snapshot, including lock state,
+// layout order and Markdown source formats. Output URLs never become authority.
+const contentPayload = value => ({text: {...value.text}, bodyFormats: {...value.bodyFormats},
+  hero: {mode: value.hero.mode, media: value.hero.media.map(({id, alt = ''}) => ({id, alt}))},
+  panelLayout: {...value.panelLayout, panels: value.panelLayout.panels.map(panel => panel.kind === 'hero' ? {...panel} :
+    {...panel, media: panel.media.map(({id, alt = ''}) => ({id, alt}))})}});
+const primaryHero = (page, key) => page.locator(`[data-panel-page="${key}"] [data-panel-id="hero"]`);
 
 async function check(name, run) {
   currentCheck = name;
@@ -285,10 +291,25 @@ async function save(page) {
   await expect(toolbar(page).locator('.page-editor-error')).toHaveCount(0);
 }
 async function mediaPanel(page, key = 'home') {
+  await unlockHero(page, key);
   await field(page, key + '.hero').getByRole('button', {name: 'Edit ' + SHARED_PAGE_SCHEMA[key].label + ' page media', exact: true}).click();
-  const dialog = page.getByRole('dialog', {name: 'Page media', exact: true});
-  await expect(dialog).toBeVisible();
-  return dialog;
+  const panel = page.getByRole('region', {name: 'Page media', exact: true});
+  await expect(panel).toBeVisible();
+  await expect(page.getByRole('dialog'), 'Media edits stay inline.').toHaveCount(0);
+  return panel;
+}
+async function unlockHero(page, key) {
+  const hero = primaryHero(page, key);
+  await expect(hero).toHaveCount(1);
+  if (await hero.getAttribute('data-panel-locked') === 'true') {
+    await expect(hero.getByRole('button', {name: /^Edit /})).toHaveCount(0);
+    await expect(hero.locator('[data-page-field] .page-copy-input, [contenteditable="true"]')).toHaveCount(0);
+    const unlock = hero.getByRole('button', {name: 'Unlock Primary hero', exact: true});
+    await expect(unlock).toHaveAttribute('aria-pressed', 'true');
+    await unlock.click();
+  }
+  await expect(hero).not.toHaveAttribute('data-panel-locked', 'true');
+  await expect(hero.getByRole('button', {name: 'Lock Primary hero', exact: true})).toHaveAttribute('aria-pressed', 'false');
 }
 async function uploadPageMedia(page, dialog, picker, files) {
   const uploadStatus = dialog.getByRole('status', {name: 'Page media upload', exact: true});
@@ -305,7 +326,9 @@ async function uploadPageMedia(page, dialog, picker, files) {
     await expect(dialog.getByText('Saving…', {exact: true})).toHaveCount(0);
     await expect(picker).toBeDisabled();
     await expect(dialog.getByRole('button', {name: 'Done', exact: true})).toBeDisabled();
-    await expect(dialog.getByRole('button', {name: 'Close dialog', exact: true})).toBeDisabled();
+    await expect(modeDone(page)).toBeDisabled();
+    await expect(toolbar(page).getByRole('button', {name: 'Saving…', exact: true})).toBeDisabled();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     for (const name of ['Photo', 'Gallery', 'Video']) await expect(dialog.getByRole('button', {name, exact: true})).toBeDisabled();
     await page.keyboard.press('Escape');
     await expect(dialog).toBeVisible();
@@ -316,12 +339,33 @@ async function uploadPageMedia(page, dialog, picker, files) {
     await expect(dialog.getByRole('status')).toHaveCount(1);
     await expect(picker).toBeEnabled();
     await expect(dialog.getByRole('button', {name: 'Done', exact: true})).toBeEnabled();
-    await expect(dialog.getByRole('button', {name: 'Close dialog', exact: true})).toBeEnabled();
+    await expect(modeDone(page)).toBeEnabled();
+    await expect(saveButton(page)).toBeEnabled();
   } finally {release(); await page.unroute('**/api/media', handler);}
 }
-async function closeDialog(page) {
-  await page.getByRole('dialog').getByRole('button', {name: 'Close dialog', exact: true}).click();
+async function closeEditorPanel(page, name) {
+  const panel = page.getByRole('region', {name, exact: true});
+  await panel.getByRole('button', {name: name === 'Page media' ? 'Done' : 'Close history', exact: true}).click();
+  await expect(panel).toHaveCount(0);
   await expect(page.getByRole('dialog')).toHaveCount(0);
+}
+async function inlineEditorFits(page, panel) {
+  await expect(panel).toBeVisible();
+  assert.equal(await panel.evaluate(element => !!element.closest('main') && !element.closest('dialog')), true,
+    'Media and history are ordinary inline page editors.');
+  const geometry = await panel.evaluate(element => ({box: element.getBoundingClientRect().toJSON(), width: innerWidth}));
+  assert.ok(geometry.box.width > 0 && geometry.box.left >= -1 && geometry.box.right <= geometry.width + 1,
+    'The inline editor fits the reading width: ' + JSON.stringify(geometry));
+  // Long inline editors scroll with the page. Check every enabled control can
+  // actually be brought fully into view, including on a short landscape screen.
+  const controls = panel.locator('button:not([disabled]), input:not([disabled]):not(.sr-only), select:not([disabled])');
+  assert.ok(await controls.count(), 'The inline editor has reachable controls.');
+  for (let index = 0; index < await controls.count(); index++) {
+    const control = controls.nth(index);
+    await control.scrollIntoViewIfNeeded();
+    await expect(control).toBeInViewport({ratio: 1});
+  }
+  await noClip(page);
 }
 async function assertNoPageEditor(page) {
   await expect(page.locator('[data-page-field] .page-copy-input, .page-media-edit, .page-edit-entry-button, .page-edit-modebar')).toHaveCount(0);
@@ -462,10 +506,31 @@ try {
     const unwanted = await owner.locator('main').evaluate(root => root.getAnimations({subtree: true}).filter(animation => animation.effect?.getTiming().iterations === Infinity && animation.playState === 'running').map(animation => animation.animationName));
     assert.deepEqual(unwanted, ['page-active-glow']);
     await field(owner, 'home.heading').getByRole('button', {name: 'Done editing Page heading', exact: true}).click();
-    await field(owner, 'home.heroTitle').getByRole('button', {name: 'Edit Hero heading', exact: true}).click();
+    const homeHero = primaryHero(owner, 'home');
+    await expect(homeHero).toHaveAttribute('data-panel-locked', 'true');
+    await expect(homeHero.getByRole('heading', {name: 'More time with our people.', exact: true})).toBeVisible();
+    await expect(field(owner, 'home.heroTitle')).toHaveCount(0);
+    await expect(homeHero.getByRole('button', {name: 'Edit Hero heading', exact: true})).toHaveCount(0);
+    await expect(homeHero.getByRole('button', {name: 'Edit Home page media', exact: true})).toHaveCount(0);
+    await unlockHero(owner, 'home');
+    const heroEdit = field(owner, 'home.heroTitle').getByRole('button', {name: 'Edit Hero heading', exact: true});
+    await heroEdit.focus();
+    await expect(heroEdit).toBeFocused();
+    await heroEdit.press('Enter');
+    const heroInput = field(owner, 'home.heroTitle').getByRole('textbox', {name: 'Hero heading', exact: true});
+    await expect(heroInput).toBeFocused();
+    await expect(heroInput).toHaveValue('More time\nwith our people.');
     await expect(owner.locator('.page-active-edit-card')).toHaveCount(1);
     await expect(owner.locator('.home-hero')).toHaveClass(/page-active-edit-card/);
     await owner.screenshot({path: `${output}/active-copy-${engineName}.png`});
+    await field(owner, 'home.heroTitle').getByRole('button', {name: 'Done editing Hero heading', exact: true}).click();
+    await expect(heroEdit).toBeFocused();
+    // Opening a target changed no copy. Restore its original lock before Done,
+    // so this color/focus check leaves no unsaved layout draft for later checks.
+    await homeHero.getByRole('button', {name: 'Lock Primary hero', exact: true}).click();
+    await expect(homeHero).toHaveAttribute('data-panel-locked', 'true');
+    await expect(homeHero.getByRole('button', {name: 'Edit Hero heading', exact: true})).toHaveCount(0);
+    await expect(saveButton(owner)).toBeDisabled();
     await modeDone(owner).click();
     await expect(owner.locator('.page-active-edit-card')).toHaveCount(0);
     const after = await owner.evaluate(() => ({theme: document.documentElement.dataset.theme, palette: document.documentElement.style.cssText, personal: localStorage.getItem('gw-personal-themes')}));
@@ -557,7 +622,8 @@ try {
   await check('history restoration appends a new revision and keeps the replaced version available for rollback', async () => {
     const before = await record(owner);
     await owner.getByRole('button', {name: 'View page history', exact: true}).click();
-    const dialog = owner.getByRole('dialog', {name: 'Page history', exact: true});
+    const dialog = owner.getByRole('region', {name: 'Page history', exact: true});
+    await expect(owner.getByRole('dialog')).toHaveCount(0);
     const row = dialog.locator('.page-revision-list > li').filter({has: owner.locator('strong', {hasText: new RegExp('^Version ' + firstSaved.revision + '$')})});
     await row.getByRole('button', {name: 'Restore', exact: true}).click();
     await expect(dialog.getByRole('alert')).toContainText('Restore version ' + firstSaved.revision + '?');
@@ -568,7 +634,7 @@ try {
     assert.equal(restored.revision, before.revision + 1);
     const history = await ok(owner, '/api/page-content/home/revisions');
     assert.ok(history.revisions.some(row => row.revision === before.revision && row.content.text.heading === before.content.text.heading));
-    await closeDialog(owner);
+    await closeEditorPanel(owner, 'Page history');
     await expect(field(owner, 'home.heading')).toContainText(firstText);
   });
 
@@ -695,8 +761,10 @@ try {
     await editText(owner, 'family.heading', 'Synthetic family landing heading');
     await editText(owner, 'people.heading', 'Synthetic shared address book heading');
     await owner.getByRole('tab', {name: 'Memories', exact: true}).click();
+    await unlockHero(owner, 'memories');
     await editText(owner, 'memories.heroTitle', 'Synthetic memories heading\nWith a second line');
     await owner.getByRole('tab', {name: 'Family tree', exact: true}).click();
+    await unlockHero(owner, 'tree');
     await editText(owner, 'tree.heroTitle', 'Synthetic family roots heading');
     await editText(owner, 'global.footerTagline', 'Synthetic shared footer from the Family editor');
     await save(owner);
@@ -752,42 +820,50 @@ try {
       await noClip(otherOwner);
       await field(otherOwner, 'family.heading').getByRole('button', {name: 'Done editing Page heading', exact: true}).click();
       const dialog = await mediaPanel(otherOwner, 'family');
-      await panelFits(otherOwner, 'dialog[open]');
+      await inlineEditorFits(otherOwner, dialog);
       for (const label of ['Photo', 'Gallery', 'Video']) {
+        await dialog.getByRole('button', {name: label, exact: true}).scrollIntoViewIfNeeded();
         await expect(dialog.getByRole('button', {name: label, exact: true})).toBeInViewport({ratio: 1});
+        await dialog.getByRole('button', {name: label, exact: true}).focus();
+        await expect(dialog.getByRole('button', {name: label, exact: true})).toBeFocused();
         await dialog.getByRole('button', {name: label, exact: true}).click();
         await expect(dialog.getByRole('button', {name: label, exact: true})).toHaveAttribute('aria-pressed', 'true');
         await noClip(otherOwner);
-        await panelFits(otherOwner, 'dialog[open]');
+        await inlineEditorFits(otherOwner, dialog);
       }
       if (viewport.height < 500) {
         await dialog.getByRole('button', {name: 'Gallery', exact: true}).click();
         await uploadPageMedia(otherOwner, dialog, dialog.getByLabel('Choose page photos', {exact: true}), [uploadPhoto('synthetic-landscape-first.png'), uploadPhoto('synthetic-landscape-second.png')]);
         await expect(dialog.locator('.page-media-files > li')).toHaveCount(2);
-        await panelFits(otherOwner, 'dialog[open]');
-        const body = dialog.locator('#sheet-body');
-        assert.ok(await body.evaluate(element => element.scrollHeight > element.clientHeight), 'A short landscape viewport scrolls the media body instead of moving the dialog offscreen.');
+        await inlineEditorFits(otherOwner, dialog);
+        assert.ok(await otherOwner.evaluate(() => document.scrollingElement.scrollHeight > innerHeight),
+          'A short landscape viewport scrolls the inline media editor with the page.');
         await dialog.getByRole('button', {name: 'Use original media', exact: true}).click();
         await expect(dialog.locator('.page-media-files > li')).toHaveCount(0);
-        await expect(dialog.getByRole('button', {name: 'Close dialog', exact: true})).toBeInViewport({ratio: 1});
-        await panelFits(otherOwner, 'dialog[open]');
+        await dialog.getByRole('button', {name: 'Done', exact: true}).scrollIntoViewIfNeeded();
+        await expect(dialog.getByRole('button', {name: 'Done', exact: true})).toBeInViewport({ratio: 1});
+        await inlineEditorFits(otherOwner, dialog);
       }
       await otherOwner.screenshot({path: `${output}/media-panel-${viewport.width}x${viewport.height}-${engineName}.png`});
-      await closeDialog(otherOwner);
+      await closeEditorPanel(otherOwner, 'Page media');
       await otherOwner.getByRole('button', {name: 'View page history', exact: true}).click();
-      await expect(otherOwner.getByRole('dialog', {name: 'Page history', exact: true})).toBeVisible();
+      const historyPanel = otherOwner.getByRole('region', {name: 'Page history', exact: true});
+      await expect(historyPanel).toBeVisible();
+      await expect(otherOwner.getByRole('dialog')).toHaveCount(0);
       await noClip(otherOwner);
-      await panelFits(otherOwner, 'dialog[open]');
-      const history = otherOwner.getByRole('combobox', {name: 'History for', exact: true});
+      await inlineEditorFits(otherOwner, historyPanel);
+      const history = historyPanel.getByRole('combobox', {name: 'History for', exact: true});
       for (const key of ['family', 'people', 'memories', 'tree', 'global']) {
         const label = SHARED_PAGE_SCHEMA[key].label + (key === 'global' ? '' : ' page');
-        await history.click();
-        await history.fill(label);
-        await otherOwner.getByRole('option', {name: label, exact: true}).click();
-        await expect(history).toHaveValue(label);
-        await expect(history).toHaveAttribute('aria-expanded', 'false');
+        await history.scrollIntoViewIfNeeded();
+        await history.focus();
+        await expect(history).toBeFocused();
+        await expect(history.getByRole('option', {name: label, exact: true})).toHaveAttribute('value', key);
+        await history.selectOption(key);
+        await expect(history).toHaveValue(key);
+        await expect.poll(() => history.evaluate(select => select.selectedOptions[0]?.textContent)).toBe(label);
       }
-      await closeDialog(otherOwner);
+      await closeEditorPanel(otherOwner, 'Page history');
       await otherOwner.getByRole('tab', {name: 'Memories', exact: true}).click();
       await otherOwner.locator('.memory-filter-panel > summary').click();
       const category = otherOwner.getByRole('combobox', {name: 'Category', exact: true});
@@ -798,6 +874,11 @@ try {
       await category.press('Escape');
       await expect(category).toHaveAttribute('aria-expanded', 'false');
       await otherOwner.screenshot({path: `${output}/family-editor-${viewport.width}x${viewport.height}-${engineName}.png`});
+      // Media choices returned to the original content. Restore the original
+      // family hero lock so each viewport starts from a clean saved snapshot.
+      await primaryHero(otherOwner, 'family').getByRole('button', {name: 'Lock Primary hero', exact: true}).click();
+      await expect(primaryHero(otherOwner, 'family')).toHaveAttribute('data-panel-locked', 'true');
+      await expect(saveButton(otherOwner)).toBeDisabled();
       await modeDone(otherOwner).click();
     }
   });
@@ -806,8 +887,27 @@ try {
     assert.ok(writes.some(write => write.method === 'PATCH'), 'The suite exercised actual UI save requests.');
     for (const write of writes.filter(write => write.method === 'PATCH')) {
       assert.deepEqual(Object.keys(write.body).sort(), ['content', 'expectedRevision', 'requestId']);
-      assert.deepEqual(Object.keys(write.body.content).sort(), ['hero', 'text']);
+      assert.deepEqual(Object.keys(write.body.content).sort(), ['bodyFormats', 'hero', 'panelLayout', 'text']);
+      const key = decodeURIComponent(write.path.split('/').at(-1));
+      assert.deepEqual(Object.keys(write.body.content.text).sort(), Object.keys(SHARED_PAGE_SCHEMA[key].fields).sort(), 'Only this shared page’s declared copy enters the snapshot.');
+      for (const [field, format] of Object.entries(write.body.content.bodyFormats)) {
+        assert.equal(SHARED_PAGE_SCHEMA[key].fields[field]?.format, 'markdown');
+        assert.equal(format, 'markdown');
+      }
+      assert.deepEqual(Object.keys(write.body.content.hero).sort(), ['media', 'mode']);
       for (const file of write.body.content.hero.media) assert.deepEqual(Object.keys(file).sort(), ['alt', 'id'], 'Client URLs and file metadata never become write authority.');
+      const layout = write.body.content.panelLayout;
+      assert.deepEqual(Object.keys(layout).sort(), ['desktopOrder', 'mobileOrder', 'panels', 'version']);
+      assert.equal(layout.version, 1);
+      const visible = layout.panels.filter(panel => !panel.removed).map(panel => panel.id).sort();
+      assert.deepEqual([...layout.desktopOrder].sort(), visible); assert.deepEqual([...layout.mobileOrder].sort(), visible);
+      for (const panel of layout.panels) {
+        assert.deepEqual(Object.keys(panel).sort(), panel.kind === 'hero' ? ['id', 'kind', 'locked', 'removed', 'zone'] :
+          ['body', 'id', 'kind', 'layout', 'locked', 'media', 'removed', 'secondary', 'title', 'zone']);
+        assert.equal(typeof panel.locked, 'boolean'); assert.equal(typeof panel.removed, 'boolean');
+        assert.ok(['main', 'side'].includes(panel.zone));
+        for (const file of panel.media || []) assert.deepEqual(Object.keys(file).sort(), ['alt', 'id'], 'Panel media also carries only bounded IDs and descriptions.');
+      }
     }
     for (const {id, page} of sessions) if (id !== 'anonymous' && id !== 'pending') await settleBrowserReads(page);
     assert.deepEqual(errors, [], 'No unhandled browser exceptions.');

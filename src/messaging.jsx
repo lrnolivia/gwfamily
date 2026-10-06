@@ -1,7 +1,8 @@
 import {SharedPagePanels} from './page-panels.jsx';
 import {EditableText,EditableMedia} from './page-content.jsx';
 import {ChoiceControl} from './choice-control.jsx';
-import React,{useCallback,useEffect,useRef,useState} from 'react';
+import React,{useCallback,useEffect,useLayoutEffect,useRef,useState} from 'react';
+import {synchronizeConversationName} from './conversation-name-model.js';
 import {api} from './live-adapter.js';
 async function chatApi(path,options={}){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);try{return await api(path,{...options,signal:controller.signal})}catch(error){if(error.name==='AbortError')throw new Error('The connection timed out. Please try again.');throw error}finally{clearTimeout(timer)}}
 import {ActivityDots,useTypingPresence} from './activity.jsx';
@@ -74,7 +75,11 @@ export function ChatThread({id}){
 }
 export function ConversationSettings({id}){
  const {state,go,messaging}=useApp(),thread=useConversation(id),c=thread.conversation,[name,setName]=useState(''),[ids,setIds]=useState([]),[eligible,setEligible]=useState([]),[busy,setBusy]=useState(false),[error,setError]=useState(''),[confirm,setConfirm]=useState(null),[transfer,setTransfer]=useState('');
- useEffect(()=>{if(c)setName(c.name||'')},[c?.id,c?.name]);
+ const nameSnapshot=useRef(null),nameScope=state.mode+':'+(state.selfId||'');
+ useLayoutEffect(()=>{
+  if(!c)return;const next={scope:nameScope,id:c.id,name:c.name||''},previous=nameSnapshot.current;
+  setName(value=>synchronizeConversationName(value,previous,next));nameSnapshot.current=next;
+ },[nameScope,c?.id,c?.name]);
  useEffect(()=>{if(state.mode==='preview'){setEligible(state.members.map(m=>m.id));return}chatApi('/api/conversations/recipients').then(v=>setEligible(v.members.map(m=>m.id))).catch(e=>setError(e.message))},[state.mode]);
  const mutate=async(path,method,body,done)=>{if(busy)return;setBusy(true);setError('');try{if(state.mode==='preview'){const value=previewLoad(),item=value.conversations.find(x=>x.id===id);if(!item)throw new Error('Conversation unavailable.');if(path==='/leave'){item.members=item.members.map(m=>memberId(m)===state.selfId?{...m,status:'left'}:m)}else if(method==='PATCH'&&!path){Object.assign(item,body)}else if(path==='/members'){for(const personId of body.memberIds){const person=state.members.find(m=>m.id===personId);item.members=item.members.filter(m=>memberId(m)!==personId);item.members.push({...person,status:'pending',role:'member'})}}else if(path.startsWith('/members/')){const personId=decodeURIComponent(path.split('/').at(-1));item.members=item.members.map(m=>memberId(m)===personId?{...m,...(method==='DELETE'?{status:'removed'}:body)}:m)}previewSave(value)}else await chatApi(`/api/conversations/${encodeURIComponent(id)}${path}`,{method,...(body?{body:JSON.stringify(body)}:{})});setConfirm(null);setIds([]);messaging.update();await thread.refresh();done?.()}catch(e){setError(e.message)}finally{setBusy(false)}};
  if(thread.loading)return <ActivityDots label="Loading conversation details"/>;if(!c)return <section className="stack"><h1>Conversation unavailable</h1><Failure message={thread.error}/><Button onClick={()=>go({type:'inbox'})}>Back to messages</Button></section>;

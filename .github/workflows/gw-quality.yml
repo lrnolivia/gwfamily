@@ -14,6 +14,7 @@ jobs:
         browser: [chromium, webkit]
     env:
       GW_BROWSER: ${{ matrix.browser }}
+      GW_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -111,4 +112,6 @@ jobs:
             docs/choice-control-qa
             docs/help-qa
             docs/notifications-qa
+            backend/build/worker.mjs
+            backend/build/worker-provenance.json
           retention-days: 7

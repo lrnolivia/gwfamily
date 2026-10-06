@@ -73,8 +73,8 @@ try {
    if(scenario.kind==='ui'){
     record.phase='upload-and-modal';const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Add a memory',exact:true}).click();await(await chooser).setFiles({name:'diagnostic.png',mimeType:'image/png',buffer:bytes});
     await page.getByText('Your memory is saved. Add any details you know, or close this window.').waitFor();
-    await page.waitForFunction(()=>{const image=document.querySelector('.memory-edit-media');return image?.complete&&image.naturalWidth===1});
-    mediaPath=new URL(await page.locator('.memory-edit-media').getAttribute('src'),origin).pathname;
+    await page.waitForFunction(()=>{const image=document.querySelector('dialog[open] .image-upload-preview img');return image?.complete&&image.naturalWidth===1});
+    mediaPath=new URL(await page.locator('dialog[open] .image-upload-preview img').getAttribute('src'),origin).pathname;
     await page.getByRole('button',{name:'Close dialog',exact:true}).click();await page.locator('dialog').waitFor({state:'detached'});
    }
    if(mediaPath){

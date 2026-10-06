@@ -38,7 +38,7 @@ export function buildFailureAnnotation(log){
 export function browserFailureAnnotation(log){
  const lines=String(log||'').replace(/\u001b\[[0-9;]*m/g,'').split('\n');
  const safe=line=>line.replace(/Bearer\s+\S+/gi,'Bearer [redacted]').replace(/((?:token|authorization|cookie|secret|password|endpoint|email)["']?\s*[:=]\s*)[^,\s}]+/gi,'$1[redacted]').replace(/https?:\/\/[^\s"']+/g,url=>url.split('?')[0].split('#')[0]);
- const details=lines.filter(line=>/\b(?:Error|AssertionError|TimeoutError|Expected|Received|expect\(|Call log:)\b|\[ERROR\]/.test(line)&&!/["'](?:dom|bodyText|buttons)["']\s*:/.test(line)).slice(0,8).map(line=>safe(line).slice(0,400));
+ const details=lines.filter(line=>!/^::(?:error|warning|notice)/.test(line)&&(/\b(?:Error|AssertionError|TimeoutError|Expected|Received|expect\(|Call log:)\b|\[ERROR\]|Timeout \d+ms exceeded|timed out after/.test(line)||/WEBKIT DIAGNOSTIC RESULT.*"outcome":"failed"/.test(line))&&!/["'](?:dom|bodyText|buttons)["']\s*:/.test(line)).slice(0,8).map(line=>safe(line).slice(0,400));
  return {title:'Required browser check failed',message:(details.join('\n')||'The unchanged required browser check failed; see its original raw output.').slice(0,1400)};
 }
 const commandProperty=value=>commandData(value).replaceAll(':','%3A').replaceAll(',','%2C');

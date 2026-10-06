@@ -1,3 +1,12 @@
-import {build} from 'esbuild';
+import {build,version as esbuildVersion} from 'esbuild';
 import {workerBuildOptions} from './worker-build-options.mjs';
+import {readFile,writeFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
 await build(workerBuildOptions());
+const bytes=await readFile('build/worker.mjs'),config=JSON.parse(await readFile('wrangler.jsonc','utf8')),lock=await readFile('package-lock.json');
+const sha256=data=>createHash('sha256').update(data).digest('hex');
+const sourceSha=/^[a-f0-9]{40}$/.test(process.env.GW_SOURCE_SHA||'')?process.env.GW_SOURCE_SHA:null;
+const npmVersion=/\bnpm\/([^\s]+)/.exec(process.env.npm_config_user_agent||'')?.[1]||null;
+const provenance={version:1,sourceSha,bundle:'backend/build/worker.mjs',sha256:sha256(bytes),bytes:bytes.length,node:process.version,npm:npmVersion,esbuild:esbuildVersion,compatibilityDate:config.compatibility_date,compatibilityFlags:config.compatibility_flags,backendLockSha256:sha256(lock),pushActivation:false};
+await writeFile('build/worker-provenance.json',JSON.stringify(provenance,null,2)+'\n');
+console.log('::notice::Exact Worker bundle provenance '+JSON.stringify(provenance));

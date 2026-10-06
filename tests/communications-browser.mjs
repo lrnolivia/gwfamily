@@ -4,6 +4,7 @@ import {chromium, webkit, expect} from '@playwright/test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {mkdir, writeFile} from 'node:fs/promises';
+import {createTestPng} from './png-fixtures.mjs';
 import {diagnosticUrl, installCommunicationsLifecycle, observeCommunicationsPage} from './communications-browser-diagnostics.mjs';
 
 if (!process.env.CI && process.env.GW_HOSTED_BROWSER_QA !== '1') {
@@ -494,8 +495,28 @@ try {
   await check('group settings enforce roles, support Back, and explain pending and declined invitations', async () => {
     await alice.getByRole('button', {name: 'Conversation details', exact: true}).click();
     await expect(alice).toHaveURL(new RegExp('#/chat-settings/' + groupId + '$'));
-    await alice.getByRole('textbox', {name: 'Group name', exact: true}).fill('Fixture cousins planning');
-    await alice.getByRole('button', {name: 'Save group name', exact: true}).click();
+    // The route commits before the conversation detail and its form-value
+    // effect finish hydrating. Prove the initial value before typing a change.
+    await expect(alice.getByRole('heading', {name: 'Fixture family planning', exact: true})).toBeVisible();
+    const groupName = alice.getByRole('textbox', {name: 'Group name', exact: true});
+    const rename = alice.getByRole('button', {name: 'Save group name', exact: true});
+    await expect(groupName).toHaveValue('Fixture family planning');
+    await expect(rename).toBeDisabled();
+    await groupName.fill('Fixture cousins planning');
+    await expect(groupName).toHaveValue('Fixture cousins planning');
+    await expect(rename).toBeEnabled();
+    // An authenticated fixture API write stands for a second-device rename.
+    // The arriving server name may refresh the heading, never the local draft.
+    const remoteName = 'Fixture remote rename while Alice is editing';
+    await ok(alice, `/api/conversations/${groupId}`, {method: 'PATCH', data: {name: remoteName}});
+    await expect(alice.getByRole('heading', {name: remoteName, exact: true})).toBeVisible();
+    await expect(groupName).toHaveValue('Fixture cousins planning');
+    await expect(rename).toBeEnabled();
+    const renamedResponse = alice.waitForResponse(response => response.url() === base + `/api/conversations/${groupId}` && response.request().method() === 'PATCH');
+    const [renamed] = await Promise.all([renamedResponse, rename.click()]);
+    assert.deepEqual(renamed.request().postDataJSON(), {name: 'Fixture cousins planning'}, 'The UI submits the deliberate renamed value, never an incompletely hydrated value.');
+    assert.ok(renamed.ok(), 'The group rename is acknowledged by the server: ' + renamed.status());
+    assert.equal((await ok(alice, `/api/conversations/${groupId}`)).conversation.name, 'Fixture cousins planning');
     await expect(alice.getByRole('heading', {name: 'Fixture cousins planning', exact: true})).toBeVisible();
     await denied(bob, `/api/conversations/${groupId}`, {method: 'PATCH', data: {name: 'Not authorized'}});
     const bobRow = alice.locator('.conversation-member').filter({has: alice.getByText('Bob', {exact: true})});
@@ -664,20 +685,34 @@ try {
     await alice.setViewportSize({width: 390, height: 844});
   });
 
-  await check('profile placeholder initials stay centered and age consent remains a horizontal checkbox row', async () => {
+  await check('shared profile photo control stays centered, keyboard accessible and honest; age consent remains a horizontal checkbox row', async () => {
     await navigate(alice, 'edit-profile');
-    const placeholder = alice.locator('.avatar.profile-style-avatar');
-    await expect(placeholder).toBeVisible();
-    const style = await placeholder.evaluate(element => {
-      const css = getComputedStyle(element);
-      return {tag: element.tagName, display: css.display, alignItems: css.alignItems, justifyItems: css.justifyItems};
-    });
-    assert.notEqual(style.tag, 'IMG', 'Fixture deliberately tests an account with no profile photo.');
-    assert.deepEqual({display: style.display, alignItems: style.alignItems, justifyItems: style.justifyItems},
-      {display: 'grid', alignItems: 'center', justifyItems: 'center'});
+    const initialProfile = (await ok(alice, '/api/state')).members.find(member => member.id === 'alice');
+    assert.ok(!initialProfile.photo, 'Fixture deliberately tests an account with no profile photo.');
+    const photoControl = alice.getByRole('region', {name: 'Profile appearance', exact: true}).locator('.image-upload-control');
+    const placeholder = photoControl.locator('.image-upload-placeholder');
+    const choose = photoControl.getByRole('button', {name: 'Choose profile photo', exact: true});
+    const picker = photoControl.locator('input[type="file"]');
+    await expect(placeholder).toHaveText('No photo chosen');
+    await expect(photoControl.locator('.image-upload-preview > img')).toHaveCount(0);
+    await expect(picker).toHaveAttribute('accept', 'image/png,image/jpeg,image/webp,image/gif');
+    await expect(picker).toHaveAttribute('aria-label', 'Choose profile photo');
+    await expect(picker).toHaveAttribute('tabindex', '-1');
     const checkbox = alice.getByRole('checkbox', {name: 'Show my age on my family profile', exact: true});
     for (const width of [320, 390, 768]) {
       await alice.setViewportSize({width, height: 844});
+      await choose.scrollIntoViewIfNeeded();
+      await choose.focus();
+      await expect(choose).toBeFocused();
+      const actionGeometry = await choose.evaluate(element => {
+        const css = getComputedStyle(element), box = element.getBoundingClientRect(), action = element.querySelector('.image-upload-action').getBoundingClientRect();
+        return {display: css.display, alignItems: css.alignItems, justifyItems: css.justifyItems, width: box.width, height: box.height,
+          x: Math.abs((action.left + action.right - box.left - box.right) / 2), y: Math.abs((action.top + action.bottom - box.top - box.bottom) / 2)};
+      });
+      assert.deepEqual({display: actionGeometry.display, alignItems: actionGeometry.alignItems, justifyItems: actionGeometry.justifyItems},
+        {display: 'grid', alignItems: 'center', justifyItems: 'center'});
+      assert.ok(actionGeometry.x < 3 && actionGeometry.y < 3 && actionGeometry.width >= 44 && actionGeometry.height >= 44,
+        'The one-tap photo action stays centered and comfortably sized: ' + JSON.stringify(actionGeometry));
       await checkbox.scrollIntoViewIfNeeded();
       const geometry = await checkbox.evaluate(input => {
         const label = input.closest('label'), css = getComputedStyle(label);
@@ -693,6 +728,26 @@ try {
       await noClip(alice);
       await alice.screenshot({path: `${output}/profile-checkbox-${width}-${engineName}.png`});
     }
+    await picker.setInputFiles({name: 'synthetic-invalid-profile.txt', mimeType: 'text/plain', buffer: Buffer.from('Synthetic invalid profile file')});
+    await expect(photoControl.getByRole('alert')).toHaveText('Choose a JPEG, PNG, WebP or GIF profile photo.');
+    await expect(placeholder).toHaveText('No photo chosen');
+    await expect(choose).toBeEnabled();
+    await picker.setInputFiles({name: 'synthetic-profile.png', mimeType: 'image/png', buffer: createTestPng()});
+    const photo = photoControl.getByRole('img', {name: 'Alice profile photo', exact: true});
+    await expect(photo).toHaveAttribute('src', /^\/api\/media\/[A-Za-z0-9_-]+$/);
+    await expect.poll(() => photo.evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
+    await expect(photoControl.getByRole('alert')).toHaveCount(0);
+    const editPhoto = photoControl.getByRole('button', {name: 'Edit profile photo', exact: true});
+    await editPhoto.focus();
+    await expect(editPhoto).toBeFocused();
+    await alice.getByRole('button', {name: 'Remove photo', exact: true}).click();
+    await expect(placeholder).toHaveText('No photo chosen');
+    await expect(photoControl.locator('img')).toHaveCount(0);
+    await expect(choose).toBeEnabled();
+    await expect(checkbox).toBeChecked({checked: !!initialProfile.shareAge});
+    await expect(alice.getByLabel('Custom profile color', {exact: true})).toHaveValue(initialProfile.profileColor || '#4f996c');
+    assert.deepEqual((await ok(alice, '/api/state')).members.find(member => member.id === 'alice'), initialProfile,
+      'Choosing and removing a draft photo does not silently save appearance or birthday privacy.');
   });
 
   for (const {page} of sessions) await settleBrowserReads(page);
