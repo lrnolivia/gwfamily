@@ -17,7 +17,7 @@ const oldPost={id:'older-authorized-post',authorId:'bob',text:'An authorized old
 const comment={id:'older-comment',authorId:'bob',text:'The exact older fixture reply.',createdAt:2000,parentId:null,files:[]};
 let linkedComments=[comment];
 function account(id){return {id,settings:{accountId:id,scope:'leaders',globalOff:false,selectedIds:[],categories:{...DEFAULT_NOTIFICATION_CATEGORIES},revision:0,pushEnabled:false},notices:Array.from({length:id==='alice'?135:2},(_,i)=>({id:id+'-notice-'+(i+1),sequence:i+1,kind:'reply.created',category:'replies',title:`${id==='alice'?'Fixture':'Other account'} update ${i+1}`,text:'A fictional update for hosted QA.',createdAt:Date.now()-i*1000,readAt:null,target:{kind:'comment',id:comment.id,containerId:oldPost.id,anchorId:comment.id}}))}}
-const accounts={alice:account('alice'),bob:account('bob')};let holdOpen=null;
+const accounts={alice:account('alice'),bob:account('bob')};let holdOpen=null,holdSettings=null;
 function stateFor(id){return {...initialState(),mode:'live',schema:3,selfId:id,onboarding:'done',profileComplete:true,capabilities:{},
  members:[{id:'alice',name:'QA Alice',circle:'family',registered:true,adult:true,profileColor:'#4f996c'},{id:'bob',name:'QA Bob',circle:'family',registered:true,adult:true,profileColor:'#754c95'}],groups:[],memories:[],memorials:[],relationships:[],posts:[{id:'recent-fixture',authorId:'bob',text:'The current fixture feed.',createdAt:Date.now(),files:[]}],comments:{},reactions:{},notifications:[],readNotices:[],notificationSettings:{...accounts[id].settings},notificationUnreadCount:visible(accounts[id]).filter(n=>!n.readAt).length};}
 function visible(account){return account.settings.globalOff?[]:account.notices.filter(n=>!n.dismissedAt&&account.settings.categories[n.category]);}
@@ -41,6 +41,7 @@ async function attachRoutes(context,viewer){
   }
   if(url.pathname==='/api/me/notifications'){
    if(method==='PUT'){
+    if(holdSettings){const pending=holdSettings;holdSettings=null;pending.started();await pending.promise;}
     if(payload.revision!==a.settings.revision)return json(route,{error:'Notification settings changed on another device.'},409);
     const {expectedAccountId,revision,categories,...rest}=payload;a.settings={...a.settings,...rest,categories:{...a.settings.categories,...categories},revision:revision+1};if(a.settings.scope==='loved')a.settings.scope='loved_ones';
    }return json(route,a.settings);
@@ -185,10 +186,32 @@ try{
  await check('settings preserve Following through global Off and normalize Loved Ones',async()=>{
   const before=visible(accounts.alice).filter(notice=>!notice.readAt).length;
   await showInbox(alice);await panel(alice).getByRole('button',{name:'Notification settings',exact:true}).click();const settings=alice.getByRole('region',{name:'Notification choices',exact:true});
-  await chooseRadio(settings.getByRole('radio',{name:'Loved Ones',exact:true}));await expect(settings.getByRole('radio',{name:'Loved Ones',exact:true})).toBeChecked();
-  await chooseRadio(settings.getByRole('radio',{name:'Off',exact:true}));await expect(settings.getByRole('checkbox',{name:'Replies',exact:true})).toBeDisabled();await expect(backgroundBell(alice)).toHaveAttribute('aria-label','Notifications');
-  await chooseRadio(settings.getByRole('radio',{name:'On',exact:true}));await expect(settings.getByRole('radio',{name:'Loved Ones',exact:true})).toBeChecked();
-  await settings.getByRole('checkbox',{name:'Replies',exact:true}).uncheck();await expect(backgroundBell(alice)).toHaveAttribute('aria-label','Notifications');await settings.getByRole('checkbox',{name:'Replies',exact:true}).check();
+  const loved=settings.getByRole('radio',{name:'Loved Ones',exact:true}),replies=settings.getByRole('checkbox',{name:'Replies',exact:true}),saving=settings.getByRole('status',{name:'Saving notification choices',exact:true});
+  await chooseRadio(loved);assert.equal(accounts.alice.settings.scope,'loved_ones');
+  await chooseRadio(settings.getByRole('radio',{name:'Off',exact:true}));await expect(replies).toBeDisabled();await expect(backgroundBell(alice)).toHaveAttribute('aria-label','Notifications');
+  assert.equal(accounts.alice.settings.globalOff,true);assert.equal(accounts.alice.settings.scope,'loved_ones');
+  await chooseRadio(settings.getByRole('radio',{name:'On',exact:true}));await expect(loved).toBeChecked();await expect(replies).toBeEnabled();
+  assert.equal(accounts.alice.settings.globalOff,false);assert.equal(accounts.alice.settings.scope,'loved_ones');
+  // These are controlled, server-authoritative checkboxes. The native click is
+  // accepted immediately, but its checked value is committed only after saving
+  // and refreshing. check()/uncheck() demand a synchronous state change, which
+  // is incorrect here and especially for the rejected stale-account write below.
+  const previous=structuredClone(accounts.alice.settings),writesBefore=settingsWrites().length;
+  let release,started=false;holdSettings={promise:new Promise(r=>release=r),started:()=>{started=true}};
+  try{
+   await expect(replies).toBeChecked();await replies.click();await expect.poll(()=>started).toBe(true);
+   await expect(saving).toBeVisible();await expect(replies).toBeDisabled();await expect(replies).toBeChecked();await expect(loved).toBeDisabled();
+   assert.deepEqual(accounts.alice.settings,previous,'A pending save must not be presented as committed');
+  }finally{release();}
+  await expect(replies).not.toBeChecked();await expect(replies).toBeEnabled();await expect(saving).toBeHidden();await expect(backgroundBell(alice)).toHaveAttribute('aria-label','Notifications');
+  assert.deepEqual(settingsWrites().slice(writesBefore).map(write=>write.payload),[{expectedAccountId:'alice',revision:previous.revision,categories:{replies:false}}]);
+  assert.deepEqual(accounts.alice.settings,{...previous,revision:previous.revision+1,categories:{...previous.categories,replies:false}});
+  await replies.click();await expect(replies).toBeChecked();await expect(replies).toBeEnabled();await expect(saving).toBeHidden();
+  assert.deepEqual(settingsWrites().slice(writesBefore).map(write=>write.payload),[
+   {expectedAccountId:'alice',revision:previous.revision,categories:{replies:false}},
+   {expectedAccountId:'alice',revision:previous.revision+1,categories:{replies:true}},
+  ]);
+  assert.deepEqual(accounts.alice.settings,{...previous,revision:previous.revision+2});
   await alice.getByRole('button',{name:'Close dialog',exact:true}).click();await expect(bell(alice)).toHaveAccessibleName(`Notifications, ${before} unread`);
  });
  await check('read-all uses a server cutoff and leaves a later arrival unread',async()=>{
@@ -196,8 +219,11 @@ try{
   await panel(alice).getByRole('button',{name:'Mark all read',exact:true}).click();await expect(bell(alice)).toHaveAccessibleName('Notifications, 1 unread');assert.equal(accounts.alice.notices.at(-1).readAt,undefined);
  });
  await check('account switch rejects stale settings writes and clears old-account inbox',async()=>{
-  await panel(alice).getByRole('button',{name:'Notification settings',exact:true}).click();const previous=structuredClone(accounts.bob.settings);viewer.id='bob';await alice.getByRole('region',{name:'Notification choices'}).getByRole('checkbox',{name:'Reactions',exact:true}).uncheck();
-  await expect(backgroundBell(alice)).toHaveAttribute('aria-label','Notifications, 2 unread');assert.deepEqual(accounts.bob.settings,previous);await alice.getByRole('button',{name:'Close dialog',exact:true}).click();await expect(bell(alice)).toHaveAccessibleName('Notifications, 2 unread');await showInbox(alice);await expect(panel(alice).locator('[data-notice-id^="alice-"]')).toHaveCount(0);await expect(panel(alice).locator('[data-notice-id^="bob-"]')).toHaveCount(2);
+  await panel(alice).getByRole('button',{name:'Notification settings',exact:true}).click();const previous=structuredClone(accounts.bob.settings),oldSettings=structuredClone(accounts.alice.settings),writesBefore=settingsWrites().length;
+  const reactions=alice.getByRole('region',{name:'Notification choices'}).getByRole('checkbox',{name:'Reactions',exact:true});await expect(reactions).toBeChecked();await expect(reactions).toBeEnabled();viewer.id='bob';await reactions.click();
+  await expect(backgroundBell(alice)).toHaveAttribute('aria-label','Notifications, 2 unread');await expect(reactions).toBeEnabled();await expect(reactions).toBeChecked();
+  assert.deepEqual(settingsWrites().slice(writesBefore).map(write=>({viewer:write.viewer,payload:write.payload})),[{viewer:'bob',payload:{expectedAccountId:'alice',revision:oldSettings.revision,categories:{reactions:false}}}]);
+  assert.deepEqual(accounts.alice.settings,oldSettings);assert.deepEqual(accounts.bob.settings,previous);await alice.getByRole('button',{name:'Close dialog',exact:true}).click();await expect(bell(alice)).toHaveAccessibleName('Notifications, 2 unread');await showInbox(alice);await expect(panel(alice).locator('[data-notice-id^="alice-"]')).toHaveCount(0);await expect(panel(alice).locator('[data-notice-id^="bob-"]')).toHaveCount(2);
  });
  await check('notification controls fit 320/390/768/1280 across approved materials and palettes',async()=>{
   for(const variant of [{width:320,theme:'light',material:'android'},{width:390,theme:'dark',material:'ios'},{width:768,theme:'light',material:'ios'},{width:1280,theme:'dark',material:'android'}]){
@@ -220,7 +246,8 @@ try{
 finally{await writeFile(output+'/'+engine+'-results.json',JSON.stringify({engine,synthetic:true,externalWrites:false,results,errors,broadcasts},null,2));for(const context of contexts)await context.close();await browser?.close();}
 if(failure)throw failure;
 
-async function chooseRadio(radio){await expect(radio).toBeEnabled();await radio.locator('..').click();await expect(radio).toBeChecked();}
+function settingsWrites(){return requests.filter(request=>request.path==='/api/me/notifications'&&request.method==='PUT');}
+async function chooseRadio(radio){await expect(radio).toBeEnabled();await radio.locator('..').click();await expect(radio).toBeChecked();await expect(radio).toBeEnabled();}
 function annotation(value,property=false){const escaped=String(value).replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');return property?escaped.replaceAll(':','%3A').replaceAll(',','%2C'):escaped;}
 async function bounded(operation,ms=4000){let timer;try{return await Promise.race([operation,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Diagnostic exceeded '+ms+'ms')),ms)})])}finally{clearTimeout(timer)}}
 async function captureFailure(){

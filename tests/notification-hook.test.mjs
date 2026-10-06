@@ -47,6 +47,43 @@ test('settings conflict reloads latest revision without retrying or replacing an
  let attempts=0,version=1;const data=dataFor('alice',{list:async()=>page('alice',{revision:version,settings:{...normalizeNotificationSettings(),revision:version,categories:{reactions:false}}}),saveSettings:async()=>{attempts++;version=8;throw Object.assign(new Error('Revision conflict'),{status:409})}}),host=await harness(data);
  try{host.render();await host.flush();assert.equal(await host.render().saveSettings({scope:'all'}),false);assert.equal(attempts,1);assert.equal(host.render().settings.revision,8);assert.equal(host.render().settings.categories.reactions,false);assert.match(host.render().error,/changed on another device/);assert.equal(data.pending,0)}finally{host.close()}
 });
+test('settings remain authoritative and busy through a delayed write and its delayed read-back',async()=>{
+ const saving=deferred(),reading=deferred(),readStarted=deferred(),writes=[];let lists=0;
+ const previous=normalizeNotificationSettings({scope:'loved_ones',revision:4}),next={...previous,revision:5,categories:{...previous.categories,replies:false}};
+ const data=dataFor('alice',{
+  list:()=>{lists++;if(lists===1)return Promise.resolve(page('alice',{settings:previous}));readStarted.resolve();return reading.promise},
+  saveSettings:(patch,revision,accountId)=>{writes.push({patch,revision,accountId});return saving.promise},
+ }),host=await harness(data);
+ try{
+  host.render();await host.flush();const operation=host.render().saveSettings({categories:{replies:false}});
+  assert.equal(host.render().busy,true);assert.equal(data.pending,1);assert.deepEqual(host.render().settings,previous);
+  assert.deepEqual(writes,[{patch:{categories:{replies:false}},revision:4,accountId:'alice'}]);
+  assert.equal(await host.render().saveSettings({globalOff:true}),false,'A second write must not race the pending revision');
+  window.dispatchEvent(new Event('online'));host.channels[0].onmessage({data:{type:'invalidate',version:1}});await host.flush();assert.equal(lists,1);
+  saving.resolve({accountId:'alice',...next});await readStarted.promise;
+  assert.equal(host.render().busy,true);assert.equal(data.pending,1);assert.deepEqual(host.render().settings,previous,'A PUT result alone does not replace the authoritative inbox snapshot');
+  reading.resolve(page('alice',{count:0,items:0,settings:next}));await operation;
+  assert.equal(host.render().busy,false);assert.equal(data.pending,0);assert.deepEqual(host.render().settings,next);assert.equal(host.render().unreadCount,0);assert.equal(lists,2);assert.equal(writes.length,1);
+  assert.deepEqual(host.channels[0].sent,[{type:'invalidate',version:1}]);
+ }finally{saving.resolve({accountId:'alice'});reading.resolve(page('alice',{settings:previous}));host.close()}
+});
+test('stale-account settings rejection cannot change either account or retry against the replacement account',async()=>{
+ const saving=deferred(),writes=[];let switched=false;
+ const previous=normalizeNotificationSettings({scope:'loved_ones',revision:4}),replacement=normalizeNotificationSettings({scope:'leaders',revision:9});
+ const alice=dataFor('alice',{
+  list:async()=>switched?page('bob',{count:2,settings:replacement}):page('alice',{settings:previous}),
+  saveSettings:(patch,revision,accountId)=>{writes.push({patch,revision,accountId});return saving.promise},
+ }),bob=dataFor('bob',{list:async()=>page('bob',{count:2,settings:replacement})}),host=await harness(alice);
+ try{
+  host.render();await host.flush();const operation=host.render().saveSettings({categories:{reactions:false}});
+  assert.equal(host.render().busy,true);assert.equal(host.render().settings.categories.reactions,true);switched=true;
+  saving.reject(Object.assign(new Error('Your signed-in account changed.'),{status:409}));assert.equal(await operation,false);
+  assert.equal(host.render().ready,false);assert.equal(host.render().items.length,0);assert.equal(host.render().unreadCount,0);assert.equal(alice.refreshes,1);assert.equal(alice.pending,0);
+  assert.equal(await host.render().saveSettings({categories:{reactions:false}}),false,'An invalidated account stays blocked until the session refresh');
+  host.render(bob);await host.flush();assert.equal(host.render().busy,false);assert.deepEqual(host.render().settings,replacement);assert.equal(host.render().settings.categories.reactions,true);assert.equal(host.render().unreadCount,2);
+  assert.deepEqual(writes,[{patch:{categories:{reactions:false}},revision:4,accountId:'alice'}]);
+ }finally{host.close()}
+});
 test('online and visible refresh are lightweight; hidden tabs wait and channel shares no content',async()=>{
  let calls=0;const data=dataFor('alice',{list:async()=>{calls++;return page('alice')}}),host=await harness(data);
  try{host.render();await host.flush();const first=calls;document.visibilityState='hidden';window.dispatchEvent(new Event('online'));await host.flush();assert.equal(calls,first);document.visibilityState='visible';document.dispatchEvent(new Event('visibilitychange'));await host.flush();assert.equal(calls,first+1);host.channels[0].onmessage({data:{type:'invalidate',version:1}});await host.flush();assert.equal(calls,first+2);await host.render().read('alice-3');assert.deepEqual(host.channels[0].sent,[{type:'invalidate',version:1}]);assert.equal(data.refreshes,0)}finally{host.close()}
