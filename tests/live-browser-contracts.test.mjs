@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {LIVE_LIFECYCLE_PREFIX, installLiveLifecycle, observeLivePage} from './live-browser-diagnostics.mjs';
+import {LIVE_LIFECYCLE_PREFIX, installLiveLifecycle, observeLivePage, liveFailureAnnotation} from './live-browser-diagnostics.mjs';
 
 const base = 'http://127.0.0.1:4174';
 const source = readFileSync(new URL('./live-browser.mjs', import.meta.url), 'utf8');
@@ -162,11 +162,11 @@ test('every Live access-control pageerror remains a failure with reload/poll cor
   lifecycle(page, 'beforeunload'); response(page, req); page.emit('requestfailed', req);
   const error = new Error('Fetch API cannot load ' + base + '/api/notifications?limit=30 due to access control checks.');
   error.stack = 'synthetic stack\n'.repeat(700);
-  const original = console.error; console.error = () => {};
+  const original = console.error, originalLog = console.log; console.error = () => {}; console.log = () => {};
   try {
     page.emit('pageerror', error);
     trace.beginTransition('browser-close'); page.emit('pageerror', new Error('Cleanup failure'));
-  } finally {console.error = original;}
+  } finally {console.error = original; console.log = originalLog;}
   assert.equal(errors.length, 2); assert.match(errors[0].error, /access control checks/); assert.equal(errors[0].stack.length, 4000);
   assert.equal(errors[0].check, 'synthetic reload'); assert.equal(errors[0].transitions.at(-1).type, 'reload');
   assert.equal(errors[0].recentEvents.at(-1).failure, 'Load request cancelled');
@@ -201,6 +201,57 @@ test('Live document lifecycle only observes exceptions and records true document
   listeners.get('unhandledrejection')({reason: new Error('rejected'), preventDefault: fail});
   assert.equal(records[0].event, 'new-document'); assert.equal(records[0].timeOrigin, 123);
   assert.equal(records[1].event, 'window-error'); assert.equal(records[2].event, 'unhandledrejection');
+});
+
+test('Live notification observation preserves the exact fetch promise and native call while recording abort origin', () => {
+  const records = [], calls = [], listeners = new Map(), promise = Promise.resolve('native result');
+  Object.defineProperty(promise, 'then', {value() {throw new Error('The observer must not chain or handle fetch promises');}});
+  const window = {fetch(...args) {calls.push({receiver: this, args}); return promise;}}; window.top = window;
+  vm.runInNewContext('(' + installLiveLifecycle.toString() + ')()', {
+    window, URL, location: {origin: base, pathname: '/', href: base + '/'}, performance: {timeOrigin: 123, now: () => 4}, document: {readyState: 'loading'},
+    console: {log: value => records.push(JSON.parse(value.slice(LIVE_LIFECYCLE_PREFIX.length)))},
+    addEventListener: (event, callback) => listeners.set(event, callback),
+  });
+  const controller = new AbortController(), options = {signal: controller.signal, credentials: 'same-origin'}, receiver = {};
+  assert.equal(window.fetch.call(receiver, '/api/notifications?token=never-log-query', options), promise);
+  assert.equal(calls[0].receiver, receiver); assert.equal(calls[0].args[0], '/api/notifications?token=never-log-query'); assert.equal(calls[0].args[1], options);
+  controller.abort();
+  assert.deepEqual(records.slice(1).map(value => [value.event, value.request, value.aborted]), [['notification-fetch', 1, false], ['notification-abort', 1, true]]);
+  assert.match(records[2].stack, /Notification AbortSignal fired/);
+  assert.doesNotMatch(JSON.stringify(records), /never-log-query/);
+  const length = records.length;
+  assert.equal(window.fetch('/api/state'), promise); assert.equal(window.fetch('https://elsewhere.test/api/notifications'), promise);
+  assert.equal(window.fetch(null), promise); assert.equal(records.length, length, 'Unrelated and malformed native inputs are not changed or logged.');
+});
+
+test('Live compact failure annotation retains matching request completion, true document identity and abort stack', () => {
+  const {page, trace} = observed(), req = request(page);
+  page.emit('request', req); finish(page, req);
+  lifecycle(page, 'notification-fetch', 100, {request: 1, aborted: false});
+  lifecycle(page, 'notification-abort', 100, {request: 1, aborted: true, stack: 'abort@' + base + '/react-app.js?v=never-log-version:123:45'});
+  const detail = {name: 'Fetch API cannot load http', error: '/127.0.0.1:4174/api/notifications?token=never-log-token due to access control checks.',
+    stack: 'Error\n at notificationRequest (' + base + '/react-app.js?v=never-log-version:123:45)', check: 'cross-account post persistence', ms: 4661, documentEpoch: 1};
+  const annotation = liveFailureAnnotation(detail, trace), prefix = '::error title=GW live request failure::';
+  assert.ok(annotation.startsWith(prefix)); assert.ok(annotation.length < 4096);
+  const summary = JSON.parse(annotation.slice(prefix.length).replaceAll('%0A', '\n').replaceAll('%0D', '\r').replaceAll('%25', '%'));
+  assert.equal(summary.epoch, 1); assert.equal(summary.timeOrigin, 100); assert.equal(summary.reads[0].status, 200);
+  assert.equal(summary.reads[0].epoch, 1); assert.equal(summary.reads[0].timeOrigin, 100); assert.ok(Number.isFinite(summary.reads[0].end));
+  assert.equal(summary.navigation[0].type, 'signin'); assert.ok(Number.isFinite(summary.navigation[0].commit));
+  assert.equal(summary.lifecycle.at(-1).event, 'notification-abort'); assert.match(summary.lifecycle.at(-1).stack, /react-app\.js:123:45/);
+  assert.match(summary.stack, /react-app\.js:123:45/); assert.doesNotMatch(summary.stack, /never-log-version/);
+  assert.doesNotMatch(annotation, /never-log-token|never-log-version/);
+});
+
+test('Live compact failure annotation stays valid under percent encoding and large exception text', () => {
+  const {page, trace} = observed();
+  for (let index = 0; index < 8; index++) {
+    const req = request(page); page.emit('request', req); finish(page, req);
+    lifecycle(page, 'notification-abort', 100, {request: index + 1, stack: '%'.repeat(4000)});
+  }
+  const detail = {name: '%'.repeat(100), error: '/api/notifications' + '%'.repeat(2000), stack: '%'.repeat(4000), check: '%'.repeat(100), ms: 4661, documentEpoch: 1};
+  const annotation = liveFailureAnnotation(detail, trace);
+  assert.ok(annotation.length < 4096);
+  assert.doesNotThrow(() => JSON.parse(annotation.split('::').at(-1).replaceAll('%25', '%')));
 });
 
 test('Live harness gates every deliberate reload and onboarding closure with actual request completion', () => {

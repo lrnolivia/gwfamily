@@ -79,6 +79,7 @@ async function pageFor(viewer,{width=390,context:existing}={}){
   const Native=globalThis.BroadcastChannel;if(Native)globalThis.BroadcastChannel=class extends Native{postMessage(value){if(this.name==='gw-notifications:v1')window.__qaBroadcast(value);return super.postMessage(value)}};
   const noPermission=()=>{throw new Error('Notification permission must never be requested by activity UI')};if(globalThis.Notification)Notification.requestPermission=noPermission;
  });
+ await page.addInitScript(installNotificationViewportTrace);
  await page.goto(base+'/');await expect(page.getByRole('navigation',{name:'Main navigation',exact:true})).toBeVisible();return {page,context};
 }
 const bell=page=>page.locator('header').getByRole('button',{name:/^Notifications(?:,|$)/});
@@ -90,13 +91,23 @@ async function showInbox(page){await page.bringToFront();if(await bell(page).get
 async function refresh(page){await page.bringToFront();const previous=requests.filter(r=>r.path==='/api/notifications').length;await page.evaluate(()=>window.dispatchEvent(new Event('online')));await expect.poll(()=>requests.filter(r=>r.path==='/api/notifications').length).toBeGreaterThan(previous);}
 async function check(name,run){currentCheck=name;await run();results.push({check:name,status:'passed'});console.log('NOTIFICATION PASS:',name);}
 async function checkFit(page){const bounds=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,controls:[...document.querySelectorAll('.notification-panel button,.notification-settings button,.notification-settings input')].filter(e=>e.getClientRects().length&&!e.closest('[inert]')&&(!e.closest('[popover]')||e.closest('[popover]').matches(':popover-open'))).map(e=>({name:e.getAttribute('aria-label')||e.textContent,left:e.getBoundingClientRect().left,right:e.getBoundingClientRect().right})).filter(r=>r.left<0||r.right>innerWidth+1)}));assert.ok(bounds.scroll<=bounds.width+1&&!bounds.controls.length,JSON.stringify(bounds));}
-async function checkBellClear(page){
- await expect.poll(()=>page.evaluate(()=>{
-  const button=document.querySelector('header button.notification-entry'),popover=document.querySelector('.notification-panel')?.closest('[popover]');
-  if(!button||!popover?.matches(':popover-open'))return {clear:false,hit:false};
-  const bell=button.getBoundingClientRect(),panel=popover.getBoundingClientRect(),hit=document.elementFromPoint(bell.left+bell.width/2,bell.top+bell.height/2);
-  return {clear:panel.top>=bell.bottom+7||panel.bottom<=bell.top-7,hit:hit===button||button.contains(hit)};
- })).toEqual({clear:true,hit:true});
+function notificationBellGeometry(){
+ const button=document.querySelector('header button.notification-entry'),popover=document.querySelector('.notification-panel')?.closest('[popover]'),saving=document.querySelector('.saving-status');
+ const rect=el=>{if(!el)return null;const r=el.getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height}};
+ const bell=rect(button),panel=rect(popover),badge=rect(saving),open=!!popover?.matches(':popover-open');
+ const hit=bell&&document.elementFromPoint(bell.left+bell.width/2,bell.top+bell.height/2);
+ return {clear:!!(bell&&panel&&open&&(panel.top>=bell.bottom+7||panel.bottom<=bell.top-7)),
+  hit:!!(button&&hit&&(hit===button||button.contains(hit))),popoverHit:!!(popover&&hit&&(hit===popover||popover.contains(hit))),disabled:button?.disabled??null,
+  diagnostic:{bell,panel,open,pointerEvents:button?getComputedStyle(button).pointerEvents:null,
+   hit:hit?{tag:hit.tagName,id:hit.id,className:hit.getAttribute('class'),label:hit.getAttribute('aria-label')}:null,
+   saving:badge?{rect:badge,overlapsBell:!!(bell&&badge.left<bell.right&&badge.right>bell.left&&badge.top<bell.bottom&&badge.bottom>bell.top)}:null}};
+}
+async function checkBellClear(page,{pending=false}={}){
+ // The global mutation guard disables icon-button controls during a held open.
+ // Keep their geometry clear, but require pointer hits only when enabled. The
+ // actual pending hit target (including any saving badge) remains diagnostic.
+ await expect.poll(()=>page.evaluate(notificationBellGeometry)).toMatchObject(pending?
+  {clear:true,popoverHit:false,disabled:true}:{clear:true,popoverHit:false,disabled:false,hit:true});
 }
 async function checkNavigationClear(page){
  await expect.poll(()=>page.evaluate(()=>{
@@ -108,6 +119,44 @@ async function checkNavigationClear(page){
    const rect=button.getBoundingClientRect(),target=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);return target===button||button.contains(target);
   })};
  })).toEqual({clear:true,hit:true,buttonsClear:true});
+}
+function notificationCaptureState(){
+ const popover=document.querySelector('.notification-panel')?.closest('[popover]'),viewport=window.visualViewport;
+ return {url:location.href,width:innerWidth,height:innerHeight,scrollX,scrollY,
+  visualViewport:viewport?{width:viewport.width,height:viewport.height,left:viewport.offsetLeft,top:viewport.offsetTop}:null,
+  expanded:document.querySelector('header button.notification-entry')?.getAttribute('aria-expanded')??null,
+  inboxOpen:!!popover?.matches(':popover-open'),settingsOpen:!!document.querySelector('dialog[open] .notification-settings')};
+}
+function installNotificationViewportTrace(){
+ const entries=window.__qaNotificationViewportEvents=[];
+ const record=event=>{
+  if((event.type==='toggle'||event.type==='beforetoggle')&&!event.target?.classList?.contains('notification-popover'))return;
+  if(event.type==='scroll'&&event.target?.closest?.('.notification-panel'))return;
+  const button=document.querySelector('header button.notification-entry'),rect=button?.getBoundingClientRect(),viewport=window.visualViewport;
+  entries.push({type:event.type,source:event.currentTarget===viewport?'visualViewport':'document',newState:event.newState,
+   width:innerWidth,height:innerHeight,scrollX,scrollY,visualViewport:viewport?{width:viewport.width,height:viewport.height,left:viewport.offsetLeft,top:viewport.offsetTop}:null,
+   bell:rect?{left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom}:null,
+   expanded:button?.getAttribute('aria-expanded'),open:!!document.querySelector('.notification-popover:popover-open')});
+  if(entries.length>40)entries.shift();
+ };
+ for(const type of ['resize','scroll']){window.addEventListener(type,record,true);window.visualViewport?.addEventListener(type,record);}
+ for(const type of ['beforetoggle','toggle'])document.addEventListener(type,record,true);
+}
+async function captureNotificationViewport(page,path,{settings=false}={}){
+ const surface=settings?page.getByRole('region',{name:'Notification choices',exact:true}):panel(page);
+ await expect(surface).toBeVisible();
+ if(!settings)await expect(bell(page)).toHaveAttribute('aria-expanded','true');
+ const before=await page.evaluate(notificationCaptureState);
+ events.push({check:currentCheck,type:'viewport-capture-before',path,state:before});if(events.length>120)events.shift();
+ // These are fixed top-layer controls. A document-sized fullPage capture asks
+ // Chromium to captureBeyondViewport and does not represent this device view.
+ await page.screenshot({path,fullPage:false});
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ const after=await page.evaluate(notificationCaptureState);
+ events.push({check:currentCheck,type:'viewport-capture-after',path,state:after});if(events.length>120)events.shift();
+ assert.deepEqual(after,before,'Capturing notification evidence must not change the viewport, scroll or open surface: '+path);
+ await expect(surface).toBeVisible();
+ if(!settings)await expect(bell(page)).toHaveAttribute('aria-expanded','true');
 }
 let failure;
 try{
@@ -172,8 +221,12 @@ try{
   let release,started;const startedPromise=new Promise(r=>started=r);holdOpen={promise:new Promise(r=>release=r),started};await showInbox(alice);await panel(alice).getByRole('button',{name:'Open Fixture update 134, unread',exact:true}).click();await startedPromise;
   // Popover is nonmodal. A newer navigation intent is deferred by the existing
   // mutation guard, then wins when the original open settles.
-  await expect(panel(alice)).toBeVisible();await checkBellClear(alice);await checkNavigationClear(alice);
-  await alice.getByRole('navigation',{name:'Main navigation',exact:true}).getByRole('button',{name:'You',exact:true}).click();release();await expect(alice).toHaveURL(/#\/you$/);await expect.poll(()=>holdOpen).toBe(null);await expect(alice).toHaveURL(/#\/you$/);
+  try{
+   await expect(panel(alice)).toBeVisible();await expect(alice.locator('.saving-status')).toBeVisible();await checkBellClear(alice,{pending:true});await checkNavigationClear(alice);
+   const you=alice.getByRole('navigation',{name:'Main navigation',exact:true}).getByRole('button',{name:'You',exact:true});await expect(you).toBeEnabled();await you.click();await expect(alice).toHaveURL(/#\/home$/);
+  }finally{release();}
+  await expect(alice).toHaveURL(/#\/you$/);await expect.poll(()=>holdOpen).toBe(null);await expect(alice).toHaveURL(/#\/you$/);await expect(bell(alice)).toBeEnabled();
+  await showInbox(alice);await checkBellClear(alice);await checkNavigationClear(alice);await bell(alice).click();await expect(panel(alice)).toBeHidden();
  });
  await check('separate devices refresh read/dismiss and broadcast contains no private data',async()=>{
   const other=await pageFor({id:'alice'},{width:768}),device=other.page;await showInbox(device);const before=visible(accounts.alice).filter(n=>!n.readAt).length;
@@ -227,8 +280,8 @@ try{
  });
  await check('notification controls fit 320/390/768/1280 across approved materials and palettes',async()=>{
   for(const variant of [{width:320,theme:'light',material:'android'},{width:390,theme:'dark',material:'ios'},{width:768,theme:'light',material:'ios'},{width:1280,theme:'dark',material:'android'}]){
-   await alice.setViewportSize({width:variant.width,height:900});await alice.evaluate(({theme,material})=>{localStorage.setItem('gw-theme',theme);localStorage.setItem('gw-platform',material)},variant);await alice.reload();await showInbox(alice);await checkFit(alice);await checkBellClear(alice);await checkNavigationClear(alice);await alice.screenshot({path:`${output}/${engine}-${variant.width}-${variant.theme}-${variant.material}-inbox.png`,fullPage:true});
-   await panel(alice).getByRole('button',{name:'Notification settings',exact:true}).click();await checkFit(alice);await alice.screenshot({path:`${output}/${engine}-${variant.width}-${variant.theme}-${variant.material}-settings.png`,fullPage:true});await alice.getByRole('button',{name:'Close dialog',exact:true}).click();
+   await alice.setViewportSize({width:variant.width,height:900});await alice.evaluate(({theme,material})=>{localStorage.setItem('gw-theme',theme);localStorage.setItem('gw-platform',material)},variant);await alice.reload();await showInbox(alice);await checkFit(alice);await checkBellClear(alice);await checkNavigationClear(alice);await captureNotificationViewport(alice,`${output}/${engine}-${variant.width}-${variant.theme}-${variant.material}-inbox.png`);
+   await panel(alice).getByRole('button',{name:'Notification settings',exact:true}).click();await checkFit(alice);await captureNotificationViewport(alice,`${output}/${engine}-${variant.width}-${variant.theme}-${variant.material}-settings.png`,{settings:true});await alice.getByRole('button',{name:'Close dialog',exact:true}).click();
   }
  });
  await check('preview controls are isolated and resettable with no notification network writes',async()=>{
@@ -258,6 +311,8 @@ async function captureFailure(){
   try{result.dom=await bounded(page.evaluate(()=>({title:document.title,app:document.querySelector('.app')?.className,body:document.body?.innerText.slice(0,3500),
    bells:[...document.querySelectorAll('header .notification-entry')].map(el=>({label:el.getAttribute('aria-label'),hidden:el.getAttribute('aria-hidden'),inert:!!el.closest('[inert]'),display:getComputedStyle(el).display})),
    dialogs:[...document.querySelectorAll('dialog')].map(el=>({open:el.open,title:el.querySelector('h2')?.textContent,text:el.innerText.slice(0,1000)})),alerts:[...document.querySelectorAll('[role="alert"]')].map(el=>el.textContent.slice(0,500))})));}catch(error){result.domError=error.message}
+  try{result.bellGeometry=await bounded(page.evaluate(notificationBellGeometry));}catch(error){result.bellGeometryError=error.message}
+  try{result.viewportEvents=await bounded(page.evaluate(()=>window.__qaNotificationViewportEvents||[]));}catch(error){result.viewportEventsError=error.message}
   try{result.screenshot=`${engine}-failure-${index+1}.png`;await page.screenshot({path:output+'/'+result.screenshot,timeout:4000,fullPage:false})}catch(error){result.screenshotError=error.message}
   return result;
  }));

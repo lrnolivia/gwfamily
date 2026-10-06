@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
 import {notificationPopoverGeometry, bindNotificationPopoverPlacement} from '../src/notification-popover-geometry.js';
 
 const bell = {left: 285, right: 329, top: 30, bottom: 74, width: 44, height: 44};
@@ -290,4 +291,67 @@ test('notification policy remains opt-in with native popovers and a single scrol
   assert.match(css, /\.notification-popover\.gw-glass-menu>\.liquid-glass-content\{max-height:none;overflow:visible;min-height:0\}/);
   assert.match(css, /\.notification-popover \.notification-panel\.pop-content\{max-height:var\(--notification-content-max-height,none\);overflow:auto;overscroll-behavior:contain;min-height:0\}/);
   assert.match(css, /width:max-content;min-width:0;min-height:0/);
+});
+
+// Exercise the actual hosted assertion and diagnostic without a local browser.
+// These synthetic hit targets verify the contract, not WebKit's hit-test result.
+const browserSource = readFileSync(new URL('./notifications-browser.mjs', import.meta.url), 'utf8');
+const browserBellHelpers = browserSource.slice(browserSource.indexOf('function notificationBellGeometry('), browserSource.indexOf('async function checkNavigationClear('));
+function bellProbe({disabled = false, target = 'button', panelTop = 82, open = true} = {}) {
+  const node = (tagName, className, bounds) => ({tagName, id: '', disabled: false,
+    getAttribute(name) {return name === 'class' ? className : null;},
+    getBoundingClientRect() {return bounds;}, contains(other) {return other === this;},
+  });
+  const button = node('BUTTON', 'icon-button notification-entry', bell);button.disabled = disabled;
+  const popover = node('DIV', 'notification-popover', {left: 12, right: 378, top: panelTop, bottom: 760, width: 366, height: 760 - panelTop});
+  popover.matches = () => open;
+  const saving = disabled ? node('P', 'saving-status', {left: 90, right: 310, top: 12, bottom: 54, width: 220, height: 42}) : null;
+  const underlying = node('DIV', 'header-actions', bell);
+  const document = {
+    querySelector(selector) {return ({'header button.notification-entry': button, '.notification-panel': {closest: () => popover}, '.saving-status': saving})[selector];},
+    elementFromPoint(x, y) {assert.equal(x, bell.left + bell.width / 2);assert.equal(y, bell.top + bell.height / 2);return ({button, popover, saving, underlying})[target] || null;},
+  };
+  const context = vm.createContext({document, getComputedStyle: () => ({pointerEvents: 'auto'}),
+    expect: {poll: probe => ({async toMatchObject(expected) {const actual = await probe();for (const [key, value] of Object.entries(expected)) assert.equal(actual[key], value, key);}})},
+  });
+  vm.runInContext(browserBellHelpers, context);
+  return {sample: () => JSON.parse(JSON.stringify(context.notificationBellGeometry())),
+    check: options => context.checkBellClear({evaluate: fn => fn()}, options)};
+}
+
+test('enabled bell checks require both non-overlapping placement and a real center hit', async () => {
+  await bellProbe().check();
+  for (const target of ['popover', 'underlying', 'missing']) await assert.rejects(bellProbe({target}).check());
+  await assert.rejects(bellProbe({panelTop: 70}).check(), /clear/);
+  await assert.rejects(bellProbe({open: false}).check(), /clear/);
+  await assert.rejects(bellProbe({disabled: true}).check(), /disabled/);
+});
+
+test('held-open checks explicitly require a disabled bell while retaining popover geometry and interception guards', async () => {
+  for (const target of ['button', 'underlying', 'saving', 'missing']) await bellProbe({disabled: true, target}).check({pending: true});
+  await assert.rejects(bellProbe().check({pending: true}), /disabled/);
+  await assert.rejects(bellProbe({disabled: true, panelTop: 70}).check({pending: true}), /clear/);
+  await assert.rejects(bellProbe({disabled: true, target: 'popover'}).check({pending: true}), /popoverHit/);
+  await assert.rejects(bellProbe({disabled: true, open: false}).check({pending: true}), /clear/);
+});
+
+test('bell diagnostics preserve the actual hit target, disabled state, rectangles and pending badge overlap', () => {
+  const state = bellProbe({disabled: true, target: 'saving'}).sample();
+  assert.equal(state.clear, true);assert.equal(state.hit, false);assert.equal(state.disabled, true);assert.equal(state.popoverHit, false);
+  assert.deepEqual(state.diagnostic.bell, bell);assert.equal(state.diagnostic.panel.top, 82);assert.equal(state.diagnostic.open, true);
+  assert.equal(state.diagnostic.pointerEvents, 'auto');assert.equal(state.diagnostic.hit.tag, 'P');assert.equal(state.diagnostic.hit.className, 'saving-status');
+  assert.equal(state.diagnostic.saving.overlapsBell, true);assert.equal(state.diagnostic.saving.rect.top, 12);
+  assert.equal(bellProbe().sample().diagnostic.saving, null);assert.equal(bellProbe({target: 'missing'}).sample().diagnostic.hit, null);
+});
+
+test('delayed-open regression keeps normal Main navigation clicks and restores enabled bell hit checks', () => {
+  const delayed = browserSource.slice(browserSource.indexOf("await check('a delayed notification open"), browserSource.indexOf("await check('separate devices"));
+  assert.match(delayed, /checkBellClear\(alice,\{pending:true\}\)/);
+  assert.match(delayed, /checkNavigationClear\(alice\)/);
+  assert.match(delayed, /await expect\(you\)\.toBeEnabled\(\);await you\.click\(\)/);
+  assert.match(delayed, /finally\{release\(\);\}/);
+  assert.match(delayed, /await expect\(bell\(alice\)\)\.toBeEnabled\(\)/);
+  assert.match(delayed, /await showInbox\(alice\);await checkBellClear\(alice\)/);
+  assert.doesNotMatch(delayed, /force:|dispatchEvent|\.evaluate\(/);
+  assert.match(browserSource, /result\.bellGeometry=await bounded\(page\.evaluate\(notificationBellGeometry\)\)/);
 });

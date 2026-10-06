@@ -4,8 +4,46 @@ import {diagnosticUrl} from './communications-browser-diagnostics.mjs';
 
 export const LIVE_LIFECYCLE_PREFIX = '__GW_LIVE_LIFECYCLE__';
 const EVENT_LIMIT = 700, READ_LIMIT = 300;
-const safeText = (value, limit = 2000) => String(value ?? '').replace(/https?:\/\/[^\s"'<>]+/g, diagnosticUrl).slice(0, limit);
+const safeText = (value, limit = 2000) => String(value ?? '').replace(/https?:\/\/[^\s"'<>]+/g, value => {
+  // Stack coordinates follow the version query, so removing the entire query
+  // would also discard the only useful source position in a bundled build.
+  const position = /(:\d+:\d+\)?)$/.exec(value);
+  return diagnosticUrl(position ? value.slice(0, -position[0].length) : value) + (position?.[0] || '');
+}).replace(/\/[^\s"'<>?]*\?[^\s"'<>]+/g, value => {
+  // Playwright WebKit splits a raw inspector URL at its first colon and can
+  // leave only "/host/path?query" in error.message. Strip that query too.
+  return value.slice(0, value.indexOf('?')) + (/(:\d+:\d+\)?)$/.exec(value)?.[0] || '');
+}).slice(0, limit);
 const address = value => {try {const url = new URL(value); return url.origin + url.pathname;} catch {return '';}};
+
+// Keep the entire annotation below GitHub's per-message limit. The separate
+// network artifact still contains the full timeline; this remains readable
+// through connectors that only expose check annotations.
+export function liveFailureAnnotation(detail, trace) {
+  const text = `${detail.name}: ${detail.error}\n${detail.stack}`;
+  const matching = trace.reads.filter(read => text.includes(read.path)).slice(-3);
+  const compact = {
+    name: safeText(detail.name, 100), message: safeText(detail.error, 280), check: safeText(detail.check, 100),
+    ms: detail.ms, epoch: detail.documentEpoch, timeOrigin: trace.documentTimeOrigin,
+    reads: matching.map(read => ({id: read.id, path: read.path.slice(0, 150), epoch: read.documentEpoch,
+      timeOrigin: read.documentTimeOrigin, start: read.startedMs, response: read.responseMs, end: read.finishedMs,
+      status: read.status, failure: read.failure ? safeText(read.failure, 150) : undefined})),
+    navigation: trace.transitions.slice(-2).map(value => ({type: safeText(value.type, 80), start: value.startedMs,
+      commit: value.committedMs, documentStart: value.documentStartedMs, sourceEpoch: value.sourceEpoch, targetEpoch: value.targetEpoch})),
+    lifecycle: trace.events.filter(value => value.type === 'document-lifecycle').slice(-5).map(value => ({
+      event: value.event, ms: value.ms, epoch: value.documentEpoch, request: value.request, aborted: value.aborted,
+      message: value.message ? safeText(value.message, 200) : undefined,
+      stack: value.stack ? safeText(value.stack, 350) : undefined,
+    })),
+    stack: safeText(detail.stack, 800),
+  };
+  const encode = value => JSON.stringify(value).replaceAll('%', '%25').replaceAll('\n', '%0A').replaceAll('\r', '%0D');
+  // Reduce whole optional fields, never truncate JSON midway through a value.
+  while (encode(compact).length > 3800 && compact.lifecycle.length) compact.lifecycle.shift();
+  while (encode(compact).length > 3800 && compact.reads.length > 1) compact.reads.shift();
+  while (encode(compact).length > 3800 && compact.stack.length) compact.stack = compact.stack.slice(0, Math.floor(compact.stack.length / 2));
+  return '::error title=GW live request failure::' + encode(compact);
+}
 
 export function installLiveLifecycle() {
   if (window !== window.top) return;
@@ -18,6 +56,25 @@ export function installLiveLifecycle() {
   // Observe exceptions without consuming or changing their browser delivery.
   addEventListener('error', event => emit('window-error', {message: event.message, filename: event.filename, line: event.lineno, column: event.colno, stack: event.error?.stack}));
   addEventListener('unhandledrejection', event => emit('unhandledrejection', {message: String(event.reason?.message || event.reason), stack: event.reason?.stack}));
+  // Observe notification cancellation without settling, chaining, or replacing
+  // its promise. A handled fetch rejection must stay distinguishable from a
+  // WebKit inspector error, which Playwright also forwards as a pageerror.
+  const fetch = window.fetch;
+  let request = 0;
+  window.fetch = function(input, options) {
+    const promise = fetch.apply(this, arguments);
+    let url;
+    // A malformed input belongs to native fetch. Observation must not turn its
+    // returned rejection into a synchronous throw from this wrapper.
+    try {url = new URL(typeof input === 'string' || input instanceof URL ? input : input.url, location.href);} catch {return promise;}
+    if (url.origin === location.origin && url.pathname === '/api/notifications') {
+      const id = ++request, signal = options?.signal || input?.signal;
+      emit('notification-fetch', {request: id, aborted: !!signal?.aborted});
+      signal?.addEventListener('abort', () => emit('notification-abort', {request: id, aborted: true,
+        stack: new Error('Notification AbortSignal fired').stack}), {once: true});
+    }
+    return promise;
+  };
 }
 
 export function observeLivePage({page, context, label, base, errors, getCheck, started = Date.now()}) {
@@ -117,7 +174,9 @@ export function observeLivePage({page, context, label, base, errors, getCheck, s
       }
       trace.log('document-lifecycle', {event: safeText(detail.event, 80), url: diagnosticUrl(detail.url), timeOrigin: detail.timeOrigin,
         documentMs: detail.documentMs, readyState: safeText(detail.readyState, 40), persisted: detail.persisted,
-        ...(detail.message === undefined ? {} : {message: safeText(detail.message), stack: safeText(detail.stack, 4000), filename: diagnosticUrl(detail.filename), line: detail.line, column: detail.column})});
+        ...(Number.isSafeInteger(detail.request) ? {request: detail.request, aborted: detail.aborted === true} : {}),
+        ...(detail.message === undefined ? {} : {message: safeText(detail.message), filename: diagnosticUrl(detail.filename), line: detail.line, column: detail.column}),
+        ...(detail.stack === undefined ? {} : {stack: safeText(detail.stack, 4000)})});
     } catch {trace.log('unreadable-lifecycle-record');}
   });
   page.on('pageerror', error => {
@@ -126,6 +185,7 @@ export function observeLivePage({page, context, label, base, errors, getCheck, s
     errors.push(detail); // Every pageerror fails, including access-control errors during teardown.
     trace.log('pageerror', {error: detail.error, stack: detail.stack});
     console.error('LIVE BROWSER ERROR', JSON.stringify(detail));
+    console.log(liveFailureAnnotation(detail, trace));
   });
   trace.log('observe-page', frameInfo(page.mainFrame()));
   return trace;

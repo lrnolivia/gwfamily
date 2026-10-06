@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {build} from 'esbuild';
 import {initialState,reducer} from '../src/data-adapter.js';
 import {normalizeNotificationSettings,mergeNotificationResource} from '../src/notification-model.js';
+import {notificationApi} from '../src/live-adapter.js';
 let bundle;
 const same=(a,b)=>!!a&&!!b&&a.length===b.length&&a.every((value,index)=>Object.is(value,b[index]));
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b});return {promise,resolve,reject}};
@@ -114,4 +115,37 @@ test('a saved preview stays inactive while a configured service resolves its sig
 test('unavailable and unknown typed targets stay neutral with no hydration or navigation',async()=>{
  const data=dataFor('alice',{open:async()=>({accountId:'alice',available:true,target:{kind:'url',id:'https://evil.example'}})}),host=await harness(data);
  try{host.render();await host.flush();const result=await host.render().open('alice-3');assert.deepEqual(result,{available:false});assert.equal(data.hydrations,0);assert.equal(result.route,undefined);assert.equal(host.render().error,'This update is no longer available.')}finally{host.close()}
+});
+
+// These exercise the actual fetch -> api -> notificationRequest -> refresh
+// chain. The Node runner treats any escaping rejection as a test failure.
+test('actual adapter transport rejection is handled on initial load and on a later online refresh',async()=>{
+ const original=globalThis.fetch,reads=[],data=dataFor(),host=await harness(data);data.notificationApi=notificationApi;
+ globalThis.fetch=(path,options)=>{assert.match(path,/^\/api\/notifications\?/);assert.equal(options.credentials,'same-origin');const read=deferred();reads.push({...read,signal:options.signal});return read.promise};
+ try{
+  host.render();assert.equal(reads.length,1);reads[0].reject(new TypeError('Synthetic transport failure'));await host.flush();await new Promise(setImmediate);
+  assert.equal(host.render().ready,false);assert.equal(host.render().refreshing,false);assert.equal(host.render().error,'Synthetic transport failure');
+  window.dispatchEvent(new Event('online'));assert.equal(reads.length,2);reads[1].reject(new TypeError('Synthetic later transport failure'));await host.flush();await new Promise(setImmediate);
+  assert.equal(host.render().error,'Synthetic later transport failure');assert.equal(host.render().refreshing,false);assert.equal(data.refreshes,0);
+ }finally{host.close();globalThis.fetch=original}
+});
+test('actual adapter cancellation cannot overwrite a forced replacement list or leak an unhandled rejection',async()=>{
+ const original=globalThis.fetch,reads=[],data=dataFor(),host=await harness(data);data.notificationApi=notificationApi;
+ globalThis.fetch=(path,options)=>{const read=deferred();options.signal.addEventListener('abort',()=>read.reject(new DOMException('Synthetic cancelled fetch','AbortError')),{once:true});reads.push({...read,signal:options.signal});return read.promise};
+ try{
+  host.render();const replacement=host.render().refresh();assert.equal(reads.length,2);assert.equal(reads[0].signal.aborted,true);assert.equal(reads[1].signal.aborted,false);
+  reads[1].resolve({ok:true,status:200,json:async()=>page('alice',{count:7})});assert.equal(await replacement,true);await host.flush();await new Promise(setImmediate);
+  assert.equal(host.render().error,'');assert.equal(host.render().unreadCount,7);assert.equal(host.render().refreshing,false);
+ }finally{host.close();globalThis.fetch=original}
+});
+test('actual adapter body rejection is handled, and account replacement aborts only the old pending list',async()=>{
+ const original=globalThis.fetch,reads=[],alice=dataFor(),bob=dataFor('bob'),host=await harness(alice);alice.notificationApi=notificationApi;bob.notificationApi=notificationApi;
+ globalThis.fetch=(path,options)=>{const body=deferred();options.signal.addEventListener('abort',()=>body.reject(new DOMException('Synthetic cancelled body','AbortError')),{once:true});reads.push({body,signal:options.signal});return Promise.resolve({ok:true,status:200,json:()=>body.promise})};
+ try{
+  host.render();await host.flush();reads[0].body.reject(new Error('Synthetic interrupted body'));await host.flush();await new Promise(setImmediate);
+  assert.match(host.render().error,/unreadable response/);assert.equal(host.render().ready,false);
+  const next=host.render().refresh();await host.flush();host.render(bob);await host.flush();assert.equal(reads.length,3);assert.equal(reads[1].signal.aborted,true);assert.equal(reads[2].signal.aborted,false);
+  reads[2].body.resolve(page('bob',{count:2}));assert.equal(await next,false);await host.flush();await new Promise(setImmediate);
+  assert.equal(host.render().error,'');assert.equal(host.render().unreadCount,2);assert.ok(host.render().items.every(value=>value.id.startsWith('bob-')));
+ }finally{host.close();globalThis.fetch=original}
 });
