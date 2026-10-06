@@ -420,3 +420,5 @@ html[data-platform] .button{line-height:1.4!important}
 .leader-post{background:color-mix(in srgb,var(--accent) 13%,var(--surface));box-shadow:inset 3px 0 var(--accent),var(--shadow-sm)}.leader-post-label{display:flex;align-items:center;gap:.5rem;color:var(--text);font-weight:700;font-size:.8125rem}.leader-post-options{display:grid;gap:.5rem;padding:1rem;border:0;border-radius:1rem;background:var(--surface)}
 
 .household-media-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:.75rem}.household-media-grid button{display:grid;gap:.5rem;text-align:left}.household-media-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:1rem}
+
+.build-update-notice{position:fixed;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:150;display:flex;gap:12px;align-items:center;width:min(620px,calc(100% - 24px));padding:14px 18px;border-radius:20px;background:var(--surface);color:var(--text);box-shadow:0 6px 24px #0005;font-size:.875rem}.build-update-notice button{flex:none;background:var(--accent);color:var(--ink);padding:10px 14px;border-radius:20px;font-weight:700}

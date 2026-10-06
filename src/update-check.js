@@ -1,0 +1,4 @@
+export function watchBuild(onUpdate,{fetcher=fetch,documentRef=document,windowRef=window}={}){const current=documentRef.querySelector('meta[name="gw-build"]')?.content;if(!current)return()=>{};let stopped=false,busy=false;
+ const check=async()=>{if(stopped||busy||documentRef.visibilityState==='hidden'||windowRef.navigator?.onLine===false)return;busy=true;try{const response=await fetcher('/build.json',{cache:'no-store',credentials:'same-origin'});if(response.ok){const next=await response.json();if(!stopped&&/^[a-f0-9]{20}$/.test(next.version||'')&&next.version!==current)onUpdate(next.version)}}catch{}finally{busy=false}};
+ const timer=windowRef.setInterval(check,60000);documentRef.addEventListener('visibilitychange',check);windowRef.addEventListener('online',check);check();return()=>{stopped=true;windowRef.clearInterval(timer);documentRef.removeEventListener('visibilitychange',check);windowRef.removeEventListener('online',check)};
+}
