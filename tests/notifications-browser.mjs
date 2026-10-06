@@ -97,6 +97,17 @@ async function checkBellClear(page){
   return {clear:panel.top>=bell.bottom+7||panel.bottom<=bell.top-7,hit:hit===button||button.contains(hit)};
  })).toEqual({clear:true,hit:true});
 }
+async function checkNavigationClear(page){
+ await expect.poll(()=>page.evaluate(()=>{
+  const navigation=document.querySelector('[aria-label="Main navigation"]'),popover=document.querySelector('.notification-panel')?.closest('[popover]');
+  if(!navigation||!popover?.matches(':popover-open'))return {clear:false,hit:false,buttonsClear:false};
+  const nav=navigation.getBoundingClientRect(),panel=popover.getBoundingClientRect(),hit=document.elementFromPoint(nav.left+nav.width/2,nav.top+nav.height/2);
+  const buttons=[...navigation.querySelectorAll('button')];
+  return {clear:panel.bottom<=nav.top-7,hit:hit===navigation||navigation.contains(hit),buttonsClear:buttons.length>0&&buttons.every(button=>{
+   const rect=button.getBoundingClientRect(),target=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);return target===button||button.contains(target);
+  })};
+ })).toEqual({clear:true,hit:true,buttonsClear:true});
+}
 let failure;
 try{
  browser=await(engine==='webkit'?webkit:chromium).launch({headless:true});
@@ -105,9 +116,9 @@ try{
   await expect(bell(alice)).toHaveAccessibleName('Notifications, 135 unread');await showInbox(alice);await expect(panel(alice).locator('[data-notice-id]')).toHaveCount(30);
   await panel(alice).getByRole('button',{name:'Load earlier activity',exact:true}).click();await expect(panel(alice).locator('[data-notice-id]')).toHaveCount(60);await expect(bell(alice)).toHaveAccessibleName('Notifications, 135 unread');
  });
- await check('a tall notification panel leaves the bell clear for normal close and reopen clicks',async()=>{
-  await checkBellClear(alice);await bell(alice).click();await expect(panel(alice)).toBeHidden();await expect(bell(alice)).toHaveAttribute('aria-expanded','false');
-  await bell(alice).click();await expect(panel(alice)).toBeVisible();await expect(bell(alice)).toHaveAttribute('aria-expanded','true');await checkBellClear(alice);
+ await check('a tall notification panel leaves the bell and Main navigation clear for normal clicks',async()=>{
+  await checkBellClear(alice);await checkNavigationClear(alice);await bell(alice).click();await expect(panel(alice)).toBeHidden();await expect(bell(alice)).toHaveAttribute('aria-expanded','false');
+  await bell(alice).click();await expect(panel(alice)).toBeVisible();await expect(bell(alice)).toHaveAttribute('aria-expanded','true');await checkBellClear(alice);await checkNavigationClear(alice);
  });
  await check('typed old post opens with exact comment focus without erasing compose draft',async()=>{
   await bell(alice).click();await alice.getByRole('button',{name:'Post an update',exact:true}).click();await alice.getByRole('textbox',{name:"What's on your mind",exact:true}).fill('Keep this unsent fixture draft');await alice.getByRole('button',{name:'Close dialog',exact:true}).click();
@@ -116,6 +127,7 @@ try{
  });
  await check('background deep-link refresh preserves active comment and reply drafts; explicit revisits still focus',async()=>{
   await showInbox(alice);await panel(alice).getByRole('button',{name:'Open Fixture update 135',exact:true}).click();
+  await expect(alice.getByRole('navigation',{name:'Main navigation',exact:true})).toHaveCount(0);
   const anchor=alice.locator('[data-comment-id="older-comment"]'),draft=alice.getByRole('textbox',{name:'Write a comment…',exact:true});
   await expect(anchor).toBeFocused();await draft.fill('Keep this unsent comment draft');
   await alice.evaluate(()=>{
@@ -159,6 +171,7 @@ try{
   let release,started;const startedPromise=new Promise(r=>started=r);holdOpen={promise:new Promise(r=>release=r),started};await showInbox(alice);await panel(alice).getByRole('button',{name:'Open Fixture update 134, unread',exact:true}).click();await startedPromise;
   // Popover is nonmodal. A newer navigation intent is deferred by the existing
   // mutation guard, then wins when the original open settles.
+  await expect(panel(alice)).toBeVisible();await checkBellClear(alice);await checkNavigationClear(alice);
   await alice.getByRole('navigation',{name:'Main navigation',exact:true}).getByRole('button',{name:'You',exact:true}).click();release();await expect(alice).toHaveURL(/#\/you$/);await expect.poll(()=>holdOpen).toBe(null);await expect(alice).toHaveURL(/#\/you$/);
  });
  await check('separate devices refresh read/dismiss and broadcast contains no private data',async()=>{
@@ -188,7 +201,7 @@ try{
  });
  await check('notification controls fit 320/390/768/1280 across approved materials and palettes',async()=>{
   for(const variant of [{width:320,theme:'light',material:'android'},{width:390,theme:'dark',material:'ios'},{width:768,theme:'light',material:'ios'},{width:1280,theme:'dark',material:'android'}]){
-   await alice.setViewportSize({width:variant.width,height:900});await alice.evaluate(({theme,material})=>{localStorage.setItem('gw-theme',theme);localStorage.setItem('gw-platform',material)},variant);await alice.reload();await showInbox(alice);await checkFit(alice);await checkBellClear(alice);await alice.screenshot({path:`${output}/${engine}-${variant.width}-${variant.theme}-${variant.material}-inbox.png`,fullPage:true});
+   await alice.setViewportSize({width:variant.width,height:900});await alice.evaluate(({theme,material})=>{localStorage.setItem('gw-theme',theme);localStorage.setItem('gw-platform',material)},variant);await alice.reload();await showInbox(alice);await checkFit(alice);await checkBellClear(alice);await checkNavigationClear(alice);await alice.screenshot({path:`${output}/${engine}-${variant.width}-${variant.theme}-${variant.material}-inbox.png`,fullPage:true});
    await panel(alice).getByRole('button',{name:'Notification settings',exact:true}).click();await checkFit(alice);await alice.screenshot({path:`${output}/${engine}-${variant.width}-${variant.theme}-${variant.material}-settings.png`,fullPage:true});await alice.getByRole('button',{name:'Close dialog',exact:true}).click();
   }
  });

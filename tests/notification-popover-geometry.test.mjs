@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {notificationPopoverGeometry, bindNotificationPopoverPlacement} from '../src/notification-popover-geometry.js';
 
 const bell = {left: 285, right: 329, top: 30, bottom: 74, width: 44, height: 44};
+const navigation = {left: 12, right: 378, top: 768, bottom: 840, width: 366, height: 72};
 const defaults = {layoutWidth: 390, layoutHeight: 844, anchor: bell, width: 390, height: 16000};
 function assertFits(result, anchor = bell) {
   const {x, y, width, height, maxWidth, maxHeight, bounds} = result;
@@ -22,12 +23,51 @@ test('a 135-item inbox stays below the header bell instead of covering it at vie
   assert.ok(12 < bell.bottom && 12 + 820 > bell.top);
 });
 
+test('a tall inbox fits between the header bell and visible Main navigation', () => {
+  const geometry = notificationPopoverGeometry({...defaults, bottomNavigationRect: navigation});
+  assert.deepEqual(geometry, {x: 12, y: 82, width: 366, height: 678, maxWidth: 366, maxHeight: 678,
+    side: 'below', bounds: {left: 12, top: 12, right: 378, bottom: 760}});
+  assertFits(geometry);assert.ok(geometry.y + geometry.height <= navigation.top - 8);
+  for (const point of [bell, navigation].map(rect => ({x: rect.left + rect.width / 2, y: rect.top + rect.height / 2}))) {
+    assert.ok(point.x < geometry.x || point.x > geometry.x + geometry.width ||
+      point.y < geometry.y || point.y > geometry.y + geometry.height, 'The popover cannot intercept either control center');
+  }
+});
+
 test('phone, tablet, desktop and landscape inboxes fit without crossing their trigger', () => {
   for (const [layoutWidth, layoutHeight] of [[320, 568], [390, 844], [768, 1024], [1280, 800], [844, 390]]) {
     const anchor = {...bell, left: layoutWidth - 100, right: layoutWidth - 56};
-    for (const height of [90, 500, 16000]) assertFits(notificationPopoverGeometry({...defaults,
-      layoutWidth, layoutHeight, anchor, height}), anchor);
+    const bottomNavigationRect = {...navigation, right: layoutWidth - 12, top: layoutHeight - 76, bottom: layoutHeight - 4};
+    for (const height of [90, 500, 16000]) for (const nav of [undefined, bottomNavigationRect]) {
+      const geometry = notificationPopoverGeometry({...defaults, layoutWidth, layoutHeight, anchor, height, bottomNavigationRect: nav});
+      assertFits(geometry, anchor);
+      if (nav) assert.ok(geometry.y + geometry.height <= nav.top - 8);
+    }
   }
+});
+
+test('navigation exclusion still chooses below, above or the larger available side', () => {
+  const bottomNavigationRect = {...navigation, top: 600, bottom: 672};
+  const anchor = {...bell, top: 400, bottom: 444};
+  for (const [height, side, maxHeight] of [[90, 'below', 140], [200, 'above', 380], [16000, 'above', 380]]) {
+    const geometry = notificationPopoverGeometry({...defaults, anchor, bottomNavigationRect, height});
+    assert.equal(geometry.side, side);assert.equal(geometry.maxHeight, maxHeight);assertFits(geometry, anchor);
+    assert.ok(geometry.y + geometry.height <= bottomNavigationRect.top - 8);
+  }
+  const tiedAnchor = {...bell, top: 280, bottom: 324};
+  const tied = notificationPopoverGeometry({...defaults, anchor: tiedAnchor, bottomNavigationRect});
+  assert.equal(tied.side, 'below');assert.equal(tied.maxHeight, 260);assertFits(tied, tiedAnchor);
+});
+
+test('absent, empty and fully offscreen navigation preserve viewport-only placement', () => {
+  for (const bottomNavigationRect of [undefined, null,
+    {...navigation, top: 844, bottom: 916}, {...navigation, top: -72, bottom: 0},
+    {...navigation, left: 390, right: 756}, {...navigation, left: -366, right: 0},
+    {...navigation, right: navigation.left}, {...navigation, bottom: navigation.top}]) {
+    assert.deepEqual(notificationPopoverGeometry({...defaults, bottomNavigationRect}), notificationPopoverGeometry(defaults));
+  }
+  const partial = notificationPopoverGeometry({...defaults, bottomNavigationRect: {...navigation, top: 820, bottom: 892}});
+  assert.equal(partial.bounds.bottom, 812);assertFits(partial);
 });
 
 test('near-bottom triggers use the space above and short content prefers below when it fits', () => {
@@ -72,6 +112,26 @@ test('an overlay keyboard is excluded even if VisualViewport has not shrunk', ()
     keyboardRect: {left: 500, right: 600, top: 470, bottom: 844, height: 374}}), notificationPopoverGeometry(defaults));
 });
 
+test('navigation, safe areas, visual offsets and keyboard share the tightest visible bottom bound', () => {
+  const safe = notificationPopoverGeometry({...defaults, safeArea: {top: 59, bottom: 34, left: 44, right: 44},
+    bottomNavigationRect: {...navigation, top: 745, bottom: 817}});
+  assert.deepEqual(safe.bounds, {left: 44, right: 346, top: 59, bottom: 737});assertFits(safe);
+  const keyboardRect = {left: 0, right: 390, top: 470, bottom: 844, height: 374};
+  const keyboard = notificationPopoverGeometry({...defaults, keyboardRect, bottomNavigationRect: navigation});
+  assert.equal(keyboard.bounds.bottom, 458);assertFits(keyboard);
+  const aboveKeyboard = notificationPopoverGeometry({...defaults, keyboardRect,
+    bottomNavigationRect: {...navigation, top: 378, bottom: 450}});
+  assert.equal(aboveKeyboard.bounds.bottom, 370);assertFits(aboveKeyboard);
+  const shrunk = notificationPopoverGeometry({...defaults, bottomNavigationRect: navigation,
+    visualViewport: {width: 390, height: 430, offsetLeft: 0, offsetTop: 0}});
+  assert.equal(shrunk.bounds.bottom, 418);assertFits(shrunk);
+  const anchor = {...bell, left: 240, right: 284, top: 180, bottom: 224};
+  const zoomed = notificationPopoverGeometry({...defaults, anchor, safeArea: {top: 20, right: 20, bottom: 34},
+    visualViewport: {width: 195, height: 422, offsetLeft: 97.5, offsetTop: 150.5},
+    bottomNavigationRect: {...navigation, top: 500, bottom: 572}});
+  assert.deepEqual(zoomed.bounds, {left: 109.5, right: 272.5, top: 170.5, bottom: 492});assertFits(zoomed, anchor);
+});
+
 test('stale rotation samples are clamped to current layout before notification sizing', () => {
   const geometry = notificationPopoverGeometry({...defaults, layoutWidth: 320, layoutHeight: 430,
     visualViewport: {width: 390, height: 844, offsetLeft: 70, offsetTop: 120}});
@@ -87,7 +147,7 @@ function events(target = {}) {
     listenerCount() {return [...listeners.values()].reduce((sum, set) => sum + set.size, 0);},
   });
 }
-function environment() {
+function environment({withNavigation = false} = {}) {
   const properties = new Map(), frames = new Map(), observed = new Set(), safe = {};
   let frameId = 0, callback, closed = 0, writes = 0;
   const style = {
@@ -102,7 +162,9 @@ function environment() {
   const panel = {naturalHeight: 16000, scrollTop: 0,
     get offsetHeight() {return Math.min(this.naturalHeight, parseFloat(style.getPropertyValue('--notification-content-max-height')) || Infinity);},
     get scrollHeight() {return this.naturalHeight;},
-  }, anchor = {isConnected: true, rect: {...bell}, getBoundingClientRect() {return this.rect;}};
+  }, anchor = {isConnected: true, rect: {...bell}, getBoundingClientRect() {return this.rect;}},
+  nav = {isConnected: true, hidden: false, display: 'flex', visibility: 'visible',
+    rect: {...navigation}, getBoundingClientRect() {return this.rect;}};
   const el = {style, naturalWidth: 390, open: true,
     matches() {return this.open;}, contains(node) {return node === this || node === panel;},
     querySelector(selector) {assert.equal(selector, '.notification-panel');return panel;},
@@ -113,14 +175,16 @@ function environment() {
   const win = events({innerWidth: 390, innerHeight: 844,
     visualViewport: events({width: 390, height: 844, offsetLeft: 0, offsetTop: 0}),
     navigator: {virtualKeyboard: events({boundingRect: {height: 0}})},
-    getComputedStyle(node) {return {getPropertyValue: key => safe[key] || '0px',
+    getComputedStyle(node) {return {getPropertyValue: key => safe[key] || '0px', display: node.display, visibility: node.visibility,
       borderTopWidth: node === panel ? '0px' : '1px', borderBottomWidth: node === panel ? '0px' : '1px', paddingTop: '4px', paddingBottom: '4px'};},
-    ResizeObserver: class {constructor(fn) {callback = fn;}observe(node) {observed.add(node);}disconnect() {observed.clear();}},
+    ResizeObserver: class {constructor(fn) {callback = fn;}observe(node) {observed.add(node);}unobserve(node) {observed.delete(node);}disconnect() {observed.clear();}},
     requestAnimationFrame(fn) {frames.set(++frameId, fn);return frameId;},
     cancelAnimationFrame(id) {frames.delete(id);},
     flush() {const pending = [...frames.values()];frames.clear();for (const fn of pending) fn();},
   });
-  return {win, doc: {documentElement: root}, root, el, anchor, panel, properties, frames, observed, safe,
+  const doc = {documentElement: root, navigation: withNavigation ? nav : null,
+    querySelector(selector) {assert.equal(selector, '[aria-label="Main navigation"]');return this.navigation;}};
+  return {win, doc, root, el, anchor, panel, nav, properties, frames, observed, safe,
     resizeContent: () => callback(), onUnavailable: () => closed++, closeCount: () => closed, writeCount: () => writes};
 }
 
@@ -136,6 +200,37 @@ test('binder uses natural scroll height after loading more or scrolling the long
   const before = env.writeCount();win.emit('scroll', el);win.emit('scroll', env.panel);
   assert.equal(env.writeCount(), before);assert.equal(env.frames.size, 0);
   cleanup();
+});
+
+test('binder observes actual navigation size and bounds only the scroll body above it', () => {
+  const env = environment({withNavigation: true}), {el, panel, nav} = env;
+  const cleanup = bindNotificationPopoverPlacement(el, env.anchor, env.onUnavailable, env.win, env.doc);
+  assert.equal(env.observed.size, 4);assert.ok(env.observed.has(nav));
+  assert.equal(el.style.top, '82px');assert.equal(el.style.maxHeight, '678px');
+  assert.equal(el.style.getPropertyValue('--notification-content-max-height'), '668px');
+  panel.scrollTop = 15000;panel.naturalHeight = 32000;nav.rect = {...navigation, top: 720, height: 120};env.resizeContent();
+  assert.equal(el.style.top, '82px');assert.equal(el.style.maxHeight, '630px');
+  assert.equal(el.offsetHeight, 630);assert.equal(panel.offsetHeight, 620);assert.equal(panel.scrollTop, 15000);
+  assert.equal(env.closeCount(), 0);cleanup();assert.equal(env.observed.size, 0);
+});
+
+test('hidden navigation and routes without navigation retain the previous available space', () => {
+  const env = environment({withNavigation: true}), {el, nav, win} = env;
+  const cleanup = bindNotificationPopoverPlacement(el, env.anchor, env.onUnavailable, win, env.doc);
+  // Keyboard visibility changes leave the dock rectangle intact. Reread its
+  // visibility on the viewport event and its delayed follow-up frame.
+  nav.visibility = 'hidden';win.visualViewport.emit('resize');assert.equal(el.style.maxHeight, '750px');
+  nav.visibility = 'visible';win.flush();assert.equal(el.style.maxHeight, '678px');
+  for (const [key, value] of [['hidden', true], ['display', 'none'], ['visibility', 'collapse']]) {
+    const before = nav[key];nav[key] = value;env.resizeContent();assert.equal(el.style.maxHeight, '750px');
+    nav[key] = before;env.resizeContent();assert.equal(el.style.maxHeight, '678px');
+  }
+  nav.rect = {...navigation, top: 844, bottom: 916};env.resizeContent();assert.equal(el.style.maxHeight, '750px');
+  nav.rect = {...navigation};nav.isConnected = false;env.resizeContent();
+  assert.equal(el.style.maxHeight, '750px');assert.ok(!env.observed.has(nav));
+  env.doc.navigation = null;win.emit('pageshow');assert.equal(el.style.maxHeight, '750px');
+  env.doc.navigation = nav;nav.isConnected = true;win.emit('pageshow');
+  assert.equal(el.style.maxHeight, '678px');assert.ok(env.observed.has(nav));assert.equal(env.closeCount(), 0);cleanup();
 });
 
 test('window resize clamps immediately and rereads a delayed VisualViewport on the next frame', () => {
@@ -173,8 +268,8 @@ test('no usable space dismisses instead of covering the trigger with popover chr
   assert.equal(env.closeCount(), 1);cleanup();
 });
 
-test('cleanup restores owned styles, disconnects observers and cancels pending work', () => {
-  const env = environment();env.el.style.setProperty('max-width', '75vw', 'important');env.el.style.setProperty('color', 'green');
+test('cleanup restores owned styles, disconnects navigation and content observers and cancels pending work', () => {
+  const env = environment({withNavigation: true});env.el.style.setProperty('max-width', '75vw', 'important');env.el.style.setProperty('color', 'green');
   const before = [...env.properties];
   const cleanup = bindNotificationPopoverPlacement(env.el, env.anchor, env.onUnavailable, env.win, env.doc);
   env.win.emit('resize');assert.equal(env.frames.size, 1);cleanup();

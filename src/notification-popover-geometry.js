@@ -4,11 +4,11 @@ const number = (value, fallback = 0) => Number.isFinite(value) ? value : fallbac
 const positive = value => Math.max(0, number(value));
 const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
 
-// Notifications must never cover their own dismiss trigger. If neither side
-// fits the full inbox, use the larger side and scroll inside that height instead
-// of moving a viewport-height panel across the bell.
+// Notifications must never cover their dismiss trigger or visible bottom
+// navigation. If neither side fits the full inbox, use the larger side and
+// scroll inside that height instead of covering either navigation control.
 export function notificationPopoverGeometry({layoutWidth, layoutHeight, visualViewport,
-  keyboardRect, safeArea = {}, anchor, width = 300, height = 300} = {}) {
+  keyboardRect, safeArea = {}, anchor, bottomNavigationRect, width = 300, height = 300} = {}) {
   const viewport = viewportBounds({layoutWidth, layoutHeight, visualViewport});
   let bottom = viewport.top + viewport.height;
   if (positive(keyboardRect?.height) && keyboardRect.right > viewport.left &&
@@ -18,6 +18,14 @@ export function notificationPopoverGeometry({layoutWidth, layoutHeight, visualVi
   const top = viewport.top + Math.max(12, positive(safeArea.top));
   const right = Math.max(left, viewport.left + viewport.width - Math.max(12, positive(safeArea.right)));
   bottom = Math.max(top, bottom - Math.max(12, positive(safeArea.bottom)));
+  // The caller supplies only a visible navigation rectangle. Reserve its
+  // measured top plus a gap, without adding its safe-area inset a second time.
+  const nav = bottomNavigationRect;
+  if (nav && nav.right > nav.left && nav.bottom > nav.top &&
+      nav.right > viewport.left && nav.left < viewport.left + viewport.width &&
+      nav.bottom > viewport.top && nav.top < viewport.top + viewport.height) {
+    bottom = Math.max(top, Math.min(bottom, nav.top - 8));
+  }
   const maxWidth = right - left, below = clamp(number(anchor?.bottom, top) + 8, top, bottom);
   const above = clamp(number(anchor?.top, top) - 8, top, bottom);
   const roomBelow = bottom - below, roomAbove = above - top;
@@ -42,7 +50,7 @@ export function bindNotificationPopoverPlacement(el, anchor, onUnavailable,
   const keys = ['left', 'top', 'max-width', 'max-height', 'transform-origin', '--notification-content-max-height'];
   const previous = keys.map(key => [key, el.style.getPropertyValue(key), el.style.getPropertyPriority(key)]);
   const removers = [];
-  let disposed = false, frame = null;
+  let disposed = false, frame = null, navigation = null;
   const place = () => {
     if (disposed || !el.matches(':popover-open')) return;
     const root = doc.documentElement, rect = anchor?.getBoundingClientRect?.();
@@ -53,8 +61,20 @@ export function bindNotificationPopoverPlacement(el, anchor, onUnavailable,
     const computed = win.getComputedStyle(el);
     const safeArea = Object.fromEntries(['top', 'right', 'bottom', 'left'].map(side =>
       [side, parseFloat(computed.getPropertyValue('--notification-safe-' + side)) || 0]));
+    const candidate = doc.querySelector?.('[aria-label="Main navigation"]');
+    const nextNavigation = candidate?.isConnected ? candidate : null;
+    if (nextNavigation !== navigation) {
+      if (navigation) observer?.unobserve(navigation);
+      navigation = nextNavigation;
+      if (navigation) observer?.observe(navigation);
+    }
+    const navigationStyle = navigation && win.getComputedStyle(navigation);
+    const bottomNavigationRect = navigation && !navigation.hidden && navigationStyle.display !== 'none' &&
+      navigationStyle.visibility !== 'hidden' && navigationStyle.visibility !== 'collapse' ?
+      navigation.getBoundingClientRect() : null;
     const options = {layoutWidth: root.clientWidth || win.innerWidth, layoutHeight: root.clientHeight || win.innerHeight,
-      visualViewport: win.visualViewport, keyboardRect: win.navigator?.virtualKeyboard?.boundingRect, safeArea, anchor: rect};
+      visualViewport: win.visualViewport, keyboardRect: win.navigator?.virtualKeyboard?.boundingRect,
+      safeArea, anchor: rect, bottomNavigationRect};
     // Clamp width before measuring wrapping and natural height. CSS uses
     // max-content width, avoiding shrink-to-fit based on the previous x offset.
     const available = notificationPopoverGeometry(options);
