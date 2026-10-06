@@ -1,0 +1,26 @@
+/* Integration-only refinements. Existing GW materials, type and accents own
+   the visual world; these consumers only establish task hierarchy and fit. */
+.household-children-link{display:grid;gap:12px;min-width:0}
+.household-children-link h2{margin:0}
+.household-children-link p{margin:0;max-width:70ch}
+.household-children-link>.button{justify-self:start;max-width:100%;min-height:44px}
+.household-member-row{display:flex;flex-wrap:wrap;align-items:center;gap:12px;min-width:0}
+.household-member-copy{flex:1 1 14rem;display:grid;gap:6px;min-width:0}
+.household-member-copy .member-link{max-width:100%}
+.household-member-row>.button{flex:none;min-height:44px}
+.household-bounded-task{display:grid;gap:16px;min-width:0}
+.household-bounded-task p{margin:0;max-width:65ch}
+.household-bounded-task .row{flex-wrap:wrap;gap:12px}
+.household-bounded-task .button{max-width:100%;min-height:44px}
+.household-profile-form .profile-colors{margin-top:16px!important}
+.household-heritage-form>.member-picker{min-width:0}
+.merchandise-item-form .form-image-fields .field-help{margin:0}
+.merchandise-item-form .form-image-fields input{width:100%}
+.merchandise-item-form .merch-option-group{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;min-width:0}
+.merchandise-item-form .merch-option-group>.button{justify-self:start;grid-column:auto}
+.merchandise-item-form .merch-option-group label{min-width:0}
+.merchandise-order{min-width:0}
+.merchandise-order ul{padding-left:1.25rem;overflow-wrap:anywhere}
+.merchandise-order .choice-control{min-width:0}
+.merchandise-refresh-error{overflow-wrap:anywhere}
+@media(max-width:420px){.household-member-row>.button,.household-bounded-task .row>.button{width:100%}}

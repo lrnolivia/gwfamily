@@ -1,0 +1,20 @@
+/* The established GW font, color, Glass/Flat, and control tokens remain in use.
+   Loading is deliberately unframed: no welcome card or account-setup ceremony. */
+.app.is-first-load main{display:grid;align-items:center;min-height:55dvh}
+.first-load{display:grid;justify-items:center;align-content:center;gap:20px;text-align:center;padding:40px 16px;color:var(--text);min-width:0}
+.first-load h1{margin:0;max-width:24ch;font-size:clamp(1.5rem,4vw,2rem);line-height:1.25;text-wrap:balance}
+.first-load-actions{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:12px}
+.first-load .text-button,.first-load-rehearsal-bar .text-button{min-height:44px;padding:8px 12px}
+.first-load-rehearsal{width:min(100%,40rem);margin-inline:auto;padding:16px 0 32px;color:var(--text);min-width:0}
+.first-load-rehearsal-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin-bottom:20px}
+.first-load-rehearsal-bar p{margin:0;font-weight:650}
+.first-load-safety,.first-load-draft-note{font-size:.875rem;line-height:1.6;max-width:65ch;color:var(--text);margin:0 0 28px}
+.first-load-draft-note{margin-bottom:20px}
+.first-load-welcome,.first-load-complete{display:grid;justify-items:start;gap:16px;padding-top:8px;min-width:0}
+.first-load-welcome h1,.first-load-complete h1{margin:0;max-width:22ch;line-height:1.2;text-wrap:balance}
+.first-load-welcome p,.first-load-complete p{margin:0;max-width:65ch;line-height:1.6}
+.first-load-welcome>.button,.first-load-complete>.button{margin-top:8px}
+.first-load-rehearsal :focus-visible,.first-load :focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+.first-load-rehearsal input{caret-color:var(--accent)}
+.first-load-rehearsal ::selection{background:var(--accent);color:var(--ink)}
+@media(max-width:420px){.first-load{padding:32px 8px}.first-load-rehearsal{padding-top:8px}.first-load-rehearsal-bar{align-items:flex-start;gap:8px}.first-load-rehearsal-bar .text-button{padding-inline:0}}

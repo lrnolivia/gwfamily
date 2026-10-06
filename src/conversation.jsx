@@ -27,7 +27,7 @@ export function ComposerBox({kind='comments',targetId,parentId=null,onSubmit,pla
   try{
    const ok=await onSubmit(submitted.value.trim(),submitted.files);
    if(ok!==false&&JSON.stringify(current.current.files)===JSON.stringify(submitted.files))setFiles([]);
-  }catch(error){setToast((error?.message||'That could not be sent.')+' Your draft is still here.')}
+  }catch(error){setToast({kind:'error',message:(error?.message||'That could not be sent.')+' Your draft is still here.'})}
   finally{lock.current=false;if(alive.current)setSending(false)}
  };
  const change=e=>{dispatch({type:'SET_DRAFT',kind,key,value:e.target.value});if(!e.target.value.trim())presence.stop()};
@@ -43,7 +43,7 @@ export function ComposerBox({kind='comments',targetId,parentId=null,onSubmit,pla
     const selected=[...e.target.files];e.target.value='';if(!selected.length||lock.current)return;
     lock.current=true;setUploading(true);const finish=data?.beginPending?.();
     try{const uploaded=await Promise.all(selected.map(file=>readPreviewFile(file,state.mode)));setFiles(existing=>[...existing,...uploaded])}
-    catch(error){setToast(error.message)}finally{lock.current=false;if(alive.current)setUploading(false);finish?.()}
+    catch(error){setToast({kind:'error',message:error.message})}finally{lock.current=false;if(alive.current)setUploading(false);finish?.()}
    }}/><Control type="button" className="send-button" aria-label={sending?'Sending':'Send'} aria-busy={sending} onClick={send} disabled={sending||uploading||(!value.trim()&&!files.length)}>{sending?<ActivityDots label="Sending…" compact/>:<Glyph name="send"/>}</Control></div>
   {uploading&&<ActivityDots label="Uploading attachment…" className="composer-upload-status"/>}
   {files.map((file,index)=><div className="draft-file" key={file.url||index}><span>{file.name}</span><Control type="button" disabled={sending||uploading} aria-label={'Remove '+file.name} onClick={()=>setFiles(value=>value.filter((_,n)=>n!==index))}><Glyph name="close"/></Control></div>)}

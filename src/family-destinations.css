@@ -1,2 +1,8 @@
-.profile-destinations{display:grid;gap:16px}.profile-destinations>h3{margin:0 0 4px}.profile-destinations>.button{margin:0!important;width:100%}.profile-destination-buttons{gap:12px;align-items:stretch}.profile-destination-buttons>.button{margin:0!important;min-height:52px}.profile-destination-buttons .button>span{display:flex;align-items:center;justify-content:center;gap:8px;flex-direction:row;min-width:0;text-wrap:balance;line-height:1.35}.profile-destination-buttons .glyph{flex:none}.profile-destinations>h3{padding-bottom:4px}
-@media(max-width:380px){.profile-destination-buttons{grid-template-columns:minmax(0,1fr);gap:12px}.profile-destination-buttons .button>span{flex-direction:row}.profile-destinations{gap:16px}}
+.profile-destinations{display:grid;gap:20px}
+.profile-destinations>h3{margin:0}
+.profile-destinations>.button{margin:0!important;width:100%;min-height:52px}
+.profile-destination-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:stretch}
+.profile-destination-buttons>.button{margin:0!important;min-height:52px}
+.profile-destination-buttons .button>span{display:flex;align-items:center;justify-content:center;gap:8px;min-width:0;text-wrap:balance;line-height:1.35}
+.profile-destination-buttons .glyph{flex:none}
+@media(max-width:420px){.profile-destination-buttons{grid-template-columns:minmax(0,1fr);gap:12px}.profile-destinations{gap:20px}}

@@ -34,7 +34,7 @@ export function ChoiceControl({label,options=[],value='',onChange,variant='auto'
  const normalized=useMemo(()=>normalizeChoices(options),[options]);
  const choices=required?normalized.filter(option=>option.value!==''):normalized;
  const selected=choices.find(option=>option.value===String(value??''));
- const chips=choices.length>0&&(variant==='chips'||variant==='auto'&&choices.length<=5);
+ const chips=choices.length>0&&(variant==='chips'||variant==='auto'&&choices.length<=4);
  const [open,setOpen]=useState(false),[query,setQuery]=useState(''),[active,setActive]=useState(-1),[invalid,setInvalid]=useState(false);
  const root=useRef(null),input=useRef(null),popup=useRef(null),list=useRef(null);
  const matches=useMemo(()=>filterChoices(choices,query),[choices,query]);

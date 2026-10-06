@@ -1,0 +1,26 @@
+/* Shared side controls for real GW photo carousels. Keep gestures native. */
+.gw-carousel-stage{min-width:0;max-width:100%;container:gw-carousel / inline-size}
+.gw-carousel-photo{position:relative;width:100%;min-width:0;max-width:100%;margin-inline:auto;border-radius:inherit}
+.gw-carousel-controls{position:absolute;inset:0;pointer-events:none;z-index:2}
+.gw-carousel-controls>.gw-carousel-control{position:absolute;top:50%;bottom:auto;transform:translateY(-50%);display:grid;place-items:center;inline-size:44px;block-size:44px;min-inline-size:44px;min-block-size:44px;max-inline-size:44px;padding:0;border-radius:var(--radius-control);background:var(--surface);color:var(--text);pointer-events:auto;touch-action:manipulation}
+.gw-carousel-controls>.gw-carousel-previous{left:8px;right:auto}
+.gw-carousel-controls>.gw-carousel-next{right:8px;left:auto}
+.gw-carousel-previous .glyph{transform:rotate(180deg)}
+.gw-carousel-control .glyph{width:20px;height:20px}
+.gw-carousel-controls>.gw-carousel-control:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.gw-carousel-controls>.gw-carousel-control:disabled{opacity:.5;cursor:default}
+.gw-carousel-controls>.gw-carousel-control.liquid-glass{background:color-mix(in srgb,var(--surface) 92%,transparent)}
+.gw-carousel-status{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;max-width:calc(100% - 16px);padding:4px 8px;border-radius:var(--radius-control);background:var(--surface);color:var(--text);font-size:.75rem;line-height:1.3;font-variant-numeric:tabular-nums;white-space:nowrap;z-index:2}
+.field-memory-gallery .gw-carousel-status{top:8px;bottom:auto}
+@media(hover:hover){.gw-carousel-controls>.gw-carousel-control:hover{background:var(--raised)}}
+/* Outside controls remain inside the stage's reserved gutters. Narrow widgets
+   retain overlays even on a wide screen rather than forcing page overflow. */
+@media(min-width:768px){
+ @container gw-carousel (min-width:400px){
+  .gw-carousel-photo{max-width:calc(100% - 120px)}
+  .gw-carousel-controls>.gw-carousel-previous{left:-52px}
+  .gw-carousel-controls>.gw-carousel-next{right:-52px}
+ }
+}
+@media(prefers-reduced-motion:reduce){.gw-carousel-stage{scroll-behavior:auto!important}.gw-carousel-control{transition:none!important}}
+@media(forced-colors:active){.gw-carousel-controls>.gw-carousel-control,.gw-carousel-status{background:Canvas;color:CanvasText;border:1px solid ButtonText}.gw-carousel-controls>.gw-carousel-control:focus-visible{outline-color:Highlight}}
