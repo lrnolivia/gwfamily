@@ -55,3 +55,5 @@ test('music and socials only accept exact safe HTTPS services',()=>{
  assert.ok(socialInfo('https://www.instagram.com/example'));assert.equal(socialInfo('https://instagram.com.evil.test/example'),null);
 });
 test('Media tab includes image, video and audio; Posts selection need not exclude any media',()=>{assert.equal(hasPostMedia({text:'plain'}),false);assert.equal(hasPostMedia({image:'photo.png'}),true);assert.equal(hasPostMedia({files:[{type:'video/mp4'}]}),true);assert.equal(hasPostMedia({backgroundMedia:{url:'sample'}}),true)});
+
+test('profile control colors separate from their surface with readable text',()=>{for(const color of ['#4f996c','#ffcc00','#ffffff','#000000','#ca247c','#3988ff'])for(const theme of ['light','dark']){const p=profilePalette(color,theme);assert.ok(contrast(p['--control'],p['--surface'])>=3);assert.ok(contrast(p['--control-text'],p['--control'])>=4.5)}});

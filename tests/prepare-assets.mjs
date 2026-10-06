@@ -11,3 +11,5 @@ for(const asset of assets){
  bytes=Buffer.from(await response.arrayBuffer());if(hash(bytes)!==asset.sha256)throw new Error('Approved asset identity changed: '+asset.path);
  await mkdir(new URL('.',target),{recursive:true});await writeFile(target,bytes);
 }
+
+const installIcons=JSON.parse(await readFile(new URL('./install-icons.json',import.meta.url),'utf8'));for(const [name,data] of Object.entries(installIcons))await writeFile(new URL('../dist/'+name,import.meta.url),Buffer.from(data,'base64'));

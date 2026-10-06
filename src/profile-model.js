@@ -3,10 +3,11 @@ export function luminance(hex){return rgb(hex).map(v=>{v/=255;return v<=.04045?v
 export function contrast(a,b){const x=luminance(a),y=luminance(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
 const mix=(a,b,t)=>'#'+rgb(a).map((v,i)=>Math.round(v*(1-t)+rgb(b)[i]*t).toString(16).padStart(2,'0')).join('');
 const textOn=bg=>{const candidates=['#fffaf0','#171714'];const preferred=candidates.sort((a,b)=>contrast(bg,b)-contrast(bg,a))[0];return contrast(bg,preferred)>=4.5?preferred:contrast(bg,'#ffffff')>=contrast(bg,'#000000')?'#ffffff':'#000000'};
+export function controlPalette(surface,color='#4f996c',dark=true){let fill=color;for(let i=0;i<=100;i++){fill=mix(color,dark?'#ffffff':'#000000',i/100);if(contrast(fill,surface)>=3)break}return {'--control':fill,'--control-text':textOn(fill),'--control-edge':fill};}
 export function profilePalette(color='#4f996c',theme='dark'){
  if(!/^#[0-9a-f]{6}$/i.test(color))color='#4f996c';
- const dark=theme==='dark',base=dark?'#111111':'#fffdf8',surface=mix(color,base,dark?.82:.93),raised=mix(color,base,dark?.7:.84),accent=mix(color,dark?'#ffffff':'#000000',dark?.48:.24);
- return {'--bg':mix(color,base,.95),'--surface':surface,'--nav':surface,'--raised':raised,'--soft':raised,'--text':textOn(surface),'--muted':textOn(surface),'--accent':accent,'--ink':textOn(accent),'--line':mix(surface,textOn(surface),.4),'--profile-color':color};
+ const dark=theme==='dark',base=dark?'#111111':'#fffdf8',surface=mix(color,base,dark?.94:.96),raised=mix(color,base,dark?.88:.90),accent=mix(color,dark?'#ffffff':'#000000',dark?.30:.24);
+ return {...controlPalette(surface,color,dark),'--bg':mix(color,base,.98),'--surface':surface,'--nav':surface,'--raised':raised,'--soft':raised,'--text':textOn(surface),'--muted':textOn(surface),'--accent':accent,'--ink':textOn(accent),'--line':mix(surface,textOn(surface),.4),'--profile-color':color};
 }
 export function safeWebUrl(value){try{const u=new URL(value);if(u.protocol!=='https:'||u.username||u.password||u.port)return null;return u}catch{return null}}
 export function themeSongInfo(value){const u=safeWebUrl(value);if(!u)return null;
