@@ -63,15 +63,20 @@ try {
   const glass=await page.evaluate(()=>({
    layers:document.querySelectorAll('.liquid-glass-effect').length,
    svgImages:document.querySelectorAll('filter feImage').length,
+   passes:[...document.querySelectorAll('filter')].map(el=>el.querySelectorAll('feDisplacementMap').length),
    filters:[...document.querySelectorAll('.liquid-glass-effect')].map(el=>getComputedStyle(el).filter),
    blur:[...document.querySelectorAll('.liquid-glass-effect')].map(el=>getComputedStyle(el).backdropFilter||getComputedStyle(el).webkitBackdropFilter),
   }));
   assert.ok(glass.layers>0,name+' retains glass material layers');
   assert.ok(glass.blur.some(value=>value?.includes('blur(')),name+' retains native backdrop glass');
-  assert.equal(glass.svgImages,0,name+' does not allocate SVG displacement images');
-  assert.ok(glass.filters.every(value=>value==='none'),name+' does not retain a displacement filter');
+  assert.ok(glass.svgImages>0,name+' retains real SVG displacement images');
+  if(!options.hasTouch)assert.ok(glass.filters.some(value=>value.includes('url(')),name+' retains refraction filters');
+  else assert.ok(glass.filters.every(value=>value==='none'),name+' preserves package touch fallback');
+  assert.ok(glass.passes.every(value=>value===1),name+' uses one displacement pass per filter');
   const geometry=await page.locator('.field-memory-gallery').evaluate(el=>({width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height,scrollWidth:document.documentElement.scrollWidth,viewport:innerWidth}));
   assert.ok(geometry.width>0&&geometry.height>0&&geometry.scrollWidth<=geometry.viewport+1,name+' has bounded gallery geometry');
+  await page.screenshot({path:`docs/live-qa/safari-reload-${name}-before.png`,timeout:15000});
+  await writeFile(`docs/live-qa/safari-memory-reload-${name}-before.json`,JSON.stringify({scenario:name,status:'awaiting first same-tab reload',retried,glass,geometry},null,2));
   await sameTabReload(page,galleryImage,name+' initial reload');
   assert.equal(await page.locator('.field-memory-open').count(),before+1,name+' persists the uploaded memory after same-tab reload');
   // Reopening and dismissing must not leave a filter/observer alive on a sheet.
