@@ -1,5 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {initialState,loadLocalState,saveLocalState,reducer} from './data-adapter.js';
+import {mergeNotificationResource} from './notification-model.js';
 import {clearChatDrafts} from './messaging-model.js';
 import {saveLiveDrafts,readLiveDrafts,clearLiveDrafts,retainDraftAccount,hasLocalDrafts,commandFingerprint,readCommandRequests,saveCommandRequests,preserveNewerDrafts} from './draft-storage.js';
 export async function api(path,options={}){
@@ -7,6 +8,26 @@ export async function api(path,options={}){
  let value;try{value=await response.json()}catch{throw Object.assign(new Error('The service returned an unreadable response. Please try again.'),{status:response.status,ambiguous:response.ok||response.status>=500})}
  if(!response.ok)throw Object.assign(new Error(value.error?.message||value.error||value.message||'That action could not be saved.'),{status:response.status});return value;
 }
+
+// Notification requests never refetch the full feed. Every open is reauthorized
+// by the server and returns a typed destination, never a database-supplied URL.
+async function notificationRequest(path,options={}){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+ const abort=()=>controller.abort();options.signal?.addEventListener('abort',abort,{once:true});
+ if(options.signal?.aborted)controller.abort();
+ try{return await api(path,{...options,signal:controller.signal})}
+ finally{clearTimeout(timer);options.signal?.removeEventListener('abort',abort)}
+}
+export const notificationApi=Object.freeze({
+ list:({before,limit=30,signal}={})=>notificationRequest('/api/notifications?'+new URLSearchParams({limit:String(limit),...(before!=null?{before:String(before)}:{})}),{signal}),
+ settings:()=>notificationRequest('/api/me/notifications'),
+ saveSettings:(patch,revision,expectedAccountId)=>notificationRequest('/api/me/notifications',{method:'PUT',body:JSON.stringify({...patch,revision,expectedAccountId})}),
+ read:(id,expectedAccountId)=>notificationRequest('/api/notifications/'+encodeURIComponent(id)+'/read',{method:'POST',body:JSON.stringify({expectedAccountId})}),
+ readAll:(cutoff,expectedAccountId)=>notificationRequest('/api/notifications/read-all',{method:'POST',body:JSON.stringify({cutoff,expectedAccountId})}),
+ dismiss:(id,expectedAccountId)=>notificationRequest('/api/notifications/'+encodeURIComponent(id)+'/dismiss',{method:'POST',body:JSON.stringify({expectedAccountId})}),
+ open:(id,expectedAccountId)=>notificationRequest('/api/notifications/'+encodeURIComponent(id)+'/open'+(expectedAccountId?'?expectedAccountId='+encodeURIComponent(expectedAccountId):''))
+});
+
 export const isAmbiguousCommandError=error=>!error.status||error.ambiguous===true||error.status>=500||error.status===408;
 export async function sendCommand(payload){
  // The same receipt identifier protects both automatic and explicit retries.
@@ -24,7 +45,7 @@ const localTypes=new Set(['SET_DRAFT','SET_DRAFT_FILES','SET_COMPOSE','SET_FEED_
 const localFields=['drafts','compose','feedFilter','peopleFilter','memoryFilters','bag'];
 export function useFamilyData(){
  const [state,setState]=useState(loadLocalState),[session,setSession]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[pending,setPending]=useState(false),[draftStorageStatus,setDraftStorageStatus]=useState({ok:true}),[preview,setPreview]=useState(()=>{try{return reviewOnly||sessionStorage.getItem(modeKey)==='preview'}catch{return false}});
- const epoch=useRef(0),ref=useRef(state),busy=useRef(false),workCount=useRef(0),after=useRef(null),alive=useRef(true),requestBook=useRef({accountId:null,requests:{},confirmed:new Set()});ref.current=state;
+ const linkedResource=useRef(null),epoch=useRef(0),ref=useRef(state),busy=useRef(false),workCount=useRef(0),after=useRef(null),alive=useRef(true),requestBook=useRef({accountId:null,requests:{},confirmed:new Set()});ref.current=state;
  const save=next=>{
   ref.current=next;setState(next);
   if(next.mode==='preview'){const result=saveLocalState(next);setDraftStorageStatus(result);if(!result.ok)setError(result.error);return result}
@@ -38,6 +59,21 @@ export function useFamilyData(){
    setDraftStorageStatus(result);if(!result.ok)setError(result.error);return result;
   }
  };
+
+ async function withLinkedResource(next){
+  const link=linkedResource.current;
+  if(!link||next.mode!=='live'||link.accountId!==next.selfId)return next;
+  const target=link.target,exists=target.kind==='memory'?next.memories?.some(m=>m.id===target.id):next.posts?.some(p=>p.id===(target.kind==='comment'?target.containerId:target.id));
+  if(exists)return next;
+  try{const result=await notificationApi.open(link.noticeId,link.accountId);if(linkedResource.current!==link)return next;if(!result.available||result.accountId&&result.accountId!==next.selfId){linkedResource.current=null;return next}return mergeNotificationResource(next,result)}
+  catch{if(linkedResource.current===link)linkedResource.current=null;return next}
+ }
+ function hydrateNotificationResource(result,{accountId,noticeId}={}){
+  if(ref.current.selfId!==accountId||ref.current.mode!=='live'||!result?.available||result.accountId&&result.accountId!==accountId)return false;
+  if(['post','comment','memory'].includes(result.target?.kind))linkedResource.current={accountId,noticeId,target:result.target};else linkedResource.current=null;
+  save(mergeNotificationResource(ref.current,result));return true;
+ }
+
  function settlePending(){
   const waiting=busy.current||workCount.current>0;if(alive.current)setPending(waiting);
   if(!waiting){const done=after.current;after.current=null;done?.()}
@@ -52,15 +88,16 @@ export function useFamilyData(){
   try{
    const [cfg,sess]=await Promise.all([api('/api/config'),api('/api/session')]);if(!alive.current||generation!==epoch.current)return;setConfig(cfg);setSession(sess);
    if(sess.status==='active'&&!preview){
-    const next=await api('/api/state');if(alive.current&&generation===epoch.current){
+    const next=await withLinkedResource(await api('/api/state'));if(alive.current&&generation===epoch.current){
      const sameAccount=ref.current.mode==='live'&&ref.current.selfId===next.selfId;
-     if(ref.current.mode==='live'&&ref.current.selfId!==next.selfId)clearChatDrafts(ref.current.selfId);
+     if(ref.current.mode==='live'&&ref.current.selfId!==next.selfId){linkedResource.current=null;clearChatDrafts(ref.current.selfId)}
      retainDraftAccount(next.selfId);
      const local=sameAccount?Object.fromEntries(localFields.map(key=>[key,ref.current[key]])):readLiveDrafts(next.selfId);
      if(requestBook.current.accountId!==next.selfId)requestBook.current={accountId:next.selfId,requests:readCommandRequests(next.selfId),confirmed:new Set()};
      save({...next,...local});
     }
    }else if(sess.status!=='active'&&!preview&&ref.current.mode==='live'){
+    linkedResource.current=null;
     // A revoked or signed-out session must not leave the previous account in view.
     clearChatDrafts(ref.current.selfId);retainDraftAccount(null);requestBook.current={accountId:null,requests:{},confirmed:new Set()};save(initialState());
    }
@@ -92,7 +129,7 @@ export function useFamilyData(){
     requestBook.current.confirmed.add(fingerprint);
     save({...ref.current,...local});
     try{
-     const server=await api('/api/state');
+     const server=await withLinkedResource(await api('/api/state'));
      if(alive.current&&generation===epoch.current&&ref.current.selfId===before.selfId){if(server.selfId!==before.selfId){await refresh()}else{const latest=Object.fromEntries(localFields.map(key=>[key,ref.current[key]]));save({...server,...latest})}}
     }catch{if(alive.current&&generation===epoch.current)setError('Your change was saved. The latest view could not load; it will refresh when the connection returns.')}
     return true;
@@ -104,13 +141,13 @@ export function useFamilyData(){
   })();
  }
  function defer(fn){if(busy.current||workCount.current){after.current=fn;return true}return false}
- function enterPreview(){if(busy.current||workCount.current)return;epoch.current++;try{sessionStorage.setItem(modeKey,'preview')}catch{}save(loadLocalState());setPreview(true);setLoading(false);setError('')}
- function leavePreview(){if(busy.current||workCount.current)return;epoch.current++;try{sessionStorage.removeItem(modeKey)}catch{}setPreview(false);setLoading(true);save(initialState());refresh()}
+ function enterPreview(){if(busy.current||workCount.current)return;epoch.current++;linkedResource.current=null;try{sessionStorage.setItem(modeKey,'preview')}catch{}save(loadLocalState());setPreview(true);setLoading(false);setError('')}
+ function leavePreview(){if(busy.current||workCount.current)return;epoch.current++;linkedResource.current=null;try{sessionStorage.removeItem(modeKey)}catch{}setPreview(false);setLoading(true);save(initialState());refresh()}
  async function signOut(){
   if(busy.current||workCount.current)return;const finish=beginPending();
-  try{await api('/api/auth/sign-out',{method:'POST',body:'{}'});epoch.current++;clearLiveDrafts(ref.current.selfId);clearChatDrafts(ref.current.selfId);retainDraftAccount(null);requestBook.current={accountId:null,requests:{},confirmed:new Set()};setSession(null);save(initialState());setPreview(false);try{sessionStorage.removeItem(modeKey)}catch{}}
+  try{await api('/api/auth/sign-out',{method:'POST',body:'{}'});epoch.current++;linkedResource.current=null;clearLiveDrafts(ref.current.selfId);clearChatDrafts(ref.current.selfId);retainDraftAccount(null);requestBook.current={accountId:null,requests:{},confirmed:new Set()};setSession(null);save(initialState());setPreview(false);try{sessionStorage.removeItem(modeKey)}catch{}}
   catch(e){setError(e.message)}finally{finish()}
  }
  async function upload(file){if(ref.current.mode==='preview'){const {readPreviewFile}=await import('./uploads.js');return readPreviewFile(file)}const data=new FormData();data.append('file',file);const finish=beginPending();try{return await api('/api/media',{method:'POST',body:data})}finally{finish()}}
- return {state,dispatch,session,config,loading,error,pending,preview,enterPreview,leavePreview,refresh,signOut,upload,defer,setError,beginPending,draftStorageStatus,hasLocalDrafts:hasLocalDrafts(state)};
+ return {state,getCurrentState:()=>ref.current,dispatch,session,config,loading,error,pending,preview,enterPreview,leavePreview,refresh,signOut,upload,defer,setError,beginPending,notificationApi,hydrateNotificationResource,releaseNotificationResource:route=>{const link=linkedResource.current;if(link){const expectedId=link.target.kind==='comment'?link.target.containerId:link.target.id,expectedType=link.target.kind==='memory'?'memory':'post';if(route?.id!==expectedId||route?.type!==expectedType)linkedResource.current=null}},draftStorageStatus,hasLocalDrafts:hasLocalDrafts(state)};
 }

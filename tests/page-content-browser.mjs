@@ -7,6 +7,7 @@ import {randomUUID} from 'node:crypto';
 import {mkdir, writeFile} from 'node:fs/promises';
 import {createTestPng} from './png-fixtures.mjs';
 import {SHARED_PAGE_SCHEMA, sharedPageDefaults} from '../src/shared-content-schema.js';
+import {readPageSavePaint, pageSaveContrast, parsePaintColor} from './page-save-contrast.mjs';
 
 if (!process.env.CI && process.env.GW_HOSTED_BROWSER_QA !== '1') {
   throw new Error('Shared-page browser QA runs only in the authorized hosted CI environment.');
@@ -100,7 +101,7 @@ async function settleBrowserReads(page, {since, required = []} = {}) {
   assert.deepEqual(failed, [], 'Normal same-origin browser reads succeed; deliberate permission probes use APIRequestContext.');
   trace.lastDrained = trace.sequence;
 }
-async function person(id, {width = 390, height = 844, motion = 'reduce', active = true, label = id} = {}) {
+async function person(id, {width = 390, height = 844, motion = 'reduce', active = true, label = id, platform = 'android', theme = 'dark'} = {}) {
   const context = await browser.newContext({viewport: {width, height}, reducedMotion: motion});
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
@@ -112,7 +113,7 @@ async function person(id, {width = 390, height = 844, motion = 'reduce', active 
       writes.push({user: label, path: new URL(request.url()).pathname, method: request.method(), body: request.postDataJSON()});
     }
   });
-  await page.addInitScript(() => {
+  await page.addInitScript(({platform, theme}) => {
     const emit = (event, detail = {}) => console.log('__GW_CMS_LIFECYCLE__' + JSON.stringify({event, url: location.href, timeOrigin: performance.timeOrigin, documentMs: performance.now(), readyState: document.readyState, ...detail}));
     emit('new-document');
     for (const event of ['beforeunload', 'pagehide', 'pageshow']) addEventListener(event, () => emit(event));
@@ -121,8 +122,9 @@ async function person(id, {width = 390, height = 844, motion = 'reduce', active 
     addEventListener('unhandledrejection', event => emit('unhandledrejection', {message: String(event.reason?.message || event.reason), stack: event.reason?.stack}));
     localStorage.setItem('gw-install-dismissed', 'true');
     localStorage.setItem('gw-preview-notice:v1', 'seen');
-    localStorage.setItem('gw-platform', 'android');
-  });
+    localStorage.setItem('gw-platform', platform);
+    localStorage.setItem('gw-theme', theme);
+  }, {platform, theme});
   trace.log('signin-start');
   await page.goto(id ? `${base}/__test/signin?user=${encodeURIComponent(id)}` : base);
   if (active && id) {
@@ -180,6 +182,21 @@ async function edit(page) {
   await toolbar(page).getByRole('button', {name: /^(Edit page|Resume page edits)$/}).click();
   await expect(page.locator('html')).toHaveAttribute('data-page-edit-mode', 'true');
   await expect(toolbar(page).getByText('Editing page', {exact: true})).toBeVisible();
+}
+async function assertSavePaint(page, {theme, platform, disabled}) {
+  const button = saveButton(page);
+  if (disabled) await expect(button).toBeDisabled(); else await expect(button).toBeEnabled();
+  await expect.poll(async () => pageSaveContrast(await button.evaluate(readPageSavePaint)), {message: 'Save label contrast uses the actual painted tint and composited opacity.'}).toBeGreaterThanOrEqual(4.5);
+  const paint = await button.evaluate(readPageSavePaint);
+  assert.equal(paint.theme, theme); assert.equal(paint.platform, platform); assert.equal(paint.disabled, disabled);
+  assert.equal(paint.text, 'Save changes'); assert.equal(paint.hostOpacity, 1);
+  assert.deepEqual(parsePaintColor(paint.foreground), parsePaintColor(paint.hostForeground), 'The innermost label inherits the state foreground.');
+  assert.equal(paint.tintBackground !== null, platform === 'ios', 'The material matrix exercises real glass descendants.');
+  if (paint.tintBackground !== null) {
+    assert.equal(paint.tintOpacity, 1);
+    assert.deepEqual(parsePaintColor(paint.tintBackground), parsePaintColor(paint.hostBackground), 'The opaque tint and host paint the same state surface.');
+  }
+  return {...paint, contrast: pageSaveContrast(paint)};
 }
 async function editText(page, key, value, {finish = true} = {}) {
   const [pageId, name] = key.split('.'), label = SHARED_PAGE_SCHEMA[pageId].fields[name].label;
@@ -328,6 +345,27 @@ try {
     await owner.getByRole('navigation', {name: 'Main navigation', exact: true}).getByRole('button', {name: 'Family', exact: true}).click();
     await expect(owner).toHaveURL(/#\/family/);
     await expect(owner.locator('html')).not.toHaveAttribute('data-page-edit-mode', 'true');
+  });
+
+  await check('Save stays readable through disabled and enabled states in both themes and materials, including the actual glass tint', async () => {
+    for (const theme of ['light', 'dark']) for (const platform of ['ios', 'android']) {
+      const page = await person('owner', {theme, platform, label: `save-contrast-${theme}-${platform}`});
+      await edit(page);
+      const original = (await record(page)).content.text.heading;
+      const paints = [];
+      for (const width of [390, 768]) {
+        await page.setViewportSize({width, height: 844});
+        paints.push({width, state: 'disabled', ...await assertSavePaint(page, {theme, platform, disabled: true})});
+        await toolbar(page).screenshot({path: `${output}/save-contrast-${theme}-${platform}-${width}-${engineName}.png`});
+      }
+      await editText(page, 'home.heading', original + ' Synthetic contrast draft');
+      paints.push({state: 'enabled', ...await assertSavePaint(page, {theme, platform, disabled: false})});
+      await editText(page, 'home.heading', original);
+      paints.push({state: 'restored-disabled', ...await assertSavePaint(page, {theme, platform, disabled: true})});
+      await writeFile(`${output}/save-contrast-${theme}-${platform}-${engineName}.json`, JSON.stringify(paints, null, 2));
+      await modeDone(page).click();
+      await expect(page.locator('html')).not.toHaveAttribute('data-page-edit-mode', 'true');
+    }
   });
 
   await check('neutral edit colors fade without changing photos or saved appearance; only the active surface softly pulses without moving', async () => {
