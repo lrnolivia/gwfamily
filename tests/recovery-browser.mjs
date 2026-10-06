@@ -65,4 +65,4 @@ try{
   results.push({width,galleryItems:count,views:4,passed:true});await p.close();
  }
  assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);await writeFile('docs/recovery-qa/results.json',JSON.stringify({results,errors,writes},null,2));console.log(JSON.stringify({passed:results.length,errors,writes}));
-}catch(e){await writeFile('docs/recovery-qa/results.json',JSON.stringify({results,errors,writes,failure:e.message},null,2));console.error(e);process.exitCode=1}finally{await browser.close()}
+}catch(e){await writeFile('docs/recovery-qa/results.json',JSON.stringify({results,errors,writes,failure:e.message},null,2));console.error(e);console.log('::error title=GW recovery browser::'+String(e.message).replaceAll('%','%25').replaceAll('\n','%0A').replaceAll('\r','%0D'));process.exitCode=1}finally{await browser.close()}
