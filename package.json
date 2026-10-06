@@ -14,7 +14,7 @@
     "react-dom": "19.2.0"
   },
   "devDependencies": {
-    "@playwright/test": "1.56.0",
+    "@playwright/test": "1.57.0",
     "esbuild": "0.25.10"
   }
 }
