@@ -45,3 +45,5 @@ test('pending member can upload only their own onboarding photo without family r
  assert.equal((await app.request(env.AUTH_ORIGIN+'/api/state',{headers:{'x-test-user':'pending'}},env)).status,403);
  sqlite.exec("UPDATE members SET status='suspended' WHERE id='pending'");assert.equal((await request('pending')).status,403);
 });
+
+test('reaction identities are visible only with the authorized conversation',async()=>{const{DB,alice,bob,owner}=setup();const p=await send(DB,alice,'ADD_POST',{post:{text:'Group only',groupId:'private-group'}});await send(DB,alice,'TOGGLE_REACTION',{targetId:p.id,emoji:'❤️'});assert.deepEqual((await familyState(DB,alice)).reactionMembers[p.id]['❤️'],['alice']);assert.equal((await familyState(DB,bob)).reactionMembers[p.id],undefined);assert.equal((await familyState(DB,owner)).reactionMembers[p.id],undefined);await send(DB,alice,'TOGGLE_REACTION',{targetId:p.id,emoji:'❤️'});assert.equal((await familyState(DB,alice)).reactionMembers[p.id],undefined)});
