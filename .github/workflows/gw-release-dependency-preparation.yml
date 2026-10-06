@@ -135,3 +135,34 @@ jobs:
           name: gw-release-dependencies-${{ github.sha }}
           path: dependency-evidence
           retention-days: 7
+
+  inline_log_probe:
+    name: Dependency inline log probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Emit a bounded synthetic 4 KiB payload
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, json, os
+          raw = b''.join(hashlib.sha256(('gw-inline-probe-v1:' + str(i)).encode('ascii')).digest() for i in range(96))
+          payload = base64.b64encode(raw).decode('ascii')
+          assert len(raw) == 3072 and len(payload) == 4096
+          header = {
+              'schema': 'gw-inline-probe-v1',
+              'synthetic': True,
+              'source_sha': os.environ['GITHUB_SHA'],
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'encoding': 'base64',
+              'payload_characters': len(payload),
+              'payload_sha256': hashlib.sha256(payload.encode('ascii')).hexdigest(),
+              'decoded_bytes': len(raw),
+              'decoded_sha256': hashlib.sha256(raw).hexdigest(),
+          }
+          print('GW_INLINE_PROBE_V1_BEGIN')
+          print(json.dumps(header, sort_keys=True, separators=(',', ':')))
+          print(payload)
+          print('GW_INLINE_PROBE_V1_END')
+          PY
