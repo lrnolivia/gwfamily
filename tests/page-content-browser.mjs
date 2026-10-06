@@ -41,17 +41,30 @@ async function check(name, run) {
 // Keep a bounded, body-free record of browser traffic and document lifecycle.
 // APIRequestContext permission probes deliberately do not enter this stream.
 function observeBrowser(page, label) {
-  const trace = {sequence: 0, lastDrained: 0, events: [], droppedEvents: 0, reads: [], pending: new Map()};
+  const trace = {sequence: 0, eventSequence: 0, lastDrained: 0, documentEpoch: 0, documentTimeOrigin: null, documentUrl: null, navigations: [], events: [], droppedEvents: 0, reads: [], pending: new Map()};
   const requests = new WeakMap();
   trace.log = (type, detail = {}) => {
-    trace.events.push({ms: Date.now() - traceStarted, check: currentCheck, document: page.url(), type, ...detail});
+    trace.events.push({eventSequence: ++trace.eventSequence, ms: Date.now() - traceStarted, check: currentCheck, document: page.url(), documentEpoch: trace.documentEpoch, type, ...detail});
     if (trace.events.length > 600) {trace.events.shift(); trace.droppedEvents++;}
   };
-  const snapshot = () => ({pending: [...trace.pending.values()].map(value => ({...value})), recentEvents: trace.events.slice(-30)});
+  trace.beginNavigation = target => {
+    const navigation = {sourceEpoch: trace.documentEpoch, sourceTimeOrigin: trace.documentTimeOrigin, target, startedMs: Date.now() - traceStarted, startedEvent: trace.eventSequence + 1};
+    trace.navigations.push(navigation);
+    if (trace.navigations.length > 100) trace.navigations.shift();
+    trace.log('navigation-start', {...navigation, pending: [...trace.pending.values()].map(read => ({...read}))});
+  };
+  const documentAddress = url => {const value = new URL(url); value.hash = ''; return value.href;};
+  const snapshot = () => ({pending: [...trace.pending.values()].map(value => ({...value})), navigations: trace.navigations.slice(-3).map(value => ({...value})), recentEvents: trace.events.slice(-30)});
   page.on('request', request => {
     const url = new URL(request.url()), sameOriginApi = url.origin === base && url.pathname.startsWith('/api/');
     if (!sameOriginApi && !request.isNavigationRequest()) return;
-    const entry = {id: ++trace.sequence, url: url.href, path: url.pathname, method: request.method(), resource: request.resourceType(), navigation: request.isNavigationRequest(), startedMs: Date.now() - traceStarted, document: page.url()};
+    const navigation = trace.navigations.at(-1);
+    let requestFrame;
+    try {requestFrame = request.frame();} catch { /* Service-worker requests have no frame identity. */ }
+    // A frame can commit before its init-script console event is delivered.
+    // Do not attribute a request in that gap to the outgoing document.
+    const knownDocument = requestFrame === page.mainFrame() && trace.documentEpoch > 0 && documentAddress(trace.documentUrl) === documentAddress(page.url()) && !(navigation?.sourceEpoch === trace.documentEpoch && navigation.frameNavigatedMs !== undefined && navigation.targetEpoch === undefined);
+    const entry = {id: ++trace.sequence, url: url.href, path: url.pathname, method: request.method(), resource: request.resourceType(), navigation: request.isNavigationRequest(), startedMs: Date.now() - traceStarted, startedEvent: trace.eventSequence + 1, document: page.url(), documentEpoch: knownDocument ? trace.documentEpoch : null, documentTimeOrigin: knownDocument ? trace.documentTimeOrigin : null};
     requests.set(request, entry);
     if (sameOriginApi && entry.method === 'GET' && ['fetch', 'xhr'].includes(entry.resource)) {
       trace.reads.push(entry); trace.pending.set(entry.id, entry);
@@ -69,16 +82,39 @@ function observeBrowser(page, label) {
   for (const event of ['requestfinished', 'requestfailed']) page.on(event, request => {
     const entry = requests.get(request); if (!entry) return;
     entry.finishedMs = Date.now() - traceStarted;
+    entry.finishedEvent = trace.eventSequence + 1;
     if (event === 'requestfailed') entry.failure = request.failure()?.errorText || 'Unknown request failure';
     trace.pending.delete(entry.id);
     trace.log(event, {...entry});
   });
-  page.on('framenavigated', frame => {if (frame === page.mainFrame()) trace.log('main-frame-navigated', {url: frame.url()});});
+  page.on('framenavigated', frame => {
+    if (frame !== page.mainFrame()) return;
+    const navigation = trace.navigations.at(-1);
+    if (navigation && frame.url() === navigation.target && navigation.frameNavigatedMs === undefined) {
+      navigation.frameNavigatedMs = Date.now() - traceStarted;
+      navigation.frameNavigatedEvent = trace.eventSequence + 1;
+    }
+    trace.log('main-frame-navigated', {url: frame.url()});
+  });
   page.on('domcontentloaded', () => trace.log('domcontentloaded'));
   page.on('load', () => trace.log('load'));
   page.on('console', message => {
     if (message.text().startsWith('__GW_CMS_LIFECYCLE__')) {
-      try {trace.log('document-lifecycle', JSON.parse(message.text().slice('__GW_CMS_LIFECYCLE__'.length)));}
+      try {
+        const detail = JSON.parse(message.text().slice('__GW_CMS_LIFECYCLE__'.length));
+        if (detail.event === 'new-document' && Number.isFinite(detail.timeOrigin) && typeof detail.url === 'string' && detail.timeOrigin !== trace.documentTimeOrigin) {
+          const previousEpoch = trace.documentEpoch, previousTimeOrigin = trace.documentTimeOrigin;
+          trace.documentEpoch++; trace.documentTimeOrigin = detail.timeOrigin; trace.documentUrl = detail.url;
+          const navigation = trace.navigations.at(-1);
+          if (navigation?.sourceEpoch === previousEpoch && navigation.sourceTimeOrigin === previousTimeOrigin && navigation.target === detail.url && navigation.targetEpoch === undefined) {
+            navigation.targetEpoch = trace.documentEpoch;
+            navigation.targetTimeOrigin = detail.timeOrigin;
+            navigation.documentStartedMs = Date.now() - traceStarted;
+            navigation.documentStartedEvent = trace.eventSequence + 1;
+          }
+        }
+        trace.log('document-lifecycle', detail);
+      }
       catch {trace.log('unreadable-lifecycle-record');}
     } else if (message.type() === 'error') trace.log('console-error', {text: message.text().slice(0, 2000), location: message.location()});
   });
@@ -91,15 +127,40 @@ function observeBrowser(page, label) {
   browserReads.set(page, trace);
   return trace;
 }
+function isSupersededDocumentCancellation(read, trace) {
+  // Cancellation wording alone is never evidence of teardown. Require the
+  // outgoing document's identity, an explicit navigation, a replacement init
+  // script plus main-frame commit, and a failure observed after navigation began.
+  // HTTP/auth failures and all pageerrors remain failures even during teardown.
+  if (!['Load request cancelled', 'net::ERR_ABORTED'].includes(read.failure) || (read.status !== undefined && !(read.status >= 200 && read.status < 300))) return false;
+  return read.documentEpoch > 0 && trace.navigations.some(navigation =>
+    navigation.sourceEpoch === read.documentEpoch && navigation.sourceTimeOrigin === read.documentTimeOrigin &&
+    navigation.targetEpoch > read.documentEpoch && navigation.targetEpoch <= trace.documentEpoch &&
+    navigation.targetTimeOrigin !== read.documentTimeOrigin && navigation.frameNavigatedMs !== undefined &&
+    read.startedEvent < navigation.documentStartedEvent && read.startedMs <= navigation.documentStartedMs &&
+    read.finishedEvent > navigation.startedEvent && read.finishedMs >= navigation.startedMs);
+}
 async function settleBrowserReads(page, {since, required = []} = {}) {
   const trace = browserReads.get(page), after = since ?? trace.lastDrained;
-  await expect.poll(() => ({
-    missing: required.filter(path => !trace.reads.some(read => read.id > after && read.path === path && read.finishedMs !== undefined)),
-    pending: [...trace.pending.values()].map(read => read.path),
-  }), {message: 'Authenticated route reads finish before the next document navigation.', timeout: 15000}).toEqual({missing: [], pending: []});
-  const failed = trace.reads.filter(read => read.id > after && (read.failure || !(read.status >= 200 && read.status < 300)));
-  assert.deepEqual(failed, [], 'Normal same-origin browser reads succeed; deliberate permission probes use APIRequestContext.');
-  trace.lastDrained = trace.sequence;
+  let drainedThrough = after;
+  const assertSuccessfulReads = () => {
+    const failed = trace.reads.filter(read => read.id > after && read.finishedMs !== undefined && (read.failure || !(read.status >= 200 && read.status < 300)) && !isSupersededDocumentCancellation(read, trace));
+    assert.deepEqual(failed, [], 'Normal same-origin browser reads succeed; deliberate permission probes use APIRequestContext.');
+  };
+  await expect.poll(() => {
+    assertSuccessfulReads();
+    const readiness = {
+      missing: required.filter(path => !trace.reads.some(read => read.id > after && read.documentEpoch === trace.documentEpoch && trace.documentEpoch > 0 && read.path === path && read.finishedMs !== undefined && !read.failure && read.status >= 200 && read.status < 300)),
+      pending: [...trace.pending.values()].map(read => read.path),
+    };
+    // Requests can arrive while the assertion promise resolves. Only advance
+    // through the sequence whose completed bodies this exact probe observed.
+    if (!readiness.missing.length && !readiness.pending.length) drainedThrough = trace.sequence;
+    return readiness;
+  }, {message: 'Authenticated current-document reads succeed before the next document navigation.', timeout: 15000}).toEqual({missing: [], pending: []});
+  assertSuccessfulReads();
+  for (const read of trace.reads.filter(read => read.id > after && read.id <= drainedThrough && isSupersededDocumentCancellation(read, trace))) trace.log('superseded-document-read-cancelled', {...read});
+  trace.lastDrained = drainedThrough;
 }
 async function person(id, {width = 390, height = 844, motion = 'reduce', active = true, label = id, platform = 'android', theme = 'dark'} = {}) {
   const context = await browser.newContext({viewport: {width, height}, reducedMotion: motion});
@@ -114,7 +175,7 @@ async function person(id, {width = 390, height = 844, motion = 'reduce', active 
     }
   });
   await page.addInitScript(({platform, theme}) => {
-    const emit = (event, detail = {}) => console.log('__GW_CMS_LIFECYCLE__' + JSON.stringify({event, url: location.href, timeOrigin: performance.timeOrigin, documentMs: performance.now(), readyState: document.readyState, ...detail}));
+    const emit = (event, detail = {}) => {if (window === window.top) console.log('__GW_CMS_LIFECYCLE__' + JSON.stringify({event, url: location.href, timeOrigin: performance.timeOrigin, documentMs: performance.now(), readyState: document.readyState, ...detail}));};
     emit('new-document');
     for (const event of ['beforeunload', 'pagehide', 'pageshow']) addEventListener(event, () => emit(event));
     // Observe actual window exceptions/rejections without swallowing them.
@@ -126,7 +187,9 @@ async function person(id, {width = 390, height = 844, motion = 'reduce', active 
     localStorage.setItem('gw-theme', theme);
   }, {platform, theme});
   trace.log('signin-start');
-  await page.goto(id ? `${base}/__test/signin?user=${encodeURIComponent(id)}` : base);
+  const signinTarget = id ? `${base}/__test/signin?user=${encodeURIComponent(id)}` : base;
+  trace.beginNavigation(signinTarget);
+  await page.goto(signinTarget);
   if (active && id) {
     await page.getByRole('navigation', {name: 'Main navigation', exact: true}).waitFor();
     await settleBrowserReads(page, {required: ['/api/state', '/api/page-content/home', '/api/page-content/global', '/api/conversations', '/api/conversations/recipients']});
@@ -160,8 +223,8 @@ async function navigate(page, route, id) {
   // A visible main also exists during onboarding. Previously the non-leader
   // absence assertions could pass there and immediately tear down new reads.
   await settleBrowserReads(page);
-  const since = trace.sequence, target = `${base}/?qa=${randomUUID()}#/${sharedPageRoute(route, id)}`;
-  trace.log('navigation-start', {target, pending: [...trace.pending.values()]});
+  const since = trace.lastDrained, target = `${base}/?qa=${randomUUID()}#/${sharedPageRoute(route, id)}`;
+  trace.beginNavigation(target);
   await page.goto(target, {waitUntil: 'domcontentloaded'});
   await expect(page).toHaveURL(target);
   // The authenticated header also exists on detail pages without bottom nav.
@@ -441,6 +504,7 @@ try {
       await owner.getByRole('navigation', {name: 'Main navigation', exact: true}).getByRole('button', {name: 'Family', exact: true}).click();
       await owner.getByRole('navigation', {name: 'Main navigation', exact: true}).getByRole('button', {name: 'Home', exact: true}).click();
       await expect(toolbar(owner).getByRole('button', {name: 'Resume page edits', exact: true})).toBeVisible();
+      browserReads.get(owner).beginNavigation(owner.url());
       await owner.reload({waitUntil: 'domcontentloaded'});
       await expect(toolbar(owner).getByRole('button', {name: 'Resume page edits', exact: true})).toBeVisible();
       await edit(owner);
@@ -606,6 +670,7 @@ try {
     await patch(owner, 'global', updated, global.revision);
     const requests = [];
     anonymous.on('request', request => requests.push(new URL(request.url()).pathname));
+    browserReads.get(anonymous).beginNavigation(anonymous.url());
     await anonymous.reload({waitUntil: 'domcontentloaded'});
     await expect(anonymous.locator('.onboard')).toBeVisible();
     await expect(anonymous.getByText('Good to see you.', {exact: true})).toBeVisible();
@@ -750,7 +815,7 @@ try {
   }
   throw error;
 } finally {
-  await writeFile(`${output}/network-${engineName}.json`, JSON.stringify({browser: engineName, startedAt: new Date(traceStarted).toISOString(), sessions: sessions.map(({id, trace}) => ({user: id, droppedEvents: trace.droppedEvents, events: trace.events, pending: [...trace.pending.values()]}))}, null, 2));
+  await writeFile(`${output}/network-${engineName}.json`, JSON.stringify({browser: engineName, startedAt: new Date(traceStarted).toISOString(), sessions: sessions.map(({id, trace}) => ({user: id, documentEpoch: trace.documentEpoch, documentTimeOrigin: trace.documentTimeOrigin, navigations: trace.navigations, droppedEvents: trace.droppedEvents, events: trace.events, pending: [...trace.pending.values()]}))}, null, 2));
   await writeFile(`${output}/results-${engineName}.json`, JSON.stringify({browser: engineName, results, errors, networkTrace: `network-${engineName}.json`, ...(failure ? {failure} : {}), limitations: [
     'Hosted synthetic fixture only; no production data, messages, payments, invitations or external writes.',
     'Viewport checks do not establish physical-device keyboard, installed-PWA or touch behavior.',

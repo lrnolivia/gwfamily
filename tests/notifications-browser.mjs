@@ -15,6 +15,7 @@ await mkdir(output,{recursive:true});
 const engine=process.env.GW_BROWSER==='webkit'?'webkit':'chromium';
 const oldPost={id:'older-authorized-post',authorId:'bob',text:'An authorized older fixture post outside the feed window.',createdAt:1000,memberIds:[],files:[]};
 const comment={id:'older-comment',authorId:'bob',text:'The exact older fixture reply.',createdAt:2000,parentId:null,files:[]};
+let linkedComments=[comment];
 function account(id){return {id,settings:{accountId:id,scope:'leaders',globalOff:false,selectedIds:[],categories:{...DEFAULT_NOTIFICATION_CATEGORIES},revision:0,pushEnabled:false},notices:Array.from({length:id==='alice'?135:2},(_,i)=>({id:id+'-notice-'+(i+1),sequence:i+1,kind:'reply.created',category:'replies',title:`${id==='alice'?'Fixture':'Other account'} update ${i+1}`,text:'A fictional update for hosted QA.',createdAt:Date.now()-i*1000,readAt:null,target:{kind:'comment',id:comment.id,containerId:oldPost.id,anchorId:comment.id}}))}}
 const accounts={alice:account('alice'),bob:account('bob')};let holdOpen=null;
 function stateFor(id){return {...initialState(),mode:'live',schema:3,selfId:id,onboarding:'done',profileComplete:true,capabilities:{},
@@ -50,7 +51,7 @@ async function attachRoutes(context,viewer){
    const notice=a.notices.find(n=>n.id===decodeURIComponent(match[1]));if(match[2]==='open'){
     if(holdOpen){holdOpen.started();await holdOpen.promise;holdOpen=null;}
     if(url.searchParams.get('expectedAccountId')!==viewer.id)return json(route,{error:'Your signed-in account changed.'},409);
-    return json(route,notice&&!notice.dismissedAt?{accountId:viewer.id,available:true,target:notice.target,post:oldPost,comments:[comment],reactions:{},reactionCounts:{},reactionMembers:{}}:{accountId:viewer.id,available:false});
+    return json(route,notice&&!notice.dismissedAt?{accountId:viewer.id,available:true,target:notice.target,post:oldPost,comments:linkedComments,reactions:{},reactionCounts:{},reactionMembers:{}}:{accountId:viewer.id,available:false});
    }
    if(notice){if(match[2]==='read')notice.readAt||=Date.now();else notice.dismissedAt||=Date.now();}return json(route,{accountId:viewer.id,ok:true});
   }
@@ -88,6 +89,14 @@ async function showInbox(page){await page.bringToFront();if(await bell(page).get
 async function refresh(page){await page.bringToFront();const previous=requests.filter(r=>r.path==='/api/notifications').length;await page.evaluate(()=>window.dispatchEvent(new Event('online')));await expect.poll(()=>requests.filter(r=>r.path==='/api/notifications').length).toBeGreaterThan(previous);}
 async function check(name,run){currentCheck=name;await run();results.push({check:name,status:'passed'});console.log('NOTIFICATION PASS:',name);}
 async function checkFit(page){const bounds=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,controls:[...document.querySelectorAll('.notification-panel button,.notification-settings button,.notification-settings input')].filter(e=>e.getClientRects().length&&!e.closest('[inert]')&&(!e.closest('[popover]')||e.closest('[popover]').matches(':popover-open'))).map(e=>({name:e.getAttribute('aria-label')||e.textContent,left:e.getBoundingClientRect().left,right:e.getBoundingClientRect().right})).filter(r=>r.left<0||r.right>innerWidth+1)}));assert.ok(bounds.scroll<=bounds.width+1&&!bounds.controls.length,JSON.stringify(bounds));}
+async function checkBellClear(page){
+ await expect.poll(()=>page.evaluate(()=>{
+  const button=document.querySelector('header button.notification-entry'),popover=document.querySelector('.notification-panel')?.closest('[popover]');
+  if(!button||!popover?.matches(':popover-open'))return {clear:false,hit:false};
+  const bell=button.getBoundingClientRect(),panel=popover.getBoundingClientRect(),hit=document.elementFromPoint(bell.left+bell.width/2,bell.top+bell.height/2);
+  return {clear:panel.top>=bell.bottom+7||panel.bottom<=bell.top-7,hit:hit===button||button.contains(hit)};
+ })).toEqual({clear:true,hit:true});
+}
 let failure;
 try{
  browser=await(engine==='webkit'?webkit:chromium).launch({headless:true});
@@ -96,10 +105,55 @@ try{
   await expect(bell(alice)).toHaveAccessibleName('Notifications, 135 unread');await showInbox(alice);await expect(panel(alice).locator('[data-notice-id]')).toHaveCount(30);
   await panel(alice).getByRole('button',{name:'Load earlier activity',exact:true}).click();await expect(panel(alice).locator('[data-notice-id]')).toHaveCount(60);await expect(bell(alice)).toHaveAccessibleName('Notifications, 135 unread');
  });
+ await check('a tall notification panel leaves the bell clear for normal close and reopen clicks',async()=>{
+  await checkBellClear(alice);await bell(alice).click();await expect(panel(alice)).toBeHidden();await expect(bell(alice)).toHaveAttribute('aria-expanded','false');
+  await bell(alice).click();await expect(panel(alice)).toBeVisible();await expect(bell(alice)).toHaveAttribute('aria-expanded','true');await checkBellClear(alice);
+ });
  await check('typed old post opens with exact comment focus without erasing compose draft',async()=>{
   await bell(alice).click();await alice.getByRole('button',{name:'Post an update',exact:true}).click();await alice.getByRole('textbox',{name:"What's on your mind",exact:true}).fill('Keep this unsent fixture draft');await alice.getByRole('button',{name:'Close dialog',exact:true}).click();
   await showInbox(alice);await panel(alice).getByRole('button',{name:'Open Fixture update 135, unread',exact:true}).click();await expect(alice).toHaveURL(/#\/post\/older-authorized-post\?section=comment%3Aolder-comment$/);await expect(alice.locator('[data-comment-id="older-comment"]')).toBeFocused();
   await alice.getByRole('button',{name:'Green and White family home',exact:true}).click();await alice.getByRole('button',{name:'Post an update',exact:true}).click();await expect(alice.getByRole('textbox',{name:"What's on your mind",exact:true})).toHaveValue('Keep this unsent fixture draft');await alice.getByRole('button',{name:'Close dialog',exact:true}).click();
+ });
+ await check('background deep-link refresh preserves active comment and reply drafts; explicit revisits still focus',async()=>{
+  await showInbox(alice);await panel(alice).getByRole('button',{name:'Open Fixture update 135',exact:true}).click();
+  const anchor=alice.locator('[data-comment-id="older-comment"]'),draft=alice.getByRole('textbox',{name:'Write a comment…',exact:true});
+  await expect(anchor).toBeFocused();await draft.fill('Keep this unsent comment draft');
+  await alice.evaluate(()=>{
+   const original=Element.prototype.scrollIntoView;window.__qaCommentAnchorScrolls=0;
+   Element.prototype.scrollIntoView=function(...args){if(this.hasAttribute('data-comment-id'))window.__qaCommentAnchorScrolls++;return original.apply(this,args)};
+  });
+  const selectDraft=async field=>{await field.focus();await field.evaluate(el=>el.setSelectionRange(5,12));};
+  const assertDraft=async(field,value)=>{await expect(field).toBeFocused();await expect(field).toHaveValue(value);assert.deepEqual(await field.evaluate(el=>[el.selectionStart,el.selectionEnd]),[5,12]);assert.equal(await alice.evaluate(()=>window.__qaCommentAnchorScrolls),0);};
+  const refreshComments=async(comments)=>{
+   linkedComments=comments;
+   // This invokes the same full-state refresh used by the 15-second poll. The
+   // older linked post is reauthorized and hydrated into a fresh comments array.
+   await refresh(alice);await expect(anchor).toContainText(comments[0].text);
+   await alice.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  };
+  await selectDraft(draft);const beforeScroll=await alice.evaluate(()=>window.scrollY);
+  await refreshComments([{...comment,text:'The first fresh fixture reply.'}]);await assertDraft(draft,'Keep this unsent comment draft');
+  assert.ok(Math.abs(await alice.evaluate(()=>window.scrollY)-beforeScroll)<=1,'Background refresh must not scroll back to the anchor');
+  const nextComment={...comment,id:'next-comment',text:'A new reply arrived while writing.',createdAt:3000};
+  await refreshComments([{...comment,text:'The next refreshed fixture reply.'},nextComment]);await assertDraft(draft,'Keep this unsent comment draft');
+  await anchor.getByRole('button',{name:'Reply',exact:true}).click();const reply=alice.getByRole('textbox',{name:'Write a reply…',exact:true});await reply.fill('Keep this unsent reply draft');await selectDraft(reply);
+  await refreshComments([{...comment,text:'The reply refreshed fixture text.'},nextComment]);await assertDraft(reply,'Keep this unsent reply draft');
+  await showInbox(alice);await panel(alice).getByRole('button',{name:'Notification settings',exact:true}).click();
+  await refreshComments([{...comment,text:'The sheet refreshed fixture text.'},nextComment]);await expect(alice.getByRole('region',{name:'Notification choices',exact:true})).toBeVisible();
+  assert.equal(await alice.evaluate(()=>window.__qaCommentAnchorScrolls),0);
+  await alice.getByRole('button',{name:'Close dialog',exact:true}).click();await selectDraft(reply);
+  await refreshComments([{...comment,text:'The final refreshed fixture text.'},nextComment]);await assertDraft(reply,'Keep this unsent reply draft');
+  // Opening the identical route is a new explicit request, even though the
+  // navigation hook does not push a duplicate history entry.
+  await showInbox(alice);await panel(alice).getByRole('button',{name:'Open Fixture update 135',exact:true}).click();await expect(anchor).toBeFocused();
+  assert.equal(await alice.evaluate(()=>window.__qaCommentAnchorScrolls),1);await expect(draft).toHaveValue('Keep this unsent comment draft');await expect(reply).toHaveValue('Keep this unsent reply draft');
+  const notice=accounts.alice.notices.find(item=>item.id==='alice-notice-135'),previousTarget=notice.target;
+  try{
+   notice.target={kind:'comment',id:nextComment.id,containerId:oldPost.id,anchorId:nextComment.id};
+   await showInbox(alice);await panel(alice).getByRole('button',{name:'Open Fixture update 135',exact:true}).click();
+   await expect(alice.locator('[data-comment-id="next-comment"]')).toBeFocused();assert.equal(await alice.evaluate(()=>window.__qaCommentAnchorScrolls),2);
+  }finally{notice.target=previousTarget;linkedComments=[comment];}
+  await alice.getByRole('button',{name:'Green and White family home',exact:true}).click();
  });
  await check('a delayed notification open cannot override a newer navigation intent',async()=>{
   let release,started;const startedPromise=new Promise(r=>started=r);holdOpen={promise:new Promise(r=>release=r),started};await showInbox(alice);await panel(alice).getByRole('button',{name:'Open Fixture update 134, unread',exact:true}).click();await startedPromise;
@@ -134,7 +188,7 @@ try{
  });
  await check('notification controls fit 320/390/768/1280 across approved materials and palettes',async()=>{
   for(const variant of [{width:320,theme:'light',material:'android'},{width:390,theme:'dark',material:'ios'},{width:768,theme:'light',material:'ios'},{width:1280,theme:'dark',material:'android'}]){
-   await alice.setViewportSize({width:variant.width,height:900});await alice.evaluate(({theme,material})=>{localStorage.setItem('gw-theme',theme);localStorage.setItem('gw-platform',material)},variant);await alice.reload();await showInbox(alice);await checkFit(alice);await alice.screenshot({path:`${output}/${engine}-${variant.width}-${variant.theme}-${variant.material}-inbox.png`,fullPage:true});
+   await alice.setViewportSize({width:variant.width,height:900});await alice.evaluate(({theme,material})=>{localStorage.setItem('gw-theme',theme);localStorage.setItem('gw-platform',material)},variant);await alice.reload();await showInbox(alice);await checkFit(alice);await checkBellClear(alice);await alice.screenshot({path:`${output}/${engine}-${variant.width}-${variant.theme}-${variant.material}-inbox.png`,fullPage:true});
    await panel(alice).getByRole('button',{name:'Notification settings',exact:true}).click();await checkFit(alice);await alice.screenshot({path:`${output}/${engine}-${variant.width}-${variant.theme}-${variant.material}-settings.png`,fullPage:true});await alice.getByRole('button',{name:'Close dialog',exact:true}).click();
   }
  });
