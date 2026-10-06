@@ -4,6 +4,7 @@ import {buildDisplacementLUT,renderDisplacementMap} from '@sohumsuthar/liquid-gl
 import {useLiquidGlassEffects} from '@sohumsuthar/liquid-glass/hooks';
 import {useLiquidLens} from '@sohumsuthar/liquid-glass/hooks/useLiquidLens';
 import paths from './glyph-paths.js';
+import {bindViewportBounds} from './viewport-bounds.js';
 
 export const AppContext=createContext(null);
 const FloatingSurfaceContext=createContext(false);
@@ -52,15 +53,7 @@ export function GlassSystem(){
   return <LiquidGlassFilter displacementMap={map}/>;
 }
 export function useViewport(){
-  useEffect(()=>{
-    const update=()=>{const v=window.visualViewport;const root=document.documentElement;
-      root.style.setProperty('--vv-left',(v?.offsetLeft||0)+'px');
-      root.style.setProperty('--vv-top',(v?.offsetTop||0)+'px');
-      root.style.setProperty('--vv-width',(v?.width||innerWidth)+'px');
-      root.style.setProperty('--vv-height',(v?.height||innerHeight)+'px')};
-    update();window.addEventListener('resize',update);window.visualViewport?.addEventListener('resize',update);window.visualViewport?.addEventListener('scroll',update);
-    return ()=>{window.removeEventListener('resize',update);window.visualViewport?.removeEventListener('resize',update);window.visualViewport?.removeEventListener('scroll',update)};
-  },[]);
+  useEffect(()=>bindViewportBounds(),[]);
 }
 export function Popover({open,onClose,anchor,children,kind='menu',className='',style}) {
   const glass=useApp()?.platform!=='android';

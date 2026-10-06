@@ -16,6 +16,8 @@ assert.ok(/^http:\/\/(127\.0\.0\.1|localhost):4176$/.test(base), 'Use the isolat
 const output = 'docs/page-content-qa';
 const engineName = process.env.GW_BROWSER === 'webkit' ? 'webkit' : 'chromium';
 const results = [], errors = [], sessions = [], writes = [];
+const browserReads = new WeakMap(), traceStarted = Date.now();
+let currentCheck = 'fixture setup';
 const browser = await (engineName === 'webkit' ? webkit : chromium).launch({headless: true});
 await mkdir(output, {recursive: true});
 
@@ -30,16 +32,80 @@ const modeDone = page => toolbar(page).locator('.page-mode-done');
 const contentPayload = value => ({text: {...value.text}, hero: {mode: value.hero.mode, media: value.hero.media.map(({id, alt = ''}) => ({id, alt}))}});
 
 async function check(name, run) {
+  currentCheck = name;
   await run();
   results.push({check: name, status: 'passed'});
   console.log('PAGE CONTENT PASS:', name);
+}
+// Keep a bounded, body-free record of browser traffic and document lifecycle.
+// APIRequestContext permission probes deliberately do not enter this stream.
+function observeBrowser(page, label) {
+  const trace = {sequence: 0, lastDrained: 0, events: [], droppedEvents: 0, reads: [], pending: new Map()};
+  const requests = new WeakMap();
+  trace.log = (type, detail = {}) => {
+    trace.events.push({ms: Date.now() - traceStarted, check: currentCheck, document: page.url(), type, ...detail});
+    if (trace.events.length > 600) {trace.events.shift(); trace.droppedEvents++;}
+  };
+  const snapshot = () => ({pending: [...trace.pending.values()].map(value => ({...value})), recentEvents: trace.events.slice(-30)});
+  page.on('request', request => {
+    const url = new URL(request.url()), sameOriginApi = url.origin === base && url.pathname.startsWith('/api/');
+    if (!sameOriginApi && !request.isNavigationRequest()) return;
+    const entry = {id: ++trace.sequence, url: url.href, path: url.pathname, method: request.method(), resource: request.resourceType(), navigation: request.isNavigationRequest(), startedMs: Date.now() - traceStarted, document: page.url()};
+    requests.set(request, entry);
+    if (sameOriginApi && entry.method === 'GET' && ['fetch', 'xhr'].includes(entry.resource)) {
+      trace.reads.push(entry); trace.pending.set(entry.id, entry);
+      // Requests are also recorded in events; retain only recent read contracts.
+      if (trace.reads.length > 300) trace.reads.shift();
+    }
+    trace.log('request', {...entry});
+  });
+  page.on('response', response => {
+    const entry = requests.get(response.request()); if (!entry) return;
+    entry.status = response.status(); entry.responseMs = Date.now() - traceStarted;
+    const headers = response.headers();
+    trace.log('response', {id: entry.id, url: response.url(), status: entry.status, headers: Object.fromEntries(Object.entries(headers).filter(([name]) => ['content-type', 'cache-control', 'location', 'content-security-policy', 'access-control-allow-origin'].includes(name)))});
+  });
+  for (const event of ['requestfinished', 'requestfailed']) page.on(event, request => {
+    const entry = requests.get(request); if (!entry) return;
+    entry.finishedMs = Date.now() - traceStarted;
+    if (event === 'requestfailed') entry.failure = request.failure()?.errorText || 'Unknown request failure';
+    trace.pending.delete(entry.id);
+    trace.log(event, {...entry});
+  });
+  page.on('framenavigated', frame => {if (frame === page.mainFrame()) trace.log('main-frame-navigated', {url: frame.url()});});
+  page.on('domcontentloaded', () => trace.log('domcontentloaded'));
+  page.on('load', () => trace.log('load'));
+  page.on('console', message => {
+    if (message.text().startsWith('__GW_CMS_LIFECYCLE__')) {
+      try {trace.log('document-lifecycle', JSON.parse(message.text().slice('__GW_CMS_LIFECYCLE__'.length)));}
+      catch {trace.log('unreadable-lifecycle-record');}
+    } else if (message.type() === 'error') trace.log('console-error', {text: message.text().slice(0, 2000), location: message.location()});
+  });
+  page.on('pageerror', error => {
+    const detail = {user: label, error: error.message, name: error.name, stack: error.stack, ms: Date.now() - traceStarted, check: currentCheck, document: page.url(), ...snapshot()};
+    errors.push(detail); // No pageerror is filtered, including access-control errors.
+    trace.log('pageerror', {error: error.message, stack: error.stack});
+    console.error('CMS BROWSER ERROR', JSON.stringify(detail));
+  });
+  browserReads.set(page, trace);
+  return trace;
+}
+async function settleBrowserReads(page, {since, required = []} = {}) {
+  const trace = browserReads.get(page), after = since ?? trace.lastDrained;
+  await expect.poll(() => ({
+    missing: required.filter(path => !trace.reads.some(read => read.id > after && read.path === path && read.finishedMs !== undefined)),
+    pending: [...trace.pending.values()].map(read => read.path),
+  }), {message: 'Authenticated route reads finish before the next document navigation.', timeout: 15000}).toEqual({missing: [], pending: []});
+  const failed = trace.reads.filter(read => read.id > after && (read.failure || !(read.status >= 200 && read.status < 300)));
+  assert.deepEqual(failed, [], 'Normal same-origin browser reads succeed; deliberate permission probes use APIRequestContext.');
+  trace.lastDrained = trace.sequence;
 }
 async function person(id, {width = 390, height = 844, motion = 'reduce', active = true, label = id} = {}) {
   const context = await browser.newContext({viewport: {width, height}, reducedMotion: motion});
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
-  sessions.push({id: label, context, page});
-  page.on('pageerror', error => errors.push({user: label, error: error.message}));
+  const trace = observeBrowser(page, label);
+  sessions.push({id: label, context, page, trace});
   page.on('dialog', dialog => dialog.type() === 'beforeunload' ? dialog.accept() : dialog.dismiss());
   page.on('request', request => {
     if (new URL(request.url()).pathname.startsWith('/api/page-content/') && request.method() !== 'GET') {
@@ -47,13 +113,23 @@ async function person(id, {width = 390, height = 844, motion = 'reduce', active 
     }
   });
   await page.addInitScript(() => {
+    const emit = (event, detail = {}) => console.log('__GW_CMS_LIFECYCLE__' + JSON.stringify({event, url: location.href, timeOrigin: performance.timeOrigin, documentMs: performance.now(), readyState: document.readyState, ...detail}));
+    emit('new-document');
+    for (const event of ['beforeunload', 'pagehide', 'pageshow']) addEventListener(event, () => emit(event));
+    // Observe actual window exceptions/rejections without swallowing them.
+    addEventListener('error', event => emit('window-error', {message: event.message, filename: event.filename, line: event.lineno, column: event.colno, stack: event.error?.stack}));
+    addEventListener('unhandledrejection', event => emit('unhandledrejection', {message: String(event.reason?.message || event.reason), stack: event.reason?.stack}));
     localStorage.setItem('gw-install-dismissed', 'true');
     localStorage.setItem('gw-preview-notice:v1', 'seen');
     localStorage.setItem('gw-platform', 'android');
   });
+  trace.log('signin-start');
   await page.goto(id ? `${base}/__test/signin?user=${encodeURIComponent(id)}` : base);
-  if (active && id) await page.getByRole('navigation', {name: 'Main navigation', exact: true}).waitFor();
-  else await expect(page.locator('.onboard')).toBeVisible();
+  if (active && id) {
+    await page.getByRole('navigation', {name: 'Main navigation', exact: true}).waitFor();
+    await settleBrowserReads(page, {required: ['/api/state', '/api/page-content/home', '/api/page-content/global', '/api/conversations', '/api/conversations/recipients']});
+  } else await expect(page.locator('.onboard')).toBeVisible();
+  trace.log('signin-ready');
   return page;
 }
 async function api(page, path, {method = 'GET', data} = {}) {
@@ -74,9 +150,31 @@ const record = (page, key = 'home') => ok(page, '/api/page-content/' + key);
 async function patch(page, key, content, expectedRevision) {
   return ok(page, '/api/page-content/' + key, {method: 'PATCH', data: {requestId: randomUUID(), expectedRevision, content: contentPayload(content)}});
 }
+function sharedPageRoute(route, id) {
+  return route === 'memories' ? 'family?tab=memories' : route + (id ? '/' + encodeURIComponent(id) : '');
+}
 async function navigate(page, route, id) {
-  await page.goto(`${base}/?qa=${randomUUID()}#/${route}${id ? '/' + encodeURIComponent(id) : ''}`, {waitUntil: 'domcontentloaded'});
-  await expect(page.locator('main')).toBeVisible();
+  const trace = browserReads.get(page);
+  // A visible main also exists during onboarding. Previously the non-leader
+  // absence assertions could pass there and immediately tear down new reads.
+  await settleBrowserReads(page);
+  const since = trace.sequence, target = `${base}/?qa=${randomUUID()}#/${sharedPageRoute(route, id)}`;
+  trace.log('navigation-start', {target, pending: [...trace.pending.values()]});
+  await page.goto(target, {waitUntil: 'domcontentloaded'});
+  await expect(page).toHaveURL(target);
+  // The authenticated header also exists on detail pages without bottom nav.
+  await expect(page.locator('.app:not(.is-onboarding) > header')).toBeVisible();
+  await expect(page.locator('.onboard')).toHaveCount(0);
+  if (Object.hasOwn(SHARED_PAGE_SCHEMA, route)) await expect(page.getByRole('navigation', {name: 'Main navigation', exact: true})).toBeVisible();
+  const required = ['/api/state', '/api/conversations', '/api/conversations/recipients', '/api/page-content/global'];
+  if (Object.hasOwn(SHARED_PAGE_SCHEMA, route)) required.push('/api/page-content/' + route);
+  if (route === 'family') required.push('/api/directory', '/api/page-content/people');
+  if (route === 'memories') {
+    required.push('/api/page-content/family');
+    await expect(page.getByRole('tab', {name: 'Memories', exact: true})).toHaveAttribute('aria-selected', 'true');
+  }
+  await settleBrowserReads(page, {since, required});
+  trace.log('navigation-ready', {target});
 }
 async function edit(page) {
   await toolbar(page).getByRole('button', {name: /^(Edit page|Resume page edits)$/}).click();
@@ -600,6 +698,7 @@ try {
       assert.deepEqual(Object.keys(write.body.content).sort(), ['hero', 'text']);
       for (const file of write.body.content.hero.media) assert.deepEqual(Object.keys(file).sort(), ['alt', 'id'], 'Client URLs and file metadata never become write authority.');
     }
+    for (const {id, page} of sessions) if (id !== 'anonymous' && id !== 'pending') await settleBrowserReads(page);
     assert.deepEqual(errors, [], 'No unhandled browser exceptions.');
   });
 } catch (error) {
@@ -613,7 +712,8 @@ try {
   }
   throw error;
 } finally {
-  await writeFile(`${output}/results-${engineName}.json`, JSON.stringify({browser: engineName, results, errors, ...(failure ? {failure} : {}), limitations: [
+  await writeFile(`${output}/network-${engineName}.json`, JSON.stringify({browser: engineName, startedAt: new Date(traceStarted).toISOString(), sessions: sessions.map(({id, trace}) => ({user: id, droppedEvents: trace.droppedEvents, events: trace.events, pending: [...trace.pending.values()]}))}, null, 2));
+  await writeFile(`${output}/results-${engineName}.json`, JSON.stringify({browser: engineName, results, errors, networkTrace: `network-${engineName}.json`, ...(failure ? {failure} : {}), limitations: [
     'Hosted synthetic fixture only; no production data, messages, payments, invitations or external writes.',
     'Viewport checks do not establish physical-device keyboard, installed-PWA or touch behavior.',
     'Video controls and media-API pause are verified; native physical pause gestures require device QA.',

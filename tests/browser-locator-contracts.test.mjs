@@ -10,3 +10,5 @@ test('empty-choice status and conversation identity locators disambiguate their 
  assert.match(read('choice-control-browser.mjs'),/getByRole\('listbox',\{name:'New owner',exact:true\}\)\.locator\('\.\.'\)\.getByRole\('status'\)/);
  const comms=read('communications-browser.mjs');assert.doesNotMatch(comms,/conversation-member'\)\.filter\(\{hasText:/);assert.match(comms,/has: alice\.getByText\('Owner', \{exact: true\}\)/);
 });
+
+test('active choice labels use whitespace-normalized semantic matching and still verify disabled-option skipping',()=>{const source=read('choice-control-browser.mjs');assert.match(source,/expect\(activeOption\)\.toHaveText\('Alex Green'\)/);assert.match(source,/expect\(activeOption\)\.toBeEnabled\(\)/);assert.doesNotMatch(source,/assert.equal\(await page.locator\([^;]*innerText\(\),'Alex Green'\)/)});

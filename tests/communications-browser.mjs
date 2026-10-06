@@ -121,6 +121,52 @@ async function noClip(page) {
   assert.ok(geometry.scroll <= geometry.width + 1 && !geometry.controls.length,
     'Communications controls fit the viewport: ' + JSON.stringify(geometry));
 }
+async function composerFits(page, bounds, staleSample) {
+  const geometry = await page.evaluate(({bounds, staleSample}) => {
+    const root = document.documentElement;
+    const keys = ['left', 'top', 'width', 'height'];
+    const previous = keys.map(key => [key, root.style.getPropertyValue('--vv-' + key), root.style.getPropertyPriority('--vv-' + key)]);
+    try {
+      // Read geometry in the same task as these stale values are injected, so
+      // no resize handler/frame can hide an unsafe CSS-only intermediate state.
+      if (staleSample) for (const key of keys) root.style.setProperty('--vv-' + key, staleSample[key] + 'px');
+      const viewport = window.visualViewport;
+      const width = Math.min(root.clientWidth, viewport?.width || innerWidth);
+      const height = Math.min(root.clientHeight, viewport?.height || innerHeight);
+      const visible = bounds || {width, height,
+        left: Math.max(0, Math.min(viewport?.offsetLeft || 0, root.clientWidth - width)),
+        top: Math.max(0, Math.min(viewport?.offsetTop || 0, root.clientHeight - height))};
+      const controls = ['.message-compose-area', '.message-writing textarea', '.message-writing > .send-button']
+        .map(selector => ({selector, box: document.querySelector(selector)?.getBoundingClientRect().toJSON()}));
+      return {visible, controls, css: Object.fromEntries(keys.map(key => [key, root.style.getPropertyValue('--vv-' + key)]))};
+    } finally {
+      if (staleSample) for (const [key, value, priority] of previous) {
+        if (value) root.style.setProperty('--vv-' + key, value, priority);
+        else root.style.removeProperty('--vv-' + key);
+      }
+    }
+  }, {bounds, staleSample});
+  const {visible} = geometry;
+  assert.ok(geometry.controls.every(({box}) => box && box.width > 0 && box.height > 0
+    && box.left >= visible.left - 1 && box.right <= visible.left + visible.width + 1
+    && box.top >= visible.top - 1 && box.bottom <= visible.top + visible.height + 1),
+  'Composer, textbox and Send stay inside the visible rectangle: ' + JSON.stringify(geometry));
+}
+async function viewportSampleApplied(page) {
+  // setViewportSize changes layout before WebKit necessarily delivers its
+  // resize events. Immediate bounds are checked separately; only convergence
+  // of the published sample waits for the actual browser event/render cycle.
+  await expect.poll(() => page.evaluate(() => {
+    const root = document.documentElement, viewport = window.visualViewport;
+    const width = Math.min(root.clientWidth, viewport?.width || innerWidth);
+    const height = Math.min(root.clientHeight, viewport?.height || innerHeight);
+    const expected = {width, height,
+      left: Math.max(0, Math.min(viewport?.offsetLeft || 0, root.clientWidth - width)),
+      top: Math.max(0, Math.min(viewport?.offsetTop || 0, root.clientHeight - height))};
+    return Object.entries(expected).every(([key, value]) => Math.abs(parseFloat(root.style.getPropertyValue('--vv-' + key)) - value) < 0.75);
+  }), {message: 'Published viewport bounds converge to the current clamped browser sample.'}).toBe(true);
+  await composerFits(page);
+}
 async function noTypingDrafts(secret) {
   assert.ok(typingRequests.length, 'At least one real typing request was observed.');
   for (const entry of typingRequests) {
@@ -504,11 +550,30 @@ try {
     await navigate(alice, 'chat', directId);
     await expect(composer(alice)).toBeVisible();
     assert.equal(await alice.locator('main input[type="file"]').count(), 0, 'Private messaging is text-only.');
-    for (const width of [320, 390, 768]) {
-      await alice.setViewportSize({width, height: 844});
-      await noClip(alice);
-      await alice.screenshot({path: `${output}/conversation-${width}-${engineName}.png`});
+    for (const material of ['ios', 'android']) {
+      await alice.evaluate(material => localStorage.setItem('gw-platform', material), material);
+      await navigate(alice, 'chat', directId);
+      await expect(composer(alice)).toBeVisible();
+      await expect(alice.locator('html')).toHaveAttribute('data-platform', material);
+      for (const {width, height} of [{width: 320, height: 844}, {width: 390, height: 844},
+        {width: 768, height: 844}, {width: 844, height: 390}, {width: 390, height: 844}]) {
+        await alice.setViewportSize({width, height});
+        await noClip(alice);
+        await composerFits(alice, {left: 0, top: 0, width, height});
+        await composerFits(alice, {left: 0, top: 0, width, height}, {left: 100, top: 160, width: 1024, height: 1024});
+        await viewportSampleApplied(alice);
+        await noClip(alice);
+        await alice.screenshot({path: `${output}/conversation-${width}x${height}-${material}-${engineName}.png`});
+      }
+      // Deterministic visual-only keyboard and pinch/pan geometry simulations.
+      // These assert real DOM bounds, without claiming physical-device coverage.
+      for (const visible of [{left: 0, top: 140, width: 390, height: 430}, {left: 70, top: 140, width: 240, height: 380}]) {
+        await composerFits(alice, visible, visible);
+      }
     }
+    await alice.evaluate(() => localStorage.setItem('gw-platform', 'ios'));
+    await navigate(alice, 'chat', directId);
+    await expect(composer(alice)).toBeVisible();
     await alice.setViewportSize({width: 390, height: 430});
     await navigate(bob, 'chat', directId);
     await expect(composer(bob)).toBeVisible();
@@ -517,12 +582,20 @@ try {
     const dotAnimations = await alice.locator('.remote-typing .activity-dots-visual > span').evaluateAll(elements => elements.map(element => getComputedStyle(element).animationName));
     assert.deepEqual(dotAnimations, ['none', 'none', 'none'], 'Visible typing dots respect reduced motion.');
     await composer(alice).fill('Fixture keyboard visibility draft');
-    await composer(alice).focus();
-    await composer(alice).scrollIntoViewIfNeeded();
-    await noClip(alice);
-    const box = await sendButton(alice).boundingBox();
-    assert.ok(box && box.x >= 0 && box.x + box.width <= 391 && box.y >= 0 && box.y + box.height <= 431,
-      'Send stays inside the reduced-height viewport while composing: ' + JSON.stringify(box));
+    for (const width of [320, 390, 768]) {
+      await alice.setViewportSize({width, height: 430});
+      await noClip(alice);
+      await composerFits(alice, {left: 0, top: 0, width, height: 430});
+      await composer(alice).focus();
+      await composer(alice).scrollIntoViewIfNeeded();
+      await viewportSampleApplied(alice);
+      await noClip(alice);
+      const box = await sendButton(alice).boundingBox();
+      assert.ok(box && box.x >= 0 && box.x + box.width <= width + 1 && box.y >= 0 && box.y + box.height <= 431,
+        'Send stays inside the reduced-height viewport while composing: ' + JSON.stringify(box));
+    }
+    await alice.setViewportSize({width: 390, height: 430});
+    await viewportSampleApplied(alice);
     assert.equal(await alice.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), true);
     const animated = await alice.locator('main').evaluate(root => root.getAnimations({subtree: true})
       .filter(animation => animation.playState === 'running' && animation.effect?.getTiming().iterations === Infinity)
