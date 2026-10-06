@@ -38,21 +38,21 @@ jobs:
       - name: Full recovery browser checks
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 --directory dist > /tmp/gw-http.log 2>&1 &
-          node tests/recovery-browser.mjs
-          node tests/hotfix-browser.mjs
+          node scripts/ci-test-summary.mjs recovery-browser --browser tests/recovery-browser.mjs
+          node scripts/ci-test-summary.mjs hotfix-browser --browser tests/hotfix-browser.mjs
       - name: Live API integration browser checks
         run: |
           node backend/tests/fixture-server.mjs > /tmp/gw-fixture.log 2>&1 &
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4174/api/config && break; sleep 1; done
-          node tests/media-browser.mjs
-          node tests/live-browser.mjs
+          node scripts/ci-test-summary.mjs media-browser --browser tests/media-browser.mjs
+          node scripts/ci-test-summary.mjs live-browser --browser tests/live-browser.mjs
       - name: Private communications browser checks
         if: always() && steps.frontend_build.outcome == 'success' && steps.backend_build.outcome == 'success'
         timeout-minutes: 10
         run: |
           node backend/tests/communications-fixture-server.mjs > /tmp/gw-communications-fixture.log 2>&1 &
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4175/api/config && break; sleep 1; done
-          CI=true node tests/communications-browser.mjs
+          CI=true node scripts/ci-test-summary.mjs communications-browser --browser tests/communications-browser.mjs
       - name: Device-aware navigation geometry checks
         if: always() && steps.frontend_build.outcome == 'success'
         timeout-minutes: 6
@@ -60,18 +60,18 @@ jobs:
           if ! curl -fsS http://127.0.0.1:4173/; then
             python3 -m http.server 4173 --bind 127.0.0.1 --directory dist > /tmp/gw-http.log 2>&1 &
           fi
-          CI=true node tests/navigation-insets-browser.mjs
+          CI=true node scripts/ci-test-summary.mjs navigation-insets-browser --browser tests/navigation-insets-browser.mjs
       - name: Shared page editor browser checks
         if: always() && steps.frontend_build.outcome == 'success' && steps.backend_build.outcome == 'success'
         timeout-minutes: 10
         run: |
           node backend/tests/page-content-fixture-server.mjs > /tmp/gw-page-content-fixture.log 2>&1 &
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4176/api/config && break; sleep 1; done
-          CI=true node tests/page-content-browser.mjs
+          CI=true node scripts/ci-test-summary.mjs page-content-browser --browser tests/page-content-browser.mjs
       - name: Choice and Send keyboard checks
         if: always() && steps.frontend_build.outcome == 'success'
         timeout-minutes: 6
-        run: CI=true node tests/choice-control-browser.mjs
+        run: CI=true node scripts/ci-test-summary.mjs choice-control-browser --browser tests/choice-control-browser.mjs
       - name: Durable activity inbox checks
         if: always() && steps.frontend_build.outcome == 'success'
         timeout-minutes: 6
@@ -80,11 +80,11 @@ jobs:
             python3 -m http.server 4173 --bind 127.0.0.1 --directory dist > /tmp/gw-http.log 2>&1 &
             for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ && break; sleep 1; done
           fi
-          CI=true node tests/notifications-browser.mjs
+          CI=true node scripts/ci-test-summary.mjs notifications-browser --browser tests/notifications-browser.mjs
       - name: Guided install and optional help checks
         if: always() && steps.frontend_build.outcome == 'success'
         timeout-minutes: 6
-        run: CI=true node tests/install-tutorial-browser.mjs
+        run: CI=true node scripts/ci-test-summary.mjs install-tutorial-browser --browser tests/install-tutorial-browser.mjs
       - name: Safari same-tab memory upload reload regression
         if: always() && matrix.browser == 'webkit' && steps.frontend_build.outcome == 'success' && steps.backend_build.outcome == 'success'
         timeout-minutes: 5
@@ -93,11 +93,11 @@ jobs:
             node backend/tests/fixture-server.mjs > /tmp/gw-fixture.log 2>&1 &
             for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4174/api/config && break; sleep 1; done
           fi
-          node tests/webkit-memory-reload.mjs
+          node scripts/ci-test-summary.mjs webkit-memory-reload --browser tests/webkit-memory-reload.mjs
       - name: WebKit isolated navigation diagnostics
         if: always() && matrix.browser == 'webkit' && steps.frontend_build.outcome == 'success' && steps.backend_build.outcome == 'success'
         timeout-minutes: 6
-        run: node tests/webkit-diagnostics.mjs
+        run: node scripts/ci-test-summary.mjs webkit-diagnostics --browser tests/webkit-diagnostics.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

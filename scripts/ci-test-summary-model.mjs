@@ -35,6 +35,12 @@ export function buildFailureAnnotation(log){
  const failures=lines.filter(line=>/\[ERROR\]|^Error:|Could not resolve|Build failed|not supported|not found/i.test(line)).slice(0,8).map(line=>line.slice(0,400));
  return {title:'Required backend bundle failed',message:(failures.join('\n')||'The full required bundle failed; see the unchanged raw build output.').slice(0,1400)};
 }
+export function browserFailureAnnotation(log){
+ const lines=String(log||'').replace(/\u001b\[[0-9;]*m/g,'').split('\n');
+ const safe=line=>line.replace(/Bearer\s+\S+/gi,'Bearer [redacted]').replace(/((?:token|authorization|cookie|secret|password|endpoint|email)["']?\s*[:=]\s*)[^,\s}]+/gi,'$1[redacted]').replace(/https?:\/\/[^\s"']+/g,url=>url.split('?')[0].split('#')[0]);
+ const details=lines.filter(line=>/\b(?:Error|AssertionError|TimeoutError|Expected|Received|expect\(|Call log:)\b|\[ERROR\]/.test(line)&&!/["'](?:dom|bodyText|buttons)["']\s*:/.test(line)).slice(0,8).map(line=>safe(line).slice(0,400));
+ return {title:'Required browser check failed',message:(details.join('\n')||'The unchanged required browser check failed; see its original raw output.').slice(0,1400)};
+}
 const commandProperty=value=>commandData(value).replaceAll(':','%3A').replaceAll(',','%2C');
 export function testFailureCommand(record,suite='GW suite'){
  const properties=['title='+commandProperty(suite+': '+record.title)];

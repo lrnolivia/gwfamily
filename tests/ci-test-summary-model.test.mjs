@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {testFailureAnnotations,testFailureCommand,testSuiteCounts,buildFailureAnnotation} from '../scripts/ci-test-summary-model.mjs';
+import {testFailureAnnotations,testFailureCommand,testSuiteCounts,buildFailureAnnotation,browserFailureAnnotation} from '../scripts/ci-test-summary-model.mjs';
 test('failure annotations retain actual tests and source locations without changing suite selection',()=>{
  const log="not ok 7 - current failed contract\n  location: '/home/runner/work/gwfamily/gwfamily/tests/example.test.mjs:18:3'\n  failureType: 'testCodeFailure'\n  error: 'Mismatch'\n  code: 'ERR_ASSERTION'\nnot ok 8 - backend mismatch\n  location: '/home/runner/work/gwfamily/gwfamily/backend/tests/example.test.mjs:5:1'\n";
  const rows=testFailureAnnotations(log);assert.equal(rows.length,2);assert.equal(rows[0].path,'tests/example.test.mjs');assert.equal(rows[0].line,18);assert.equal(rows[1].path,'backend/tests/example.test.mjs');assert.match(rows[0].message,/ERR_ASSERTION/);
@@ -21,4 +21,7 @@ test('terminal TAP counts are reported exactly and incomplete output is not call
 test('build diagnostics retain exact bounded errors from the unchanged full build',()=>{
  const row=buildFailureAnnotation('banner\n✘ [ERROR] Could not resolve "crypto"\nError: Build failed with 1 error\n');assert.match(row.message,/Could not resolve "crypto"/);assert.match(row.message,/Build failed with 1 error/);assert.ok(row.message.length<=1400);
  assert.match(buildFailureAnnotation('').message,/full required bundle failed/);assert.ok(!testFailureCommand(row,'backend-build').includes('\n'));
+});
+test('browser failure annotations are bounded and redact tokens and URL query state',()=>{
+ const row=browserFailureAnnotation('TimeoutError: missing synthetic control at https://fixture.invalid/path?secret=private#fragment\nError: authorization=privateToken Bearer otherToken\n');assert.match(row.message,/missing synthetic control/);assert.match(row.message,/https:\/\/fixture.invalid\/path/);assert.doesNotMatch(row.message,/private|otherToken|#fragment|\?secret/);assert.ok(row.message.length<=1400);assert.ok(!testFailureCommand(row,'browser').includes('\n'));
 });
