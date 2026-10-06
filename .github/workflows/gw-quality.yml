@@ -15,7 +15,7 @@ jobs:
     env:
       GW_BROWSER: ${{ matrix.browser }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,6 +46,21 @@ jobs:
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4174/api/config && break; sleep 1; done
           node tests/media-browser.mjs
           node tests/live-browser.mjs
+      - name: Private communications browser checks
+        if: always() && steps.frontend_build.outcome == 'success' && steps.backend_build.outcome == 'success'
+        timeout-minutes: 10
+        run: |
+          node backend/tests/communications-fixture-server.mjs > /tmp/gw-communications-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4175/api/config && break; sleep 1; done
+          CI=true node tests/communications-browser.mjs
+      - name: Device-aware navigation geometry checks
+        if: always() && steps.frontend_build.outcome == 'success'
+        timeout-minutes: 6
+        run: |
+          if ! curl -fsS http://127.0.0.1:4173/; then
+            python3 -m http.server 4173 --bind 127.0.0.1 --directory dist > /tmp/gw-http.log 2>&1 &
+          fi
+          CI=true node tests/navigation-insets-browser.mjs
       - name: Safari same-tab memory upload reload regression
         if: always() && matrix.browser == 'webkit' && steps.frontend_build.outcome == 'success' && steps.backend_build.outcome == 'success'
         timeout-minutes: 5
@@ -66,4 +81,6 @@ jobs:
           path: |
             docs/recovery-qa
             docs/live-qa
+            docs/communications-qa
+            docs/navigation-qa
           retention-days: 7
