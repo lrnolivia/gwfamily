@@ -42,7 +42,7 @@ try{
   await page.getByRole('radio',{name:'Coming',exact:true}).focus();await page.keyboard.press('ArrowRight');await expect(page.getByRole('radio',{name:'Deciding',exact:true})).toBeChecked();
   const count=page.getByRole('combobox',{name:'How many people?'});await count.focus();await expect(count).toHaveAttribute('aria-expanded','true');await count.fill('20');await count.press('Enter');await expect(count).toHaveValue('20');await expect(count).toHaveAttribute('aria-expanded','false');
   const owner=page.getByRole('combobox',{name:'New owner'});await owner.focus();await owner.fill('not a family member');
-  await expect(page.getByRole('status')).toHaveText('No choices match. Try another search.');
+  await expect(page.getByRole('listbox',{name:'New owner',exact:true}).locator('..').getByRole('status')).toHaveText('No choices match. Try another search.');
   await expect(owner).toHaveAttribute('aria-expanded','true');
   // The empty top-layer popup can overlap this action. A normal pointer click
   // must reach the form, which must still reject an unselected required owner.

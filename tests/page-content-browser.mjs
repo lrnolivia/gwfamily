@@ -570,7 +570,14 @@ try {
       await noClip(otherOwner);
       await panelFits(otherOwner, 'dialog[open]');
       const history = otherOwner.getByRole('combobox', {name: 'History for', exact: true});
-      for (const key of ['family', 'people', 'memories', 'tree', 'global']) await history.selectOption(key);
+      for (const key of ['family', 'people', 'memories', 'tree', 'global']) {
+        const label = SHARED_PAGE_SCHEMA[key].label + (key === 'global' ? '' : ' page');
+        await history.click();
+        await history.fill(label);
+        await otherOwner.getByRole('option', {name: label, exact: true}).click();
+        await expect(history).toHaveValue(label);
+        await expect(history).toHaveAttribute('aria-expanded', 'false');
+      }
       await closeDialog(otherOwner);
       await otherOwner.getByRole('tab', {name: 'Memories', exact: true}).click();
       await otherOwner.locator('.memory-filter-panel > summary').click();

@@ -395,7 +395,7 @@ try {
     await alice.getByRole('button', {name: 'Save group name', exact: true}).click();
     await expect(alice.getByRole('heading', {name: 'Fixture cousins planning', exact: true})).toBeVisible();
     await denied(bob, `/api/conversations/${groupId}`, {method: 'PATCH', data: {name: 'Not authorized'}});
-    const bobRow = alice.locator('.conversation-member').filter({hasText: 'Bob'});
+    const bobRow = alice.locator('.conversation-member').filter({has: alice.getByText('Bob', {exact: true})});
     await bobRow.getByRole('button', {name: 'Make manager', exact: true}).click();
     await expect.poll(async () => (await ok(bob, `/api/conversations/${groupId}`)).conversation.myRole).toBe('manager');
     await bobRow.getByRole('button', {name: 'Remove manager role', exact: true}).click();
@@ -408,7 +408,7 @@ try {
     await picker.fill('Owner');
     await alice.getByRole('option', {name: 'Owner', exact: true}).click();
     await alice.getByRole('button', {name: 'Send invitations', exact: true}).click();
-    await expect(alice.locator('.conversation-member').filter({hasText: 'Owner'})).toContainText('Invited');
+    await expect(alice.locator('.conversation-member').filter({has: alice.getByText('Owner', {exact: true})})).toContainText('Invited');
     await assertAccessDenied(owner, groupId);
     await inbox(owner);
     const invitation = owner.locator('.conversation-invite').filter({hasText: 'Fixture cousins planning'});
@@ -420,7 +420,7 @@ try {
   await check('removed participants lose API access and already-open UI history', async () => {
     await navigate(bob, 'chat', groupId);
     await expect(messageRow(bob, 'Group fixture secret before acceptance')).toHaveCount(1);
-    const bobRow = alice.locator('.conversation-member').filter({hasText: 'Bob'});
+    const bobRow = alice.locator('.conversation-member').filter({has: alice.getByText('Bob', {exact: true})});
     await bobRow.getByRole('button', {name: 'Remove', exact: true}).click();
     await expect(alice.getByRole('heading', {name: 'Remove Bob?', exact: true})).toBeVisible();
     await alice.getByRole('button', {name: 'Confirm removal', exact: true}).click();
