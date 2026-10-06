@@ -12,4 +12,5 @@ test('family relational inputs use shared directory selector with scoped ancesto
  assert.match(read('memories.jsx'),/MemberPicker label="Find family to tag" purpose="tag"/);
  assert.match(read('react-app.jsx'),/MemberPicker label="Family in this post" purpose="tag"/);
  assert.match(read('member-tags.jsx'),/personKind==='ancestor'/);
+ assert.match(read('member-picker.jsx'),/role="option" aria-label=\{person.name/);
 });

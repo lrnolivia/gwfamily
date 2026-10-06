@@ -55,6 +55,10 @@ jobs:
             for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4174/api/config && break; sleep 1; done
           fi
           node tests/webkit-memory-reload.mjs
+      - name: WebKit isolated navigation diagnostics
+        if: always() && matrix.browser == 'webkit' && steps.frontend_build.outcome == 'success' && steps.backend_build.outcome == 'success'
+        timeout-minutes: 6
+        run: node tests/webkit-diagnostics.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
