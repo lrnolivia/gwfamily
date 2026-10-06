@@ -28,11 +28,11 @@ jobs:
       - run: node tests/prepare-assets.mjs
       - id: frontend_build
         run: npm run build
-      - run: npm test
+      - run: node scripts/ci-test-summary.mjs frontend
       - run: npm ci --ignore-scripts
         working-directory: backend
       - id: backend_build
-        run: npm test && npm run build
+        run: node ../scripts/ci-test-summary.mjs backend && npm run build
         working-directory: backend
       - run: npx playwright install --with-deps chromium ${{ matrix.browser }}
       - name: Full recovery browser checks
@@ -112,3 +112,4 @@ jobs:
             docs/help-qa
             docs/notifications-qa
           retention-days: 7
+

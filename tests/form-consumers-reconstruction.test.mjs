@@ -1,3 +1,4 @@
+import './offline-test-guard.mjs';
 // New post-reset coverage. These are offline source contracts and pure models,
 // not JSX rendering, browser interaction, Node 22, or release acceptance.
 import test from 'node:test';
