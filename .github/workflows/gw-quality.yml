@@ -26,17 +26,20 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: node tests/prepare-assets.mjs
-      - run: npm run build
+      - id: frontend_build
+        run: npm run build
       - run: npm test
       - run: npm ci --ignore-scripts
         working-directory: backend
-      - run: npm test && npm run build
+      - id: backend_build
+        run: npm test && npm run build
         working-directory: backend
       - run: npx playwright install --with-deps chromium ${{ matrix.browser }}
       - name: Full recovery browser checks
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 --directory dist > /tmp/gw-http.log 2>&1 &
           node tests/recovery-browser.mjs
+          node tests/hotfix-browser.mjs
       - name: Live API integration browser checks
         run: |
           node backend/tests/fixture-server.mjs > /tmp/gw-fixture.log 2>&1 &
@@ -44,9 +47,14 @@ jobs:
           node tests/media-browser.mjs
           node tests/live-browser.mjs
       - name: Safari same-tab memory upload reload regression
-        if: matrix.browser == 'webkit'
+        if: always() && matrix.browser == 'webkit' && steps.frontend_build.outcome == 'success' && steps.backend_build.outcome == 'success'
         timeout-minutes: 5
-        run: node tests/webkit-memory-reload.mjs
+        run: |
+          if ! curl -fsS http://127.0.0.1:4174/api/config; then
+            node backend/tests/fixture-server.mjs > /tmp/gw-fixture.log 2>&1 &
+            for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4174/api/config && break; sleep 1; done
+          fi
+          node tests/webkit-memory-reload.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

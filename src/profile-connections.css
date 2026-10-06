@@ -1,0 +1,40 @@
+/* Profile connections keep the existing personal-theme surfaces and controls. */
+.profile-edit-form .profile-connections{min-width:0;display:grid;gap:14px;padding-block:22px 4px;border-top:1px solid var(--line)}
+.profile-connections .connection-heading{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.profile-connections .connection-heading h3{margin:0;font:600 1rem/1.4 Inter,system-ui,sans-serif;letter-spacing:0}
+.profile-connections .field-help{margin:0}.profile-connections .connection-heading+.field-help{margin-top:-8px}
+.profile-service-logo{display:block;width:22px;height:22px;flex:none;fill:currentColor}
+.profile-connections :is(button,a,input){touch-action:manipulation}.profile-connections :is(button,a):focus-visible{outline:2px solid var(--text);outline-offset:3px}
+.profile-connections .connection-add{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;justify-self:start;border:1px solid var(--line);border-radius:14px;padding:10px 16px;font-weight:600;font-size:.875rem}
+.profile-connections .social-service-chooser{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 16px;padding-block:4px}
+.profile-connections .social-service-option{display:flex;align-items:center;gap:10px;min-width:0;min-height:52px;padding:10px 4px;text-align:left;border-radius:10px;font-size:.875rem}
+.profile-connections .social-service-option>span{flex:1;min-width:0}.profile-connections .social-service-option>.glyph{width:16px;height:16px}
+.profile-connections .social-handle-list{display:grid;gap:24px}.profile-connections .social-handle-list:empty{display:none}
+.profile-connections .social-handle-row{display:grid;gap:8px;min-width:0}.profile-connections .social-handle-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.profile-edit-form .social-handle-heading label{display:flex;align-items:center;gap:10px;min-width:0}.profile-connections .text-button{font:500 .8125rem/1.4 Inter,system-ui,sans-serif;min-height:44px;padding:8px 4px;color:var(--text);white-space:normal}
+.profile-connections .social-handle-input{display:flex;align-items:center;gap:0;background:var(--raised);border:1px solid var(--line);border-radius:14px;min-width:0;overflow:hidden}
+.profile-connections .social-handle-input>span{padding-left:14px;color:var(--muted);font-size:1rem}
+.profile-edit-form .social-handle-input input{flex:1;width:100%;min-width:0;background:transparent;border:0;border-radius:0;box-shadow:none;padding:12px 14px 12px 7px;margin:0;font-size:1rem;line-height:1.5;min-height:48px;color:var(--text)}
+.profile-connections .social-handle-input:focus-within{outline:2px solid var(--text);outline-offset:2px}.profile-connections .social-handle-input input:focus{outline:none}
+.profile-connections .social-link-preview{font-size:.75rem;overflow-wrap:anywhere}.profile-connections .social-saved-link{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 14px;padding:10px 0}
+.profile-connections .social-saved-link a{display:inline-flex;align-items:center;gap:6px;min-height:44px;color:var(--text);font-size:.875rem;overflow-wrap:anywhere}
+.profile-connections .song-search-input{display:flex;align-items:center;gap:8px;min-width:0;border:1px solid var(--line);border-radius:14px;background:var(--raised);padding:4px 7px 4px 13px}
+.profile-connections .song-search-input>.glyph{width:19px;height:19px;flex:none}.profile-edit-form .song-search-input input{display:block;flex:1;min-width:0;width:100%;min-height:48px;padding:8px 0;border:0;border-radius:0;box-shadow:none;background:transparent;font-size:1rem;color:var(--text);margin:0}
+.profile-connections .song-search-input:focus-within{outline:2px solid var(--text);outline-offset:2px}.profile-connections .song-search-input input:focus{outline:none}
+.profile-connections .song-search-action{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:44px;padding:8px;font-weight:600;font-size:.8125rem;color:var(--text);text-decoration:none;flex:none}
+.profile-connections .song-search-controls{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;margin-top:-6px}
+.profile-connections .music-services{display:flex;align-items:center;gap:4px;flex-wrap:wrap}.profile-connections .music-services button{display:flex;align-items:center;gap:6px;min-height:44px;padding:9px 10px;border-radius:12px;font-size:.8125rem;border:1px solid transparent}
+.profile-connections .music-services button[aria-pressed=true]{background:var(--soft);border-color:var(--line)}.profile-connections .music-services .profile-service-logo{width:17px;height:17px}
+.profile-connections .song-paste-form{display:grid;gap:8px}.profile-connections .song-paste-form>input{width:100%;min-width:0;font-size:1rem}.profile-connections .song-paste-actions{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.profile-connections .song-paste-actions .button{width:auto;min-height:44px;flex:none}.profile-connections .song-paste-actions .button>span{display:inline}
+.profile-connections .song-search-results{list-style:none;margin:0;padding:0;display:grid;min-width:0}.profile-connections .song-search-results>li{border-top:1px solid var(--line);padding:14px 0;display:grid;gap:8px;min-width:0}
+.profile-connections .song-result-choice{display:flex;align-items:center;gap:12px;min-width:0;width:100%;text-align:left;padding:0;border-radius:8px}
+.profile-connections .song-artwork{width:56px;height:56px;border-radius:7px;object-fit:cover;flex:none;display:block}.profile-connections .song-artwork-empty{display:grid;place-items:center;background:var(--soft);color:var(--text)}
+.profile-connections .song-result-copy{flex:1;min-width:0;display:grid;gap:2px}.profile-connections .song-result-copy strong{font-size:.875rem;line-height:1.35;overflow-wrap:anywhere}.profile-connections .song-result-copy>span{font-size:.8125rem;overflow-wrap:anywhere}.profile-connections .song-result-copy small{font-size:.75rem;color:var(--muted);overflow-wrap:anywhere}
+.profile-connections .song-store-link{display:block;justify-self:start;min-height:40px;margin-left:68px}.profile-connections .song-store-link img{width:110px;height:40px;object-fit:contain}
+.profile-connections .selected-theme-song{display:grid;gap:9px;padding:12px 0;border-block:1px solid var(--line)}.profile-connections .selected-song-main{display:flex;align-items:center;gap:12px;min-width:0}.profile-connections .selected-song-main>div{display:grid;gap:3px;flex:1;min-width:0}
+.profile-connections .selected-song-main strong{font-size:.875rem;overflow-wrap:anywhere}.profile-connections .selected-song-main>div>span{font-size:.8125rem;color:var(--muted)}.profile-connections .selected-song-main a{display:flex;align-items:center;gap:4px;color:var(--text);font-size:.75rem;min-height:24px;flex-wrap:wrap}.profile-connections .selected-song-main a .glyph{width:13px;height:13px}
+.profile-connections .music-catalog-credit{margin:0;color:var(--muted);font-size:.75rem;line-height:1.5}.profile-connections :is(input)::placeholder{color:var(--muted);opacity:1}
+.profile-connections :is(.social-service-option,.connection-add,.song-result-choice,.song-search-action):hover{background:var(--soft)}
+@media(max-width:380px){.profile-connections .social-service-chooser{grid-template-columns:minmax(0,1fr)}.profile-connections .song-search-input{gap:5px;padding-left:10px}.profile-connections .song-search-input>.glyph{display:none}.profile-connections .song-search-action{padding-inline:4px}.profile-connections .selected-song-main{gap:8px}.profile-connections .selected-song-main .song-artwork{width:44px;height:44px}}
+.profile-connections .song-paste-toggle{display:inline-flex;align-items:center;gap:5px}.profile-connections .song-paste-toggle .glyph{width:16px;height:16px}

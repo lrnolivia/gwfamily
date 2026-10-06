@@ -1,17 +1,16 @@
 import React,{createContext,useContext,useEffect,useId,useMemo,useRef,useState} from 'react';
 import {LiquidGlass as PackageLiquidGlass,LiquidGlassFilter} from '@sohumsuthar/liquid-glass';
-import {nativeGlassOnly} from './glass-capabilities.js';
+import {singlePassRefraction} from './glass-capabilities.js';
 import {buildDisplacementLUT,renderDisplacementMap} from '@sohumsuthar/liquid-glass/optics';
 import {useLiquidGlassEffects} from '@sohumsuthar/liquid-glass/hooks';
 import {useLiquidLens} from '@sohumsuthar/liquid-glass/hooks/useLiquidLens';
 import paths from './glyph-paths.js';
 
-// One compositor policy for controls, navigation, popovers, and modal sheets.
-// Setting lens=false alone is insufficient: package CSS falls back to the shared
-// SVG filter unless --lg-refract is explicitly disabled on the glass host.
-export function LiquidGlass({lens=false,style,...props}) {
-  const nativeOnly=nativeGlassOnly();
-  return <PackageLiquidGlass {...props} lens={lens&&!nativeOnly} style={nativeOnly?{...style,'--lg-refract':'none'}:style}/>;
+// Keep refraction on WebKit while limiting its backdrop graph to a single
+// displacement pass; chromatic dispersion is an optional three-pass effect.
+export function LiquidGlass({lens=false,lensOptions,style,...props}) {
+  const singlePass=singlePassRefraction();
+  return <PackageLiquidGlass {...props} lens={lens} lensOptions={singlePass?{...lensOptions,dispersion:0}:lensOptions} style={style}/>;
 }
 export const AppContext=createContext(null);
 const FloatingSurfaceContext=createContext(false);
@@ -21,7 +20,7 @@ export const useApp=()=>useContext(AppContext);
 // keyboard semantics survive; Android returns only the native button.
 export const Control=React.forwardRef(function Control({className='',children,glassLens,...props},forwardedRef){
   const floating=useContext(FloatingSurfaceContext),app=useApp(),platform=app?.platform||'ios',ref=useRef(null),glass=!floating&&platform==='ios'&&/\b(button|send-button|icon-button|filter-trigger)\b/.test(className)&&!/\b(list-row|brand|avatar)\b/.test(className);
-  const nativeOnly=nativeGlassOnly(),lens=glass&&!nativeOnly&&(glassLens??/\b(button|send-button|icon-button|fab)\b/.test(className));
+  const lens=glass&&(glassLens??/\b(button|send-button|icon-button|fab)\b/.test(className));
   const radius=/\b(icon-button|send-button|fab|avatar)\b/.test(className)?28:/\bbutton\b/.test(className)?25:40;
   const lensState=useLiquidLens(lens?ref:{current:null},{bezel:6,refraction:.9,dispersion:0,radius});
   if(app?.data?.pending&&/\b(button|send-button)\b/.test(className))props.disabled=true;
@@ -29,7 +28,7 @@ export const Control=React.forwardRef(function Control({className='',children,gl
   if(!glass)return React.createElement('button',{...props,ref:setRef,className:[className,floating?'on-floating-surface':''].filter(Boolean).join(' ')},children);
   return React.createElement('button',{...props,ref:setRef,
     className:['liquid-glass','lg-interactive','gw-optic-control',className].filter(Boolean).join(' '),
-    style:{...props.style,...(nativeOnly?{'--lg-refract':'none'}:lens&&lensState.filter?{'--lg-refract':lensState.filter}:null)}},
+    style:{...props.style,...(lens&&lensState.filter?{'--lg-refract':lensState.filter}:null)}},
     lens?lensState.svg:null,
     React.createElement('span',{key:'shadow',className:'glass-shadow','aria-hidden':'true'}),
     React.createElement('span',{key:'effect',className:'liquid-glass-effect','aria-hidden':'true'}),
@@ -56,8 +55,7 @@ export function formatTime(ms){const d=new Date(ms),delta=Math.max(0,Date.now()-
   if(delta<86400000)return Math.floor(delta/3600000)+'h';if(delta<604800000)return Math.floor(delta/86400000)+'d';return new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric'}).format(d)}
 export function GlassSystem(){
   useLiquidGlassEffects({cursor:true,spotlight:false,reveal:false,scroll:false});
-  const nativeOnly=nativeGlassOnly();
-  const map=useMemo(()=>{if(nativeOnly)return null;const canvas=document.createElement('canvas');canvas.width=canvas.height=512;const ctx=canvas.getContext('2d');const image=ctx.createImageData(512,512);renderDisplacementMap(image.data,{width:512,height:512,radius:48,bezel:48,lut:buildDisplacementLUT(255).lut,channelDepth:127});ctx.putImageData(image,0,0);return canvas.toDataURL('image/png')},[nativeOnly]);
+  const map=useMemo(()=>{const canvas=document.createElement('canvas');canvas.width=canvas.height=512;const ctx=canvas.getContext('2d');const image=ctx.createImageData(512,512);renderDisplacementMap(image.data,{width:512,height:512,radius:48,bezel:48,lut:buildDisplacementLUT(255).lut,channelDepth:127});ctx.putImageData(image,0,0);return canvas.toDataURL('image/png')},[]);
   return <LiquidGlassFilter displacementMap={map}/>;
 }
 export function useViewport(){
@@ -92,7 +90,7 @@ export function Popover({open,onClose,anchor,children,kind='menu',className='',s
   const options=kind==='nav'?{bezel:16,refraction:1.2,dispersion:5,radius:40}:
     kind==='button'?{bezel:9,refraction:.9,dispersion:3,radius:28}:{bezel:9,refraction:.9,dispersion:2,radius:28};
   const onToggle=e=>{if(e.newState==='closed'&&e.currentTarget.isConnected&&document.getElementById(id)===e.currentTarget&&!e.currentTarget.matches(':popover-open'))onClose?.()};
-  return glass?<LiquidGlass id={id} style={style} popover="auto" lens lensOptions={options} className={'gw-glass-menu '+className}
+  return glass?<LiquidGlass id={id} style={style} popover="auto" lens={open} lensOptions={options} className={'gw-glass-menu '+className}
     onToggle={onToggle}><FloatingSurfaceContext.Provider value={true}>{children}</FloatingSurfaceContext.Provider></LiquidGlass>:
     <div id={id} style={style} popover="auto" className={'gw-material-menu '+className} onToggle={onToggle}><FloatingSurfaceContext.Provider value={true}>{children}</FloatingSurfaceContext.Provider></div>;
 }
