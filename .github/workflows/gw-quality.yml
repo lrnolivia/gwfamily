@@ -43,10 +43,9 @@ jobs:
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4174/api/config && break; sleep 1; done
           node tests/media-browser.mjs
           node tests/live-browser.mjs
-      - name: Known Safari memory reload reproduction (owner-deferred hotfix)
+      - name: Safari same-tab memory upload reload regression
         if: matrix.browser == 'webkit'
-        continue-on-error: true
-        timeout-minutes: 3
+        timeout-minutes: 5
         run: node tests/webkit-memory-reload.mjs
       - uses: actions/upload-artifact@v4
         if: always()
