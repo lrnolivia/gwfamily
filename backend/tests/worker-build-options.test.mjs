@@ -10,6 +10,6 @@ test('backend build keeps the full browser ESM Worker bundle and exact existing 
 test('bare built-ins become canonical node: specifiers; ordinary packages remain bundled',()=>{
  const options=workerBuildOptions();let resolve;options.plugins[0].setup({onResolve({filter},callback){assert.ok(filter.test('crypto'));resolve=callback}});for(const name of builtinModules.filter(name=>!name.startsWith('node:')))assert.deepEqual(resolve({path:name}),{path:'node:'+name,external:true});
  for(const name of ['web-push','better-auth','hono','some-third-party-package'])assert.equal(resolve({path:name}),null);
- assert.match(options.banner.js,/import \{createRequire as __gwCreateRequire\} from "node:module"/);assert.match(options.banner.js,/const require=__gwCreateRequire\(import.meta.url\)/);
+ assert.match(options.banner.js,/import \{createRequire as __gwCreateRequire\} from "node:module"/);assert.match(options.banner.js,/const require=__gwCreateRequire\("file:\/\/\/bundle\/api-worker.mjs"\)/);assert.doesNotMatch(options.banner.js,/import.meta.url/);
  const config=JSON.parse(readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8'));assert.ok(config.compatibility_flags.includes('nodejs_compat'),'This build must not be used without the existing Node compatibility runtime');
 });
