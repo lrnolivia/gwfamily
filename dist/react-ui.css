@@ -375,3 +375,5 @@ html[data-platform=ios][data-theme=light] .gw-glass-menu>.liquid-glass-content{c
 .header-actions{gap:12px!important;flex:none}
 html[data-theme=light] .wordmark-green{color:#948156!important}html[data-theme=light] .wordmark-bottom{color:#603b26!important}
 html[data-theme=light] .brand>img{filter:drop-shadow(0 2px 2px #34533b45)}
+
+.profile-page{padding:0;border-radius:0;background:transparent}
