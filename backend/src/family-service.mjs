@@ -1,3 +1,5 @@
+import {merchandiseOptions,orderLines} from './merchandise.mjs';
+import {householdState,householdCommand} from './households.mjs';
 import {adultOn,publicBirthdays} from './birthdays.mjs';
 import { can, validateShirtSelection,shouldNotify } from './policy.mjs';
 import { createRateStorage } from './auth.mjs';
@@ -40,7 +42,8 @@ export async function familyState(db,actor){
  const memorials=list(await db.prepare('SELECT id,name,maiden_name,founder,story FROM memorials').bind().all());
  const relationships=list(await db.prepare('SELECT from_id,to_id,kind FROM family_relationships').bind().all());
  const birthdayCalendar=await publicBirthdays(db);
- const state={birthdayCalendar,birthdayCelebration:Boolean(me?.birthday_celebration),mode:'live',schema:3,feedFilter:'all',peopleFilter:'all',memoryFilters:{},onboarding:'done',selfId:actor.id,capabilities:{post:can(actor,'post'),manageReunion:can(actor,'manage_reunion'),moderate:can(actor,'moderate'),manageMembers:can(actor,'manage_members'),treasurer:can(actor,'confirm_fees')},profileComplete:Boolean(me?.completed),
+ const announcementViews=list(await db.prepare('SELECT post_id FROM announcement_views WHERE member_id=?').bind(actor.id).all()).map(v=>v.post_id);
+ const state={announcementViews,birthdayCalendar,birthdayCelebration:Boolean(me?.birthday_celebration),mode:'live',schema:3,feedFilter:'all',peopleFilter:'all',memoryFilters:{},onboarding:'done',selfId:actor.id,capabilities:{post:can(actor,'post'),manageReunion:can(actor,'manage_reunion'),moderate:can(actor,'moderate'),manageMembers:can(actor,'manage_members'),treasurer:can(actor,'confirm_fees')},profileComplete:Boolean(me?.completed),
  members:members.map(m=>({id:m.id,name:m.name,photo:m.image,bio:m.bio||'',profileColor:m.profile_color||'#4f996c',themeSong:m.theme_song||'',socials:json(m.socials_json),circle:m.member_group==='loved_ones'?'loved':'family',leader:!!m.is_leader,moderator:json(m.roles_json,[]).some(r=>['admin','moderator'].includes(r)),groupId:groupMembers.find(g=>g.member_id===m.id)?.group_id||null,registered:true,origin:'live',...(m.id===actor.id?{birthday:me?.birthday,gender:me?.gender}:{} )})).concat(dependents.map(d=>({id:d.id,name:d.name,birthday:d.birthday,gender:d.gender,managedBy:actor.id,circle:'family',origin:'dependent',registered:false}))),
  groups:groups.map(g=>({id:g.id,name:g.name,memberIds:groupMembers.filter(m=>m.group_id===g.id).map(m=>m.member_id)})),
  posts:posts.map(p=>{const meta=json(p.metadata_json);const poll=meta.poll?{...meta.poll,votes:{}}:null;if(poll)for(const v of votes.filter(v=>v.post_id===p.id&&v.member_id!==actor.id))for(const i of json(v.options_json,[]))poll.votes[i]=(poll.votes[i]||0)+1;return {...meta,id:p.id,authorId:p.author_id,groupId:p.group_id,text:p.body,createdAt:stamp(p.created_at),poll}}),
@@ -55,6 +58,7 @@ export async function familyState(db,actor){
  for(const r of reactions){const id=r.post_id||r.comment_id;state.reactionMembers[id]??={};(state.reactionMembers[id][r.emoji]??=[]).push(r.member_id);state.reactionCounts[id]??={};state.reactionCounts[id][r.emoji]=(state.reactionCounts[id][r.emoji]||0)+1;if(r.member_id===actor.id)(state.reactions[id]??=[]).push(r.emoji)}
  const featured=list(await db.prepare('SELECT f.* FROM featured_memories f JOIN memories m ON m.id=f.memory_id WHERE m.deleted_at IS NULL ORDER BY f.is_primary DESC,f.approved_at DESC').bind().all());
  state.featuredPhotos=featured.flatMap(f=>{const m=state.memories.find(m=>m.id===f.memory_id&&m.image===f.media_url);return m?[m]:[]});state.featuredMemoryIds=state.featuredPhotos.map(m=>m.id);state.primaryMemoryId=featured.find(f=>f.is_primary&&state.featuredMemoryIds.includes(f.memory_id))?.memory_id||null;
+ Object.assign(state,await householdState(db,actor));
  return state;
 }
 
@@ -91,9 +95,11 @@ export async function command(db,actor,input){
   let poll=null;if(p.poll){const options=p.poll.options;if(!Array.isArray(options)||options.length<2||options.length>12||!['single','multiple'].includes(p.poll.mode))throw new UserError('A poll needs two to twelve choices');poll={question:text(p.poll.question,160,true),options:options.map(x=>text(x,120,true)),mode:p.poll.mode,votes:{}}}
   if(!body&&!files.length&&!poll)throw new UserError('Write something or add an attachment');
   if(p.groupId&&!await db.prepare('SELECT member_id FROM family_group_members WHERE group_id=? AND member_id=?').bind(p.groupId,actor.id).first())throw new UserError('Group membership required',403);
+  const asLeader=p.asLeader===true;if((asLeader||p.pinned||p.firstView)&&!actor.isLeader)throw new UserError('Only leaders can publish leader announcements',403);if((p.pinned||p.firstView)&&!asLeader)throw new UserError('Choose Post as Leader to pin or announce this post');
   const background=typeof p.background==='string'&&p.background.length<100&&/^[a-zA-Z0-9#|, .()-]*$/.test(p.background)?p.background:null;
-  result.id=uuid();q('INSERT INTO posts(id,author_id,group_id,body,metadata_json) VALUES(?,?,?,?,?)',result.id,actor.id,p.groupId||null,body,JSON.stringify({files,poll,background,backgroundMedia}));break;
+  result.id=uuid();q('INSERT INTO posts(id,author_id,group_id,body,metadata_json) VALUES(?,?,?,?,?)',result.id,actor.id,p.groupId||null,body,JSON.stringify({files,poll,background,backgroundMedia,asLeader,pinned:asLeader&&p.pinned===true,firstView:asLeader&&p.firstView===true}));break;
  }
+ case 'MARK_ANNOUNCEMENT_SEEN':{const post=await readPost(db,actor,input.id);if(!post||!json(post.metadata_json).firstView)throw new UserError('Announcement not found',404);q('INSERT OR IGNORE INTO announcement_views(post_id,member_id) VALUES(?,?)',post.id,actor.id);break;}
  case 'ADD_COMMENT':{
   requireCan(actor,'comment');const post=await readPost(db,actor,input.targetId);if(!post)throw new UserError('Post not found',404);const body=text(input.text||'',1500),files=await ownedFiles(db,actor,input.files||[]);if(!body&&!files.length)throw new UserError('Write a reply or attach a file');
   if(input.parentId&&!await db.prepare('SELECT id FROM comments WHERE id=? AND post_id=? AND deleted_at IS NULL').bind(input.parentId,post.id).first())throw new UserError('Reply not found',404);
@@ -134,16 +140,18 @@ export async function command(db,actor,input){
   requireCan(actor,'confirm_fees');if(!['confirmed','rejected'].includes(input.status))throw new UserError('Choose confirmed or rejected');q('UPDATE fee_reports SET status=?,confirmed_by=? WHERE id=?',input.status,actor.id,input.id);audit('fee-'+input.status,input.id);break;
  }
  case 'CLAIM_ORDER':{
-  const lines=validateShirtSelection(input.lines);for(const l of lines)if(!await db.prepare('SELECT id FROM products WHERE id=? AND active=1 AND deleted_at IS NULL').bind(l.productId).first())throw new UserError('A selected shirt is unavailable');result.id=uuid();q('INSERT INTO shirt_claims(id,member_id,lines_json) VALUES(?,?,?)',result.id,actor.id,JSON.stringify(lines));break;
+  let lines;try{lines=await orderLines(db,input.lines)}catch(e){throw new UserError(e.message,e.status||400)}result.id=uuid();q('INSERT INTO shirt_claims(id,member_id,lines_json) VALUES(?,?,?)',result.id,actor.id,JSON.stringify(lines));break;
  }
  case 'ORDER_RECEIVED':{
   const claim=await db.prepare('SELECT id FROM shirt_claims WHERE id=? AND member_id=?').bind(input.id||'',actor.id).first();if(!claim)throw new UserError('Shirt order not found',404);q("UPDATE shirt_claims SET status='delivered',received_at=CURRENT_TIMESTAMP WHERE id=? AND member_id=?",claim.id,actor.id);break;
  }
  case 'UPDATE_CLAIM':{
-  requireCan(actor,'manage_reunion');if(!['claimed','ordered','ready','shipped'].includes(input.status))throw new UserError('Choose a shirt status');const tracking=webUrl(input.trackingUrl||'',['ups.com','usps.com','tools.usps.com','fedex.com','dhl.com']);q('UPDATE shirt_claims SET status=?,tracking_url=? WHERE id=?',input.status,tracking||null,input.id);audit('shirt-status-update',input.id);break;
+  requireCan(actor,'manage_reunion');if(!['claimed','ordered','ready','shipped','delivered'].includes(input.status))throw new UserError('Choose an order status');if(!await db.prepare('SELECT id FROM shirt_claims WHERE id=?').bind(input.id||'').first())throw new UserError('Order not found',404);const tracking=webUrl(input.trackingUrl||'',['ups.com','usps.com','tools.usps.com','fedex.com','dhl.com']);q('UPDATE shirt_claims SET status=?,tracking_url=? WHERE id=?',input.status,tracking||null,input.id);audit('shirt-status-update',input.id);break;
  }
  case 'SAVE_PRODUCT':{
-  requireCan(actor,'manage_reunion');const p=input.product||{},name=text(p.name,100,true);result.id=p.id||uuid();q('INSERT INTO products(id,name,description,data_json) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,description=excluded.description,data_json=excluded.data_json',result.id,name,text(p.description||'',1000),JSON.stringify({color:/^#[a-fA-F0-9]{6}$/.test(p.color||'')?p.color:'#24452f',price:text(p.price||'',60)}));break;
+  requireCan(actor,'manage_reunion');const p=input.product||{},name=text(p.name,100,true);let options;try{options=merchandiseOptions(p.options||[])}catch(e){throw new UserError(e.message)}
+  const previous=p.id?await db.prepare('SELECT * FROM products WHERE id=? AND deleted_at IS NULL').bind(p.id).first():null;if(p.id&&!previous)throw new UserError('Item not found',404);const old=json(previous?.data_json),photo=p.photo===old.photo?old.photo:p.photo?(await ownedFiles(db,actor,[{url:p.photo}]))[0]:null;if(photo?.type&&!/^image\/(png|jpeg|webp|gif)$/.test(photo.type))throw new UserError('Choose an image for this item');
+  result.id=p.id||uuid();q('INSERT INTO products(id,name,description,data_json,active) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,description=excluded.description,data_json=excluded.data_json,active=excluded.active',result.id,name,text(p.description||'',1000),JSON.stringify({color:/^#[a-fA-F0-9]{6}$/.test(p.color||'')?p.color:'#24452f',price:text(p.price||'',60),photo:typeof photo==='string'?photo:photo?.url||null,options}),p.active===false?0:1);audit('merchandise-save',result.id);break;
  }
  case 'SET_NOTIFICATION_SCOPE':case 'SET_SELECTED_NOTIFICATION_IDS':{
   const before=await db.prepare('SELECT * FROM notification_preferences WHERE member_id=?').bind(actor.id).first();const scope=input.type==='SET_NOTIFICATION_SCOPE'?(input.value==='loved'?'loved_ones':input.value):before?.scope||'leaders';let ids=input.type==='SET_SELECTED_NOTIFICATION_IDS'?input.ids:json(before?.selected_ids_json,[]);if(!['all','family','loved_ones','leaders','selected','off'].includes(scope)||!Array.isArray(ids)||ids.length>200||ids.some(id=>typeof id!=='string'||id.length>100))throw new UserError('Check notification choices');q('INSERT INTO notification_preferences(member_id,scope,selected_ids_json) VALUES(?,?,?) ON CONFLICT(member_id) DO UPDATE SET scope=excluded.scope,selected_ids_json=excluded.selected_ids_json',actor.id,scope,JSON.stringify([...new Set(ids)]));break;
@@ -171,7 +179,7 @@ export async function command(db,actor,input){
  case 'APPROVE_MEMBER':{
   requireCan(actor,'manage_members');if(!['active','suspended'].includes(input.status)||input.id===actor.id)throw new UserError('Choose another membership to update');const roles=Array.isArray(input.roles)?[...new Set(input.roles)]:[];if(roles.some(r=>!['admin','moderator','planner','treasurer'].includes(r)))throw new UserError('Check the selected roles');q('UPDATE members SET status=?,roles_json=?,can_post=? WHERE id=?',input.status,JSON.stringify(roles),input.canPost===true?1:0,input.id);audit('membership-'+input.status,input.id);break;
  }
- default:throw new UserError('This action is not supported');
+ default:{try{const h=await householdCommand(db,actor,input,q,audit);if(!h)throw new UserError('This action is not supported');Object.assign(result,h)}catch(e){if(e instanceof UserError)throw e;if(e.status)throw new UserError(e.message,e.status);throw e}break;}
  }
  if(['ADD_POST','ADD_COMMENT','ADD_MEMORY'].includes(input.type)){
   const name=(await db.prepare('SELECT name FROM user WHERE id=?').bind(actor.id).first())?.name||'A family member';

@@ -1,3 +1,4 @@
+import {registerHouseholdInvites} from './household-invites.mjs';
 import {adultOn} from './birthdays.mjs';
 import {UserError,command,familyState,json,readPost,validDate} from './family-service.mjs';
 import {authEnvironment,authReady,createRateStorage} from './auth.mjs';
@@ -41,7 +42,7 @@ export function registerPublic(app,authFactory){
   try{await e.DB.batch([e.DB.prepare('INSERT INTO media(id,owner_id,object_key,name,mime_type,size_bytes) VALUES(?,?,?,?,?,?)').bind(id,session.user.id,key,'Profile photo',file.type,file.size),e.DB.prepare('UPDATE user SET image=?,updatedAt=? WHERE id=?').bind(url,Date.now(),session.user.id)])}catch(error){await e.R2.delete(key);throw error}return c.json({url},201);
  });
 }
-export function registerFamily(app){
+export function registerFamily(app){registerHouseholdInvites(app);
  app.get('/api/state',async c=>c.json(await familyState(c.env.DB,c.get('actor'))));
  app.post('/api/commands',async c=>c.json(await command(c.env.DB,c.get('actor'),await c.req.json())));
  app.get('/api/directory',async c=>{
@@ -54,7 +55,7 @@ export function registerFamily(app){
   const rsvps=can(actor,'manage_reunion')?(await c.env.DB.prepare('SELECT r.*,u.name FROM rsvps r JOIN user u ON u.id=r.member_id').bind().all()).results:[];
   const claims=can(actor,'manage_reunion')?(await c.env.DB.prepare('SELECT c.*,u.name FROM shirt_claims c JOIN user u ON u.id=c.member_id ORDER BY c.created_at DESC').bind().all()).results:[];
   const fees=can(actor,'confirm_fees')?(await c.env.DB.prepare('SELECT f.*,u.name FROM fee_reports f JOIN user u ON u.id=f.member_id ORDER BY f.created_at DESC').bind().all()).results:[];
-  return c.json({members,rsvps,claims,fees});
+  const products=can(actor,'manage_reunion')?(await c.env.DB.prepare('SELECT * FROM products WHERE deleted_at IS NULL ORDER BY name').bind().all()).results.map(p=>({...json(p.data_json),id:p.id,name:p.name,description:p.description,active:!!p.active})):[];return c.json({members,rsvps,claims,fees,products});
  });
  app.post('/api/media',async c=>{
   const actor=c.get('actor'),db=c.env.DB,bucket=c.env.R2;if(!bucket)throw new UserError('Media storage is not configured',503);
@@ -79,6 +80,8 @@ export function registerFamily(app){
    if(!allowed){const memories=(await db.prepare('SELECT data_json FROM memories WHERE deleted_at IS NULL').bind().all()).results;allowed=memories.some(m=>json(m.data_json).image==='/api/media/'+row.id)}
    if(!allowed){const contacts=(await db.prepare("SELECT p.member_id,p.contact_json FROM profiles p JOIN members m ON m.id=p.member_id WHERE m.status='active'").bind().all()).results;allowed=contacts.some(p=>{const v=json(p.contact_json);return v.photo==='/api/media/'+row.id&&v.optIn===true&&(v.visibility==='All approved family members'||v.visibility==='Family leaders'&&actor.isLeader||v.visibility==='Selected family members'&&v.selectedIds?.includes(actor.id))})}
   }
+  if(!allowed)allowed=!!await db.prepare('SELECT id FROM households WHERE photo_url=?').bind('/api/media/'+row.id).first();
+  if(!allowed){const products=(await db.prepare('SELECT data_json FROM products WHERE active=1 AND deleted_at IS NULL').bind().all()).results;allowed=products.some(p=>json(p.data_json).photo==='/api/media/'+row.id)}
   if(!allowed)throw new UserError('File not found',404);const object=await c.env.R2.get(row.object_key);if(!object)throw new UserError('File not found',404);
   const inline=/^(image\/(png|jpeg|gif|webp)|video\/|audio\/)/.test(row.mime_type);return new Response(object.body,{headers:{'Content-Type':row.mime_type,'Content-Length':String(row.size_bytes),'Content-Disposition':`${inline?'inline':'attachment'}; filename*=UTF-8''${encodeURIComponent(row.name)}`,'X-Content-Type-Options':'nosniff','Cache-Control':'private, no-store','Content-Security-Policy':inline?"default-src 'none'; img-src 'self' data:; media-src 'self' blob:; style-src 'unsafe-inline'; sandbox allow-same-origin":"default-src 'none'; sandbox"}});
  });
