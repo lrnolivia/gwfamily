@@ -1,0 +1,2 @@
+import test from'node:test';import assert from'node:assert/strict';import{initialMaterial,deviceOS}from'../src/material-preference.js';
+test('first visit defaults to the device material but honors explicit choices',()=>{assert.equal(initialMaterial(null,'Mozilla iPhone'),'ios');assert.equal(initialMaterial(null,'Mozilla Android 16'),'android');assert.equal(initialMaterial('ios','Android'),'ios');assert.equal(initialMaterial('android','iPhone'),'android');assert.equal(initialMaterial('invalid','Android'),'android');assert.equal(deviceOS('Macintosh'),'apple')});
