@@ -1,79 +1,17 @@
+import {PageMarkdownEditor,PageMarkdownBody} from './page-markdown.jsx';
+import {plainTextToMarkdown} from './page-markdown-model.js';
 import React,{createContext,useCallback,useContext,useEffect,useId,useLayoutEffect,useMemo,useRef,useState} from 'react';
-import {Button,Control,Glyph,Sheet,useApp} from './ui-core.jsx';
+import {Button,Control,Glyph,useApp} from './ui-core.jsx';
 import {readPreviewFile} from './uploads.js';
-import {ChoiceControl} from './choice-control.jsx';
+import {normalizePanelContent} from './shared-panels.js';
+import {PagePanelActions} from './page-panels.jsx';
 import {SHARED_PAGE_SCHEMA,SHARED_CONTENT_LIMITS,SHARED_IMAGE_TYPES,SHARED_VIDEO_TYPES,sharedPageDefaults,validateSharedPageContent} from './shared-content-schema.js';
 
 const PageContentContext=createContext(null);
-const PREVIEW_KEY='gw-shared-pages-preview:v1';
-const DRAFT_PREFIX='gw-shared-page-drafts:v1:';
-const clone=value=>JSON.parse(JSON.stringify(value));
-const knownPage=page=>typeof page==='string'&&Object.hasOwn(SHARED_PAGE_SCHEMA,page);
-const initialRecord=page=>({page,revision:0,content:sharedPageDefaults(page),canEdit:false,updatedAt:null,status:'idle',error:'',draft:null,base:null,request:null});
+export const PagePanelLockContext=createContext(false);
+import {PREVIEW_KEY,clone,knownPage,initialRecord,pageContentPayload,pageContentFingerprint,pageContentDirty,pageDraftKey,safePageMediaUrl,mergePageDraft,pageContentRequest,pageBrowserStorage,resetPageContentPreview,readStored,writeStored,validRestoredDraft,withOutputMedia,reconcilePageRecord,collectPageDrafts} from './page-content-model.js';
+export {pageContentPayload,pageContentFingerprint,pageContentDirty,pageDraftKey,safePageMediaUrl,mergePageDraft,pageContentRequest,pageBrowserStorage,resetPageContentPreview,reconcilePageRecord,collectPageDrafts} from './page-content-model.js';
 const plainChildren=children=>React.Children.toArray(children).map(child=>typeof child==='string'||typeof child==='number'?String(child):React.isValidElement(child)?child.type==='br'?'\n':plainChildren(child.props.children):'').join('');
-
-// Never round-trip a server URL, MIME type or filename as authority to publish media.
-export function pageContentPayload(content){return {text:{...content.text},hero:{mode:content.hero.mode,media:content.hero.media.map(({id,alt=''})=>({id,alt}))}}}
-export function pageContentFingerprint(content){return JSON.stringify(pageContentPayload(content))}
-export function pageContentDirty(record){return !!record?.draft&&pageContentFingerprint(record.draft)!==pageContentFingerprint(record.content)}
-export function pageDraftKey(account){return DRAFT_PREFIX+encodeURIComponent(account)}
-export function safePageMediaUrl(value,preview=false){
- if(typeof value!=='string')return '';
- if(/^\/api\/media\/[A-Za-z0-9_-]{1,100}$/.test(value))return value;
- if(preview&&/^data:(image\/(?:jpeg|png|webp|gif|avif)|video\/(?:mp4|webm));base64,[A-Za-z0-9+/=]+$/.test(value))return value;
- return '';
-}
-export function mergePageDraft(base,draft,latest){
- const content=clone(latest),conflicts=[];
- for(const [field,value] of Object.entries(draft.text)){
-  if(value===base.text[field])continue;
-  content.text[field]=value;
-  if(latest.text[field]!==base.text[field]&&latest.text[field]!==value)conflicts.push({field,mine:value,theirs:latest.text[field]});
- }
- const hero=value=>JSON.stringify(pageContentPayload({text:{},hero:value}).hero);
- if(hero(draft.hero)!==hero(base.hero)){
-  content.hero=clone(draft.hero);
-  if(hero(latest.hero)!==hero(base.hero)&&hero(latest.hero)!==hero(draft.hero))conflicts.push({field:'hero',mine:draft.hero.mode,theirs:latest.hero.mode});
- }
- return {content,conflicts};
-}
-export async function pageContentRequest(path,{fetchImpl=globalThis.fetch,...options}={}){
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);timer?.unref?.();
- try{
-  let response;
-  try{response=await fetchImpl(path,{...options,signal:options.signal||controller.signal,credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json',...options.headers}})}
-  catch(error){throw Object.assign(new Error(error.name==='AbortError'?'The page request timed out. Your draft is still here. Try again.':'Couldn’t reach the page service. Your draft is still here. Check your connection and try again.'),{ambiguous:true})}
-  let value;try{value=await response.json()}catch{throw Object.assign(new Error('The page service did not respond clearly. Your draft is still here. Try saving again.'),{status:response.status,ambiguous:true})}
-  if(!response.ok)throw Object.assign(new Error(value.error?.message||value.error||'That page change could not be saved. Your draft is still here.'),{status:response.status,current:value.current});
-  return value;
- }finally{clearTimeout(timer)}
-}
-export function pageBrowserStorage(kind,host=globalThis){try{return host[kind]||null}catch{return null}}
-export function resetPageContentPreview(storage){
- let cleared=false;try{const target=storage===undefined?pageBrowserStorage('localStorage'):storage;if(target){target.removeItem(PREVIEW_KEY);cleared=true}}catch{}
- if(typeof window!=='undefined')window.dispatchEvent(new Event('gw-shared-pages-preview-reset'));
- return cleared;
-}
-function readStored(storage,key,fallback){try{const value=JSON.parse(storage?.getItem(key)||'null');return value&&typeof value==='object'&&!Array.isArray(value)?value:fallback}catch{return fallback}}
-function writeStored(storage,key,value){try{if(!storage)return false;storage.setItem(key,JSON.stringify(value));return true}catch{return false}}
-function validRestoredDraft(page,value){try{validateSharedPageContent(page,pageContentPayload(value));return value}catch{return null}}
-function withOutputMedia(content,submitted){const files=new Map(submitted.hero.media.map(file=>[file.id,file]));return {...content,hero:{...content.hero,media:content.hero.media.map(file=>({...files.get(file.id),...file}))}}}
-
-export function reconcilePageRecord(page,result,freshest,stored){
- if(freshest?.status==='saving'||Number.isInteger(freshest?.revision)&&result.revision<freshest.revision)return freshest;
- const prior=pageContentDirty(freshest)?freshest:null;
- const draft=prior?.draft||(stored&&validRestoredDraft(page,stored.draft)),base=prior?.base||(stored&&validRestoredDraft(page,stored.base));
- const next={...initialRecord(page),...result,status:'ready',error:'',draft:result.canEdit&&draft?clone(draft):null,base:result.canEdit&&base?clone(base):null,request:prior?.request||stored?.request||null};
- // Keep the original optimistic revision and freshest keystrokes across polling.
- if(next.draft){next.revision=prior?.revision??stored?.revision??result.revision;if(next.revision!==result.revision){next.latest=result;if(prior?.merge&&prior.latest?.revision===result.revision)next.merge=prior.merge}}
- return next;
-}
-
-export function collectPageDrafts(records,stored={}){
- const drafts=Object.fromEntries(Object.entries(stored).filter(([page,value])=>knownPage(page)&&validRestoredDraft(page,value?.draft)&&validRestoredDraft(page,value?.base)));
- for(const [page,value] of Object.entries(records)){if(pageContentDirty(value))drafts[page]={draft:value.draft,base:value.base||value.content,revision:value.revision,request:value.request};else delete drafts[page]}
- return drafts;
-}
 
 export function PageContentProvider({children,enabled=true}){
  const app=useApp(),state=app?.state||{},preview=state.mode==='preview';
@@ -185,7 +123,7 @@ export function PageContentProvider({children,enabled=true}){
  const rebase=useCallback((page,keepMine)=>{
   const before=ref.current[page];if(!before?.latest||!before.merge)return;
   const draft=clone(before.merge.content);
-  if(!keepMine)for(const conflict of before.merge.conflicts){if(conflict.field==='hero')draft.hero=clone(before.latest.content.hero);else draft.text[conflict.field]=before.latest.content.text[conflict.field]}
+  if(!keepMine)for(const conflict of before.merge.conflicts){if(conflict.field==='hero')draft.hero=clone(before.latest.content.hero);else if(conflict.field==='panelLayout')draft.panelLayout=clone(before.latest.content.panelLayout);else {draft.text[conflict.field]=before.latest.content.text[conflict.field];draft.bodyFormats={...draft.bodyFormats};if(before.latest.content.bodyFormats?.[conflict.field])draft.bodyFormats[conflict.field]=before.latest.content.bodyFormats[conflict.field];else delete draft.bodyFormats[conflict.field]}}
   install(page,{...initialRecord(page),...before.latest,status:'ready',draft,base:clone(before.latest.content),request:null});persistDrafts();
  },[install,persistDrafts]);
  const history=useCallback(async(page,before)=>preview?{revisions:previewStore.current[page]?.revisions||[],nextBefore:null}:pageContentRequest('/api/page-content/'+encodeURIComponent(page)+'/revisions'+(before?'?before='+encodeURIComponent(before):'')),[preview]);
@@ -195,7 +133,7 @@ export function PageContentProvider({children,enabled=true}){
   install(page,{...before,status:'saving',error:'',restoreRequest});
   try{
    let saved;
-   if(preview){const target=revision===0?sharedPageDefaults(page):previewStore.current[page]?.revisions.find(r=>r.revision===revision)?.content;if(!target)throw Error('That saved version is no longer available.');saved={page,revision:before.revision+1,content:clone(target),canEdit:true,updatedAt:new Date().toISOString()};const store={...previewStore.current,[page]:{record:saved,revisions:[{revision:saved.revision,createdAt:saved.updatedAt,editorName:'Preview leader',restoredFrom:revision,content:saved.content},...(previewStore.current[page]?.revisions||[])].slice(0,30)}};if(!writeStored(pageBrowserStorage('localStorage'),PREVIEW_KEY,store))throw Error('The preview could not be restored on this device.');previewStore.current=store}
+   if(preview){const target=revision===0?sharedPageDefaults(page):previewStore.current[page]?.revisions.find(r=>r.revision===revision)?.content;if(!target)throw Error('That saved version is no longer available.');saved={page,revision:before.revision+1,content:normalizePanelContent(page,target),canEdit:true,updatedAt:new Date().toISOString()};const store={...previewStore.current,[page]:{record:saved,revisions:[{revision:saved.revision,createdAt:saved.updatedAt,editorName:'Preview leader',restoredFrom:revision,content:saved.content},...(previewStore.current[page]?.revisions||[])].slice(0,30)}};if(!writeStored(pageBrowserStorage('localStorage'),PREVIEW_KEY,store))throw Error('The preview could not be restored on this device.');previewStore.current=store}
    else saved=await pageContentRequest('/api/page-content/'+encodeURIComponent(page)+'/restore',{method:'POST',body:JSON.stringify({requestId:restoreRequest.id,expectedRevision:before.revision,revision})});
    if(generation!==epoch.current)return false;install(page,{...initialRecord(page),...saved,status:'ready',savedNotice:'Earlier version restored'});persistDrafts();return true;
   }catch(error){if(generation===epoch.current)install(page,error.status===409&&error.current?{...initialRecord(page),...error.current,status:'ready',error:'Another leader changed this page. The latest version is shown; review it before restoring again.'}:{...before,status:'ready',error:error.message,restoreRequest});return false}finally{finishWork()}
@@ -220,7 +158,7 @@ export function usePageContent(page){
 }
 
 export function EditableText({page,field,as:Tag='span',children,className='',...props}){
- const editor=usePageContent(page),definition=knownPage(page)?SHARED_PAGE_SCHEMA[page].fields[field]:null;
+ const panelLocked=useContext(PagePanelLockContext),editor=usePageContent(page),definition=knownPage(page)?SHARED_PAGE_SCHEMA[page].fields[field]:null;
  const [active,setActive]=useState(false),[bounds,setBounds]=useState(null),original=useRef(''),input=useRef(null),trigger=useRef(null),id=useId();
  const stored=editor.content?.text?.[field],hasOriginal=children!==undefined,originalValue=hasOriginal&&(!editor.record?.draft&&editor.record?.revision===0||stored===definition?.default),text=originalValue?plainChildren(children):typeof stored==='string'?stored:plainChildren(children),busy=editor.record?.status==='saving';
  useEffect(()=>{if(!editor.editing||active&&editor.activeEditor!==id)setActive(false)},[editor.editing,editor.activeEditor,active,id]);
@@ -229,8 +167,9 @@ export function EditableText({page,field,as:Tag='span',children,className='',...
  const finish=()=>{setActive(false);requestAnimationFrame(()=>trigger.current?.focus())};
  const change=value=>editor.update(page,draft=>({...draft,text:{...draft.text,[field]:value}}));
  if(!definition||!editor.allowed)return <Tag className={className} {...props}>{children}</Tag>;
+ if(definition.format==='markdown')return <EditableBodyText page={page} field={field} as={Tag} className={className} {...props}>{children}</EditableBodyText>;
  const shown=originalValue?children:typeof stored==='string'?text:children;
- if(!editor.editing)return <Tag className={className} {...props}><span className="page-copy-value">{shown}</span></Tag>;
+ if(!editor.editing||panelLocked)return <Tag className={className} {...props}><span className="page-copy-value">{shown}</span></Tag>;
  const Input=definition.type==='multiline'?'textarea':'input';
  return <Tag className={'page-editable-copy '+className} {...props} data-page-field={page+'.'+field}>
   <span className={'page-copy-frame '+(active?'is-active':'')} style={active&&bounds?{width:bounds.width,height:bounds.height,'--page-input-width':bounds.inputWidth+'px'}:undefined}>
@@ -238,6 +177,19 @@ export function EditableText({page,field,as:Tag='span',children,className='',...
    {active&&<span className="page-copy-input-wrap"><Input ref={input} id={id} className="page-copy-input" aria-label={definition.label} maxLength={definition.maxLength} rows={definition.type==='multiline'?2:undefined} value={text} disabled={busy} onChange={e=>change(e.target.value)} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();change(original.current);finish()}else if(e.key==='Enter'&&(definition.type!=='multiline'||e.metaKey||e.ctrlKey)){e.preventDefault();finish()}}}/><Control type="button" className="page-field-done" disabled={busy} aria-label={'Done editing '+definition.label} onClick={finish}><Glyph name="check"/><span>Done</span></Control></span>}
   </span>
  </Tag>;
+}
+function EditableBodyText({page,field,as:Tag='div',children,className='',...props}){
+ const editor=usePageContent(page),locked=useContext(PagePanelLockContext),definition=SHARED_PAGE_SCHEMA[page].fields[field],stored=editor.content.text[field],format=editor.content.bodyFormats?.[field],id=useId(),trigger=useRef(null),original=useRef(null),[active,setActive]=useState(false),[initialSource,setInitialSource]=useState('');
+ const originalValue=children!==undefined&&(!editor.record.draft&&editor.record.revision===0||stored===definition.default),text=originalValue?plainChildren(children):stored,busy=editor.pending||editor.record.status==='saving',Block=['p','span'].includes(Tag)?'div':Tag;
+ useEffect(()=>{if(!editor.editing||locked||active&&editor.activeEditor!==id)setActive(false)},[editor.editing,locked,active,editor.activeEditor,id]);
+ const finish=()=>{setActive(false);requestAnimationFrame(()=>trigger.current?.focus())};
+ const start=()=>{if(busy||locked)return;original.current={text:stored,format};setInitialSource(format==='markdown'?text:plainTextToMarkdown(text));editor.activateSurface(trigger.current,id);setActive(true)};
+ const change=value=>editor.update(page,draft=>({...draft,text:{...draft.text,[field]:value},bodyFormats:{...draft.bodyFormats,[field]:'markdown'}}));
+ const shown=format==='markdown'?<PageMarkdownBody source={text}/>:<span className="page-copy-value">{originalValue?children:text}</span>;
+ if(!editor.editing||locked)return <Block className={className} {...props}>{shown}</Block>;
+ return <Block className={'page-editable-copy page-editable-body '+className} {...props} data-page-field={page+'.'+field}>
+  {active?<div className="page-body-editor-wrap" onKeyDown={event=>{if(event.key==='Escape'&&!event.defaultPrevented&&!event.nativeEvent.isComposing){event.preventDefault();editor.update(page,draft=>{const bodyFormats={...draft.bodyFormats};if(original.current.format)bodyFormats[field]=original.current.format;else delete bodyFormats[field];return {...draft,text:{...draft.text,[field]:original.current.text},bodyFormats}});finish()}}}><PageMarkdownEditor value={format==='markdown'?stored:initialSource} ariaLabel={definition.label} maxLength={definition.maxLength} disabled={busy} onChange={change} onDone={finish} autoFocus/></div>:<div ref={trigger} className="page-body-edit-target" role="button" tabIndex={0} aria-label={'Edit '+definition.label} onClick={start} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();start()}}}>{shown||<span className="page-empty-copy">{definition.label}</span>}</div>}
+ </Block>;
 }
 function EditGlyph(){return <svg className="glyph page-edit-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1 12-12a2.8 2.8 0 0 0-4-4L4 15z"/></svg>}
 function useReducedMotion(){const [reduced,setReduced]=useState(()=>typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches);useEffect(()=>{const query=matchMedia('(prefers-reduced-motion: reduce)'),update=()=>setReduced(query.matches);update();query.addEventListener('change',update);return()=>query.removeEventListener('change',update)},[]);return reduced}
@@ -256,13 +208,13 @@ function PageHero({hero,preview,editing,poster}){
  </div>;
 }
 export function EditableMedia({page,field='hero',children,className='',poster,emptyLabel='Page photo or video',...props}){
- const editor=usePageContent(page),[open,setOpen]=useState(false),hero=editor.content?.hero;
- useEffect(()=>{if(!editor.editing)setOpen(false)},[editor.editing]);
+ const panelLocked=useContext(PagePanelLockContext),editor=usePageContent(page),[open,setOpen]=useState(false),hero=editor.content?.hero;
+ useEffect(()=>{if(!editor.editing||panelLocked)setOpen(false)},[editor.editing,panelLocked]);
  if(!editor.valid||!editor.allowed||field!=='hero'||!SHARED_PAGE_SCHEMA[page].hero)return children||null;
  if(hero.mode==='default'&&!children&&!editor.editing)return null;
- return <div className={'page-editable-media '+className+(editor.editing?' is-editable':'')} {...props} data-page-field={page+'.hero'}>
+ return <div className={'page-editable-media '+className+(editor.editing&&!panelLocked?' is-editable':'')} {...props} data-page-field={page+'.hero'}>
   <div className="page-media-content">{hero.mode==='default'?children||<div className="page-media-placeholder">{emptyLabel}</div>:<PageHero hero={hero} preview={editor.preview} editing={editor.editing} poster={poster||imageInChildren(children)||'tree-artwork.png'}/>}</div>
-  {editor.editing&&<Control type="button" className="page-media-edit" disabled={editor.record.status==='saving'} aria-label={'Edit '+SHARED_PAGE_SCHEMA[page].label+' page media'} onClick={event=>{editor.activateSurface(event.currentTarget);setOpen(true)}}><span><EditGlyph/>Edit</span></Control>}
+  {editor.editing&&!panelLocked&&!open&&<Control type="button" className="page-media-edit" disabled={editor.record.status==='saving'} aria-label={'Edit '+SHARED_PAGE_SCHEMA[page].label+' page media'} onClick={event=>{editor.activateSurface(event.currentTarget);setOpen(true)}}><span><EditGlyph/>Edit</span></Control>}
   {open&&<PageMediaPanel page={page} onClose={()=>setOpen(false)}/>}
  </div>;
 }
@@ -282,7 +234,7 @@ function PageMediaPanel({page,onClose}){
   }
   uploadLock.current=false;finishWork();if(alive.current){setUploading(false);setProgress(added.length?(editor.preview?'Ready in this preview.':'Uploaded privately.')+' Save the page to use '+(added.length===1?'it.':'these files.'):'');setError(failures.join(' ')+(selected.length>max?' Choose up to '+max+' files at a time.':''))}
  }
- return <Sheet title="Page media" busy={uploading} suppressGlobalPending={uploading} kind="filter" onClose={()=>{if(!uploading)onClose()}} style={{width:'min(420px, calc(var(--vv-width) - 24px))'}}>
+ return <section className="page-inline-editor" aria-label="Page media" aria-busy={uploading}><h3>Page media</h3>
   <div ref={panel} className="page-media-panel"><div className="page-media-modes" role="group" aria-label="Page media layout">{[['image','Photo'],['gallery','Gallery'],['video','Video']].map(([value,label])=><Control key={value} type="button" aria-pressed={mode===value} disabled={uploading} onClick={()=>{setMode(value);setError('');if(hero.mode!==value&&hero.mode!=='default'){const matching=hero.media.filter(file=>value==='video'?file.type?.startsWith('video/'):file.type?.startsWith('image/')).slice(0,value==='gallery'?SHARED_CONTENT_LIMITS.maxGalleryItems:1);setHero(matching.length?{mode:value,media:matching}:{mode:'default',media:[]})}}}>{label}</Control>)}</div>
    <p className="page-editor-help">{mode==='gallery'?'Up to 10 photos, in the order you choose.':mode==='video'?'One muted, looping video. Viewers can pause it.':'One photo, shown in this page’s existing layout.'} {editor.preview?'Preview files stay on this device; 2 MB each.':'Files stay inside the signed-in family space; 20 MB each.'}</p>
    <Button secondary icon="image" disabled={uploading||editor.record.status==='saving'||mode==='gallery'&&hero.mode==='gallery'&&hero.media.length>=max} onClick={()=>picker.current?.click()}>{uploading?'Uploading…':mode==='video'?'Choose video':mode==='gallery'?'Choose photos':'Choose photo'}</Button>
@@ -291,7 +243,7 @@ function PageMediaPanel({page,onClose}){
    {progress&&<p className="page-editor-help" role="status" aria-label="Page media upload">{progress}</p>}{error&&<p className="page-editor-error" role="alert">{error}</p>}
    <div className="page-media-panel-actions"><Control type="button" className="text-button" disabled={uploading||hero.mode==='default'} onClick={()=>setHero({mode:'default',media:[]})}>Use original media</Control><Button icon="check" disabled={uploading} onClick={onClose}>Done</Button></div>
   </div>
- </Sheet>;
+ </section>;
 }
 function PageHistory({page,pages=[page],onClose}){
  const context=useContext(PageContentContext),[selected,setSelected]=useState(page),[rows,setRows]=useState([]),[next,setNext]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[confirm,setConfirm]=useState(null),[restoring,setRestoring]=useState(false);
@@ -299,8 +251,8 @@ function PageHistory({page,pages=[page],onClose}){
  async function load(append=false){const generation=++sequence.current;setLoading(true);setError('');try{const result=await context.history(selected,append?next:null);if(generation===sequence.current){setRows(previous=>append?[...previous,...result.revisions]:result.revisions);setNext(result.nextBefore)}}catch(error){if(generation===sequence.current)setError(error.message)}finally{if(generation===sequence.current)setLoading(false)}}
  useEffect(()=>{setRows([]);setConfirm(null);void context.load(selected);void load();return()=>{sequence.current++}},[selected]);
  async function restore(revision){if(restoring)return;setRestoring(true);const ok=await context.restore(selected,revision);setRestoring(false);if(ok){setConfirm(null);await load()}else setError(context.records[selected]?.error||'The version could not be restored. Close this panel to review the page status.')}
- return <Sheet title="Page history" busy={restoring} kind="filter" onClose={()=>{if(!restoring)onClose()}} style={{width:'min(460px, calc(var(--vv-width) - 24px))'}}><div className="page-history-panel">
-  {knownPage('global')&&<ChoiceControl label="Content" aria-label="History for" variant="search" value={selected} disabled={restoring} onChange={setSelected} options={[...new Set([...pages,'global'])].filter(knownPage).map(key=>({value:key,label:SHARED_PAGE_SCHEMA[key].label+(key==='global'?'':' page')}))}/>}
+ return <section className="page-inline-editor" aria-label="Page history" aria-busy={restoring}><div className="page-panel-editor-heading"><h3>Page history</h3><Control type="button" disabled={restoring} onClick={onClose}>Close history</Control></div><div className="page-history-panel">
+  <label>History for<select aria-label="History for" value={selected} disabled={restoring} onChange={event=>setSelected(event.target.value)}>{[...new Set([...pages,'global'])].filter(knownPage).map(key=><option key={key} value={key}>{SHARED_PAGE_SCHEMA[key].label+(key==='global'?'':' page')}</option>)}</select></label>
   <p className="page-editor-help">Restoring creates a new saved version. The current version stays in history.{context.preview?' This is this device’s preview history.':''}</p>
   {dirty&&<p className="page-editor-error" role="status">Save or discard this page’s draft before restoring a version.</p>}
   {error&&<div className="page-editor-error" role="alert">{error}<Control type="button" onClick={()=>load()}>Try again</Control></div>}
@@ -310,23 +262,24 @@ function PageHistory({page,pages=[page],onClose}){
   {next&&<Button secondary disabled={loading||restoring} onClick={()=>load(true)}>Earlier versions</Button>}
   <Control type="button" className="text-button" disabled={dirty||restoring||!record?.revision} onClick={()=>setConfirm(0)}>Restore original content</Control>
   {confirm!==null&&<div className="page-restore-confirm" role="alert"><p>Restore {confirm===0?'the original content':'version '+confirm}?</p><div className="page-editor-actions"><Button disabled={restoring} onClick={()=>restore(confirm)}>{restoring?'Restoring…':'Restore version'}</Button><Button secondary disabled={restoring} onClick={()=>setConfirm(null)}>Keep current</Button></div></div>}
- </div></Sheet>;
+ </div></section>;
 }
 export function PageEditToolbar({page,relatedPages=[],className=''}){
  const editor=usePageContent(page),global=usePageContent('global'),[history,setHistory]=useState(false),[discarding,setDiscarding]=useState(false),[working,setWorking]=useState(false),record=editor.record;
  if(!editor.valid||page==='global'||!editor.allowed)return null;
- const pages=[...new Set([page,...relatedPages,...(global.valid?['global']:[])])].filter(knownPage),rows=pages.map(key=>editor.records[key]).filter(Boolean),dirty=rows.some(pageContentDirty),busy=working||rows.some(row=>row.status==='saving'),errors=rows.filter(row=>row.error),conflicts=rows.filter(row=>row.latest||row.conflicted);
+ const pages=[...new Set([page,...relatedPages,...(global.valid?['global']:[])])].filter(knownPage),rows=pages.map(key=>editor.records[key]).filter(Boolean),dirty=rows.some(pageContentDirty),busy=working||editor.pending||rows.some(row=>row.status==='saving'),errors=rows.filter(row=>row.error),conflicts=rows.filter(row=>row.latest||row.conflicted);
  if(!record?.canEdit){return record?.status==='error'?<div className="page-content-load-error" role="status"><span>Page updates couldn’t load. Showing the original content.</span><Control type="button" className="text-button" onClick={()=>editor.load(page,{force:true})}>Try again</Control></div>:null}
  async function save(){if(busy)return;setWorking(true);try{for(const key of pages){if(pageContentDirty(editor.records[key])&&!await editor.save(key))return}}finally{setWorking(false)}}
  const done=()=>{if(dirty){setDiscarding(true);return}editor.finish()};
  const discard=()=>{for(const key of pages)editor.discard(key);setDiscarding(false);editor.finish()};
  return <div className={'page-edit-toolbar '+className+(editor.editing?' is-editing':'')}>
   {!editor.editing?<div className="page-edit-entry"><Control type="button" className="page-edit-entry-button" onClick={()=>editor.begin(page,relatedPages)}><EditGlyph/>{dirty?'Resume page edits':'Edit page'}</Control>{dirty&&<span>Draft kept</span>}</div>:<>
-   <div className="page-edit-modebar"><div className="page-edit-mode-label"><EditGlyph/><strong>Editing page</strong><span role="status" aria-live="polite">{busy?'Saving…':dirty?'Unsaved changes':record.savedNotice||'Choose text or a photo'}</span></div><div className="page-editor-actions"><Control type="button" className="page-history-button" disabled={busy} aria-label="View page history" onClick={()=>setHistory(true)}><Glyph name="clock"/><span>History</span></Control><Button className="page-save-button" disabled={busy||!dirty||conflicts.length>0} onClick={save}>{busy?'Saving…':'Save changes'}</Button><Control type="button" className="page-mode-done" disabled={busy} onClick={done}><Glyph name="check"/>Done</Control></div></div>
+   <div className="page-edit-modebar"><div className="page-edit-mode-label"><EditGlyph/><strong>Editing page</strong><span role="status" aria-live="polite">{busy?'Saving…':dirty?'Unsaved changes':record.savedNotice||'Choose a panel or edit text'}</span></div><div className="page-editor-actions"><Control type="button" className="page-history-button" disabled={busy} aria-label="View page history" onClick={()=>setHistory(true)}><Glyph name="clock"/><span>History</span></Control><Button className="page-save-button" disabled={busy||!dirty||conflicts.length>0} onClick={save}>{busy?'Saving…':'Save changes'}</Button><Control type="button" className="page-mode-done" disabled={busy} onClick={done}><Glyph name="check"/>Done</Control></div></div>
+   <PagePanelActions page={page}/>
    {editor.preview&&<p className="page-editor-help">Preview changes stay on this device. Use History to restore the original content.</p>}
    {editor.storageError&&<p className="page-editor-error" role="alert">{editor.storageError}</p>}
    {errors.map(row=><div key={row.page} className="page-editor-error" role="alert"><span>{SHARED_PAGE_SCHEMA[row.page].label}: {row.error}</span>{!row.latest&&!row.conflicted&&<Control type="button" disabled={busy} onClick={()=>editor.save(row.page)}>Try saving again</Control>}</div>)}
-   {conflicts.map(row=><section className="page-conflict-review" key={row.page}><strong>{SHARED_PAGE_SCHEMA[row.page].label} has a newer version</strong>{!row.merge?<Control type="button" className="text-button" onClick={()=>editor.reviewLatest(row.page)}>Review latest changes</Control>:<><p>{row.merge.conflicts.length?'Choose which values to keep for the changes below. Other changes will be combined.':'Your edits and the latest changes affect different fields. You can safely combine them.'}</p>{row.merge.conflicts.map(item=><div key={item.field} className="page-conflict-values"><strong>{item.field==='hero'?'Page media':SHARED_PAGE_SCHEMA[row.page].fields[item.field].label}</strong><p>Yours: {item.mine}</p><p>Latest: {item.theirs}</p></div>)}<div className="page-editor-actions"><Button secondary onClick={()=>editor.rebase(row.page,true)}>{row.merge.conflicts.length?'Keep my edits':'Combine changes'}</Button>{!!row.merge.conflicts.length&&<Button secondary onClick={()=>editor.rebase(row.page,false)}>Use latest values</Button>}</div></>}</section>)}
+   {conflicts.map(row=><section className="page-conflict-review" key={row.page}><strong>{SHARED_PAGE_SCHEMA[row.page].label} has a newer version</strong>{!row.merge?<Control type="button" className="text-button" onClick={()=>editor.reviewLatest(row.page)}>Review latest changes</Control>:<><p>{row.merge.conflicts.length?'Choose which values to keep for the changes below. Other changes will be combined.':'Your edits and the latest changes affect different fields. You can safely combine them.'}</p>{row.merge.conflicts.map(item=><div key={item.field} className="page-conflict-values"><strong>{item.field==='hero'?'Page media':item.field==='panelLayout'?'Panel layout and content':SHARED_PAGE_SCHEMA[row.page].fields[item.field].label}</strong><p>Yours: {item.mine}</p><p>Latest: {item.theirs}</p></div>)}<div className="page-editor-actions"><Button secondary onClick={()=>editor.rebase(row.page,true)}>{row.merge.conflicts.length?'Keep my edits':'Combine changes'}</Button>{!!row.merge.conflicts.length&&<Button secondary onClick={()=>editor.rebase(row.page,false)}>Use latest values</Button>}</div></>}</section>)}
    {discarding&&<div className="page-discard-prompt" role="alert"><span>Your page changes aren’t saved yet.</span><div className="page-editor-actions"><Button secondary disabled={busy} onClick={()=>setDiscarding(false)}>Keep editing</Button><Control type="button" className="text-button" disabled={busy} onClick={discard}>Discard draft and finish</Control></div></div>}
   </>}
   {history&&<PageHistory page={page} pages={pages} onClose={()=>setHistory(false)}/>}

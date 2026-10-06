@@ -130,3 +130,5 @@ body,.app,.card,section,.intro,footer,.bottom,.muted,.page-edit-modebar,dialog,.
  body,.app,.card,section,.intro,footer,.bottom,.muted,.page-edit-modebar,dialog,.page-copy-input-wrap,.page-media-edit{transition:none!important}
 }
 @media(prefers-contrast:more){.page-copy-frame::after,.page-editable-media.is-editable::after{border-style:solid;border-width:2px}.page-media-edit>span{outline:2px solid var(--text)}}
+
+.page-body-edit-target{min-height:44px;border:1px dashed var(--line);border-radius:3px;padding:6px;cursor:text;overflow-wrap:anywhere}.page-body-edit-target:focus-visible{outline:2px solid var(--control);outline-offset:3px}.page-body-edit-target:hover{border-color:var(--text)}.page-body-editor-wrap{position:relative;min-width:0;max-width:100%;margin:4px 0}.page-editable-body{max-width:100%}

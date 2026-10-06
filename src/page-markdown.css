@@ -1,0 +1,55 @@
+/* The rectangular field and the existing neutral edit tokens are the visual
+   authority. This toolbar is deliberately flat; it is part of the input. */
+.page-markdown-editor{display:block;min-width:0;width:100%;border:1px solid var(--line);border-radius:3px;background:var(--raised);color:var(--text);font:400 1rem/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:normal;text-transform:none;overflow:visible}
+.page-markdown-editor:focus-within{border-color:var(--control);outline:2px solid var(--control);outline-offset:2px}
+.page-markdown-toolbar{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:3px 5px;border-bottom:1px solid var(--line);background:var(--surface)}
+.page-markdown-tools,.page-markdown-mode-tools{display:flex;align-items:center;gap:1px;min-width:0}
+.page-markdown-tools{flex:1 1 auto;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;scrollbar-color:var(--line) var(--surface)}
+.page-markdown-mode-tools{flex:0 0 auto;margin-inline-start:auto;border-inline-start:1px solid var(--line);padding-inline-start:5px}
+.page-markdown-tool,.page-markdown-source-toggle{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;gap:6px;min-width:40px;min-height:40px;padding:8px;border-radius:3px;color:var(--text);font:650 .8125rem/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+.page-markdown-tool .glyph{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.page-markdown-tool[aria-pressed=true],.page-markdown-source-toggle[aria-pressed=true]{background:var(--control);color:var(--control-text)}
+.page-markdown-editor button:not(:disabled):hover{background:var(--control);color:var(--control-text)}
+.page-markdown-editor :is(button,summary,a):focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.page-markdown-editor button:disabled{opacity:.5;cursor:default}
+.page-markdown-source-toggle>span:first-child{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+.page-markdown-visual,.page-markdown-source{display:block;width:100%;min-width:0;min-height:140px;max-height:60dvh;overflow:auto;overscroll-behavior:contain;margin:0;padding:12px;color:var(--text);background:var(--raised);border:0;border-radius:0;box-shadow:none;font-size:1rem;line-height:1.6;caret-color:var(--text);overflow-wrap:anywhere;text-transform:none;letter-spacing:normal}
+.page-markdown-visual{outline:none;white-space:pre-wrap}
+.page-markdown-source{resize:vertical;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2}
+.page-markdown-source:focus{outline:none;box-shadow:none}
+.page-markdown-source::placeholder{color:var(--muted);opacity:1}
+.page-markdown-editor [hidden]{display:none!important}
+.page-markdown-visual-wrap.is-empty .page-markdown-visual::before{content:attr(data-placeholder);color:var(--muted);pointer-events:none;float:inline-start;height:0}
+.page-markdown-body{white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}
+.page-markdown-body :is(p,ul,ol,blockquote,pre),.page-markdown-visual :is(p,ul,ol,blockquote,pre){margin:0 0 .8em}
+.page-markdown-body>:last-child,.page-markdown-visual>:last-child{margin-bottom:0}
+.page-markdown-body :is(h1,h2,h3,h4,h5,h6),.page-markdown-visual :is(h1,h2,h3,h4,h5,h6){font-family:inherit;font-weight:700;font-size:1.15em;line-height:1.35;margin:1.1em 0 .45em;letter-spacing:normal;text-transform:none}
+.page-markdown-body :is(h1,h2,h3,h4,h5,h6):first-child,.page-markdown-visual :is(h1,h2,h3,h4,h5,h6):first-child{margin-top:0}
+.page-markdown-body :is(ul,ol),.page-markdown-visual :is(ul,ol){padding-inline-start:1.6em;list-style-position:outside}
+.page-markdown-body ul,.page-markdown-visual ul{list-style-type:disc}
+.page-markdown-body ol,.page-markdown-visual ol{list-style-type:decimal}
+.page-markdown-body li>p,.page-markdown-visual li>p{margin:0}
+.page-markdown-body blockquote,.page-markdown-visual blockquote{margin-inline:0;padding-inline-start:12px;border-inline-start:1px solid var(--line);color:inherit}
+.page-markdown-body code,.page-markdown-visual code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.9em;white-space:pre-wrap}
+.page-markdown-body pre,.page-markdown-visual pre{overflow-x:auto;padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:3px}
+.page-markdown-body a,.page-markdown-visual a{color:inherit;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
+.page-markdown-body hr,.page-markdown-visual hr{margin-block:1em;border:0;border-top:1px solid var(--line)}
+.page-markdown-body.is-inline{display:inline}
+.page-markdown-editor ::selection{background:var(--control);color:var(--control-text)}
+.page-markdown-link{display:grid;gap:5px;padding:9px 12px;border-bottom:1px solid var(--line);font-size:.8125rem}
+.page-markdown-link>label{margin:0;font-family:inherit;font-weight:650;font-size:.8125rem;line-height:1.4;color:var(--text)}
+.page-markdown-link>div{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.page-markdown-link input{flex:1 1 160px;min-width:0;min-height:44px;margin:0;padding:8px;border:1px solid var(--line);border-radius:3px;background:var(--raised);color:var(--text);font-size:1rem;caret-color:var(--text)}
+.page-markdown-link button{min-height:44px;padding:8px;border-radius:3px;font-weight:650}
+.page-markdown-notice,.page-markdown-error{margin:0;padding:9px 12px;font-size:.8125rem;line-height:1.5}
+.page-markdown-notice{border-top:1px solid var(--line);color:var(--muted)}
+.page-markdown-error{color:var(--page-error)}
+.page-markdown-footer{display:flex;align-items:flex-start;gap:10px;justify-content:space-between;padding:3px 6px;border-top:1px solid var(--line)}
+.page-markdown-footer details{flex:1;min-width:0;color:var(--muted);font-size:.75rem;line-height:1.5}
+.page-markdown-footer summary{min-height:40px;align-content:center;cursor:pointer;padding:6px}
+.page-markdown-footer details p{margin:0;padding:0 6px 8px;max-width:65ch}
+.page-markdown-done{display:inline-flex;align-items:center;gap:5px;min-height:40px;padding:8px 10px;border-radius:3px;color:var(--text);font-size:.8125rem;font-weight:650}
+.page-markdown-done .glyph{width:17px;height:17px}
+@media(pointer:coarse){.page-markdown-tool,.page-markdown-source-toggle,.page-markdown-done,.page-markdown-footer summary{min-height:44px;min-width:44px}}
+@media(max-width:380px){.page-markdown-toolbar{padding-inline:3px}.page-markdown-source-toggle>span:last-child{display:none}.page-markdown-visual,.page-markdown-source{padding:10px}}
+@media(forced-colors:active){.page-markdown-tool[aria-pressed=true],.page-markdown-source-toggle[aria-pressed=true]{outline:2px solid Highlight}.page-markdown-editor:focus-within{outline-color:Highlight}}
