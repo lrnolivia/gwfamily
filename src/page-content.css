@@ -39,6 +39,9 @@ html[data-page-edit-mode=true] .reunion-hub .list-row{border-color:var(--line)!i
 .page-mode-done,.page-history-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:8px 10px;border-radius:9px;font-size:.8125rem;font-weight:650}
 .page-mode-done:hover,.page-history-button:hover{background:var(--surface)}
 html[data-theme][data-platform] .page-save-button.button:not(:disabled){--gw-control-color:var(--page-save-bg)!important;--control:var(--page-save-bg);--control-text:var(--page-save-ink);background:var(--page-save-bg)!important;color:var(--page-save-ink)!important;border-color:var(--page-save-bg)!important}
+/* Keep the disabled label readable, including the opaque glass tint above the host. */
+html[data-theme][data-platform] .page-save-button.button:disabled{opacity:1}
+html[data-theme][data-platform] .page-save-button.button:disabled>.liquid-glass-tint{background:var(--gw-control-color)!important}
 .page-save-button.button{font-size:.8125rem;min-height:44px;padding:10px 15px;white-space:nowrap}
 .page-editor-help{font-size:.75rem;line-height:1.5;color:var(--muted);max-width:65ch;margin:9px 0}
 .page-editor-error{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap;color:var(--page-error);font-size:.8125rem;line-height:1.5;margin:10px 0}

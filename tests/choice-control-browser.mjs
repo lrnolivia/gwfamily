@@ -28,16 +28,48 @@ createRoot(document.getElementById('root')).render(<Fixture/>);`;
 const bundle=await build({stdin:{contents:fixture,loader:'jsx',resolveDir:root},bundle:true,format:'iife',write:false,outfile:'fixture.js',loader:{'.css':'empty'},define:{'process.env.NODE_ENV':'"production"'}});
 const styles=(await Promise.all(['dist/style.css','dist/review.css','dist/liquid-glass-core.css','dist/ui-pass.css','dist/react-ui.css','src/choice-control.css'].map(file=>readFile(root+file,'utf8')))).join('\n');
 const html=`<!doctype html><html data-theme="dark" data-platform="ios"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${styles}\nmain{max-width:620px;margin:auto;padding:24px}main form{display:grid;gap:24px;margin:24px 0}main>button,main form>button,dialog>button{min-height:44px;padding:12px;background:var(--raised);border-radius:12px}dialog{max-width:calc(100vw - 32px);width:420px;padding:24px;border:1px solid var(--line);background:var(--surface);color:var(--text)}dialog .choice-control{margin:24px 0}.writing-box{position:relative;margin-top:30px}.writing-box>.send-button{position:absolute;right:8px;bottom:8px;border-radius:12px;width:38px;height:38px}.writing-box textarea{width:100%;min-height:100px;padding:14px 60px 14px 14px;background:var(--surface);color:var(--text)}</style><div id="root"></div><script>${bundle.outputFiles[0].text}</script></html>`;
-const engine=process.env.GW_BROWSER==='webkit'?webkit:chromium;
+const engineName=process.env.GW_BROWSER==='webkit'?'webkit':'chromium';
+const engine=engineName==='webkit'?webkit:chromium;
 const browser=await engine.launch({headless:true});
 const output=root+'docs/choice-control-qa';await mkdir(output,{recursive:true});
+const bootTimeout=12000;
+async function bootChoiceFixture(page,width,events){
+ const check=`fixture boot at ${width}px`;let phase='navigation';
+ try{
+  await page.goto('http://choice-fixture.local/',{timeout:bootTimeout});
+  phase='render and helper readiness';
+  // Navigation completion does not await React createRoot's first commit.
+  // Require both the actual controls and every helper before using the fixture.
+  await Promise.all([
+   expect(page.getByRole('heading',{name:'Choice controls',exact:true}),`${check}: rendered heading`).toBeVisible({timeout:bootTimeout}),
+   expect(page.getByRole('radio',{name:'Coming',exact:true}),`${check}: initial plans selection`).toBeChecked({timeout:bootTimeout}),
+   expect(page.getByRole('combobox',{name:'How many people?'}),`${check}: rendered count control`).toBeVisible({timeout:bootTimeout}),
+   expect(page.getByRole('combobox',{name:'New owner'}),`${check}: rendered owner control`).toBeVisible({timeout:bootTimeout}),
+   page.waitForFunction(()=>['palette','material','disable','busy'].every(name=>typeof window.fixture?.[name]==='function'),null,{timeout:bootTimeout}),
+  ]);
+ }catch(error){
+  const diagnostics={check,phase,engine:engineName,width,timeoutMs:bootTimeout,url:page.url(),error:String(error.message||error).slice(0,4000),events:events.slice(-20),document:await page.evaluate(()=>({
+   readyState:document.readyState,rootPresent:!!document.getElementById('root'),
+   rootText:(document.getElementById('root')?.innerText||'').slice(0,2000),
+   helpers:Object.fromEntries(['palette','material','disable','busy'].map(name=>[name,typeof window.fixture?.[name]])),
+   controls:{radios:document.querySelectorAll('input[type="radio"]').length,comboboxes:document.querySelectorAll('[role="combobox"]').length},
+  })).catch(snapshotError=>({unavailable:String(snapshotError.message||snapshotError).slice(0,1000)}))};
+  console.error('CHOICE FIXTURE BOOT FAILURE:',JSON.stringify(diagnostics));
+  await writeFile(`${output}/boot-failure-${engineName}-${width}.json`,JSON.stringify(diagnostics,null,2));
+  throw new Error(`${check} (${phase}): ${error.message||error}`,{cause:error});
+ }
+}
 const results=[],errors=[];
 try{
  for(const width of [390,1024]){
   const context=await browser.newContext({viewport:{width,height:900},reducedMotion:'reduce'}),page=await context.newPage();
-  page.on('pageerror',error=>errors.push(error.message));
+  const bootEvents=[],recordBootEvent=(type,message='')=>{bootEvents.push({type,message:String(message).slice(0,2000)});if(bootEvents.length>20)bootEvents.shift()};
+  page.on('pageerror',error=>{errors.push(error.message);recordBootEvent('pageerror',error.message)});
+  page.on('console',message=>{if(message.type()==='error')recordBootEvent('console-error',message.text())});
+  page.on('requestfailed',request=>recordBootEvent('requestfailed',`${request.url()} ${request.failure()?.errorText||''}`));
+  page.on('domcontentloaded',()=>recordBootEvent('domcontentloaded'));page.on('load',()=>recordBootEvent('load'));
   await page.route('http://choice-fixture.local/',route=>route.fulfill({contentType:'text/html',body:html}));
-  await page.goto('http://choice-fixture.local/');
+  await bootChoiceFixture(page,width,bootEvents);
   await page.evaluate(()=>window.fixture.palette('dark','#c9aa52'));
   await page.getByRole('radio',{name:'Coming',exact:true}).focus();await page.keyboard.press('ArrowRight');await expect(page.getByRole('radio',{name:'Deciding',exact:true})).toBeChecked();
   const count=page.getByRole('combobox',{name:'How many people?'});await count.focus();await expect(count).toHaveAttribute('aria-expanded','true');await count.fill('20');await count.press('Enter');await expect(count).toHaveValue('20');await expect(count).toHaveAttribute('aria-expanded','false');

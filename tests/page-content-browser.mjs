@@ -7,6 +7,8 @@ import {randomUUID} from 'node:crypto';
 import {mkdir, writeFile} from 'node:fs/promises';
 import {createTestPng} from './png-fixtures.mjs';
 import {SHARED_PAGE_SCHEMA, sharedPageDefaults} from '../src/shared-content-schema.js';
+import {readPageSavePaint, pageSaveContrast, parsePaintColor} from './page-save-contrast.mjs';
+import {cmsFailureAnnotation, installCmsNotificationTrace} from './page-content-browser-diagnostics.mjs';
 
 if (!process.env.CI && process.env.GW_HOSTED_BROWSER_QA !== '1') {
   throw new Error('Shared-page browser QA runs only in the authorized hosted CI environment.');
@@ -40,17 +42,30 @@ async function check(name, run) {
 // Keep a bounded, body-free record of browser traffic and document lifecycle.
 // APIRequestContext permission probes deliberately do not enter this stream.
 function observeBrowser(page, label) {
-  const trace = {sequence: 0, lastDrained: 0, events: [], droppedEvents: 0, reads: [], pending: new Map()};
+  const trace = {sequence: 0, eventSequence: 0, lastDrained: 0, documentEpoch: 0, documentTimeOrigin: null, documentUrl: null, navigations: [], events: [], droppedEvents: 0, reads: [], pending: new Map()};
   const requests = new WeakMap();
   trace.log = (type, detail = {}) => {
-    trace.events.push({ms: Date.now() - traceStarted, check: currentCheck, document: page.url(), type, ...detail});
+    trace.events.push({eventSequence: ++trace.eventSequence, ms: Date.now() - traceStarted, check: currentCheck, document: page.url(), documentEpoch: trace.documentEpoch, type, ...detail});
     if (trace.events.length > 600) {trace.events.shift(); trace.droppedEvents++;}
   };
-  const snapshot = () => ({pending: [...trace.pending.values()].map(value => ({...value})), recentEvents: trace.events.slice(-30)});
+  trace.beginNavigation = target => {
+    const navigation = {sourceEpoch: trace.documentEpoch, sourceTimeOrigin: trace.documentTimeOrigin, target, startedMs: Date.now() - traceStarted, startedEvent: trace.eventSequence + 1};
+    trace.navigations.push(navigation);
+    if (trace.navigations.length > 100) trace.navigations.shift();
+    trace.log('navigation-start', {...navigation, pending: [...trace.pending.values()].map(read => ({...read}))});
+  };
+  const documentAddress = url => {const value = new URL(url); value.hash = ''; return value.href;};
+  const snapshot = () => ({pending: [...trace.pending.values()].map(value => ({...value})), navigations: trace.navigations.slice(-3).map(value => ({...value})), recentEvents: trace.events.slice(-30)});
   page.on('request', request => {
     const url = new URL(request.url()), sameOriginApi = url.origin === base && url.pathname.startsWith('/api/');
     if (!sameOriginApi && !request.isNavigationRequest()) return;
-    const entry = {id: ++trace.sequence, url: url.href, path: url.pathname, method: request.method(), resource: request.resourceType(), navigation: request.isNavigationRequest(), startedMs: Date.now() - traceStarted, document: page.url()};
+    const navigation = trace.navigations.at(-1);
+    let requestFrame;
+    try {requestFrame = request.frame();} catch { /* Service-worker requests have no frame identity. */ }
+    // A frame can commit before its init-script console event is delivered.
+    // Do not attribute a request in that gap to the outgoing document.
+    const knownDocument = requestFrame === page.mainFrame() && trace.documentEpoch > 0 && documentAddress(trace.documentUrl) === documentAddress(page.url()) && !(navigation?.sourceEpoch === trace.documentEpoch && navigation.frameNavigatedMs !== undefined && navigation.targetEpoch === undefined);
+    const entry = {id: ++trace.sequence, url: url.href, path: url.pathname, method: request.method(), resource: request.resourceType(), navigation: request.isNavigationRequest(), startedMs: Date.now() - traceStarted, startedEvent: trace.eventSequence + 1, document: page.url(), documentEpoch: knownDocument ? trace.documentEpoch : null, documentTimeOrigin: knownDocument ? trace.documentTimeOrigin : null};
     requests.set(request, entry);
     if (sameOriginApi && entry.method === 'GET' && ['fetch', 'xhr'].includes(entry.resource)) {
       trace.reads.push(entry); trace.pending.set(entry.id, entry);
@@ -68,39 +83,93 @@ function observeBrowser(page, label) {
   for (const event of ['requestfinished', 'requestfailed']) page.on(event, request => {
     const entry = requests.get(request); if (!entry) return;
     entry.finishedMs = Date.now() - traceStarted;
+    entry.finishedEvent = trace.eventSequence + 1;
     if (event === 'requestfailed') entry.failure = request.failure()?.errorText || 'Unknown request failure';
     trace.pending.delete(entry.id);
     trace.log(event, {...entry});
   });
-  page.on('framenavigated', frame => {if (frame === page.mainFrame()) trace.log('main-frame-navigated', {url: frame.url()});});
+  page.on('framenavigated', frame => {
+    if (frame !== page.mainFrame()) return;
+    const navigation = trace.navigations.at(-1);
+    if (navigation && frame.url() === navigation.target && navigation.frameNavigatedMs === undefined) {
+      navigation.frameNavigatedMs = Date.now() - traceStarted;
+      navigation.frameNavigatedEvent = trace.eventSequence + 1;
+    }
+    trace.log('main-frame-navigated', {url: frame.url()});
+  });
   page.on('domcontentloaded', () => trace.log('domcontentloaded'));
   page.on('load', () => trace.log('load'));
   page.on('console', message => {
     if (message.text().startsWith('__GW_CMS_LIFECYCLE__')) {
-      try {trace.log('document-lifecycle', JSON.parse(message.text().slice('__GW_CMS_LIFECYCLE__'.length)));}
+      try {
+        const detail = JSON.parse(message.text().slice('__GW_CMS_LIFECYCLE__'.length));
+        if (detail.event === 'new-document' && Number.isFinite(detail.timeOrigin) && typeof detail.url === 'string' && detail.timeOrigin !== trace.documentTimeOrigin) {
+          const previousEpoch = trace.documentEpoch, previousTimeOrigin = trace.documentTimeOrigin;
+          trace.documentEpoch++; trace.documentTimeOrigin = detail.timeOrigin; trace.documentUrl = detail.url;
+          const navigation = trace.navigations.at(-1);
+          if (navigation?.sourceEpoch === previousEpoch && navigation.sourceTimeOrigin === previousTimeOrigin && navigation.target === detail.url && navigation.targetEpoch === undefined) {
+            navigation.targetEpoch = trace.documentEpoch;
+            navigation.targetTimeOrigin = detail.timeOrigin;
+            navigation.documentStartedMs = Date.now() - traceStarted;
+            navigation.documentStartedEvent = trace.eventSequence + 1;
+          }
+        }
+        // Only known, bounded lifecycle metadata enters the diagnostic stream.
+        trace.log('document-lifecycle', {event: String(detail.event || '').slice(0, 80), url: String(detail.url || '').slice(0, 2000),
+          timeOrigin: detail.timeOrigin, documentMs: detail.documentMs, readyState: String(detail.readyState || '').slice(0, 40),
+          ...(Number.isSafeInteger(detail.request) ? {request: detail.request, aborted: detail.aborted === true} : {}),
+          ...(detail.message === undefined ? {} : {message: String(detail.message).slice(0, 2000), filename: String(detail.filename || '').slice(0, 2000), line: detail.line, column: detail.column}),
+          ...(detail.stack === undefined ? {} : {stack: String(detail.stack).slice(0, 4000)})});
+      }
       catch {trace.log('unreadable-lifecycle-record');}
     } else if (message.type() === 'error') trace.log('console-error', {text: message.text().slice(0, 2000), location: message.location()});
   });
   page.on('pageerror', error => {
-    const detail = {user: label, error: error.message, name: error.name, stack: error.stack, ms: Date.now() - traceStarted, check: currentCheck, document: page.url(), ...snapshot()};
+    const detail = {user: label, error: error.message, name: error.name, stack: error.stack, ms: Date.now() - traceStarted, check: currentCheck, document: page.url(), documentEpoch: trace.documentEpoch, documentTimeOrigin: trace.documentTimeOrigin, ...snapshot()};
     errors.push(detail); // No pageerror is filtered, including access-control errors.
     trace.log('pageerror', {error: error.message, stack: error.stack});
     console.error('CMS BROWSER ERROR', JSON.stringify(detail));
+    console.log(cmsFailureAnnotation(detail, trace));
   });
   browserReads.set(page, trace);
   return trace;
 }
+function isSupersededDocumentCancellation(read, trace) {
+  // Cancellation wording alone is never evidence of teardown. Require the
+  // outgoing document's identity, an explicit navigation, a replacement init
+  // script plus main-frame commit, and a failure observed after navigation began.
+  // HTTP/auth failures and all pageerrors remain failures even during teardown.
+  if (!['Load request cancelled', 'net::ERR_ABORTED'].includes(read.failure) || (read.status !== undefined && !(read.status >= 200 && read.status < 300))) return false;
+  return read.documentEpoch > 0 && trace.navigations.some(navigation =>
+    navigation.sourceEpoch === read.documentEpoch && navigation.sourceTimeOrigin === read.documentTimeOrigin &&
+    navigation.targetEpoch > read.documentEpoch && navigation.targetEpoch <= trace.documentEpoch &&
+    navigation.targetTimeOrigin !== read.documentTimeOrigin && navigation.frameNavigatedMs !== undefined &&
+    read.startedEvent < navigation.documentStartedEvent && read.startedMs <= navigation.documentStartedMs &&
+    read.finishedEvent > navigation.startedEvent && read.finishedMs >= navigation.startedMs);
+}
 async function settleBrowserReads(page, {since, required = []} = {}) {
   const trace = browserReads.get(page), after = since ?? trace.lastDrained;
-  await expect.poll(() => ({
-    missing: required.filter(path => !trace.reads.some(read => read.id > after && read.path === path && read.finishedMs !== undefined)),
-    pending: [...trace.pending.values()].map(read => read.path),
-  }), {message: 'Authenticated route reads finish before the next document navigation.', timeout: 15000}).toEqual({missing: [], pending: []});
-  const failed = trace.reads.filter(read => read.id > after && (read.failure || !(read.status >= 200 && read.status < 300)));
-  assert.deepEqual(failed, [], 'Normal same-origin browser reads succeed; deliberate permission probes use APIRequestContext.');
-  trace.lastDrained = trace.sequence;
+  let drainedThrough = after;
+  const assertSuccessfulReads = () => {
+    const failed = trace.reads.filter(read => read.id > after && read.finishedMs !== undefined && (read.failure || !(read.status >= 200 && read.status < 300)) && !isSupersededDocumentCancellation(read, trace));
+    assert.deepEqual(failed, [], 'Normal same-origin browser reads succeed; deliberate permission probes use APIRequestContext.');
+  };
+  await expect.poll(() => {
+    assertSuccessfulReads();
+    const readiness = {
+      missing: required.filter(path => !trace.reads.some(read => read.id > after && read.documentEpoch === trace.documentEpoch && trace.documentEpoch > 0 && read.path === path && read.finishedMs !== undefined && !read.failure && read.status >= 200 && read.status < 300)),
+      pending: [...trace.pending.values()].map(read => read.path),
+    };
+    // Requests can arrive while the assertion promise resolves. Only advance
+    // through the sequence whose completed bodies this exact probe observed.
+    if (!readiness.missing.length && !readiness.pending.length) drainedThrough = trace.sequence;
+    return readiness;
+  }, {message: 'Authenticated current-document reads succeed before the next document navigation.', timeout: 15000}).toEqual({missing: [], pending: []});
+  assertSuccessfulReads();
+  for (const read of trace.reads.filter(read => read.id > after && read.id <= drainedThrough && isSupersededDocumentCancellation(read, trace))) trace.log('superseded-document-read-cancelled', {...read});
+  trace.lastDrained = drainedThrough;
 }
-async function person(id, {width = 390, height = 844, motion = 'reduce', active = true, label = id} = {}) {
+async function person(id, {width = 390, height = 844, motion = 'reduce', active = true, label = id, platform = 'android', theme = 'dark'} = {}) {
   const context = await browser.newContext({viewport: {width, height}, reducedMotion: motion});
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
@@ -112,8 +181,9 @@ async function person(id, {width = 390, height = 844, motion = 'reduce', active 
       writes.push({user: label, path: new URL(request.url()).pathname, method: request.method(), body: request.postDataJSON()});
     }
   });
-  await page.addInitScript(() => {
-    const emit = (event, detail = {}) => console.log('__GW_CMS_LIFECYCLE__' + JSON.stringify({event, url: location.href, timeOrigin: performance.timeOrigin, documentMs: performance.now(), readyState: document.readyState, ...detail}));
+  await page.addInitScript(installCmsNotificationTrace);
+  await page.addInitScript(({platform, theme}) => {
+    const emit = (event, detail = {}) => {if (window === window.top) console.log('__GW_CMS_LIFECYCLE__' + JSON.stringify({event, url: location.href, timeOrigin: performance.timeOrigin, documentMs: performance.now(), readyState: document.readyState, ...detail}));};
     emit('new-document');
     for (const event of ['beforeunload', 'pagehide', 'pageshow']) addEventListener(event, () => emit(event));
     // Observe actual window exceptions/rejections without swallowing them.
@@ -121,10 +191,13 @@ async function person(id, {width = 390, height = 844, motion = 'reduce', active 
     addEventListener('unhandledrejection', event => emit('unhandledrejection', {message: String(event.reason?.message || event.reason), stack: event.reason?.stack}));
     localStorage.setItem('gw-install-dismissed', 'true');
     localStorage.setItem('gw-preview-notice:v1', 'seen');
-    localStorage.setItem('gw-platform', 'android');
-  });
+    localStorage.setItem('gw-platform', platform);
+    localStorage.setItem('gw-theme', theme);
+  }, {platform, theme});
   trace.log('signin-start');
-  await page.goto(id ? `${base}/__test/signin?user=${encodeURIComponent(id)}` : base);
+  const signinTarget = id ? `${base}/__test/signin?user=${encodeURIComponent(id)}` : base;
+  trace.beginNavigation(signinTarget);
+  await page.goto(signinTarget);
   if (active && id) {
     await page.getByRole('navigation', {name: 'Main navigation', exact: true}).waitFor();
     await settleBrowserReads(page, {required: ['/api/state', '/api/page-content/home', '/api/page-content/global', '/api/conversations', '/api/conversations/recipients']});
@@ -158,8 +231,8 @@ async function navigate(page, route, id) {
   // A visible main also exists during onboarding. Previously the non-leader
   // absence assertions could pass there and immediately tear down new reads.
   await settleBrowserReads(page);
-  const since = trace.sequence, target = `${base}/?qa=${randomUUID()}#/${sharedPageRoute(route, id)}`;
-  trace.log('navigation-start', {target, pending: [...trace.pending.values()]});
+  const since = trace.lastDrained, target = `${base}/?qa=${randomUUID()}#/${sharedPageRoute(route, id)}`;
+  trace.beginNavigation(target);
   await page.goto(target, {waitUntil: 'domcontentloaded'});
   await expect(page).toHaveURL(target);
   // The authenticated header also exists on detail pages without bottom nav.
@@ -180,6 +253,21 @@ async function edit(page) {
   await toolbar(page).getByRole('button', {name: /^(Edit page|Resume page edits)$/}).click();
   await expect(page.locator('html')).toHaveAttribute('data-page-edit-mode', 'true');
   await expect(toolbar(page).getByText('Editing page', {exact: true})).toBeVisible();
+}
+async function assertSavePaint(page, {theme, platform, disabled}) {
+  const button = saveButton(page);
+  if (disabled) await expect(button).toBeDisabled(); else await expect(button).toBeEnabled();
+  await expect.poll(async () => pageSaveContrast(await button.evaluate(readPageSavePaint)), {message: 'Save label contrast uses the actual painted tint and composited opacity.'}).toBeGreaterThanOrEqual(4.5);
+  const paint = await button.evaluate(readPageSavePaint);
+  assert.equal(paint.theme, theme); assert.equal(paint.platform, platform); assert.equal(paint.disabled, disabled);
+  assert.equal(paint.text, 'Save changes'); assert.equal(paint.hostOpacity, 1);
+  assert.deepEqual(parsePaintColor(paint.foreground), parsePaintColor(paint.hostForeground), 'The innermost label inherits the state foreground.');
+  assert.equal(paint.tintBackground !== null, platform === 'ios', 'The material matrix exercises real glass descendants.');
+  if (paint.tintBackground !== null) {
+    assert.equal(paint.tintOpacity, 1);
+    assert.deepEqual(parsePaintColor(paint.tintBackground), parsePaintColor(paint.hostBackground), 'The opaque tint and host paint the same state surface.');
+  }
+  return {...paint, contrast: pageSaveContrast(paint)};
 }
 async function editText(page, key, value, {finish = true} = {}) {
   const [pageId, name] = key.split('.'), label = SHARED_PAGE_SCHEMA[pageId].fields[name].label;
@@ -330,6 +418,27 @@ try {
     await expect(owner.locator('html')).not.toHaveAttribute('data-page-edit-mode', 'true');
   });
 
+  await check('Save stays readable through disabled and enabled states in both themes and materials, including the actual glass tint', async () => {
+    for (const theme of ['light', 'dark']) for (const platform of ['ios', 'android']) {
+      const page = await person('owner', {theme, platform, label: `save-contrast-${theme}-${platform}`});
+      await edit(page);
+      const original = (await record(page)).content.text.heading;
+      const paints = [];
+      for (const width of [390, 768]) {
+        await page.setViewportSize({width, height: 844});
+        paints.push({width, state: 'disabled', ...await assertSavePaint(page, {theme, platform, disabled: true})});
+        await toolbar(page).screenshot({path: `${output}/save-contrast-${theme}-${platform}-${width}-${engineName}.png`});
+      }
+      await editText(page, 'home.heading', original + ' Synthetic contrast draft');
+      paints.push({state: 'enabled', ...await assertSavePaint(page, {theme, platform, disabled: false})});
+      await editText(page, 'home.heading', original);
+      paints.push({state: 'restored-disabled', ...await assertSavePaint(page, {theme, platform, disabled: true})});
+      await writeFile(`${output}/save-contrast-${theme}-${platform}-${engineName}.json`, JSON.stringify(paints, null, 2));
+      await modeDone(page).click();
+      await expect(page.locator('html')).not.toHaveAttribute('data-page-edit-mode', 'true');
+    }
+  });
+
   await check('neutral edit colors fade without changing photos or saved appearance; only the active surface softly pulses without moving', async () => {
     await navigate(owner, 'home');
     await expect(toolbar(owner).getByRole('button', {name: 'Edit page', exact: true})).toBeVisible();
@@ -403,6 +512,7 @@ try {
       await owner.getByRole('navigation', {name: 'Main navigation', exact: true}).getByRole('button', {name: 'Family', exact: true}).click();
       await owner.getByRole('navigation', {name: 'Main navigation', exact: true}).getByRole('button', {name: 'Home', exact: true}).click();
       await expect(toolbar(owner).getByRole('button', {name: 'Resume page edits', exact: true})).toBeVisible();
+      browserReads.get(owner).beginNavigation(owner.url());
       await owner.reload({waitUntil: 'domcontentloaded'});
       await expect(toolbar(owner).getByRole('button', {name: 'Resume page edits', exact: true})).toBeVisible();
       await edit(owner);
@@ -568,6 +678,7 @@ try {
     await patch(owner, 'global', updated, global.revision);
     const requests = [];
     anonymous.on('request', request => requests.push(new URL(request.url()).pathname));
+    browserReads.get(anonymous).beginNavigation(anonymous.url());
     await anonymous.reload({waitUntil: 'domcontentloaded'});
     await expect(anonymous.locator('.onboard')).toBeVisible();
     await expect(anonymous.getByText('Good to see you.', {exact: true})).toBeVisible();
@@ -712,7 +823,7 @@ try {
   }
   throw error;
 } finally {
-  await writeFile(`${output}/network-${engineName}.json`, JSON.stringify({browser: engineName, startedAt: new Date(traceStarted).toISOString(), sessions: sessions.map(({id, trace}) => ({user: id, droppedEvents: trace.droppedEvents, events: trace.events, pending: [...trace.pending.values()]}))}, null, 2));
+  await writeFile(`${output}/network-${engineName}.json`, JSON.stringify({browser: engineName, startedAt: new Date(traceStarted).toISOString(), sessions: sessions.map(({id, trace}) => ({user: id, documentEpoch: trace.documentEpoch, documentTimeOrigin: trace.documentTimeOrigin, navigations: trace.navigations, droppedEvents: trace.droppedEvents, events: trace.events, pending: [...trace.pending.values()]}))}, null, 2));
   await writeFile(`${output}/results-${engineName}.json`, JSON.stringify({browser: engineName, results, errors, networkTrace: `network-${engineName}.json`, ...(failure ? {failure} : {}), limitations: [
     'Hosted synthetic fixture only; no production data, messages, payments, invitations or external writes.',
     'Viewport checks do not establish physical-device keyboard, installed-PWA or touch behavior.',

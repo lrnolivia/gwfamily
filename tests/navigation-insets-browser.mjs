@@ -11,8 +11,9 @@ if (!process.env.CI && process.env.GW_HOSTED_BROWSER_QA !== '1') {
 }
 const base = process.env.GW_NAVIGATION_URL || 'http://127.0.0.1:4173';
 assert.ok(/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(base), 'Only the isolated hosted preview may be used.');
-const output = 'docs/navigation-qa', results = [], errors = [];
-const engine = process.env.GW_BROWSER === 'webkit' ? webkit : chromium;
+const output = 'docs/navigation-qa', results = [], errors = [], timeoutMs = 15000;
+const engineName = process.env.GW_BROWSER === 'webkit' ? 'webkit' : 'chromium';
+const engine = engineName === 'webkit' ? webkit : chromium;
 const browser = await engine.launch({headless: true});
 await mkdir(output, {recursive: true});
 const devices = [
@@ -24,51 +25,156 @@ const devices = [
 ];
 const state = initialState(); state.onboarding = 'done';
 
-async function open(device, material, theme, mode) {
+// Bounded observer data survives until the failing page has been inspected.
+// Neither these observers nor the frame probes change app state or scheduling.
+function observeNavigationCase(page, label) {
+  const events = [], requests = new Map(), ids = new WeakMap(), started = Date.now();
+  let sequence = 0;
+  const trace = {label, stage: 'create page', events, boot: null,
+    log(type, detail = {}) {
+      events.push({ms: Date.now() - started, stage: trace.stage, type, ...detail});
+      if (events.length > 60) events.shift();
+    },
+    snapshot: () => ({pendingCount: requests.size, pending: [...requests.values()].slice(-30), events: [...events]}),
+  };
+  const path = value => {try {const url = new URL(value);return (url.origin === base ? '' : url.origin) + url.pathname;} catch {return String(value).slice(0,300);}};
+  page.on('request', request => {
+    const id = ++sequence; ids.set(request, id);
+    const detail = {id, path: path(request.url()), method: request.method(), resource: request.resourceType()};
+    requests.set(id, detail); trace.log('request', detail);
+  });
+  page.on('response', response => trace.log('response', {id: ids.get(response.request()), path: path(response.url()), status: response.status()}));
+  page.on('requestfinished', request => {requests.delete(ids.get(request));trace.log('requestfinished', {id: ids.get(request), path: path(request.url())});});
+  page.on('requestfailed', request => {requests.delete(ids.get(request));trace.log('requestfailed', {id: ids.get(request), path: path(request.url()), error: String(request.failure()?.errorText || '').slice(0,1000)});});
+  page.on('pageerror', error => {errors.push(error.message);trace.log('pageerror', {message: String(error.stack || error.message).slice(0,2000)});});
+  page.on('console', message => {if (message.type() === 'error') trace.log('consoleerror', {message: message.text().slice(0,2000)});});
+  for (const event of ['domcontentloaded', 'load', 'crash', 'close']) page.on(event, () => trace.log(event));
+  page.on('framenavigated', frame => {if (frame === page.mainFrame()) trace.log('framenavigated', {path: path(frame.url())});});
+  return trace;
+}
+
+function installNavigationFixture({device, material, theme, mode, state, key}) {
+  Object.defineProperty(navigator, 'platform', {get: () => device.platform});
+  Object.defineProperty(navigator, 'maxTouchPoints', {get: () => device.touch});
+  Object.defineProperty(navigator, 'standalone', {get: () => mode === 'standalone'});
+  const actualMatchMedia = window.matchMedia.bind(window);
+  window.matchMedia = query => {
+    const media = actualMatchMedia(query);
+    if (query === '(display-mode: standalone)') Object.defineProperty(media, 'matches', {get: () => mode === 'standalone'});
+    return media;
+  };
+  // Synthetic visualViewport drives the real app listeners in both engines.
+  const viewport = new EventTarget();
+  Object.assign(viewport, {height: device.height, width: device.width, offsetTop: 0, offsetLeft: 0, scale: 1});
+  Object.defineProperty(window, 'visualViewport', {get: () => viewport});
+  localStorage.setItem(key, JSON.stringify({schema: 2, mode: 'preview', state}));
+  localStorage.setItem('gw-platform', material);
+  localStorage.setItem('gw-theme', theme);
+  localStorage.setItem('gw-preview-notice:v1', 'seen');
+  localStorage.setItem('gw-install-dismissed', 'true');
+  const events = [], started = performance.now();
+  const snapshot = () => ({readyState: document.readyState, visibility: document.visibilityState,
+    focused: document.hasFocus(), active: {tag: document.activeElement?.tagName, id: document.activeElement?.id,
+      type: document.activeElement?.type, connected: document.activeElement?.isConnected},
+    attributes: {...document.documentElement?.dataset}, layout: {width: innerWidth, height: innerHeight},
+    viewport: {width: viewport.width, height: viewport.height, top: viewport.offsetTop, left: viewport.offsetLeft, scale: viewport.scale}});
+  const qa = window.__gwNavigationQA = {stage: 'fixture initialization', events, snapshot,
+    log(type, detail = {}) {
+      events.push({ms: Math.round(performance.now() - started), stage: qa.stage, type, ...detail, ...snapshot()});
+      if (events.length > 40) events.shift();
+    },
+    mark(stage) {
+      qa.stage = stage; qa.log('stage');
+      // A probe distinguishes a stalled rendering opportunity from a wrong
+      // keyboard value without replacing requestAnimationFrame in the app.
+      requestAnimationFrame(() => qa.log('animation-frame', {requestedStage: stage}));
+    },
+  };
+  for (const event of ['pageshow', 'pagehide', 'resize', 'orientationchange']) window.addEventListener(event, e => qa.log(event, {persisted: e.persisted}));
+  for (const event of ['DOMContentLoaded', 'visibilitychange', 'focusin', 'focusout']) document.addEventListener(event, () => qa.log(event));
+  for (const event of ['resize', 'scroll']) viewport.addEventListener(event, () => qa.log('visualViewport.' + event));
+  new MutationObserver(records => {
+    const names = [...new Set(records.map(record => record.attributeName))];
+    qa.log('navigation-attributes', {names});
+  }).observe(document, {subtree: true, attributes: true, attributeFilter: ['data-mobile-os', 'data-display-mode', 'data-keyboard-open']});
+  qa.log('fixture-initialized');
+}
+
+async function navigationStage(page, trace, stage) {
+  trace.stage = stage; trace.log('stage');
+  await page.evaluate(stage => window.__gwNavigationQA?.mark(stage), stage);
+}
+
+async function boundedNavigationDiagnostic(promise, ms) {
+  let timer;
+  try {return await Promise.race([promise, new Promise(resolve => {timer = setTimeout(() => resolve({unavailable: `Diagnostic exceeded ${ms}ms`}), ms);})]);}
+  catch (error) {return {unavailable: String(error.message).slice(0,1000)};}
+  finally {clearTimeout(timer);}
+}
+
+async function captureNavigationFailure(page, trace, error) {
+  const diagnostics = {case: trace.label, stage: trace.stage, engine: engineName, timeoutMs,
+    error: String(error.stack || error.message).slice(0,4000), boot: trace.boot, ...trace.snapshot()};
+  diagnostics.document = await boundedNavigationDiagnostic(page.evaluate(() => {
+    const element = selector => {
+      const node = document.querySelector(selector);if (!node) return null;
+      const rect = node.getBoundingClientRect(), style = getComputedStyle(node);
+      return {tag: node.tagName, className: node.className, rect: {x: rect.x, y: rect.y, width: rect.width, height: rect.height, bottom: rect.bottom},
+        display: style.display, visibility: style.visibility, pointerEvents: style.pointerEvents};
+    };
+    return {title: document.title, path: location.pathname + location.hash, ...window.__gwNavigationQA?.snapshot(),
+      lifecycle: window.__gwNavigationQA?.events.slice(-40), rootChildren: document.getElementById('root')?.childElementCount,
+      rootText: document.getElementById('root')?.innerText.slice(0,2000), app: element('.app'), nav: element('.bottom'),
+      fab: element('.fab-glass, .material-fab'), input: element('#navigation-qa-input'),
+      notificationStatus: document.querySelector('.notification-panel [role=status]')?.textContent?.slice(0,300),
+      alerts: [...document.querySelectorAll('[role=alert]')].slice(0,5).map(node => node.textContent.slice(0,400)),
+      styles: Object.fromEntries(['--vv-height', '--vv-width', '--gw-safe-bottom'].map(key => [key, document.documentElement.style.getPropertyValue(key)]))};
+  }), 2500);
+  const filename = `${engineName}-${trace.label}-failure`;
+  diagnostics.screenshot = await boundedNavigationDiagnostic(page.screenshot({path: `${output}/${filename}.png`, timeout: 4000}).then(() => `${filename}.png`), 4500);
+  try {await writeFile(`${output}/${filename}.json`, JSON.stringify(diagnostics, null, 2));}
+  catch (failure) {diagnostics.persistenceError = String(failure.message).slice(0,1000);}
+  console.error('NAVIGATION FAILURE DIAGNOSTICS:', JSON.stringify(diagnostics));
+  return new Error(`${trace.label}: ${trace.stage}: ${error.message}`, {cause: error});
+}
+
+async function open(device, material, theme, mode, traceHolder) {
   const context = await browser.newContext({viewport: {width: device.width, height: device.height},
     userAgent: device.userAgent, hasTouch: device.touch > 0, reducedMotion: 'reduce', serviceWorkers: 'block'});
+  traceHolder.context = context;
   const page = await context.newPage();
-  page.on('pageerror', error => errors.push(error.message));
-  page.setDefaultTimeout(15000);
+  const trace = observeNavigationCase(page, `${device.name}-${material}-${theme}-${mode}`);
+  Object.assign(traceHolder, {context, page, trace});
+  page.setDefaultTimeout(timeoutMs);
   // No external requests or live data. Only in-memory/localStorage preview data.
   await context.route('**/*', route => new URL(route.request().url()).origin === base ? route.continue() : route.abort());
-  await page.addInitScript(({device, material, theme, mode, state, key}) => {
-    Object.defineProperty(navigator, 'platform', {get: () => device.platform});
-    Object.defineProperty(navigator, 'maxTouchPoints', {get: () => device.touch});
-    Object.defineProperty(navigator, 'standalone', {get: () => mode === 'standalone'});
-    const actualMatchMedia = window.matchMedia.bind(window);
-    window.matchMedia = query => {
-      const media = actualMatchMedia(query);
-      if (query === '(display-mode: standalone)') Object.defineProperty(media, 'matches', {get: () => mode === 'standalone'});
-      return media;
-    };
-    // Synthetic visualViewport drives the real app listeners in both engines.
-    const viewport = new EventTarget();
-    Object.assign(viewport, {height: device.height, width: device.width, offsetTop: 0, offsetLeft: 0, scale: 1});
-    Object.defineProperty(window, 'visualViewport', {get: () => viewport});
-    localStorage.setItem(key, JSON.stringify({schema: 2, mode: 'preview', state}));
-    localStorage.setItem('gw-platform', material);
-    localStorage.setItem('gw-theme', theme);
-    localStorage.setItem('gw-preview-notice:v1', 'seen');
-    localStorage.setItem('gw-install-dismissed', 'true');
-  }, {device, material, theme, mode, state, key: PREVIEW_KEY});
+  await page.addInitScript(installNavigationFixture, {device, material, theme, mode, state, key: PREVIEW_KEY});
+  trace.stage = 'preview document bootstrap';
   await page.goto(base, {waitUntil: 'domcontentloaded'});
+  await navigationStage(page, trace, 'preview navigation readiness');
   await page.getByRole('navigation', {name: 'Main navigation', exact: true}).waitFor();
-  await page.waitForFunction(() => !!document.documentElement.dataset.mobileOs);
+  await page.waitForFunction(({os, material, theme, mode}) => {
+    const data = document.documentElement.dataset;
+    return data.mobileOs === os && data.displayMode === mode && data.platform === material &&
+      data.theme === theme && data.keyboardOpen === 'false';
+  }, {os: device.os, material, theme, mode});
   const attributes = await page.evaluate(() => ({...document.documentElement.dataset}));
   assert.equal(attributes.mobileOs, device.os);
   assert.equal(attributes.displayMode, mode);
   assert.equal(attributes.platform, material);
-  return {context, page};
+  trace.boot = {document: await page.evaluate(() => window.__gwNavigationQA.snapshot()), ...trace.snapshot()};
+  return {context, page, trace};
 }
 
 try {
   for (const device of devices) for (const material of ['ios', 'android']) {
     for (const theme of ['light', 'dark']) for (const mode of ['browser', 'standalone']) {
-      const {context, page} = await open(device, material, theme, mode);
       const label = `${device.name}-${material}-${theme}-${mode}`;
+      const current = {};
       try {
+        const {page, trace} = await open(device, material, theme, mode, current);
         for (const safe of [0, 21, 34]) {
+          await navigationStage(page, trace, `safe-area geometry ${safe}px`);
           await page.evaluate(value => document.documentElement.style.setProperty('--gw-safe-bottom', `${value}px`), safe);
           const geometry = await page.evaluate(() => {
             const nav = document.querySelector('.bottom'), fab = document.querySelector('.fab-glass, .material-fab');
@@ -87,6 +193,7 @@ try {
         }
         if (device.width < 700) {
           for (const [left, right] of [[44, 0], [0, 44]]) {
+            await navigationStage(page, trace, `asymmetric notch left=${left}px right=${right}px`);
             const edges = await page.evaluate(({left, right}) => {
               const root = document.documentElement;
               root.style.setProperty('--gw-safe-left', `${left}px`);
@@ -104,26 +211,48 @@ try {
           });
         }
         if (device.os !== 'none') {
+          await navigationStage(page, trace, 'keyboard open');
           await page.evaluate(() => {
             const input = document.createElement('input'); input.id = 'navigation-qa-input'; input.setAttribute('aria-label', 'Navigation QA input');
             document.querySelector('main').prepend(input); input.focus();
             window.visualViewport.height = Math.max(180, innerHeight - 300);
             window.visualViewport.dispatchEvent(new Event('resize'));
+            window.__gwNavigationQA.log('keyboard-open-dispatched');
           });
           await page.waitForFunction(() => document.documentElement.dataset.keyboardOpen === 'true');
           assert.equal(await page.locator('.bottom').isVisible(), false, `${label}: dock does not obscure keyboard entry`);
           assert.equal(await page.locator('.fab-glass, .material-fab').isVisible(), false);
-          await page.evaluate(() => {
+          await navigationStage(page, trace, 'keyboard dismissal');
+          const dismissal = await page.evaluate(() => {
+            const input = document.getElementById('navigation-qa-input');
             window.visualViewport.height = innerHeight;
             window.visualViewport.dispatchEvent(new Event('resize'));
-            document.getElementById('navigation-qa-input').remove();
+            window.__gwNavigationQA.log('keyboard-dismissal-dispatched');
+            requestAnimationFrame(() => window.__gwNavigationQA.log('keyboard-dismissal-animation-frame'));
+            return {inputPresent: !!input?.isConnected, focused: document.activeElement === input};
           });
+          assert.deepEqual(dismissal, {inputPresent: true, focused: true}, `${label}: dismissal retains the focused input`);
+          // First prove viewport dismissal with text entry still focused. Removing
+          // the input here mixes focus-removal and viewport events, and could let
+          // !editable clear the keyboard flag without testing restored geometry.
           await page.waitForFunction(() => document.documentElement.dataset.keyboardOpen === 'false');
+          await navigationStage(page, trace, 'navigation restored after keyboard dismissal');
           await page.getByRole('navigation', {name: 'Main navigation'}).waitFor({state: 'visible'});
+          assert.equal(await page.evaluate(() => document.activeElement === document.getElementById('navigation-qa-input')), true,
+            `${label}: viewport restoration alone clears keyboard treatment`);
+          await page.evaluate(() => {
+            const input = document.getElementById('navigation-qa-input');input.blur();input.remove();
+            window.__gwNavigationQA.log('keyboard-input-removed');
+          });
         }
+        await navigationStage(page, trace, 'case screenshot');
         await page.screenshot({path: `${output}/${label}.png`});
         results.push({device: device.name, material, theme, mode, status: 'passed'});
-      } finally { await context.close(); }
+      } catch (error) {
+        results.push({device: device.name, material, theme, mode, status: 'failed', stage: current.trace?.stage, error: String(error.message).slice(0,4000)});
+        if (current.page && current.trace) throw await captureNavigationFailure(current.page, current.trace, error);
+        throw error;
+      } finally { await current.context?.close(); }
     }
   }
   assert.deepEqual(errors, []);

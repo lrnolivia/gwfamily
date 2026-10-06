@@ -5,6 +5,7 @@ import {useLiquidGlassEffects} from '@sohumsuthar/liquid-glass/hooks';
 import {useLiquidLens} from '@sohumsuthar/liquid-glass/hooks/useLiquidLens';
 import paths from './glyph-paths.js';
 import {bindViewportBounds} from './viewport-bounds.js';
+import {bindNotificationPopoverPlacement} from './notification-popover-geometry.js';
 
 export const AppContext=createContext(null);
 const FloatingSurfaceContext=createContext(false);
@@ -60,6 +61,11 @@ export function Popover({open,onClose,anchor,children,kind='menu',className='',s
   const id=useId().replace(/:/g,'');
   useEffect(()=>{
     const el=document.getElementById(id);if(!el||!open)return;
+    if(kind==='notifications'){
+      if(!el.matches(':popover-open'))el.showPopover();
+      const cleanup=bindNotificationPopoverPlacement(el,anchor,onClose);
+      return ()=>{cleanup();if(el.matches(':popover-open'))el.hidePopover()};
+    }
     const place=()=>{const v=window.visualViewport,r=anchor?.getBoundingClientRect?.();
       const left=v?.offsetLeft||0,top=v?.offsetTop||0,width=v?.width||innerWidth,height=v?.height||innerHeight;
       const w=Math.min(el.offsetWidth||300,width-24),h=Math.min(el.offsetHeight||300,height-24);
@@ -72,13 +78,14 @@ export function Popover({open,onClose,anchor,children,kind='menu',className='',s
     window.visualViewport?.addEventListener('resize',place);window.visualViewport?.addEventListener('scroll',place);
     return ()=>{observer.disconnect();window.removeEventListener('scroll',follow,true);window.visualViewport?.removeEventListener('resize',place);window.visualViewport?.removeEventListener('scroll',place);
       if(el.matches(':popover-open'))el.hidePopover()};
-  },[id,open,anchor,glass]);
+  },[id,open,anchor,glass,kind]);
   const options=kind==='nav'?{bezel:16,refraction:1.2,dispersion:5,radius:40}:
     kind==='button'?{bezel:9,refraction:.9,dispersion:3,radius:28}:{bezel:9,refraction:.9,dispersion:2,radius:28};
   const onToggle=e=>{if(e.newState==='closed'&&e.currentTarget.isConnected&&document.getElementById(id)===e.currentTarget&&!e.currentTarget.matches(':popover-open'))onClose?.()};
-  return glass?<LiquidGlass id={id} style={style} popover="auto" lens lensOptions={options} className={'gw-glass-menu '+className}
+  const surfaceClass=(kind==='notifications'?'notification-popover ':'')+className;
+  return glass?<LiquidGlass id={id} style={style} popover="auto" lens lensOptions={options} className={'gw-glass-menu '+surfaceClass}
     onToggle={onToggle}><FloatingSurfaceContext.Provider value={true}>{children}</FloatingSurfaceContext.Provider></LiquidGlass>:
-    <div id={id} style={style} popover="auto" className={'gw-material-menu '+className} onToggle={onToggle}><FloatingSurfaceContext.Provider value={true}>{children}</FloatingSurfaceContext.Provider></div>;
+    <div id={id} style={style} popover="auto" className={'gw-material-menu '+surfaceClass} onToggle={onToggle}><FloatingSurfaceContext.Provider value={true}>{children}</FloatingSurfaceContext.Provider></div>;
 }
 export function InlineFilters({label,children}){const [open,setOpen]=useState(false),id=useId();return <div className={'inline-filters '+(open?'is-open':'')}><Control className="filter-trigger" aria-label={label} aria-expanded={open} aria-controls={id} onClick={()=>setOpen(v=>!v)}><Glyph name="settings"/></Control><div id={id} className="inline-filter-reveal" inert={!open}><div className="inline-filter-bar">{children}</div></div></div>}
 export function Sheet({title,kind='normal',onClose,children,style,suppressGlobalPending=false,busy=false}) {

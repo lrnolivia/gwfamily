@@ -1,3 +1,4 @@
+import {normalizeNotificationSettings,previewNotificationSeed,previewVisibleNotifications} from './notification-model.js';
 import {householdPreview} from './household-model.js';
 import {validateMember,validBirthday} from './member-model.js';
 // UI data boundary. Replace these functions with a server adapter at integration.
@@ -8,13 +9,14 @@ export const previewCapabilities=Object.freeze({mode:'preview',networkWrites:fal
 export function initialState(){
   return {mode:'preview',schema:2,onboarding:'welcome',selfId:'lauren',...previewSeed(),
     drafts:{post:'',comments:{},replies:{},files:{}},compose:{},favorites:[],feedFilter:'all',peopleFilter:'all',memoryFilters:{},notificationScope:'leaders',selectedNotificationIds:[],readNotices:[],
+    notifications:previewNotificationSeed(),notificationSettings:normalizeNotificationSettings(),
     bag:[],order:null,payment:{paypal:'',cashApp:'',amount:''},fees:'unpaid',rsvp:null,details:{date:'',location:'',schedule:''},
     households:[],householdRequests:[],householdId:null,reports:[],inviteDrafts:[],pollSelections:{},profilePhoto:null,contact:{},lastId:0};
 }
 export function loadLocalState(storage=globalThis.localStorage){
   try{
     const saved=JSON.parse(storage.getItem(PREVIEW_KEY));
-    if(saved?.schema===2&&saved?.mode==='preview'&&saved.state?.mode==='preview'&&Array.isArray(saved.state.members)&&Array.isArray(saved.state.posts)&&saved.state.members.some(m=>m.id===saved.state.selfId))return {...initialState(),...saved.state};
+    if(saved?.schema===2&&saved?.mode==='preview'&&saved.state?.mode==='preview'&&Array.isArray(saved.state.members)&&Array.isArray(saved.state.posts)&&saved.state.members.some(m=>m.id===saved.state.selfId))return {...initialState(),...saved.state,notificationSettings:normalizeNotificationSettings(saved.state.notificationSettings||{},saved.state)};
   }catch{}
   return initialState();
 }
@@ -69,8 +71,11 @@ export function reducer(state,action){
     case 'SET_FEED_FILTER':return {...state,feedFilter:action.value};
     case 'SET_PEOPLE_FILTER':return {...state,peopleFilter:action.value};
     case 'SET_MEMORY_FILTERS':return {...state,memoryFilters:action.value};
-    case 'SET_NOTIFICATION_SCOPE':return {...state,notificationScope:action.value};
-    case 'SET_SELECTED_NOTIFICATION_IDS':return {...state,selectedNotificationIds:action.ids};
+    case 'SET_NOTIFICATION_SCOPE':return {...state,notificationScope:action.value,notificationSettings:normalizeNotificationSettings({...state.notificationSettings,scope:action.value,globalOff:action.value==='off',revision:(state.notificationSettings?.revision||0)+1},state)};
+    case 'SET_SELECTED_NOTIFICATION_IDS':return {...state,selectedNotificationIds:action.ids,notificationSettings:normalizeNotificationSettings({...state.notificationSettings,selectedIds:action.ids,revision:(state.notificationSettings?.revision||0)+1},state)};
+    case 'SET_NOTIFICATION_SETTINGS':{const current=normalizeNotificationSettings(state.notificationSettings,state);if(action.revision!==current.revision)return state;const settings=normalizeNotificationSettings({...current,...action.patch,categories:{...current.categories,...action.patch?.categories},revision:current.revision+1},state);return {...state,notificationSettings:settings,notificationScope:settings.scope,selectedNotificationIds:settings.selectedIds}}
+    case 'MARK_NOTICES_READ_ALL':return {...state,readNotices:[...new Set([...state.readNotices,...previewVisibleNotifications(state).filter(n=>n.sequence<=action.cutoff&&n.kind!=='message.created').map(n=>n.id)])]};
+    case 'RESET_NOTIFICATIONS_PREVIEW':return {...state,notifications:previewNotificationSeed(),readNotices:[],notificationSettings:normalizeNotificationSettings(),notificationScope:'leaders',selectedNotificationIds:[]};
     case 'DISMISS_NOTICE':return {...state,notifications:(state.notifications||[]).filter(n=>n.id!==action.id)};
     case 'MARK_NOTICE_READ':return {...state,readNotices:[...new Set([...state.readNotices,action.id])]};
     case 'SET_COMPOSE':return {...state,compose:{...state.compose,...action.values}};

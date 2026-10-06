@@ -1,3 +1,5 @@
+import {listNotifications,notificationSettingsStatements} from './notification-service.mjs';
+import {commandFingerprint} from './command-identity.mjs';
 import {directorySelection as validateDirectorySelection} from './member-directory.mjs';
 import {merchandiseOptions,orderLines} from './merchandise.mjs';
 import {householdState,householdCommand} from './households.mjs';
@@ -13,7 +15,7 @@ const uuid=()=>crypto.randomUUID();
 const list=r=>r.results||[];
 const stamp=v=>/Z$|[+-]\d\d:\d\d$/.test(v)?Date.parse(v):Date.parse(v.replace(' ','T')+'Z');
 const requireCan=(actor,action)=>{if(!can(actor,action))throw new UserError('You do not have permission for that action',403)};
-export const visiblePostSql="p.deleted_at IS NULL AND (p.group_id IS NULL OR EXISTS(SELECT 1 FROM family_group_members gm WHERE gm.group_id=p.group_id AND gm.member_id=?))";
+export const visiblePostSql="p.deleted_at IS NULL AND (p.group_id IS NULL OR EXISTS(SELECT 1 FROM family_group_members gm WHERE gm.group_id=p.group_id AND gm.member_id=?)) AND (COALESCE(json_extract(p.metadata_json,'$.systemBirthday'),0)!=1 OR EXISTS(SELECT 1 FROM profiles bp JOIN members bm ON bm.id=bp.member_id WHERE bp.member_id=p.author_id AND bp.birthday_celebration=1 AND bp.birthday<=date('now','-18 years') AND bm.status='active'))";
 export async function readPost(db,actor,id){return db.prepare(`SELECT p.* FROM posts p WHERE p.id=? AND ${visiblePostSql}`).bind(id,actor.id).first()}
 export function validDate(value){if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value)||value<'1900-01-01'||value>new Date().toISOString().slice(0,10))return false;const d=new Date(value+'T12:00:00Z');return !Number.isNaN(+d)&&d.toISOString().slice(0,10)===value}
 function webUrl(value,hosts){if(!value)return '';try{const u=new URL(value);if(u.protocol!=='https:'||u.username||u.password||u.port||!hosts.includes(u.hostname.replace(/^www\./,'')))throw 0;return u.href}catch{throw new UserError('Use a supported secure link')}}
@@ -36,7 +38,7 @@ export async function familyState(db,actor){
  const fees=await db.prepare('SELECT status FROM fee_reports WHERE member_id=? ORDER BY created_at DESC,id DESC LIMIT 1').bind(actor.id).first();
  const claim=await db.prepare('SELECT * FROM shirt_claims WHERE member_id=? ORDER BY created_at DESC,id DESC LIMIT 1').bind(actor.id).first();
  const rsvp=await db.prepare('SELECT status,count FROM rsvps WHERE member_id=?').bind(actor.id).first();
- const notices=list(await db.prepare('SELECT * FROM notifications WHERE recipient_id=? AND dismissed_at IS NULL ORDER BY created_at DESC LIMIT 100').bind(actor.id).all());
+ const inbox=await listNotifications(db,actor,{limit:100});const notices=inbox.notifications;
  const saved=list(await db.prepare('SELECT target_id FROM saved_items WHERE member_id=?').bind(actor.id).all());
  const memories=list(await db.prepare('SELECT * FROM memories WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 200').bind().all());
  const products=list(await db.prepare('SELECT * FROM products WHERE active=1 AND deleted_at IS NULL ORDER BY name').bind().all());
@@ -53,7 +55,7 @@ export async function familyState(db,actor){
  reactions:{},reactionCounts:{},reactionMembers:{},pollSelections:Object.fromEntries(votes.filter(v=>v.member_id===actor.id).map(v=>[v.post_id,json(v.options_json,[])])),
  memories:memories.map(m=>({...json(m.data_json),id:m.id,authorId:m.author_id})),products:products.map(p=>({...json(p.data_json),id:p.id,name:p.name,description:p.description})),
  memorials:memorials.map(m=>({id:m.id,name:m.name,maidenName:m.maiden_name,founder:!!m.founder,story:m.story})),relationships:relationships.map(r=>({from:r.from_id,to:r.to_id,type:r.kind})),
- notifications:notices.filter(n=>!n.subject_id||posts.some(p=>p.id===n.subject_id)).map(n=>({...json(n.data_json),id:n.id,kind:n.kind,createdAt:stamp(n.created_at)})),readNotices:notices.filter(n=>n.read_at).map(n=>n.id),
+ notifications:notices,readNotices:notices.filter(n=>n.readAt).map(n=>n.id),notificationUnreadCount:inbox.unreadCount,notificationSettings:inbox.settings,notificationReadAllCutoff:inbox.readAllCutoff,
  notificationScope:prefs?.scope==='loved_ones'?'loved':prefs?.scope||'leaders',selectedNotificationIds:json(prefs?.selected_ids_json,[]),
  favorites:saved.map(s=>s.target_id),contact:json(me?.contact_json),drafts:{post:'',comments:{},replies:{},files:{}},compose:{},bag:[],order:claim?{id:claim.id,status:claim.status,items:json(claim.lines_json,[]),trackingUrl:claim.tracking_url,claimedAt:stamp(claim.created_at)}:null,
  details,payment:details.payment||{paypal:'',cashApp:'',amount:''},fees:fees?.status||'unpaid',rsvp,reports:reports.map(r=>({id:r.id,targetId:r.target_id,reason:r.reason,status:r.status})),inviteDrafts:[],lastId:0};
@@ -66,14 +68,15 @@ export async function familyState(db,actor){
 
 export async function command(db,actor,input){
  if(!input||typeof input.type!=='string'||typeof input.requestId!=='string'||!/^[a-zA-Z0-9-]{8,80}$/.test(input.requestId))throw new UserError('This action needs a valid request identifier');
- const previous=await db.prepare('SELECT result_json FROM command_receipts WHERE member_id=? AND request_id=?').bind(actor.id,input.requestId).first();if(previous)return json(previous.result_json);
+ const fingerprint=await commandFingerprint(input);
+ const previous=await db.prepare('SELECT * FROM command_receipts WHERE member_id=? AND request_id=?').bind(actor.id,input.requestId).first();if(previous){if(previous.fingerprint&&(previous.fingerprint!==fingerprint||previous.operation!==input.type))throw new UserError('This request identifier was already used for different content',409);return json(previous.result_json)}
  const rate=await createRateStorage(db).consume('write:'+actor.id,{window:60,max:90});if(!rate.allowed)throw new UserError('Please wait a minute before trying again',429);
  const sql=[],result={ok:true};const q=(query,...args)=>sql.push(db.prepare(query).bind(...args));
  const audit=(action,id)=>q('INSERT INTO audit_log(id,actor_id,action,subject_id) VALUES(?,?,?,?)',uuid(),actor.id,action,id);
  switch(input.type){
  case 'SET_BIRTHDAY_CELEBRATION':{
   const profile=await db.prepare('SELECT birthday FROM profiles WHERE member_id=?').bind(actor.id).first();if(input.enabled===true&&!adultOn(profile?.birthday))throw new UserError('Public birthday celebrations are available for adult profiles only');
-  q('UPDATE profiles SET birthday_celebration=?,updated_at=CURRENT_TIMESTAMP WHERE member_id=?',input.enabled===true?1:0,actor.id);break;
+  q('UPDATE profiles SET birthday_celebration=?,updated_at=CURRENT_TIMESTAMP WHERE member_id=?',input.enabled===true?1:0,actor.id);if(input.enabled!==true)q("UPDATE posts SET deleted_at=CURRENT_TIMESTAMP WHERE author_id=? AND json_extract(metadata_json,'$.systemBirthday')=1 AND deleted_at IS NULL",actor.id);break;
  }
  case 'SAVE_MEMBER':{
   const m=input.member||{};if(m.id!==actor.id)throw new UserError('You can only edit your own profile',403);const name=text(m.name,80,true),bio=text(m.bio||'',400);const color=/^#[0-9a-f]{6}$/i.test(m.profileColor||'')?m.profileColor:'#4f996c';const social={};for(const [k,v] of Object.entries(m.socials||{})){if(!['Instagram','Facebook','YouTube','TikTok','Bluesky','LinkedIn'].includes(k))throw new UserError('Unsupported social service');social[k]=webUrl(v,profileHosts)}
@@ -146,7 +149,7 @@ export async function command(db,actor,input){
   if(!['paid','reported'].includes(input.value))throw new UserError('Ask the treasurer to correct a payment report');result.id=uuid();q("INSERT INTO fee_reports(id,member_id,status) VALUES(?,?,'reported')",result.id,actor.id);break;
  }
  case 'CONFIRM_FEE':{
-  requireCan(actor,'confirm_fees');if(!['confirmed','rejected'].includes(input.status))throw new UserError('Choose confirmed or rejected');q('UPDATE fee_reports SET status=?,confirmed_by=? WHERE id=?',input.status,actor.id,input.id);audit('fee-'+input.status,input.id);break;
+  requireCan(actor,'confirm_fees');if(!['confirmed','rejected'].includes(input.status))throw new UserError('Choose confirmed or rejected');const fee=await db.prepare('SELECT status FROM fee_reports WHERE id=?').bind(input.id).first();if(!fee)throw new UserError('Contribution report not found',404);if(fee.status!==input.status){q('UPDATE fee_reports SET status=?,confirmed_by=? WHERE id=? AND status!=?',input.status,actor.id,input.id,input.status);audit('fee-'+input.status,input.id)}break;
  }
  case 'CLAIM_ORDER':{
   let lines;try{lines=await orderLines(db,input.lines)}catch(e){throw new UserError(e.message,e.status||400)}result.id=uuid();q('INSERT INTO shirt_claims(id,member_id,lines_json) VALUES(?,?,?)',result.id,actor.id,JSON.stringify(lines));break;
@@ -162,10 +165,11 @@ export async function command(db,actor,input){
   const previous=p.id?await db.prepare('SELECT * FROM products WHERE id=? AND deleted_at IS NULL').bind(p.id).first():null;if(p.id&&!previous)throw new UserError('Item not found',404);const old=json(previous?.data_json),photo=p.photo===old.photo?old.photo:p.photo?(await ownedFiles(db,actor,[{url:p.photo}]))[0]:null;if(photo?.type&&!/^image\/(png|jpeg|webp|gif)$/.test(photo.type))throw new UserError('Choose an image for this item');
   result.id=p.id||uuid();q('INSERT INTO products(id,name,description,data_json,active) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,description=excluded.description,data_json=excluded.data_json,active=excluded.active',result.id,name,text(p.description||'',1000),JSON.stringify({color:/^#[a-fA-F0-9]{6}$/.test(p.color||'')?p.color:'#24452f',price:text(p.price||'',60),photo:typeof photo==='string'?photo:photo?.url||null,options}),p.active===false?0:1);audit('merchandise-save',result.id);break;
  }
- case 'SET_NOTIFICATION_SCOPE':case 'SET_SELECTED_NOTIFICATION_IDS':{
-  const before=await db.prepare('SELECT * FROM notification_preferences WHERE member_id=?').bind(actor.id).first();const scope=input.type==='SET_NOTIFICATION_SCOPE'?(input.value==='loved'?'loved_ones':input.value):before?.scope||'leaders';let ids=input.type==='SET_SELECTED_NOTIFICATION_IDS'?input.ids:json(before?.selected_ids_json,[]);if(!['all','family','loved_ones','leaders','selected','off'].includes(scope)||!Array.isArray(ids)||ids.length>200||ids.some(id=>typeof id!=='string'||id.length>100))throw new UserError('Check notification choices');ids=await directorySelection(db,ids,{max:200});q('INSERT INTO notification_preferences(member_id,scope,selected_ids_json) VALUES(?,?,?) ON CONFLICT(member_id) DO UPDATE SET scope=excluded.scope,selected_ids_json=excluded.selected_ids_json',actor.id,scope,JSON.stringify([...new Set(ids)]));break;
+ case 'SET_NOTIFICATION_SCOPE':case 'SET_SELECTED_NOTIFICATION_IDS':case 'SET_NOTIFICATION_SETTINGS':{
+  const patch=input.type==='SET_NOTIFICATION_SCOPE'?{scope:input.value,globalOff:input.value==='off'}:input.type==='SET_SELECTED_NOTIFICATION_IDS'?{selectedIds:input.ids}:input.value;
+  sql.push(...await notificationSettingsStatements(db,actor,patch));break;
  }
- case 'MARK_NOTICE_READ':case 'DISMISS_NOTICE':q(`UPDATE notifications SET ${input.type==='MARK_NOTICE_READ'?'read_at':'dismissed_at'}=CURRENT_TIMESTAMP WHERE id=? AND recipient_id=?`,input.id,actor.id);break;
+ case 'MARK_NOTICE_READ':case 'DISMISS_NOTICE':q(`UPDATE notifications SET ${input.type==='MARK_NOTICE_READ'?'read_at':'dismissed_at'}=CURRENT_TIMESTAMP WHERE id=? AND recipient_id=?${input.type==='MARK_NOTICE_READ'?" AND kind!='message.created'":''}`,input.id,actor.id);break;
  case 'RENAME_GROUP':{
   const membership=await db.prepare('SELECT member_id FROM family_group_members WHERE group_id=? AND member_id=? AND is_manager=1').bind(input.id,actor.id).first();if(!can(actor,'manage_members')&&!membership)throw new UserError('Only this group’s manager can change its name',403);q('UPDATE family_groups SET name=?,name_override=? WHERE id=?',text(input.name,100,true),text(input.name,100,true),input.id);audit('rename-group',input.id);break;
  }
@@ -190,18 +194,7 @@ export async function command(db,actor,input){
  }
  default:{try{const h=await householdCommand(db,actor,input,q,audit);if(!h)throw new UserError('This action is not supported');Object.assign(result,h)}catch(e){if(e instanceof UserError)throw e;if(e.status)throw new UserError(e.message,e.status);throw e}break;}
  }
- if(['ADD_POST','ADD_COMMENT','ADD_MEMORY'].includes(input.type)){
-  const name=(await db.prepare('SELECT name FROM user WHERE id=?').bind(actor.id).first())?.name||'A family member';
-  const postId=input.type==='ADD_COMMENT'?input.targetId:result.id;
-  const post=input.type==='ADD_COMMENT'?await readPost(db,actor,postId):{group_id:input.post?.groupId||null};
-  const recipients=list(await db.prepare("SELECT m.*,p.scope,p.selected_ids_json FROM members m LEFT JOIN notification_preferences p ON p.member_id=m.id WHERE m.status='active' AND m.id!=? LIMIT 500").bind(actor.id).all());
-  for(const r of recipients){
-   if(!shouldNotify({id:r.id,status:r.status,group:r.member_group},actor,{scope:r.scope||'leaders',selectedMemberIds:json(r.selected_ids_json,[])}))continue;
-   if(post?.group_id&&!await db.prepare('SELECT member_id FROM family_group_members WHERE group_id=? AND member_id=?').bind(post.group_id,r.id).first())continue;
-   q('INSERT INTO notifications(id,recipient_id,kind,subject_id,data_json) VALUES(?,?,?,?,?)',uuid(),r.id,input.type==='ADD_COMMENT'?'comment':'post',postId,JSON.stringify({authorId:actor.id,title:name+(input.type==='ADD_COMMENT'?' added a comment':' shared an update'),text:'Open the family conversation.',targetId:postId}));
-  }
- }
- q('INSERT INTO command_receipts(member_id,request_id,result_json) VALUES(?,?,?)',actor.id,input.requestId,JSON.stringify(result));
- try{await db.batch(sql)}catch(error){const completed=await db.prepare('SELECT result_json FROM command_receipts WHERE member_id=? AND request_id=?').bind(actor.id,input.requestId).first();if(completed)return json(completed.result_json);throw error}
+ q('INSERT INTO command_receipts(member_id,request_id,result_json,operation,fingerprint) VALUES(?,?,?,?,?)',actor.id,input.requestId,JSON.stringify(result),input.type,fingerprint);
+ try{await db.batch(sql)}catch(error){const completed=await db.prepare('SELECT * FROM command_receipts WHERE member_id=? AND request_id=?').bind(actor.id,input.requestId).first();if(completed){if(completed.fingerprint&&(completed.fingerprint!==fingerprint||completed.operation!==input.type))throw new UserError('This request identifier was already used for different content',409);return json(completed.result_json)}if(String(error.message).includes('valid=1'))throw new UserError('Notification settings changed on another device. Refresh and try again.',409);throw error}
  return result;
 }

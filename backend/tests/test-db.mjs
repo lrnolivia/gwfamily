@@ -1,8 +1,8 @@
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync,readdirSync } from 'node:fs';
-export function database(){
+export function database({beforeMigration}={}){
  const sqlite=new DatabaseSync(':memory:');
- for(const file of readdirSync(new URL('../migrations/',import.meta.url)).filter(x=>x.endsWith('.sql')).sort())sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));
+ for(const file of readdirSync(new URL('../migrations/',import.meta.url)).filter(x=>x.endsWith('.sql')).sort()){beforeMigration?.(file,sqlite);sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'))}
  class Statement{
   constructor(sql,args=[]){this.sql=sql;this.args=args}
   bind(...args){return new Statement(this.sql,args)}

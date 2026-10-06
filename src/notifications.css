@@ -1,0 +1,37 @@
+/* Extends the approved Glass/Flat surfaces with inherited system fonts and
+   personal-palette tokens. Notification content never introduces a new theme. */
+.notification-entry{position:relative}
+/* Keep the bell clear and its material layers stationary. Only the inbox body
+   scrolls; geometry caps the border box to one safe side of the trigger. */
+.notification-popover{
+ --notification-safe-top:var(--gw-safe-top,env(safe-area-inset-top,0px));
+ --notification-safe-right:var(--gw-safe-right,env(safe-area-inset-right,0px));
+ --notification-safe-bottom:var(--gw-safe-bottom,env(safe-area-inset-bottom,0px));
+ --notification-safe-left:var(--gw-safe-left,env(safe-area-inset-left,0px));
+ box-sizing:border-box;width:max-content;min-width:0;min-height:0;
+}
+.notification-popover.gw-glass-menu[popover],.notification-popover.gw-material-menu[popover]{overflow:hidden}
+.notification-popover.gw-glass-menu>.liquid-glass-content{max-height:none;overflow:visible;min-height:0}
+.notification-popover .notification-panel.pop-content{max-height:var(--notification-content-max-height,none);overflow:auto;overscroll-behavior:contain;min-height:0}
+.notification-badge{position:absolute;right:-3px;top:-4px;min-width:18px;min-height:18px;padding:2px 4px;border-radius:12px;font-size:.65rem;font-weight:700;line-height:14px;background:var(--control,var(--accent));color:var(--control-text,var(--ink));border:2px solid var(--bg);font-variant-numeric:tabular-nums}
+.notification-panel{box-sizing:border-box;width:min(390px,calc(100vw - 32px));max-width:100%;display:grid;gap:16px;min-width:0}
+.notification-panel h3,.notification-settings h3{font-family:var(--flat-font,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif)!important;font-weight:650;font-size:1.125rem;letter-spacing:-.015em;line-height:1.35;margin:0}
+.notification-panel-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.notification-panel-heading>div{min-width:0}.notification-panel-heading p{margin:5px 0 0;font-variant-numeric:tabular-nums}.notification-panel-heading>.icon-button{flex:none}
+.notification-list-controls{display:flex;align-items:flex-end;flex-wrap:wrap;justify-content:space-between;gap:8px 12px}
+.notification-list-controls .choice-control{margin:0}.notification-list-controls>.text-button{min-height:44px;white-space:normal;text-align:right;padding:8px 0}
+.notification-inbox{list-style:none;padding:0;margin:0;min-width:0}
+.notification-row{padding:14px 0;border-block-start:1px solid var(--line);min-width:0}
+.notification-row-content{min-width:0}.notification-open{display:flex;gap:12px;width:100%;max-width:100%;min-width:0;background:transparent;color:var(--text);border:0;border-radius:12px;text-align:left;padding:6px 2px}
+.notification-open:hover{background:var(--surface)}.notification-open:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.notification-category-icon{flex:0 0 28px;display:grid;place-items:start center;padding-top:3px;color:var(--muted)}.notification-category-icon .glyph{height:22px;width:22px}
+.notification-copy{min-width:0;display:grid;gap:5px;flex:1}.notification-title{font-weight:650;font-size:.9375rem;line-height:1.4;overflow-wrap:anywhere}.notification-summary{font-size:.8125rem;color:var(--muted);line-height:1.5;overflow-wrap:anywhere}
+.notification-unread-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-inline-start:8px;vertical-align:middle}.notification-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:.6875rem;line-height:1.5;color:var(--muted)}.notification-meta time{font-variant-numeric:tabular-nums}
+.notification-row-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-inline-start:42px;margin-top:3px}.notification-row-actions .text-button{font-size:.75rem;min-height:44px;padding:8px 2px;white-space:normal}.notification-row.is-read .notification-title{font-weight:500}
+.notification-error,.notification-preview,.notification-off-note{font-size:.8125rem;line-height:1.5;overflow-wrap:anywhere;padding:12px 14px;border-radius:12px;background:var(--surface)}.notification-error{border:1px solid var(--line)}.notification-error p,.notification-preview p{margin:0}.notification-error .text-button,.notification-preview .text-button{min-height:44px;margin-top:4px;text-align:left;padding:8px 0}.notification-preview{color:var(--muted)}.notification-off-note{margin:0}
+.notification-empty{text-align:center;padding:20px 12px 28px;display:grid;justify-items:center;gap:8px}.notification-empty>.glyph{width:26px;height:26px;color:var(--muted)}.notification-empty p{margin:0;font-size:.9375rem}.notification-empty>span{line-height:1.5}.notification-message-note{margin:0;padding-top:4px;line-height:1.5}.notification-load-more{max-width:100%;white-space:normal}
+.notification-settings{min-width:0;max-width:680px;margin-inline:auto}.notification-settings-intro{font-size:.9375rem;line-height:1.6;margin:0;color:var(--muted)}.notification-settings-section{min-width:0;padding-block:24px 0;border-block-start:1px solid var(--line);display:grid;gap:16px}.notification-settings-section p{margin:0;line-height:1.5}.notification-category-options{display:grid;min-width:0}.notification-category-choice{display:flex;align-items:center;justify-content:space-between;gap:18px;min-height:64px;padding:14px 0;border-block-end:1px solid var(--line);cursor:pointer}.notification-category-choice:last-child{border-block-end:0}.notification-category-choice>span{display:grid;gap:5px;min-width:0;flex:1}.notification-category-choice strong{font-size:.9375rem;font-weight:600;line-height:1.4}.notification-category-choice>span>span{font-size:.8125rem;font-weight:400;line-height:1.5;color:var(--muted)}.notification-category-choice input[type=checkbox]{flex:0 0 22px;width:22px;height:22px;min-height:22px;margin:0;padding:0;accent-color:var(--accent);cursor:pointer}.notification-category-choice:has(input:disabled){cursor:default}.notification-category-choice input:focus-visible{outline:2px solid var(--accent);outline-offset:5px}.notification-device-status{padding-bottom:8px}.notification-settings .choice-chips{flex-wrap:wrap}.notification-settings .choice-chip-face{white-space:normal}
+.notification-panel button:disabled,.notification-settings button:disabled{cursor:default}.notification-panel ::selection,.notification-settings ::selection{background:var(--control,var(--accent));color:var(--control-text,var(--ink))}.notification-panel,.notification-settings{caret-color:var(--accent);scrollbar-color:var(--muted) transparent}
+@media(max-width:360px){.notification-panel{width:calc(100vw - 36px)}.notification-list-controls{align-items:flex-start}.notification-row-actions{padding-inline-start:0}.notification-category-choice{gap:12px}}
+@media(prefers-reduced-motion:reduce){.notification-panel *,.notification-settings *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+html[data-theme] :is(.notification-panel,.notification-settings),html[data-theme] :is(.notification-panel,.notification-settings) :is(button,input,textarea,select){font-family:var(--flat-font,system-ui)!important}
