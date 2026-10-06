@@ -62,13 +62,17 @@ export function installLiveLifecycle() {
   const fetch = window.fetch;
   let request = 0;
   window.fetch = function(input, options) {
-    const promise = fetch.apply(this, arguments);
     let url;
-    // A malformed input belongs to native fetch. Observation must not turn its
-    // returned rejection into a synchronous throw from this wrapper.
-    try {url = new URL(typeof input === 'string' || input instanceof URL ? input : input.url, location.href);} catch {return promise;}
-    if (url.origin === location.origin && url.pathname === '/api/notifications') {
-      const id = ++request, signal = options?.signal || input?.signal;
+    // Inspect only the notification endpoint; malformed/native inputs keep
+    // native behavior. Record the attempt before native fetch can throw during
+    // teardown, without chaining or handling its returned promise.
+    try {url = new URL(typeof input === 'string' || input instanceof URL ? input : input.url, location.href);} catch {}
+    const notification = url?.origin === location.origin && url.pathname === '/api/notifications';
+    const id = notification ? ++request : null, signal = notification ? options?.signal || input?.signal : null;
+    if (notification) emit('notification-fetch-attempt', {request: id, aborted: !!signal?.aborted,
+      stack: new Error('Notification fetch attempted').stack});
+    const promise = fetch.apply(this, arguments);
+    if (notification) {
       emit('notification-fetch', {request: id, aborted: !!signal?.aborted});
       signal?.addEventListener('abort', () => emit('notification-abort', {request: id, aborted: true,
         stack: new Error('Notification AbortSignal fired').stack}), {once: true});
@@ -79,7 +83,7 @@ export function installLiveLifecycle() {
 
 export function observeLivePage({page, context, label, base, errors, getCheck, started = Date.now()}) {
   const trace = {sequence: 0, eventSequence: 0, documentEpoch: 0, documentTimeOrigin: null, documentUrl: null,
-    lastDrained: 0, events: [], droppedEvents: 0, reads: [], pending: new Map(), transitions: []};
+    lastDrained: 0, events: [], droppedEvents: 0, reads: [], pending: new Map(), transitions: [], pageErrors: [], domErrors: []};
   const requests = new WeakMap(), frames = new WeakMap();
   let frameSequence = 0;
   const frameInfo = frame => {
@@ -89,7 +93,7 @@ export function observeLivePage({page, context, label, base, errors, getCheck, s
   };
   trace.log = (type, detail = {}) => {
     trace.events.push({eventSequence: ++trace.eventSequence, ms: Date.now() - started, check: getCheck(), user: label,
-      document: diagnosticUrl(page.url()), documentEpoch: trace.documentEpoch, ...detail, type});
+      document: diagnosticUrl(page.url()), documentEpoch: trace.documentEpoch, documentTimeOrigin: trace.documentTimeOrigin, ...detail, type});
     if (trace.events.length > EVENT_LIMIT) {trace.events.shift(); trace.droppedEvents++;}
   };
   trace.snapshot = () => ({pending: [...trace.pending.values()].map(read => ({...read})),
@@ -99,7 +103,7 @@ export function observeLivePage({page, context, label, base, errors, getCheck, s
       startedMs: Date.now() - started, startedEvent: trace.eventSequence + 1};
     trace.transitions.push(transition);
     if (trace.transitions.length > 50) trace.transitions.shift();
-    trace.log(type + '-start', {...transition, pending: trace.snapshot().pending});
+    trace.log(type + '-start', {...transition, ms: transition.startedMs, pending: trace.snapshot().pending});
   };
   const currentRead = (read, since) => read.id > since && read.documentEpoch === trace.documentEpoch &&
     read.documentTimeOrigin === trace.documentTimeOrigin && trace.documentEpoch > 0 && read.mainFrame;
@@ -150,11 +154,12 @@ export function observeLivePage({page, context, label, base, errors, getCheck, s
     trace.log(event, {...entry});
   });
   page.on('framenavigated', frame => {
+    const ms = Date.now() - started;
     const transition = trace.transitions.at(-1);
     if (frame === page.mainFrame() && transition && ['signin', 'reload'].includes(transition.type) && transition.committedEvent === undefined) {
-      transition.committedEvent = trace.eventSequence + 1; transition.committedMs = Date.now() - started;
+      transition.committedEvent = trace.eventSequence + 1; transition.committedMs = ms;
     }
-    trace.log('frame-navigated', frameInfo(frame));
+    trace.log('frame-navigated', {...frameInfo(frame), ms});
   });
   for (const event of ['frameattached', 'framedetached']) page.on(event, frame => trace.log(event, frameInfo(frame)));
   for (const event of ['domcontentloaded', 'load', 'close', 'crash']) page.on(event, () => trace.log('page-' + event, {pending: trace.snapshot().pending}));
@@ -162,30 +167,32 @@ export function observeLivePage({page, context, label, base, errors, getCheck, s
   page.on('console', message => {
     if (!message.text().startsWith(LIVE_LIFECYCLE_PREFIX)) return;
     try {
-      const detail = JSON.parse(message.text().slice(LIVE_LIFECYCLE_PREFIX.length));
+      const detail = JSON.parse(message.text().slice(LIVE_LIFECYCLE_PREFIX.length)), ms = Date.now() - started;
       if (detail.event === 'new-document' && Number.isFinite(detail.timeOrigin) && typeof detail.url === 'string' && detail.timeOrigin !== trace.documentTimeOrigin) {
         const previousEpoch = trace.documentEpoch;
         trace.documentEpoch++; trace.documentTimeOrigin = detail.timeOrigin; trace.documentUrl = diagnosticUrl(detail.url);
         const transition = trace.transitions.at(-1);
         if (transition?.sourceEpoch === previousEpoch && ['signin', 'reload'].includes(transition.type) && transition.targetEpoch === undefined) {
           transition.targetEpoch = trace.documentEpoch; transition.targetTimeOrigin = detail.timeOrigin;
-          transition.documentStartedEvent = trace.eventSequence + 1; transition.documentStartedMs = Date.now() - started;
+          transition.documentStartedEvent = trace.eventSequence + 1; transition.documentStartedMs = ms;
         }
       }
-      trace.log('document-lifecycle', {event: safeText(detail.event, 80), url: diagnosticUrl(detail.url), timeOrigin: detail.timeOrigin,
+      trace.log('document-lifecycle', {ms, event: safeText(detail.event, 80), url: diagnosticUrl(detail.url), timeOrigin: detail.timeOrigin,
         documentMs: detail.documentMs, readyState: safeText(detail.readyState, 40), persisted: detail.persisted,
-        ...(Number.isSafeInteger(detail.request) ? {request: detail.request, aborted: detail.aborted === true} : {}),
+        ...(Number.isSafeInteger(detail.request) ? {request: detail.request, ...(typeof detail.aborted === 'boolean' ? {aborted: detail.aborted} : {})} : {}),
         ...(detail.message === undefined ? {} : {message: safeText(detail.message), filename: diagnosticUrl(detail.filename), line: detail.line, column: detail.column}),
         ...(detail.stack === undefined ? {} : {stack: safeText(detail.stack, 4000)})});
+      if (['window-error', 'unhandledrejection'].includes(detail.event)) trace.domErrors.push(trace.events.at(-1));
     } catch {trace.log('unreadable-lifecycle-record');}
   });
   page.on('pageerror', error => {
     const detail = {user: label, error: safeText(error.message), name: safeText(error.name, 100), stack: safeText(error.stack, 4000),
-      ms: Date.now() - started, check: getCheck(), document: diagnosticUrl(page.url()), documentEpoch: trace.documentEpoch, ...trace.snapshot()};
-    errors.push(detail); // Every pageerror fails, including access-control errors during teardown.
-    trace.log('pageerror', {error: detail.error, stack: detail.stack});
+      ms: Date.now() - started, check: getCheck(), document: diagnosticUrl(page.url()), documentEpoch: trace.documentEpoch,
+      documentTimeOrigin: trace.documentTimeOrigin, eventSequence: trace.eventSequence + 1, ...trace.snapshot()};
+    errors.push(detail); trace.pageErrors.push(detail); // Preserve every original event; classify only after proven replacement readiness.
+    trace.log('pageerror', {error: detail.error, name: detail.name, stack: detail.stack, ms: detail.ms});
     console.error('LIVE BROWSER ERROR', JSON.stringify(detail));
-    console.log(liveFailureAnnotation(detail, trace));
+    console.log(liveFailureAnnotation(detail, trace).replace('::error title=', '::notice title='));
   });
   trace.log('observe-page', frameInfo(page.mainFrame()));
   return trace;

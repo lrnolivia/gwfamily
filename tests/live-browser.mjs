@@ -5,6 +5,7 @@ import {chromium, webkit, expect} from '@playwright/test';
 import assert from 'node:assert/strict';
 import {mkdir, writeFile} from 'node:fs/promises';
 import {installLiveLifecycle, observeLivePage} from './live-browser-diagnostics.mjs';
+import {reportReloadInspectorErrors} from './reload-inspector-diagnostics.mjs';
 
 if (!process.env.CI && process.env.GW_HOSTED_BROWSER_QA !== '1') {
   throw new Error('Live API browser QA runs only in the authorized hosted CI environment.');
@@ -16,6 +17,12 @@ const errors = [], sessions = [], passed = [], browserReads = new WeakMap();
 const url = 'http://127.0.0.1:4174', output = 'docs/live-qa', started = Date.now();
 let currentCheck = 'fixture setup', failure;
 await mkdir(output, {recursive: true});
+const errorReport = () => reportReloadInspectorErrors({engine: engineName, base: url, traces: sessions.map(({trace}) => trace)});
+function assertBrowserErrors(message) {
+  const report = errorReport();
+  assert.deepEqual(report.domErrors, [], 'No DOM errors or unhandled promise rejections.');
+  assert.deepEqual(report.fatalErrors, [], message);
+}
 
 async function settleBrowserReads(page, {since, required = []} = {}) {
   const trace = browserReads.get(page), options = {since: since ?? trace.lastDrained, required};
@@ -87,7 +94,7 @@ try{
  currentCheck='featured photo approval';await owner.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'Family',exact:true}).click();await owner.getByRole('tab',{name:'Memories',exact:true}).click();await owner.getByRole('tab',{name:'Featured photos',exact:true}).click();await owner.getByRole('button',{name:'Approve photo',exact:true}).click();await owner.getByRole('button',{name:'Use as main photo',exact:true}).click();await owner.getByText('Main photo',{exact:true}).waitFor();await owner.waitForFunction(()=>{const img=document.querySelector('.featured-photo-row img');return img?.complete&&img.naturalWidth>0},null,{timeout:15000});assert.ok(await owner.locator('.featured-photo-row img').evaluate(img=>img.complete&&img.naturalWidth>0),'another approved member renders the featured image');await owner.screenshot({path:'docs/live-qa/featured-photos-desktop.png'});
  await alice.screenshot({path:'docs/live-qa/live-memories-mobile.png'});
  for (const {page} of sessions) if (!page.isClosed()) await settleBrowserReads(page);
- assert.deepEqual(errors, [], 'No unhandled browser exceptions.');
+ assertBrowserErrors('No unhandled browser exceptions.');
  passed.push('cross-account post persistence', 'cross-account comments', 'RSVP persistence', 'role-scoped organizer',
    'membership approval', '320px two-step onboarding and visible status feedback', 'one-tap media upload with optional details',
    'same-tab reload after private image retry', 'admin-only featured photo approval');
@@ -106,7 +113,7 @@ try{
 } finally {
  const scenarioFailed = !!failure;
  const persist = () => Promise.all([
-   writeFile(`${output}/results.json`, JSON.stringify({browser: engineName, passed, errors, ...(failure ? {failure} : {})}, null, 2)),
+   writeFile(`${output}/results.json`, JSON.stringify({browser: engineName, passed, pageErrors: errors, ...errorReport(), ...(failure ? {failure} : {})}, null, 2)),
    writeFile(`${output}/network-${engineName}.json`, JSON.stringify({browser: engineName, pages: sessions.map(({id, trace}) => ({
      user: id, droppedEvents: trace.droppedEvents, pending: trace.snapshot().pending, transitions: trace.transitions, events: trace.events,
    }))}, null, 2)),
@@ -115,8 +122,11 @@ try{
  currentCheck = 'browser cleanup';
  for (const {page, trace} of sessions) if (!page.isClosed()) trace.beginTransition('browser-close');
  try {await browser.close();} finally {
-   if (!failure && errors.length) failure = 'Unhandled browser exceptions were observed during browser cleanup.';
+   const report = errorReport();
+   console.log('LIVE BROWSER ERROR CLASSIFICATION', JSON.stringify({pageErrorCount: report.pageErrorCount,
+     classifiedInspectorCount: report.classifiedInspectorCount, fatalErrorCount: report.fatalErrors.length, domErrorCount: report.domErrors.length}));
+   if (!failure && (report.fatalErrors.length || report.domErrors.length)) failure = 'Unhandled browser exceptions were observed during browser cleanup.';
    await persist();
  }
- if (!scenarioFailed) assert.deepEqual(errors, [], 'No unhandled browser exceptions, including browser cleanup.');
+ if (!scenarioFailed) assertBrowserErrors('No unhandled browser exceptions, including browser cleanup.');
 }

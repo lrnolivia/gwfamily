@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {reportReloadInspectorErrors} from './reload-inspector-diagnostics.mjs';
 import {LIVE_LIFECYCLE_PREFIX, installLiveLifecycle, observeLivePage, liveFailureAnnotation} from './live-browser-diagnostics.mjs';
 
 const base = 'http://127.0.0.1:4174';
@@ -216,8 +217,9 @@ test('Live notification observation preserves the exact fetch promise and native
   assert.equal(window.fetch.call(receiver, '/api/notifications?token=never-log-query', options), promise);
   assert.equal(calls[0].receiver, receiver); assert.equal(calls[0].args[0], '/api/notifications?token=never-log-query'); assert.equal(calls[0].args[1], options);
   controller.abort();
-  assert.deepEqual(records.slice(1).map(value => [value.event, value.request, value.aborted]), [['notification-fetch', 1, false], ['notification-abort', 1, true]]);
-  assert.match(records[2].stack, /Notification AbortSignal fired/);
+  assert.deepEqual(records.slice(1).map(value => [value.event, value.request, value.aborted]), [['notification-fetch-attempt', 1, false], ['notification-fetch', 1, false], ['notification-abort', 1, true]]);
+  assert.match(records[1].stack, /Notification fetch attempted/);
+  assert.match(records[3].stack, /Notification AbortSignal fired/);
   assert.doesNotMatch(JSON.stringify(records), /never-log-query/);
   const length = records.length;
   assert.equal(window.fetch('/api/state'), promise); assert.equal(window.fetch('https://elsewhere.test/api/notifications'), promise);
@@ -272,12 +274,79 @@ test('Live harness gates every deliberate reload and onboarding closure with act
 
 test('Live hosted assertions remain strict through browser cleanup with durable network artifacts', () => {
   assert.match(source, /GW_HOSTED_BROWSER_QA !== '1'/);
-  assert.match(source, /assert\.deepEqual\(errors, \[\], 'No unhandled browser exceptions\.'\)/);
-  assert.match(source, /if \(!scenarioFailed\) assert\.deepEqual\(errors, \[\], 'No unhandled browser exceptions, including browser cleanup\.'\)/);
+  assert.match(source, /assertBrowserErrors\('No unhandled browser exceptions\.'\)/);
+  assert.match(source, /if \(!scenarioFailed\) assertBrowserErrors\('No unhandled browser exceptions, including browser cleanup\.'\)/);
+  assert.match(source, /assert\.deepEqual\(report\.domErrors, \[\]/);
+  assert.match(source, /assert\.deepEqual\(report\.fatalErrors, \[\]/);
+  assert.match(source, /pageErrors: errors, \.\.\.errorReport\(\)/);
+  assert.match(source, /classifiedInspectorCount: report\.classifiedInspectorCount/);
   assert.match(source, /try \{await browser\.close\(\);\} finally/);
   assert.match(source, /network-\$\{engineName\}\.json/);
   assert.match(source, /assert\.equal\(await alice\.getByRole\('heading',\{name:'Leader Tools',exact:true\}\)\.count\(\),0\)/);
   assert.match(source, /assert\.equal\(await alice\.getByRole\('tab',\{name:'Featured photos',exact:true\}\)\.count\(\),0\)/);
   assert.doesNotMatch(source + diagnosticSource, /errors\.filter\(|ignoreHTTPSErrors|disable-web-security|preventDefault\(\)/);
   assert.doesNotMatch(diagnosticSource, /response\.(json|body|text)\(|request\.(postData|headers)\(/);
+});
+
+test('Live records a notification attempt before a synchronous native teardown throw without consuming it', () => {
+  const records = [], nativeError = new TypeError('native teardown failure');
+  const window = {fetch() {throw nativeError;}}; window.top = window;
+  vm.runInNewContext('(' + installLiveLifecycle.toString() + ')()', {
+    window, URL, location: {origin: base, pathname: '/', href: base + '/'}, performance: {timeOrigin: 123, now: () => 4}, document: {readyState: 'complete'},
+    console: {log: value => records.push(JSON.parse(value.slice(LIVE_LIFECYCLE_PREFIX.length)))}, addEventListener() {},
+  });
+  assert.throws(() => window.fetch('/api/notifications'), error => error === nativeError);
+  assert.deepEqual(records.map(value => value.event), ['new-document', 'notification-fetch-attempt']);
+  assert.equal(records[1].timeOrigin, 123); assert.equal(records[1].aborted, false);
+});
+
+test('Live preserves original pageerrors and DOM exceptions independently of bounded timeline retention', () => {
+  const {page, trace, errors} = observed();
+  lifecycle(page, 'unhandledrejection', 100, {message: 'late rejection'});
+  const originalError = console.error, originalLog = console.log; console.error = () => {}; console.log = () => {};
+  try {page.emit('pageerror', new Error('application exception'));} finally {console.error = originalError; console.log = originalLog;}
+  for (let index = 0; index < 750; index++) trace.log('synthetic-background-event');
+  assert.equal(trace.pageErrors.length, 1); assert.equal(trace.pageErrors[0], errors[0]);
+  assert.equal(trace.pageErrors[0].documentTimeOrigin, 100); assert.ok(Number.isSafeInteger(trace.pageErrors[0].eventSequence));
+  assert.equal(trace.domErrors.length, 1); assert.equal(trace.domErrors[0].event, 'unhandledrejection');
+  assert.equal(trace.events.length, 700);
+});
+
+
+test('Live observer supplies complete classification evidence only after a ready replacement document', () => {
+  const {page, trace, errors} = observed(), req = request(page);
+  page.emit('request', req); finish(page, req); trace.lastDrained = trace.sequence;
+  trace.log('route-reads-settled', {through: trace.lastDrained, pending: []}); trace.beginTransition('reload');
+  lifecycle(page, 'beforeunload'); lifecycle(page, 'notification-fetch-attempt', 100, {request: 2, aborted: false});
+  const error = new Error('/127.0.0.1:4174/api/notifications due to access control checks.');
+  error.name = 'Fetch API cannot load http';
+  error.stack = `Fetch API cannot load ${base}/api/notifications due to access control checks.\n` +
+    `    at unknown (web-inspector://bootstrap.js:37:32)\n    at api (${base}/react-app.js:24802:33)\n` +
+    `    at notificationRequest (${base}/react-app.js:24818:23)\n    at list (${base}/react-app.js:24825:71)`;
+  const originalError = console.error, originalLog = console.log; console.error = () => {}; console.log = () => {};
+  try {page.emit('pageerror', error);} finally {console.error = originalError; console.log = originalLog;}
+  const report = () => reportReloadInspectorErrors({engine: 'webkit', base, traces: [trace]});
+  assert.equal(report().fatalErrors.length, 1);
+  page.emit('framenavigated', page.frame); lifecycle(page, 'new-document', 200);
+  const next = request(page); page.emit('request', next); finish(page, next);
+  assert.equal(report().fatalErrors.length, 1, 'Request success alone does not prove route readiness.');
+  trace.log('reload-ready', {pending: []});
+  assert.equal(report().classifiedInspectorCount, 1); assert.equal(report().fatalErrors.length, 0);
+  assert.equal(errors.length, 1); assert.equal(report().classifiedInspectorErrors[0].error, errors[0]);
+  lifecycle(page, 'window-error', 200, {message: 'late DOM failure'});
+  assert.equal(report().classifiedInspectorCount, 0); assert.equal(report().fatalErrors.length, 1); assert.equal(report().domErrors.length, 1);
+});
+
+
+test('Live transition timestamps retain one observation across clock-tick boundaries', () => {
+  const realNow = Date.now; let now = 10000;
+  Date.now = () => ++now;
+  try {
+    const {page, trace} = observed();
+    trace.beginTransition('reload'); page.emit('framenavigated', page.frame); lifecycle(page, 'new-document', 200);
+    const transition = trace.transitions.at(-1);
+    for (const [event, ms] of [['startedEvent', 'startedMs'], ['committedEvent', 'committedMs'], ['documentStartedEvent', 'documentStartedMs']]) {
+      assert.equal(trace.events.find(value => value.eventSequence === transition[event]).ms, transition[ms]);
+    }
+  } finally {Date.now = realNow;}
 });
