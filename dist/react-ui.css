@@ -368,3 +368,10 @@ html[data-theme] .profile-menu .sign-out{color:#b32935!important;background:#fff
 @media(max-width:650px){.you-columns .profile-overview .large-avatar{width:88px;height:88px}}
 /* Fieldset's intrinsic min-inline-size must not expand the onboarding grid. */
 .profile-style-editor{grid-template-columns:minmax(0,1fr);width:100%;max-width:100%}.profile-style-editor>*{min-width:0;min-inline-size:0;max-width:100%}.profile-colors{min-width:0;min-inline-size:0;width:100%;max-width:100%}.profile-color-options{width:100%;min-width:0;min-inline-size:0}.gw-form>*{min-width:0;min-inline-size:0}
+/* Light glass keeps its lens and rim, with a readable backing behind controls. */
+html[data-platform=ios][data-theme=light] .gw-glass-menu>.liquid-glass-tint{background:color-mix(in srgb,var(--surface) 96%,transparent)}
+html[data-platform=ios][data-theme=light] .bottom>.liquid-glass-tint{background:color-mix(in srgb,var(--surface) 94%,transparent)}
+html[data-platform=ios][data-theme=light] .gw-glass-menu>.liquid-glass-content{color:var(--text)}
+.header-actions{gap:12px!important;flex:none}
+html[data-theme=light] .wordmark-green{color:#948156!important}html[data-theme=light] .wordmark-bottom{color:#603b26!important}
+html[data-theme=light] .brand>img{filter:drop-shadow(0 2px 2px #34533b45)}
