@@ -13,7 +13,7 @@ try {
  const file=await upload.json();
  const response=await page.request.get(origin+file.url);assert.equal(response.status(),200);assert.deepEqual(await response.body(),png);
  await page.setContent(`<img id="test-photo" src="${file.url}" alt="Synthetic decode test">`);
- assert.equal(await page.locator('#test-photo').evaluate(async img=>{await img.decode();return img.naturalWidth}),1,'embedded authenticated image decodes');
+ await page.waitForFunction(()=>{const img=document.querySelector('#test-photo');return img?.complete&&img.naturalWidth===1&&img.naturalHeight===1},null,{timeout:15000});assert.equal(await page.locator('#test-photo').evaluate(img=>img.naturalWidth),1,'embedded authenticated image renders decoded pixels');
  console.log('Embedded private image decode passed',process.env.GW_BROWSER);
  await page.goto(origin+file.url);await page.waitForFunction(()=>{const img=document.querySelector('img');return img?.complete&&img.naturalWidth>0},null,{timeout:15000});assert.ok(await page.locator('img').evaluate(img=>img.naturalWidth>0),'native image viewer renders decoded pixels');
  console.log('Native private image viewer passed',process.env.GW_BROWSER);
