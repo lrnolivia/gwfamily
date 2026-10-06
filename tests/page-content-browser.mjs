@@ -8,6 +8,7 @@ import {mkdir, writeFile} from 'node:fs/promises';
 import {createTestPng} from './png-fixtures.mjs';
 import {SHARED_PAGE_SCHEMA, sharedPageDefaults} from '../src/shared-content-schema.js';
 import {readPageSavePaint, pageSaveContrast, parsePaintColor} from './page-save-contrast.mjs';
+import {cmsFailureAnnotation, installCmsNotificationTrace} from './page-content-browser-diagnostics.mjs';
 
 if (!process.env.CI && process.env.GW_HOSTED_BROWSER_QA !== '1') {
   throw new Error('Shared-page browser QA runs only in the authorized hosted CI environment.');
@@ -113,16 +114,22 @@ function observeBrowser(page, label) {
             navigation.documentStartedEvent = trace.eventSequence + 1;
           }
         }
-        trace.log('document-lifecycle', detail);
+        // Only known, bounded lifecycle metadata enters the diagnostic stream.
+        trace.log('document-lifecycle', {event: String(detail.event || '').slice(0, 80), url: String(detail.url || '').slice(0, 2000),
+          timeOrigin: detail.timeOrigin, documentMs: detail.documentMs, readyState: String(detail.readyState || '').slice(0, 40),
+          ...(Number.isSafeInteger(detail.request) ? {request: detail.request, aborted: detail.aborted === true} : {}),
+          ...(detail.message === undefined ? {} : {message: String(detail.message).slice(0, 2000), filename: String(detail.filename || '').slice(0, 2000), line: detail.line, column: detail.column}),
+          ...(detail.stack === undefined ? {} : {stack: String(detail.stack).slice(0, 4000)})});
       }
       catch {trace.log('unreadable-lifecycle-record');}
     } else if (message.type() === 'error') trace.log('console-error', {text: message.text().slice(0, 2000), location: message.location()});
   });
   page.on('pageerror', error => {
-    const detail = {user: label, error: error.message, name: error.name, stack: error.stack, ms: Date.now() - traceStarted, check: currentCheck, document: page.url(), ...snapshot()};
+    const detail = {user: label, error: error.message, name: error.name, stack: error.stack, ms: Date.now() - traceStarted, check: currentCheck, document: page.url(), documentEpoch: trace.documentEpoch, documentTimeOrigin: trace.documentTimeOrigin, ...snapshot()};
     errors.push(detail); // No pageerror is filtered, including access-control errors.
     trace.log('pageerror', {error: error.message, stack: error.stack});
     console.error('CMS BROWSER ERROR', JSON.stringify(detail));
+    console.log(cmsFailureAnnotation(detail, trace));
   });
   browserReads.set(page, trace);
   return trace;
@@ -174,6 +181,7 @@ async function person(id, {width = 390, height = 844, motion = 'reduce', active 
       writes.push({user: label, path: new URL(request.url()).pathname, method: request.method(), body: request.postDataJSON()});
     }
   });
+  await page.addInitScript(installCmsNotificationTrace);
   await page.addInitScript(({platform, theme}) => {
     const emit = (event, detail = {}) => {if (window === window.top) console.log('__GW_CMS_LIFECYCLE__' + JSON.stringify({event, url: location.href, timeOrigin: performance.timeOrigin, documentMs: performance.now(), readyState: document.readyState, ...detail}));};
     emit('new-document');

@@ -5,6 +5,7 @@ import {readFileSync} from 'node:fs';
 import {EventEmitter} from 'node:events';
 import vm from 'node:vm';
 import {routeFromHash} from '../src/navigation.js';
+import {cmsFailureAnnotation, installCmsNotificationTrace} from './page-content-browser-diagnostics.mjs';
 const source = readFileSync(new URL('./page-content-browser.mjs', import.meta.url), 'utf8');
 const helpers = source.slice(source.indexOf('function observeBrowser('), source.indexOf('async function person('));
 const navigation = source.slice(source.indexOf('async function navigate('), source.indexOf('async function edit('));
@@ -14,8 +15,8 @@ class Page extends EventEmitter {
   url() {return this.currentUrl;}
   mainFrame() {return this.frame;}
 }
-function lifecycle(page, event, timeOrigin) {
-  page.emit('console', {text: () => '__GW_CMS_LIFECYCLE__' + JSON.stringify({event, url: page.url(), timeOrigin})});
+function lifecycle(page, event, timeOrigin, extra = {}) {
+  page.emit('console', {text: () => '__GW_CMS_LIFECYCLE__' + JSON.stringify({event, url: page.url(), timeOrigin, ...extra})});
 }
 function commitDocument(page, url, timeOrigin = 200000) {
   page.currentUrl = url;
@@ -24,14 +25,15 @@ function commitDocument(page, url, timeOrigin = 200000) {
 }
 function observed({initialize = true} = {}) {
   let now = 1000, afterReady;
-  const context = vm.createContext({Date: class extends Date {static now() {return now;}}, URL, Object, Map, WeakMap, JSON, assert, base, currentCheck: 'synthetic contract', traceStarted: 0, browserReads: new WeakMap(), errors: [], console: {error() {}},
+  const annotations = [];
+  const context = vm.createContext({Date: class extends Date {static now() {return now;}}, URL, Object, Map, WeakMap, JSON, assert, base, cmsFailureAnnotation, currentCheck: 'synthetic contract', traceStarted: 0, browserReads: new WeakMap(), errors: [], console: {error() {}, log(value) {annotations.push(value);}},
     // Immediate probes make these pure event contracts, not timing simulations.
     expect: {poll: probe => ({async toEqual(wanted) {assert.equal(JSON.stringify(probe()), JSON.stringify(wanted)); afterReady?.();}})},
   });
   vm.runInContext(helpers, context);
   const page = new Page(), trace = context.observeBrowser(page, 'alice');
   if (initialize) lifecycle(page, 'new-document', 100000);
-  return {page, trace, errors: context.errors, time: ms => {now = ms;}, onReady: callback => {afterReady = callback;}, settle: options => context.settleBrowserReads(page, options)};
+  return {page, trace, errors: context.errors, annotations, time: ms => {now = ms;}, onReady: callback => {afterReady = callback;}, settle: options => context.settleBrowserReads(page, options)};
 }
 function request(page, path, failure) {
   return {frame: () => page.mainFrame(), url: () => base + path, method: () => 'GET', resourceType: () => 'fetch', isNavigationRequest: () => false, failure: () => failure ? {errorText: failure} : null};
@@ -236,4 +238,64 @@ test('diagnostic history stays bounded and never captures cookies or response bo
   assert.match(source, /network-\$\{engineName\}\.json/);
   assert.match(source, /addEventListener\('unhandledrejection'/);
   assert.match(source, /\['beforeunload', 'pagehide', 'pageshow'\]/);
+});
+
+test('CMS notification observation preserves native fetch identity and records the abort call site', () => {
+  const records = [], calls = [], promise = Promise.resolve('native result');
+  Object.defineProperty(promise, 'then', {value() {throw new Error('Must not chain or handle native fetch');}});
+  const window = {fetch(...args) {calls.push({receiver: this, args}); return promise;}}; window.top = window;
+  vm.runInNewContext('(' + installCmsNotificationTrace.toString() + ')()', {
+    window, URL, location: {origin: base, href: base + '/?qa=synthetic#/family'},
+    performance: {timeOrigin: 123, now: () => 4}, document: {readyState: 'complete'},
+    console: {log: value => records.push(JSON.parse(value.slice('__GW_CMS_LIFECYCLE__'.length)))},
+  });
+  const controller = new AbortController(), options = {signal: controller.signal}, receiver = {};
+  assert.equal(window.fetch.call(receiver, '/api/notifications?token=never-log-query', options), promise);
+  assert.equal(calls[0].receiver, receiver); assert.equal(calls[0].args[1], options);
+  controller.abort();
+  assert.deepEqual(records.map(value => [value.event, value.request, value.aborted]), [['notification-fetch', 1, false], ['notification-abort', 1, true]]);
+  assert.equal(records[1].timeOrigin, 123); assert.equal(records[1].documentMs, 4);
+  assert.match(records[1].stack, /Notification AbortSignal fired/);
+  assert.doesNotMatch(JSON.stringify(records), /never-log-query/);
+  assert.equal(window.fetch('/api/state'), promise); assert.equal(window.fetch('https://elsewhere.test/api/notifications'), promise);
+  assert.equal(window.fetch(null), promise); assert.equal(records.length, 2);
+  const requestController = new AbortController();
+  assert.equal(window.fetch({url: base + '/api/notifications', signal: requestController.signal}), promise);
+  requestController.abort(); assert.equal(records.at(-1).request, 2);
+  const subframe = {fetch: window.fetch, top: {}};
+  vm.runInNewContext('(' + installCmsNotificationTrace.toString() + ')()', {window: subframe});
+  assert.equal(subframe.fetch, window.fetch, 'Subframes are not wrapped.');
+  assert.match(source, /await page\.addInitScript\(installCmsNotificationTrace\)/);
+});
+
+test('CMS compact failure annotation correlates the current document, notification request and abort stack', () => {
+  const {page, trace, errors, annotations} = observed(), target = base + '/?qa=next#/family';
+  trace.beginNavigation(target); commitDocument(page, target);
+  const req = request(page, '/api/notifications?token=never-log-token'); page.emit('request', req); finish(page, req);
+  lifecycle(page, 'notification-fetch', 200000, {request: 1, aborted: false});
+  lifecycle(page, 'notification-abort', 200000, {request: 1, aborted: true,
+    stack: 'abort@' + base + '/react-app.js?v=never-log-version:123:45', body: 'never-log-body'});
+  page.emit('pageerror', new Error('Fetch API cannot load ' + req.url() + ' due to access control checks.'));
+  assert.equal(errors.length, 1); assert.equal(errors[0].documentEpoch, 2); assert.equal(errors[0].documentTimeOrigin, 200000);
+  const prefix = '::error title=GW CMS request failure::', annotation = annotations.at(-1);
+  assert.ok(annotation.startsWith(prefix)); assert.ok(annotation.length < 4096);
+  const compact = JSON.parse(annotation.slice(prefix.length).replaceAll('%0A', '\n').replaceAll('%0D', '\r').replaceAll('%25', '%'));
+  assert.equal(compact.epoch, 2); assert.equal(compact.timeOrigin, 200000);
+  assert.equal(compact.reads[0].status, 200); assert.equal(compact.reads[0].epoch, 2); assert.equal(compact.reads[0].timeOrigin, 200000);
+  assert.ok(Number.isFinite(compact.reads[0].end)); assert.ok(Number.isFinite(compact.navigation[0].commit));
+  assert.equal(compact.navigation[0].sourceEpoch, 1); assert.equal(compact.navigation[0].targetEpoch, 2);
+  assert.equal(compact.lifecycle.at(-1).event, 'notification-abort'); assert.equal(compact.lifecycle.at(-1).request, 1);
+  assert.match(compact.lifecycle.at(-1).stack, /react-app\.js:123:45/);
+  assert.doesNotMatch(annotation, /never-log-token|never-log-version|never-log-body/);
+  assert.doesNotMatch(JSON.stringify(trace.events), /never-log-body/);
+});
+
+test('CMS lifecycle stacks and compact annotations remain bounded without dropping pageerrors', () => {
+  const {page, trace, errors, annotations} = observed();
+  for (let index = 0; index < 8; index++) lifecycle(page, 'notification-abort', 100000, {request: index + 1, stack: '%'.repeat(8000)});
+  assert.equal(trace.events.at(-1).stack.length, 4000);
+  const error = new Error('/api/notifications' + '%'.repeat(8000)); error.stack = '%'.repeat(8000);
+  page.emit('pageerror', error);
+  assert.equal(errors.length, 1); assert.equal(annotations.length, 1); assert.ok(annotations[0].length < 4096);
+  assert.doesNotThrow(() => JSON.parse(annotations[0].split('::').at(-1).replaceAll('%25', '%')));
 });
