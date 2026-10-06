@@ -35,10 +35,10 @@ export function Avatar({member,size}){return member?.photo?<img className={'avat
 export function MemberBadges({member,interactive=false}){
   const {state,go}=useApp();
   if(!member)return null;
-  const group=state.groups.find(g=>g.id===member.groupId);
+  const household=(state.households||[]).find(h=>h.memberIds.includes(member.id));const group=state.groups.find(g=>g.id===member.groupId);
   return <span className="membership-chips">
     {member.circle&&<span className="membership-chip"><Glyph name={member.circle==='loved'?'heart':'people'}/>{member.circle==='loved'?'Loved Ones':'Family'}</span>}
-    {group&&(interactive?<Control type="button" className="membership-chip membership-group" onClick={e=>{e.stopPropagation();go({type:'group',id:group.id})}}><Glyph name="home"/>{group.name}</Control>:<span className="membership-chip membership-group"><Glyph name="home"/>{group.name}</span>)}
+    {household?<Control type="button" className="membership-chip membership-group" aria-label={'Household: '+household.name} onClick={e=>{e.stopPropagation();go({type:'household',id:household.id})}}><Glyph name="home"/>{household.name}</Control>:group&&(interactive?<Control type="button" className="membership-chip membership-group" onClick={e=>{e.stopPropagation();go({type:'group',id:group.id})}}><Glyph name="home"/>{group.name}</Control>:<span className="membership-chip membership-group"><Glyph name="home"/>{group.name}</span>)}
     {member.leader&&<span className="membership-chip membership-shield" role="img" aria-label="Family leader" title="Family leader"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 6v5c0 5-3 8-7 10-4-2-7-5-7-10V6zM8.5 11.8l2.3 2.3 4.7-4.7"/></svg></span>}
   </span>
 }

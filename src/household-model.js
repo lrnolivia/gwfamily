@@ -1,0 +1,8 @@
+export function householdPreview(state,action){const hs=state.households||[],rs=state.householdRequests||[],id=action.householdId,own=state.selfId;switch(action.type){
+case'CREATE_HOUSEHOLD':{const id='preview-household-'+(state.lastId+1);return {...state,lastId:state.lastId+1,householdId:id,households:[...hs,{id,name:action.name,color:'#4f996c',photo:null,founderId:own,memberIds:[own],headIds:[own],canManage:true}]}}
+case'SAVE_HOUSEHOLD':return {...state,households:hs.map(h=>h.id===id?{...h,name:action.name,color:action.color,photo:action.photo}:h)};
+case'INVITE_HOUSEHOLD_MEMBER':case'REQUEST_HOUSEHOLD_JOIN':return {...state,lastId:state.lastId+1,householdRequests:[...rs,{id:'preview-request-'+(state.lastId+1),householdId:id,requesterId:own,recipientId:action.memberId||hs.find(h=>h.id===id)?.founderId,kind:action.type==='INVITE_HOUSEHOLD_MEMBER'?'invite':'join'}]};
+case'RESOLVE_HOUSEHOLD_REQUEST':{const r=rs.find(r=>r.id===action.id);if(!r)return state;const who=r.kind==='invite'?r.recipientId:r.requesterId;return {...state,householdId:action.accept&&who===own?r.householdId:state.householdId,householdRequests:rs.filter(x=>x.id!==r.id),households:hs.map(h=>h.id===r.householdId&&action.accept?{...h,memberIds:[...new Set([...h.memberIds,who])]}:h)}}
+case'REQUEST_HOUSEHOLD_HEAD':return {...state,households:hs.map(h=>h.id===id?{...h,headIds:[...new Set([...h.headIds,action.memberId])]}:h)};
+case'REMOVE_HOUSEHOLD_MEMBER':case'LEAVE_HOUSEHOLD':{const who=action.memberId||own;return {...state,householdId:who===own?null:state.householdId,households:hs.map(h=>h.id===id?{...h,memberIds:h.memberIds.filter(x=>x!==who),headIds:h.headIds.filter(x=>x!==who)}:h)}}
+default:return null}}

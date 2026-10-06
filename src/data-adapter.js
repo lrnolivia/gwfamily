@@ -1,3 +1,4 @@
+import {householdPreview} from './household-model.js';
 import {validateMember,validBirthday} from './member-model.js';
 // UI data boundary. Replace these functions with a server adapter at integration.
 // Roles and membership here are presentation data, never authorization.
@@ -8,7 +9,7 @@ export function initialState(){
   return {mode:'preview',schema:2,onboarding:'welcome',selfId:'lauren',...previewSeed(),
     drafts:{post:'',comments:{},replies:{},files:{}},compose:{},favorites:[],feedFilter:'all',peopleFilter:'all',memoryFilters:{},notificationScope:'leaders',selectedNotificationIds:[],readNotices:[],
     bag:[],order:null,payment:{paypal:'',cashApp:'',amount:''},fees:'unpaid',rsvp:null,details:{date:'',location:'',schedule:''},
-    reports:[],inviteDrafts:[],pollSelections:{},profilePhoto:null,contact:{},lastId:0};
+    households:[],householdRequests:[],householdId:null,reports:[],inviteDrafts:[],pollSelections:{},profilePhoto:null,contact:{},lastId:0};
 }
 export function loadLocalState(storage=globalThis.localStorage){
   try{
@@ -107,7 +108,10 @@ export function reducer(state,action){
       return {...state,bag:[...bag,action.item]};
     }
     case 'BAG_REMOVE':return {...state,bag:state.bag.filter(x=>x.productId!==action.productId)};
-    case 'CLAIM_ORDER':return {...state,order:{status:'claimed',claimedAt:Date.now(),items:state.bag}};
+    case 'MARK_ANNOUNCEMENT_SEEN':return {...state,announcementViews:[...new Set([...(state.announcementViews||[]),action.id])]};
+    case 'CLAIM_ORDER':return {...state,order:{id:'preview-order-'+Date.now(),status:'claimed',claimedAt:Date.now(),items:state.bag},bag:[]};
+    case 'SAVE_PRODUCT':{const p={...action.product,id:action.product.id||'preview-item-'+Date.now()};return {...state,products:[...(state.products||[]).filter(x=>x.id!==p.id),p]}}
+    case 'UPDATE_CLAIM':return {...state,order:state.order?{...state.order,status:action.status}:null};
     case 'ORDER_RECEIVED':return {...state,order:state.order?{...state.order,status:'received',receivedAt:Date.now()}:null};
     case 'SET_PAYMENT':return {...state,payment:action.value};
     case 'SET_FEES':return {...state,fees:action.value};
@@ -120,6 +124,6 @@ export function reducer(state,action){
       memories:action.status==='removed'?state.memories.filter(m=>m.id!==action.targetId):state.memories};
     case 'SAVE_INVITE_DRAFT':return {...state,inviteDrafts:[...state.inviteDrafts,{id:'invite-'+(state.lastId+1),
       recipient:action.recipient,groupId:action.groupId,createdAt:Date.now()}],lastId:state.lastId+1};
-    default:return state;
+    default:return householdPreview(state,action)||state;
   }
 }
