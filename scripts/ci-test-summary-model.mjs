@@ -30,6 +30,11 @@ export function testSuiteCounts(log){
  const counts={};for(const match of String(log||'').matchAll(/^#\s+(tests|suites|pass|fail|cancelled|skipped|todo|duration_ms)\s+(\d+(?:\.\d+)?)/gm))counts[match[1]]=Number(match[2]);
  return Number.isFinite(counts.tests)&&Number.isFinite(counts.pass)&&Number.isFinite(counts.fail)?counts:null;
 }
+export function buildFailureAnnotation(log){
+ const lines=String(log||'').replace(/\u001b\[[0-9;]*m/g,'').split('\n');
+ const failures=lines.filter(line=>/\[ERROR\]|^Error:|Could not resolve|Build failed|not supported|not found/i.test(line)).slice(0,8).map(line=>line.slice(0,400));
+ return {title:'Required backend bundle failed',message:(failures.join('\n')||'The full required bundle failed; see the unchanged raw build output.').slice(0,1400)};
+}
 const commandProperty=value=>commandData(value).replaceAll(':','%3A').replaceAll(',','%2C');
 export function testFailureCommand(record,suite='GW suite'){
  const properties=['title='+commandProperty(suite+': '+record.title)];

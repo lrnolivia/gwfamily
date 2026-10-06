@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {testFailureAnnotations,testFailureCommand,testSuiteCounts} from '../scripts/ci-test-summary-model.mjs';
+import {testFailureAnnotations,testFailureCommand,testSuiteCounts,buildFailureAnnotation} from '../scripts/ci-test-summary-model.mjs';
 test('failure annotations retain actual tests and source locations without changing suite selection',()=>{
  const log="not ok 7 - current failed contract\n  location: '/home/runner/work/gwfamily/gwfamily/tests/example.test.mjs:18:3'\n  failureType: 'testCodeFailure'\n  error: 'Mismatch'\n  code: 'ERR_ASSERTION'\nnot ok 8 - backend mismatch\n  location: '/home/runner/work/gwfamily/gwfamily/backend/tests/example.test.mjs:5:1'\n";
  const rows=testFailureAnnotations(log);assert.equal(rows.length,2);assert.equal(rows[0].path,'tests/example.test.mjs');assert.equal(rows[0].line,18);assert.equal(rows[1].path,'backend/tests/example.test.mjs');assert.match(rows[0].message,/ERR_ASSERTION/);
@@ -17,4 +17,8 @@ test('multiline errors and module bootstrap reasons are retained without input d
 test('terminal TAP counts are reported exactly and incomplete output is not called a pass',()=>{
  assert.deepEqual(testSuiteCounts('# tests 13\n# suites 0\n# pass 12\n# fail 1\n# skipped 0\n# duration_ms 19.75\n'),{tests:13,suites:0,pass:12,fail:1,skipped:0,duration_ms:19.75});
  assert.equal(testSuiteCounts('ok 1 - success\n'),null);assert.equal(testSuiteCounts('# tests 1\n# pass 1\n'),null);
+});
+test('build diagnostics retain exact bounded errors from the unchanged full build',()=>{
+ const row=buildFailureAnnotation('banner\n✘ [ERROR] Could not resolve "crypto"\nError: Build failed with 1 error\n');assert.match(row.message,/Could not resolve "crypto"/);assert.match(row.message,/Build failed with 1 error/);assert.ok(row.message.length<=1400);
+ assert.match(buildFailureAnnotation('').message,/full required bundle failed/);assert.ok(!testFailureCommand(row,'backend-build').includes('\n'));
 });
