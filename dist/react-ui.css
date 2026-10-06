@@ -325,3 +325,8 @@ html[data-platform=ios][data-theme] #sheet>.sheet-glass>.liquid-glass-tint{backg
 #sheet::backdrop{background:rgba(0,0,0,.28);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 #sheet.profile-sheet::backdrop{backdrop-filter:grayscale(1) blur(8px);-webkit-backdrop-filter:grayscale(1) blur(8px)}
 @media(prefers-reduced-transparency:reduce){html[data-platform=ios][data-theme] #sheet>.sheet-glass>.liquid-glass-tint{background:var(--surface)!important}}
+/* Keep composer controls above native text editing layers in WebKit. */
+#sheet.comments-surface .comments-view,#sheet.comments-surface .chat-thread{flex:1 1 0;min-height:0}
+#sheet .writing-box{isolation:isolate}
+#sheet .writing-box>textarea{position:relative;z-index:0}
+#sheet .writing-box>:is(.send-button,.attach-direct){z-index:2;pointer-events:auto}
