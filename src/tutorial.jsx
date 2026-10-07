@@ -5,7 +5,7 @@ import {Button,Control,Glyph,useApp} from './ui-core.jsx';
 import {ViewSwitcher} from './view-switcher.jsx';
 import {contextualTopic,tutorialTopics} from './tutorial-model.js';
 import {availableTourSteps,positionTour,readTourProgress,resumeTourIndex,saveTourProgress,tourAccount,tourShadeRegions} from './contextual-tour-model.js';
-import {cycleTourFocus,describeTourTarget,findTourTarget,isolateTourBranches,tourFocusable} from './contextual-tour-dom.js';
+import {createTourGeometryTracker,cycleTourFocus,describeTourTarget,findTourTarget,isolateTourBranches,tourFocusable} from './contextual-tour-dom.js';
 import './help.css';
 import './tutorial.css';
 const TutorialContext=createContext(null);
@@ -49,16 +49,17 @@ export function TutorialProvider({enabled=true,children}){
   if(session&&!sameRoute(app.route,session.steps[session.index].route))stop('paused',{restore:false});
  },[app?.route,session?.index,account,enabled]);
  const value={enabled:enabled&&!!account,start,saved:savedIdentity===account?saved:readTourProgress(guideStorage(),account),storageError:savedIdentity===account&&storageError,launchError};
- return <TutorialContext.Provider value={value}>{children}{enabled&&session&&session.account===account&&<ContextualTour key={account} step={session.steps[session.index]} index={session.index} count={session.steps.length} busy={!!app?.data?.pending} storageError={storageError} platform={app?.platform} back={()=>move(session.index-1)} next={()=>session.index===session.steps.length-1?stop('completed'):move(session.index+1)} skip={()=>stop('skipped')} explore={()=>stop('paused',{restore:false})}/>}</TutorialContext.Provider>;
+ return <TutorialContext.Provider value={value}>{children}{enabled&&session&&session.account===account&&<ContextualTour key={account+':'+session.steps[session.index].id} step={session.steps[session.index]} index={session.index} count={session.steps.length} busy={!!app?.data?.pending} storageError={storageError} platform={app?.platform} back={()=>move(session.index-1)} next={()=>session.index===session.steps.length-1?stop('completed'):move(session.index+1)} skip={()=>stop('skipped')} explore={()=>stop('paused',{restore:false})}/>}</TutorialContext.Provider>;
 }
 
 function ContextualTour({step,index,count,busy,storageError,platform,back,next,skip,explore}){
  const panel=useRef(null),target=useRef(null),overlay=useRef(null),callbacks=useRef({back,next,skip,explore,busy}),focusedStep=useRef(null),id=useId().replace(/:/g,''),descriptionId='gw-tour-description-'+id,titleId='gw-tour-title-'+id;
- const [position,setPosition]=useState(null),[missing,setMissing]=useState(false),[finding,setFinding]=useState(true);
- callbacks.current={back,next,skip,explore,busy,finding};
+ const [position,setPosition]=useState(null),[missing,setMissing]=useState(false),[finding,setFinding]=useState(true),[geometryReady,setGeometryReady]=useState(false);
+ callbacks.current={back,next,skip,explore,busy,finding:finding||!geometryReady};
  useEffect(()=>{
   let frame=0,alive=true,scrolled=false,resolved=false,settled=false,dirty=true,restoreIsolation=()=>{},restoreDescription=()=>{},observed=null;
-  setPosition(null);setMissing(false);setFinding(true);target.current=null;
+  const geometry=createTourGeometryTracker();
+  setPosition(null);setMissing(false);setFinding(true);setGeometryReady(false);target.current=null;
   const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const measure=()=>{
    if(!alive||!panel.current||!overlay.current)return;
@@ -75,8 +76,14 @@ function ContextualTour({step,index,count,busy,storageError,platform,back,next,s
    if(node&&!scrolled){scrolled=true;const r=node.getBoundingClientRect(),v=viewport(),top=v.offsetTop||0,left=v.offsetLeft||0;if(r.top<top+12||r.bottom>top+v.height-12||r.left<left+12||r.right>left+v.width-12)node.scrollIntoView({block:'center',inline:'nearest',behavior:reduced?'auto':'smooth'})}
    const rect=node?.getBoundingClientRect(),v=viewport(),visible=rect&&rect.bottom>(v.offsetTop||0)&&rect.top<(v.offsetTop||0)+v.height&&rect.right>(v.offsetLeft||0)&&rect.left<(v.offsetLeft||0)+v.width;
    const size={width:Math.min(356,v.width-24),height:panel.current.scrollHeight||300};
-   setPosition(positionTour(visible?rect:null,size,v));
+   const nextPosition=positionTour(visible?rect:null,size,v),measurement=geometry.sample(nextPosition,visible?rect:null,panel.current.getBoundingClientRect(),size,v);
+   setPosition(nextPosition);
    resolved=!!(node&&visible);if(resolved){settled=true;setFinding(false);setMissing(false)}else if(settled){setFinding(false);setMissing(true)}
+   // Let the Finding status/spotlight note render, then verify the applied coach
+   // and real target are stable and separated before accepting another Next.
+   const ready=(resolved||settled)&&measurement.ready;
+   overlay.current.dataset.tourStableFrames=String(measurement.stableFrames);
+   setGeometryReady(ready);if(!ready)schedule();
   };
   const schedule=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(measure)};
   const resize=typeof ResizeObserver==='function'?new ResizeObserver(schedule):null;
@@ -84,7 +91,7 @@ function ContextualTour({step,index,count,busy,storageError,platform,back,next,s
   // Only target/layout presence is observed. No content is read or saved.
   const mutations=typeof MutationObserver==='function'?new MutationObserver(records=>{if(records.some(record=>!overlay.current?.contains(record.target)&&(record.type!=='attributes'||record.attributeName==='open'||!record.target.hasAttribute('inert')))){dirty=true;schedule()}}):null;
   mutations?.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['open','inert']});
-  const timeout=setTimeout(()=>{settled=true;if(!resolved){setMissing(true);setFinding(false)}},1400);
+  const timeout=setTimeout(()=>{settled=true;if(!resolved){setMissing(true);setFinding(false);schedule()}},1400);
   const onKey=event=>{
    if(event.key==='Escape'){event.preventDefault();event.stopPropagation();callbacks.current.skip();return}
    if(cycleTourFocus(event,tourFocusable(panel.current,target.current),document.activeElement))return;
@@ -102,8 +109,8 @@ function ContextualTour({step,index,count,busy,storageError,platform,back,next,s
  useEffect(()=>{if(position&&focusedStep.current!==step.id){focusedStep.current=step.id;panel.current?.focus({preventScroll:true})}},[position,step.id]);
  if(typeof document==='undefined')return null;
  const hole=position?.hole,arrow=position?.arrow,coach=position?.coach;
- const content=<><div className="tour-progress-row"><p className="tour-progress">Step {index+1} of {count}</p><button type="button" className="tour-skip" onClick={skip}>Skip guide</button></div><div className="tour-copy" aria-live="polite" aria-atomic="true"><h2 id={titleId}>{step.title}</h2><p id={descriptionId}>{step.body}</p><p className="tour-instruction">{step.instruction}</p>{finding&&<p className="tour-status" role="status">Finding this control…</p>}{missing&&<p className="tour-status" role="status">This control isn’t visible right now. You can continue, or skip and come back later.</p>}{position?.reason==='viewport-too-small'&&<p className="tour-status" role="status">There isn’t enough room to highlight the control beside these instructions. Zoom out or rotate your device, or continue the guide.</p>}{storageError&&<p className="tour-status" role="status">This browser can’t save your progress. You can still finish the guide.</p>}</div>{hole&&<p className="tour-explore-note">Choose the highlighted control to pause the guide and try it yourself.</p>}<div className="tour-controls"><button type="button" className="tour-back" disabled={index===0||busy} onClick={back}><Glyph name="arrow"/>Back</button><button type="button" className="tour-next" disabled={busy||finding} onClick={next}>{index===count-1?'Finish guide':'Next'}<Glyph name="arrow"/></button></div></>;
- return createPortal(<div ref={overlay} className="contextual-tour" data-tour-step={step.id}>
+ const content=<><div className="tour-progress-row"><p className="tour-progress">Step {index+1} of {count}</p><button type="button" className="tour-skip" onClick={skip}>Skip guide</button></div><div className="tour-copy" aria-live="polite" aria-atomic="true"><h2 id={titleId}>{step.title}</h2><p id={descriptionId}>{step.body}</p><p className="tour-instruction">{step.instruction}</p>{finding&&<p className="tour-status" role="status">Finding this control…</p>}{missing&&<p className="tour-status" role="status">This control isn’t visible right now. You can continue, or skip and come back later.</p>}{position?.reason==='viewport-too-small'&&<p className="tour-status" role="status">There isn’t enough room to highlight the control beside these instructions. Zoom out or rotate your device, or continue the guide.</p>}{storageError&&<p className="tour-status" role="status">This browser can’t save your progress. You can still finish the guide.</p>}</div>{hole&&<p className="tour-explore-note">Choose the highlighted control to pause the guide and try it yourself.</p>}<div className="tour-controls"><button type="button" className="tour-back" disabled={index===0||busy} onClick={back}><Glyph name="arrow"/>Back</button><button type="button" className="tour-next" disabled={busy||finding||!geometryReady} onClick={next}>{index===count-1?'Finish guide':'Next'}<Glyph name="arrow"/></button></div></>;
+ return createPortal(<div ref={overlay} className="contextual-tour" data-tour-step={step.id} data-tour-geometry={geometryReady?'ready':'measuring'}>
   {position&&tourShadeRegions(position).map((region,i)=><div key={i} className="tour-dim" style={region} aria-hidden="true" onPointerDown={event=>event.preventDefault()}/>)}
   {hole&&<div className="tour-spotlight" style={{left:hole.left,top:hole.top,width:hole.width,height:hole.height}} aria-hidden="true"/>}
   {arrow&&<svg className="tour-pointer" aria-hidden="true"><defs><marker id={'gw-tour-arrow-'+id} markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L6 3.5 L0 7"/></marker></defs><path d={`M${arrow.start.x} ${arrow.start.y} L${arrow.end.x} ${arrow.end.y}`} markerEnd={`url(#gw-tour-arrow-${id})`}/></svg>}

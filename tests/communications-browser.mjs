@@ -28,15 +28,26 @@ async function check(name, run) {
 }
 async function settleBrowserReads(page, {since, required = []} = {}) {
   const trace = browserReads.get(page), options = {since: since ?? trace.lastDrained, required};
+  let drainedThrough = options.since;
   // Completion, rather than a delay or networkidle, keeps real polling enabled.
   // This suite deliberately exercises denied reads and failed sends, so only
   // explicitly required normal-route reads carry a successful-status contract.
-  await expect.poll(() => trace.readiness(options), {
+  try {
+  await expect.poll(() => {
+    const readiness = trace.readiness(options);
+    if (!readiness.missing.length && !readiness.pending.length) drainedThrough = trace.sequence;
+    return readiness;
+  }, {
     message: 'Current communications route requests finish before document navigation.', timeout: 15000,
   }).toEqual({missing: [], pending: []});
   assert.deepEqual(trace.requiredReadFailures(options), [], 'Required authenticated route reads succeed.');
-  trace.lastDrained = trace.sequence;
-  trace.log('route-reads-settled', {since: options.since, required, pending: trace.snapshot().pending});
+  } catch (error) {
+    trace.reportRequiredReadFailures(options);
+    throw error;
+  }
+  trace.recordReadCancellations(options, drainedThrough);
+  trace.lastDrained = drainedThrough;
+  trace.log('route-reads-settled', {since: options.since, through: drainedThrough, required, pending: trace.snapshot().pending});
 }
 async function authenticatedRouteReady(page, {since, type, id} = {}) {
   await expect(page.locator('.app:not(.is-onboarding) > header')).toBeVisible();
@@ -66,7 +77,7 @@ async function person(id, width = 390) {
     localStorage.setItem('gw-install-dismissed', 'true');
     localStorage.setItem('gw-preview-notice:v1', 'seen');
   });
-  trace.log('signin-start');
+  trace.beginTransition('signin', `${base}/__test/signin?user=${id}`);
   await page.goto(`${base}/__test/signin?user=${id}`);
   await page.getByRole('navigation', {name: 'Main navigation', exact: true}).waitFor();
   await authenticatedRouteReady(page, {since: 0, type: 'home'});
@@ -119,8 +130,8 @@ async function summary(page, id) {
 async function navigate(page, type, id) {
   const trace = browserReads.get(page);
   await settleBrowserReads(page);
-  const since = trace.sequence, target = `${base}/?qa=${randomUUID()}#/${type}${id ? '/' + encodeURIComponent(id) : ''}`;
-  trace.log('navigation-start', {target: diagnosticUrl(target), pending: trace.snapshot().pending});
+  const since = trace.lastDrained, target = `${base}/?qa=${randomUUID()}#/${type}${id ? '/' + encodeURIComponent(id) : ''}`;
+  trace.beginTransition('navigation', target);
   await page.goto(target, {waitUntil: 'domcontentloaded'});
   await expect(page).toHaveURL(target);
   // main also exists during onboarding and cannot prove route readiness.
@@ -130,8 +141,9 @@ async function navigate(page, type, id) {
 async function reloadRoute(page, type, id, control) {
   const trace = browserReads.get(page);
   await settleBrowserReads(page);
-  const since = trace.sequence, target = page.url();
-  trace.log('reload-start', {target: diagnosticUrl(target), source: control ? 'update-control' : 'page-reload', pending: trace.snapshot().pending});
+  const since = trace.lastDrained, target = page.url();
+  trace.beginTransition('reload', target);
+  trace.log('reload-control', {source: control ? 'update-control' : 'page-reload'});
   if (control) await Promise.all([page.waitForEvent('domcontentloaded'), control.click()]);
   else await page.reload({waitUntil: 'domcontentloaded'});
   await expect(page).toHaveURL(target);
@@ -766,10 +778,13 @@ try {
   const persist = () => Promise.all([
     writeFile(`${output}/results-${engineName}.json`, JSON.stringify({
       browser: engineName, results, errors, ...(failure ? {failure} : {}),
+      classifiedReadCancellations: sessions.flatMap(({id, trace}) => trace.classifiedReadCancellations.map(value => ({user: id, ...value}))),
       limitations: ['Reduced-height viewport is a keyboard layout simulation. No physical-device keyboard or installed-PWA claim.'],
     }, null, 2)),
     writeFile(`${output}/network-${engineName}.json`, JSON.stringify({browser: engineName, pages: sessions.map(({id, trace}) => ({
-      user: id, droppedEvents: trace.droppedEvents, pending: trace.snapshot().pending, events: trace.events,
+      user: id, documentEpoch: trace.documentEpoch, documentTimeOrigin: trace.documentTimeOrigin,
+      reads: trace.reads, transitions: trace.transitions, classifiedReadCancellations: trace.classifiedReadCancellations,
+      droppedEvents: trace.droppedEvents, pending: trace.snapshot().pending, events: trace.events,
     }))}, null, 2)),
   ]);
   await persist();

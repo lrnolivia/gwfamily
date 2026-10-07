@@ -39,6 +39,8 @@ test('short choices use native grouped radios with selected and required semanti
  const html=render({label:'Your plans',options:['Coming','Deciding','Cannot come'],value:'Deciding',name:'plans',required:true});
  assert.match(html,/<fieldset[^>]*choice-control-chips/);
  assert.match(html,/<legend[^>]*>Your plans/);
+ assert.match(html,/<span class="choice-required" aria-hidden="true">Required<\/span>/);
+ assert.match(html,/type="radio"[^>]*required=""/);
  assert.equal((html.match(/type="radio"/g)||[]).length,3);
  assert.equal((html.match(/name="plans"/g)||[]).length,3);
  assert.match(html,/required=""[^>]*checked=""[^>]*value="Deciding"|checked=""[^>]*value="Deciding"/);
@@ -54,6 +56,8 @@ test('optional blank selections stay selectable; required blank options cannot b
 test('long and dynamic lists provide labelled searchable comboboxes with form values',()=>{
  const html=render({id:'people',label:'How many people?',options:Array.from({length:20},(_,i)=>i+1),value:3,name:'count',required:true});
  assert.match(html,/role="combobox"/);
+ assert.match(html,/<label[^>]*>How many people\?<span class="choice-required" aria-hidden="true">Required<\/span><\/label>/);
+ assert.match(html,/aria-required="true"[^>]*required=""/);
  assert.match(html,/aria-autocomplete="list"/);
  assert.match(html,/aria-expanded="false"/);
  assert.match(html,/aria-controls="people-list"/);

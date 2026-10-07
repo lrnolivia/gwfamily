@@ -188,6 +188,12 @@ try{
   await page.keyboard.press('Tab');await expect(page.getByRole('button',{name:'Skip guide',exact:true})).toBeFocused();
   await page.keyboard.press('ArrowRight');await expectStep(page,contextualTourSteps[1],material,expect);
   await page.locator('.tour-coach').focus();await page.keyboard.press('ArrowLeft');await expectStep(page,contextualTourSteps[0],material,expect);
+  // Revisit the formerly intermittent keyboard handoff with fresh step-owned
+  // measurements. The original strict no-overlap check runs on every visit.
+  for(let repeat=0;repeat<3;repeat++){
+   await page.locator('.tour-coach').focus();await page.keyboard.press('ArrowRight');await expectStep(page,contextualTourSteps[1],material,expect);
+   await page.locator('.tour-coach').focus();await page.keyboard.press('ArrowLeft');await expectStep(page,contextualTourSteps[0],material,expect);
+  }
   for(let index=0;index<contextualTourSteps.length;index++){
    await expectStep(page,contextualTourSteps[index],material,expect);
    await expect(page.locator('.tour-progress')).toHaveText('Step '+(index+1)+' of 7');
@@ -263,6 +269,13 @@ try{
  failure=error;
  const diagnostics={phase,error:String(error.stack||error.message),errors,consoleErrors,failedRequests,deniedRequests};
  if(lastPage&&!lastPage.isClosed()){
+  diagnostics.tourGeometry=await bounded(lastPage.evaluate(()=>{
+   const tour=document.querySelector('.contextual-tour'),step=tour?.dataset.tourStep;
+   const targetName={home:'nav-home',compose:'compose',messages:'messages',notifications:'notifications',reunion:'nav-reunion',family:'family-people',you:'you-guide'}[step];
+   const numericRect=el=>{if(!el)return null;const r=el.getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height}};
+   const v=window.visualViewport;
+   return {step:step||null,viewport:{width:v?.width??innerWidth,height:v?.height??innerHeight,left:v?.offsetLeft??0,top:v?.offsetTop??0},target:numericRect(targetName?document.querySelector('[data-gw-tour="'+targetName+'"]'):null),coach:numericRect(document.querySelector('.tour-coach')),spotlight:numericRect(document.querySelector('.tour-spotlight')),state:tour?.dataset.tourGeometry||null,stableFrames:Number(tour?.dataset.tourStableFrames)||0,nextDisabled:document.querySelector('.tour-next')?.disabled??null};
+  })).catch(e=>({error:e.message})),2500);
   diagnostics.dom=await bounded(lastPage.evaluate(()=>({url:location.href,readyState:document.readyState,title:document.title,rootChildren:document.getElementById('root')?.childElementCount,bodyText:document.body.innerText.slice(0,4000),tourStep:document.querySelector('.contextual-tour')?.dataset.tourStep,dialogs:[...document.querySelectorAll('dialog')].map(el=>({open:el.open,label:el.getAttribute('aria-labelledby')})),buttons:[...document.querySelectorAll('button')].slice(0,40).map(el=>({text:el.textContent.slice(0,100),label:el.getAttribute('aria-label'),disabled:el.disabled}))})).catch(e=>({error:e.message})),2500);
   await lastPage.screenshot({path:output+'/'+(process.env.GW_BROWSER||'chromium')+'-failure.png',fullPage:true,timeout:4000}).catch(()=>{});
  }
@@ -282,6 +295,7 @@ async function expectStep(page,step,material,expect){
  const coach=page.locator('.tour-coach'),target=page.locator('[data-gw-tour="'+step.target+'"]');
  await expect(coach).toBeVisible();await expect(coach).toHaveAttribute('aria-modal','false');await expect(target).toBeVisible();await expect(target).toBeEnabled();
  await expect(page.locator('.tour-next')).toBeEnabled();
+ await expect(page.locator('.contextual-tour')).toHaveAttribute('data-tour-geometry','ready');
  assert.equal(await target.evaluate(node=>node.tagName),'BUTTON','Highlight is a real native button');
  const description=await coach.getAttribute('aria-describedby');await expect(target).toHaveAttribute('aria-describedby',new RegExp(description));
  await expect(coach.locator(material==='ios'?'.tour-card.liquid-glass':'.tour-card-flat')).toBeVisible();
