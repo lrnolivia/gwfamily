@@ -108,3 +108,9 @@ html[data-theme=light][data-platform] .wordmark-amp{color:#947852!important}
 .profile-custom-color input[type=color]::-webkit-color-swatch-wrapper{padding:0}
 .profile-custom-color input[type=color]::-webkit-color-swatch{border:0!important;border-radius:50%}
 .profile-custom-color input[type=color]::-moz-color-swatch{border:0!important;border-radius:50%}
+
+.appearance-panel-heading{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:14px;padding:4px 0 12px;background:var(--surface)}
+.appearance-panel-heading h3{margin:0!important;min-width:0}
+html[data-theme][data-platform] .appearance-panel-heading .appearance-back{display:grid;place-items:center;flex:0 0 48px;width:48px;height:48px;min-height:48px;padding:12px;border-radius:50%;background:var(--raised)!important;color:var(--text)!important;border:0!important;box-shadow:none!important;--gw-control-color:var(--raised);--gw-control-alpha:100%}
+.appearance-back .glyph{width:24px;height:24px;transform:none}
+.appearance-back:focus-visible{outline:2px solid var(--text);outline-offset:3px}

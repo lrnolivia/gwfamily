@@ -21,7 +21,7 @@ export const relationships=[
 export function previewSeed(){
   const now=Date.now();
   return {
-    members:living.map(([id,name,groupId])=>({id,name,groupId,circle:'family',leader:false,moderator:id==='lauren',bio:'A place for family stories.',photo:null,birthday:null,adult:true,origin:'seed',registered:false,socials:{},profileColor:'#4f996c',themeSong:''})),
+    members:living.map(([id,name,groupId])=>({id,name,groupId,circle:'family',roles:id==='lauren'?['admin']:[],leader:false,moderator:id==='lauren',bio:'A place for family stories.',photo:null,birthday:null,adult:true,origin:'seed',registered:false,socials:{},profileColor:'#4f996c',themeSong:''})),
     memorials:structuredClone(memorials),relationships:structuredClone(relationships),
     groups:['rivers','hall','henry','bates','tucker','eummer','lomack'].map(id=>({id,name:id[0].toUpperCase()+id.slice(1),memberIds:living.filter(m=>m[2]===id).map(m=>m[0]),nameEdited:false})),
     posts:[

@@ -1,3 +1,4 @@
+import {canAccessLeaderTools} from './leader-access.js';
 import {shareUnchangedSnapshot,refreshingPageRecord} from './refresh-stability.js';
 import {PhotoFramingEditor,photoFrameStyle} from './photo-framing.jsx';
 import {PageMarkdownEditor,PageMarkdownBody} from './page-markdown.jsx';
@@ -18,7 +19,7 @@ export {pageContentPayload,pageContentFingerprint,pageContentDirty,pageDraftKey,
 const plainChildren=children=>React.Children.toArray(children).map(child=>typeof child==='string'||typeof child==='number'?String(child):React.isValidElement(child)?child.type==='br'?'\n':plainChildren(child.props.children):'').join('');
 
 export function PageContentProvider({children,enabled=true}){
- const app=useApp(),state=app?.state||{},preview=state.mode==='preview';
+ const app=useApp(),state=app?.state||{},preview=state.mode==='preview',canEditPreview=canAccessLeaderTools(state);
  const allowed=enabled&&state.onboarding==='done'&&(preview||(state.mode==='live'&&app?.data?.session?.status==='active'));
  const account=allowed?(preview?'preview:':'live:')+state.selfId:null;
  const [records,setRecords]=useState({}),[editingPage,setEditingPage]=useState(null),[editingPages,setEditingPages]=useState([]),[arrangingPage,setArrangingPage]=useState(false),[activeEditor,setActiveEditor]=useState(null),[workCount,setWorkCount]=useState(0),[autosaveHolds,setAutosaveHolds]=useState(0),[storageError,setStorageError]=useState('');
@@ -64,7 +65,7 @@ export function PageContentProvider({children,enabled=true}){
    await Promise.resolve();
    try{
     let result;
-    if(preview){const saved=previewStore.current[page];result={...initialRecord(page),...(saved?.record||{}),canEdit:true};if(!validRestoredDraft(page,result.content))result={...initialRecord(page),canEdit:true}}
+    if(preview){const saved=previewStore.current[page];result={...initialRecord(page),...(saved?.record||{}),canEdit:canEditPreview};if(!validRestoredDraft(page,result.content))result={...initialRecord(page),canEdit:canEditPreview}}
     else result=await pageContentRequest('/api/page-content/'+encodeURIComponent(page));
     if(generation!==epoch.current||identity.current!==account||!mounted.current)return null;
     const freshest=ref.current[page]||before,stored=keepDraft?draftStore.current[page]:null;
@@ -73,7 +74,7 @@ export function PageContentProvider({children,enabled=true}){
    }catch(error){if(generation===epoch.current&&ref.current[page]?.status!=='saving')install(page,{...(ref.current[page]||before),status:'error',error:error.message});return null}
    finally{if(generation===epoch.current)loading.current.delete(page)}
   })();loading.current.set(page,operation);return operation;
- },[allowed,account,preview,install]);
+ },[allowed,account,preview,canEditPreview,install]);
  const retainPage=useCallback(page=>{if(!knownPage(page))return;pageUsers.current[page]=(pageUsers.current[page]||0)+1;return()=>{pageUsers.current[page]=Math.max(0,(pageUsers.current[page]||0)-1)}},[]);
  useEffect(()=>{
   if(!allowed||preview)return;
@@ -289,16 +290,17 @@ function PageHistory({page,pages=[page],onClose}){
   {confirm!==null&&<div className="page-restore-confirm" role="alert"><p>Restore {confirm===0?'the original content':'version '+confirm}?</p><div className="page-editor-actions"><Button disabled={restoring} onClick={()=>restore(confirm)}>{restoring?'Restoring…':'Restore version'}</Button><Button secondary disabled={restoring} onClick={()=>setConfirm(null)}>Keep current</Button></div></div>}
  </div></section>;
 }
-export function PageEditToolbar({page,relatedPages=[],className=''}){
- const editor=usePageContent(page),global=usePageContent('global'),[history,setHistory]=useState(false),[discarding,setDiscarding]=useState(false),[working,setWorking]=useState(false),tools=useRef(null),record=editor.record;
+export function PageEditToolbar({page,relatedPages=[],className='',placement='top'}){
+ const {state}=useApp(),editor=usePageContent(page),global=usePageContent('global'),[history,setHistory]=useState(false),[discarding,setDiscarding]=useState(false),[working,setWorking]=useState(false),tools=useRef(null),record=editor.record;
  useEffect(()=>{const close=event=>{if(tools.current?.open&&!tools.current.contains(event.target))tools.current.open=false};document.addEventListener('pointerdown',close);return()=>document.removeEventListener('pointerdown',close)},[]);
- if(!editor.valid||page==='global'||!editor.allowed)return null;
+ if(!editor.valid||page==='global'||!editor.allowed||!canAccessLeaderTools(state))return null;
  const pages=[...new Set([page,...relatedPages,...(global.valid?['global']:[])])].filter(knownPage),rows=pages.map(key=>editor.records[key]).filter(Boolean),dirty=rows.some(pageContentDirty),busy=working||editor.pending||rows.some(row=>row.status==='saving'),errors=rows.filter(row=>row.error),conflicts=rows.filter(row=>row.latest||row.conflicted);
  if(!record?.canEdit){return record?.status==='error'?<div className="page-content-load-error" role="status"><span>Page updates couldn’t load. Showing the original content.</span><Control type="button" className="text-button" onClick={()=>editor.load(page,{force:true})}>Try again</Control></div>:null}
+ if(placement==='bottom'?editor.editing:!editor.editing)return null;
  async function save(){if(busy||conflicts.length)return false;setWorking(true);try{for(const key of pages){if(pageContentDirty(editor.records[key])&&!await editor.save(key))return false}return true}finally{setWorking(false)}}
  const done=async()=>{if(busy)return;if(dirty&&!await save())return;editor.finish()};
  const discard=()=>{for(const key of pages)editor.discard(key);setDiscarding(false);editor.finish()};
- return <div className={'page-edit-toolbar '+className+(editor.editing?' is-editing':'')}>
+ return <div className={'page-edit-toolbar '+className+(editor.editing?' is-editing':' is-entry')}>
   {!editor.editing?<div className="page-edit-entry"><Control type="button" className="page-edit-entry-button" onClick={()=>editor.begin(page,relatedPages)}><EditGlyph/>{dirty?'Resume page edits':'Edit page'}</Control>{dirty&&<span>Draft kept</span>}</div>:<>
    <div className="page-edit-modebar"><div className="page-edit-mode-label"><EditGlyph/><strong>Editing {SHARED_PAGE_SCHEMA[page].label}</strong><span role="status" aria-live="polite">{errors.length||conflicts.length?'Couldn’t save · your changes are kept':working||rows.some(row=>row.status==='saving')?'Saving…':busy?'Preparing media…':dirty?'Changes waiting to save':record.savedNotice||'Changes save automatically'}</span></div><div className="page-editor-actions"><Control type="button" className="page-arrange-toggle" disabled={busy} aria-pressed={editor.arrangingPage} onClick={()=>editor.setArrangingPage(value=>!value)}><Glyph name="settings"/>{editor.arrangingPage?'Finish arranging':'Arrange page'}</Control><details ref={tools} className="page-edit-tools" onClick={event=>{const action=event.target.closest('button');if(action&&!action.disabled)event.currentTarget.open=false}} onKeyDown={event=>{if(event.key==='Escape'&&event.currentTarget.open){event.preventDefault();event.stopPropagation();event.currentTarget.open=false;event.currentTarget.querySelector('summary')?.focus()}}}><summary>Page tools</summary><div><Control type="button" className="page-history-button" disabled={busy} aria-label="View page history" onClick={()=>setHistory(true)}><Glyph name="clock"/><span>History</span></Control><Control type="button" disabled={busy||!dirty} onClick={()=>setDiscarding(true)}>Discard unsaved changes</Control></div></details><Control type="button" className="page-mode-done" disabled={busy} onClick={done}>Done<Glyph name="check"/></Control></div></div>
    <p className="page-editor-guide">{editor.arrangingPage?'Choose a section to move, resize or arrange.':'Tap text or a photo to edit it. Changes save automatically.'}{editor.preview?' This is sample content; changes stay on this device.':''}</p>

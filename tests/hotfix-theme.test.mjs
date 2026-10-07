@@ -11,8 +11,8 @@ test('hotfix action palette has readable text on opaque controls across personal
 });
 test('shared red sign out stays readable independently of profile accents',()=>{
  const accountCss=fs.readFileSync(new URL('../src/account-actions.css',import.meta.url),'utf8');
- assert.ok(contrast('#e52236','#ffffff')>=4.5);
- assert.match(accountCss,/\.sign-out\.sign-out\{background:#e52236!important;color:#fff!important/);
+ for(const color of ['#d93a45','#d93742'])assert.ok(contrast(color,'#ffffff')>=4.5);
+ assert.match(accountCss,/\.sign-out\.sign-out\{background:var\(--destructive-accent,#d93a45\)!important;color:#fff!important/);
 });
 test('menu endpoints share vertical padding and desktop action is beside navigation',()=>{
  assert.match(css,/\.list-row:first-child,\.list-row:last-child[^}]*align-items:center[^}]*padding:calc\(14px/);

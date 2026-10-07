@@ -1,7 +1,9 @@
+html[data-theme=light]{--destructive-accent:#d93a45}
+html[data-theme=dark]{--destructive-accent:#d93742}
 /* One account-exit treatment, shared by Profile, You and onboarding. */
-html[data-theme][data-platform] .button.sign-out.sign-out{background:#e52236!important;color:#fff!important;border:0!important;--gw-control-color:#e52236;--gw-control-alpha:100%;box-shadow:none!important;min-height:48px;white-space:normal}
-html[data-theme][data-platform] .gw-optic-control.button.sign-out.sign-out>.liquid-glass-tint{background:#e52236!important}
-html[data-theme=dark][data-platform] .button.sign-out.sign-out{background:#e52236!important;color:#fff!important}
+html[data-theme][data-platform] .button.sign-out.sign-out{background:var(--destructive-accent,#d93a45)!important;color:#fff!important;border:0!important;--gw-control-color:var(--destructive-accent,#d93a45);--gw-control-alpha:100%;box-shadow:none!important;min-height:48px;white-space:normal}
+html[data-theme][data-platform] .gw-optic-control.button.sign-out.sign-out>.liquid-glass-tint{background:var(--destructive-accent,#d93a45)!important}
+html[data-theme=dark][data-platform] .button.sign-out.sign-out{background:var(--destructive-accent,#d93a45)!important;color:#fff!important}
 .you-account-actions{display:grid;gap:12px;justify-items:start;margin-block:24px;min-width:0}
 .you-account-actions>.sign-out{min-width:200px;max-width:100%}
 .preview-account-actions{display:grid;gap:12px;min-width:0;align-items:start}

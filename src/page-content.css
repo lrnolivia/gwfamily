@@ -146,3 +146,8 @@ body,.app,.card,section,.intro,footer,.bottom,.muted,.page-edit-modebar,dialog,.
 .page-edit-tools[open]>div>button{min-height:44px;text-align:left;padding:10px;font:inherit}
 .page-edit-tools :focus-visible,.page-arrange-toggle:focus-visible{outline:2px solid var(--text);outline-offset:3px}
 @media(max-width:650px){.page-edit-modebar>.page-editor-actions{justify-content:flex-start}.page-edit-tools{margin-left:0}.page-mode-done{margin-left:auto}}
+
+/* The entry lives after page content, so hidden tools leave no header gap. */
+.page-edit-toolbar.is-entry{margin:24px 0 12px}
+.page-edit-toolbar.is-entry .page-edit-entry{justify-content:center}
+.page-edit-entry-button{min-height:44px}

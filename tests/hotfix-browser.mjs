@@ -53,19 +53,25 @@ try{
  for(const width of [390,768,1280])for(const theme of ['dark','light'])for(const platform of ['ios','android']){
   const p=await pageFor(width,theme,platform),nav=p.getByRole('navigation',{name:'Main navigation'}),fab=p.getByRole('button',{name:'Post an update',exact:true});
   assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'page stays within viewport');
+  const editEntry=p.locator('.page-edit-toolbar.is-entry'),mainBox=await p.locator('main').boundingBox(),footerBox=await p.locator('.app>footer').boundingBox(),entryBox=await editEntry.boundingBox();
+  assert.ok(entryBox&&entryBox.y>=mainBox.y+mainBox.height-1&&entryBox.y+entryBox.height<=footerBox.y+1,'Edit Page sits after page content and before footer');
+  const editButton=await editEntry.getByRole('button',{name:'Edit page',exact:true}).boundingBox();assert.ok(Math.abs(editButton.x+editButton.width/2-entryBox.x-entryBox.width/2)<2,'Edit Page is centered');
+
   if(width<=768&&platform==='android')await verifyFilterPlatters(p,width,theme);
   if(width>=700){const a=await nav.boundingBox(),b=await fab.boundingBox();assert.ok(b.x>=a.x+a.width+8,'FAB clears navigation');assert.ok(b.x+b.width<=width-12,'FAB stays onscreen');if(platform==='android'){assert.ok(a.x<=1&&a.width<=100&&a.height>700,'Flat uses the full-height left rail');assert.ok(b.y<200&&width-b.x-b.width>=23,'Flat Post stays at the top right');}else assert.ok(Math.abs((a.y+a.height/2)-(b.y+b.height/2))<20,'Glass FAB aligned with dock');}
   if(platform==='android'){
    const home=nav.getByRole('button',{name:'Home',exact:true}),family=nav.getByRole('button',{name:'Family',exact:true});
    await family.click();await home.hover();
    const paint=await home.evaluate(e=>({background:getComputedStyle(e).backgroundColor,capsule:getComputedStyle(e.querySelector('.glyph')).backgroundColor}));assert.equal(paint.background,'rgba(0, 0, 0, 0)','Unselected hover never fills the destination rectangle');assert.notEqual(paint.capsule,'rgba(0, 0, 0, 0)','Hover remains visible inside icon capsule');
-   await home.focus();assert.ok(await home.evaluate(e=>parseFloat(getComputedStyle(e).outlineWidth)>=2),'Keyboard navigation keeps visible focus');await home.click();
+   await p.keyboard.press('Tab');await home.focus();assert.ok(await home.evaluate(e=>parseFloat(getComputedStyle(e).outlineWidth)>=2),'Keyboard navigation keeps visible focus');await home.click();
   }
   await p.getByRole('button',{name:'Profile and appearance'}).click();
   const signOut=p.getByRole('button',{name:'Sign out',exact:true});await expect(signOut).toBeVisible();
-  const exitPaint=await signOut.evaluate(e=>({background:getComputedStyle(e).backgroundColor,color:getComputedStyle(e).color,tint:e.querySelector('.liquid-glass-tint')?getComputedStyle(e.querySelector('.liquid-glass-tint')).backgroundColor:null}));assert.equal(exitPaint.background,'rgb(229, 34, 54)','Sign out keeps bright red on every theme');assert.equal(exitPaint.color,'rgb(255, 255, 255)');if(exitPaint.tint)assert.equal(exitPaint.tint,exitPaint.background,'Glass tint preserves destructive red');
+  const exitPaint=await signOut.evaluate(e=>({background:getComputedStyle(e).backgroundColor,color:getComputedStyle(e).color,tint:e.querySelector('.liquid-glass-tint')?getComputedStyle(e.querySelector('.liquid-glass-tint')).backgroundColor:null}));assert.equal(exitPaint.background,theme==='light'?'rgb(217, 58, 69)':'rgb(217, 55, 66)','Sign out uses the Red accent for this theme');assert.equal(exitPaint.color,'rgb(255, 255, 255)');if(exitPaint.tint)assert.equal(exitPaint.tint,exitPaint.background,'Glass tint preserves destructive red');
   const rows=await p.locator('.profile-menu .list-row').evaluateAll(rows=>rows.map(e=>{const s=getComputedStyle(e);return {top:s.paddingTop,bottom:s.paddingBottom,align:s.alignItems}}));assert.ok(rows.length);assert.ok(rows.every(r=>r.top===r.bottom&&r.align==='center'));
-  await p.screenshot({path:`docs/recovery-qa/hotfix-menu-${width}-${theme}-${platform}.png`});await p.keyboard.press('Escape');
+  await p.screenshot({path:`docs/recovery-qa/hotfix-menu-${width}-${theme}-${platform}.png`});
+  await p.getByRole('button',{name:/^Appearance Style/}).click();const appearanceBack=p.getByRole('button',{name:'Back to profile menu',exact:true});await expect(appearanceBack).toBeVisible();
+  const backPaint=await appearanceBack.evaluate(e=>{const r=e.getBoundingClientRect();return {width:r.width,height:r.height,radius:parseFloat(getComputedStyle(e).borderRadius),path:e.querySelector('path').getAttribute('d'),sticky:getComputedStyle(e.parentElement).position}});assert.ok(backPaint.width>=44&&backPaint.height>=44&&backPaint.radius>=24);assert.equal(backPaint.path,'M20 12H4m6-6-6 6 6 6');assert.equal(backPaint.sticky,'sticky');await appearanceBack.click();await p.keyboard.press('Escape');
   await fab.click();await p.getByText('Tag family',{exact:false}).first().click();const picker=p.getByRole('combobox',{name:'Family in this post'});await picker.fill('Shirley');await p.getByRole('option',{name:/Shirley Thomas/}).click();await p.getByRole('textbox',{name:"What's on your mind"}).fill('A family memory from the hotfix test');await p.getByRole('button',{name:'Send post',exact:true}).click();await p.getByText('A family memory from the hotfix test',{exact:true}).waitFor();const savedPost=await p.evaluate(key=>JSON.parse(localStorage.getItem(key)).state.posts.find(post=>post.text==='A family memory from the hotfix test'),PREVIEW_KEY);assert.ok(savedPost?.memberIds?.includes('shirley'),'saved post retains selected ancestor ID');assert.equal(await p.locator('.ancestor-tag').filter({hasText:'Shirley Thomas'}).count(),1,'ancestor tag is rendered with its memorial description');
   await nav.getByRole('button',{name:'You',exact:true}).click();
   const neutral=p.getByRole('button',{name:'Edit profile',exact:true});await expect(neutral).toHaveClass(/\bsecondary\b/);await expect(neutral).toBeVisible();
@@ -76,6 +82,14 @@ try{
   const fieldStroke=await profileField.evaluate(element=>{const probe=document.createElement('span');probe.style.color='var(--decorative-line)';element.parentElement.append(probe);const result={actual:getComputedStyle(element).borderTopColor,expected:getComputedStyle(probe).color};probe.remove();return result});assert.deepEqual(parsePaintColor(fieldStroke.actual),parsePaintColor(fieldStroke.expected),'Neutral field stroke follows 30% active-theme token');
   await p.screenshot({path:`docs/recovery-qa/hotfix-profile-${width}-${theme}-${platform}.png`,fullPage:true});
   results.push({width,theme,platform,status:'passed'});await p.close();
+ }
+ // Regular members retain profile editing but have no shared-page tools.
+ {
+  const p=await pageFor(390,'dark','android');await p.evaluate(key=>{const stored=JSON.parse(localStorage.getItem(key));stored.state.selfId='sheldon';localStorage.setItem(key,JSON.stringify(stored))},PREVIEW_KEY);await p.reload({waitUntil:'domcontentloaded'});
+  const nav=p.getByRole('navigation',{name:'Main navigation'});await nav.getByRole('button',{name:'You',exact:true}).click();
+  await expect(p.getByRole('button',{name:'Edit profile',exact:true})).toBeVisible();await expect(p.getByRole('heading',{name:'Leader Tools',exact:true})).toHaveCount(0);
+  for(const name of ['Home','Reunion','Family']){await nav.getByRole('button',{name,exact:true}).click();await expect(p.getByRole('button',{name:'Edit page',exact:true})).toHaveCount(0);}
+  results.push({check:'regular member profile editing and hidden shared-page tools',status:'passed'});await p.close();
  }
  // Inspect the requested yellow at real control size, without treating its
  // soft shadow as proof of WCAG text contrast on the bright fill.
