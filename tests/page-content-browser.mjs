@@ -293,6 +293,7 @@ async function openHistory(page){
  const tools=toolbar(page).locator('.page-edit-tools');
  if(!await tools.getAttribute('open'))await tools.locator('summary').click();
  await tools.getByRole('button',{name:'View page history',exact:true}).click();
+ await expect(tools).not.toHaveAttribute('open','');
 }
 async function mediaPanel(page, key = 'home') {
   await unlockHero(page, key);

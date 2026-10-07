@@ -9,7 +9,7 @@ export {Profile,EditProfile,ContactCard} from './profiles.jsx';
 import {PeopleFilters} from './people-filters.jsx';
 import {emptyPeopleFilters,publicDirectoryMembers,filterDirectoryMembers,groupDirectoryHouseholds} from './people-directory-model.js';
 import React,{useId,useRef,useState} from 'react';
-import {Control,Button,Glyph,InlineFilters,useApp} from './ui-core.jsx';
+import {Control,Button,Glyph,Avatar,InlineFilters,useApp} from './ui-core.jsx';
 import {DirectoryPersonRow} from './directory-person-row.jsx';
 import './family-destinations.css';
 import './people-flow.css';

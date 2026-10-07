@@ -21,6 +21,9 @@ async function verifyFilterPlatter(page,locator,label){
   const result={background:actual.backgroundColor,raised:expected.backgroundColor,color:actual.color,text:expected.color,padding:parseFloat(actual.paddingLeft),radius:parseFloat(actual.borderRadius),width:box.width,overflow:document.documentElement.scrollWidth-innerWidth};probe.remove();return result;
  });
  assert.equal(paint.background,paint.raised,label+' follows the active raised surface');assert.equal(paint.color,paint.text,label+' follows active text');
+ const search=locator.locator('input[type="search"]');if(await search.count()){
+  const placeholder=await search.evaluate(element=>{const probe=document.createElement('span');probe.style.color='var(--work-control-muted)';element.parentElement.append(probe);const result={actual:getComputedStyle(element,'::placeholder').color,expected:getComputedStyle(probe).color,opacity:getComputedStyle(element,'::placeholder').opacity};probe.remove();return result});assert.equal(placeholder.actual,placeholder.expected,label+' search hint follows theme text');assert.equal(placeholder.opacity,'1');
+ }
  assert.ok(paint.padding>=12&&paint.radius>=12&&paint.width>200,label+' has its own padded platter');assert.ok(paint.overflow<=1,label+' stays within viewport');
  // Changing a theme token must immediately repaint the shell without remounting.
  const custom=await locator.evaluate(element=>{const root=document.documentElement,previous=root.style.getPropertyValue('--raised');root.style.setProperty('--raised','rgb(93, 71, 108)');const background=getComputedStyle(element).backgroundColor;if(previous)root.style.setProperty('--raised',previous);else root.style.removeProperty('--raised');return background;});
@@ -34,7 +37,11 @@ async function verifyFilterPlatters(page,width,theme){
  const people=page.getByRole('region',{name:'Family directory',exact:true});await verifyFilterPlatter(page,people,'People');await people.getByRole('button',{name:'Filter & sort',exact:true}).click();await expect(people.getByRole('button',{name:'Done',exact:true})).toBeVisible();
  await page.screenshot({path:`docs/recovery-qa/filter-people-${width}-${theme}.png`,fullPage:true});await people.getByRole('button',{name:'Done',exact:true}).click();await expect(people.getByRole('button',{name:'Filter & sort',exact:true})).toBeFocused();
  await page.getByRole('tab',{name:'Memories',exact:true}).click();const memories=page.getByRole('region',{name:'Memory',exact:true});await verifyFilterPlatter(page,memories,'Memories');await memories.getByRole('button',{name:'Filter & sort',exact:true}).click();await expect(memories.getByRole('button',{name:'Done',exact:true})).toBeVisible();
- await page.screenshot({path:`docs/recovery-qa/filter-memories-${width}-${theme}.png`,fullPage:true});await memories.getByRole('button',{name:'Done',exact:true}).click();await nav.getByRole('button',{name:'Home',exact:true}).click();
+ // Capture the interactive panel in its normal viewport, and prove that
+ // scrolling and capture leave its controls open and usable.
+ const memoryTrigger=memories.getByRole('button',{name:'Filter & sort',exact:true}),memoryDone=memories.getByRole('button',{name:'Done',exact:true});
+ await memoryDone.scrollIntoViewIfNeeded();await expect(memoryTrigger).toHaveAttribute('aria-expanded','true');await expect(memoryDone).toBeVisible();
+ await page.screenshot({path:`docs/recovery-qa/filter-memories-${width}-${theme}.png`});await expect(memoryTrigger).toHaveAttribute('aria-expanded','true');await memoryDone.click();await nav.getByRole('button',{name:'Home',exact:true}).click();
  results.push({width,theme,check:'raised theme-token filter platters',status:'passed'});
 }
 try{
