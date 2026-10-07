@@ -17,7 +17,7 @@ const oldPost={id:'older-authorized-post',authorId:'bob',text:'An authorized old
 const comment={id:'older-comment',authorId:'bob',text:'The exact older fixture reply.',createdAt:2000,parentId:null,files:[]};
 let linkedComments=[comment];
 function account(id){return {id,settings:{accountId:id,scope:'leaders',globalOff:false,selectedIds:[],categories:{...DEFAULT_NOTIFICATION_CATEGORIES},revision:0,pushEnabled:false},notices:Array.from({length:id==='alice'?135:2},(_,i)=>({id:id+'-notice-'+(i+1),sequence:i+1,kind:'reply.created',category:'replies',title:`${id==='alice'?'Fixture':'Other account'} update ${i+1}`,text:'A fictional update for hosted QA.',createdAt:Date.now()-i*1000,readAt:null,target:{kind:'comment',id:comment.id,containerId:oldPost.id,anchorId:comment.id}}))}}
-const accounts={alice:account('alice'),bob:account('bob')};let holdOpen=null,holdSettings=null,holdReadAll=null;
+const accounts={alice:account('alice'),bob:account('bob')};let holdOpen=null,holdSettings=null,holdReadAll=null,holdSettingsArrival=null;
 function stateFor(id){return {...initialState(),mode:'live',schema:3,selfId:id,onboarding:'done',profileComplete:true,capabilities:{},
  members:[{id:'alice',name:'QA Alice',circle:'family',registered:true,adult:true,profileColor:'#4f996c'},{id:'bob',name:'QA Bob',circle:'family',registered:true,adult:true,profileColor:'#754c95'}],groups:[],memories:[],memorials:[],relationships:[],posts:[{id:'recent-fixture',authorId:'bob',text:'The current fixture feed.',createdAt:Date.now(),files:[]}],comments:{},reactions:{},notifications:[],readNotices:[],notificationSettings:{...accounts[id].settings},notificationUnreadCount:visible(accounts[id]).filter(n=>!n.readAt).length};}
 function visible(account){return account.settings.globalOff?[]:account.notices.filter(n=>!n.dismissedAt&&account.settings.categories[n.category]);}
@@ -30,10 +30,15 @@ async function attachRoutes(context,viewer){
  await context.route('**/*',async route=>{
   const request=route.request(),url=new URL(request.url());if(url.origin!==base)return route.abort();
   if(!url.pathname.startsWith('/api/'))return route.continue();
-  const method=request.method(),a=accounts[viewer.id],payload=method==='GET'?{}:request.postDataJSON()||{};requests.push({viewer:viewer.id,path:url.pathname,method,payload});
+  const method=request.method(),payload=method==='GET'?{}:request.postDataJSON()||{};
+  // Hold this captured PUT in transit before resolving the authenticated
+  // account. The normal click constructs Alice's intent before a cookie switch.
+  if(method==='PUT'&&url.pathname==='/api/me/notifications'&&holdSettingsArrival){const pending=holdSettingsArrival;holdSettingsArrival=null;pending.started(payload);await pending.promise;}
+  const a=accounts[viewer.id];requests.push({viewer:viewer.id,path:url.pathname,method,payload});
   if(payload.expectedAccountId&&payload.expectedAccountId!==viewer.id)return json(route,{error:'Your signed-in account changed. Refresh before trying again.'},409);
   if(url.pathname==='/api/config')return json(route,{configured:true,email:false,providers:[],pushEnabled:false});
   if(url.pathname==='/api/session')return json(route,{status:'active',member:{id:viewer.id},user:{id:viewer.id}});
+  if(method==='GET'&&url.pathname==='/api/me/push')return json(route,{accountId:viewer.id,ready:false,pushEnabled:false,devices:[],reason:'activation-required'});
   if(url.pathname==='/api/state')return json(route,stateFor(viewer.id));
   if(url.pathname==='/api/notifications'){
    const all=visible(a).sort((x,y)=>y.sequence-x.sequence),before=Number(url.searchParams.get('before'))||Infinity,limit=Number(url.searchParams.get('limit'))||30,filtered=all.filter(n=>n.sequence<before),items=filtered.slice(0,limit);
@@ -86,11 +91,29 @@ async function pageFor(viewer,{width=390,context:existing}={}){
  await page.goto(base+'/');await expect(page.getByRole('navigation',{name:'Main navigation',exact:true})).toBeVisible();return {page,context};
 }
 const bell=page=>page.locator('header').getByRole('button',{name:/^Notifications(?:,|$)/});
-// A native settings dialog intentionally hides the header from the accessibility
-// tree. Its rendered badge still updates; recheck accessibility after closing.
+// Settings uses the full-page route. The rendered header badge remains
+// available while authoritative choices are saved or the account is refreshed.
 const backgroundBell=page=>page.locator('header button.notification-entry');
-const panel=page=>page.getByRole('region',{name:'Notifications',exact:true});
+const panel=page=>page.locator('.notification-popover').getByRole('region',{name:'Notifications',exact:true});
 async function showInbox(page){await page.bringToFront();if(await bell(page).getAttribute('aria-expanded')!=='true')await bell(page).click();await expect(panel(page)).toBeVisible();}
+async function expectSettingsPage(page){
+ await expect(page).toHaveURL(/#\/notification-settings$/);
+ await expect(page.getByRole('heading',{name:'Notifications',exact:true,level:1})).toBeVisible();
+ await expect(page.getByRole('region',{name:'Notification choices',exact:true})).toBeVisible();
+ await expect(page.getByRole('dialog')).toHaveCount(0);
+ await expect(panel(page)).toBeHidden();await expect(bell(page)).toHaveAttribute('aria-expanded','false');
+}
+async function openSettings(page){
+ const previous=page.url();await showInbox(page);
+ await panel(page).getByRole('button',{name:'Notification settings',exact:true}).click();
+ await expectSettingsPage(page);return previous;
+}
+async function returnFromSettings(page,previous){
+ await expectSettingsPage(page);
+ await page.locator('#main .page-back-row').getByRole('button',{name:'Back',exact:true}).click();
+ await expect(page).toHaveURL(previous);
+ await expect(page.getByRole('region',{name:'Notification choices',exact:true})).toHaveCount(0);
+}
 async function refresh(page){await page.bringToFront();const previous=requests.filter(r=>r.path==='/api/notifications').length;await page.evaluate(()=>window.dispatchEvent(new Event('online')));await expect.poll(()=>requests.filter(r=>r.path==='/api/notifications').length).toBeGreaterThan(previous);}
 async function check(name,run){currentCheck=name;await run();results.push({check:name,status:'passed'});console.log('NOTIFICATION PASS:',name);}
 async function checkFit(page){const bounds=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,controls:[...document.querySelectorAll('.notification-panel button,.notification-settings button,.notification-settings input')].filter(e=>e.getClientRects().length&&!e.closest('[inert]')&&(!e.closest('[popover]')||e.closest('[popover]').matches(':popover-open'))).map(e=>({name:e.getAttribute('aria-label')||e.textContent,left:e.getBoundingClientRect().left,right:e.getBoundingClientRect().right})).filter(r=>r.left<0||r.right>innerWidth+1)}));assert.ok(bounds.scroll<=bounds.width+1&&!bounds.controls.length,JSON.stringify(bounds));}
@@ -128,7 +151,7 @@ function notificationCaptureState(){
  return {url:location.href,width:innerWidth,height:innerHeight,scrollX,scrollY,
   visualViewport:viewport?{width:viewport.width,height:viewport.height,left:viewport.offsetLeft,top:viewport.offsetTop}:null,
   expanded:document.querySelector('header button.notification-entry')?.getAttribute('aria-expanded')??null,
-  inboxOpen:!!popover?.matches(':popover-open'),settingsOpen:!!document.querySelector('dialog[open] .notification-settings')};
+  inboxOpen:!!popover?.matches(':popover-open'),settingsOpen:!!document.querySelector('.notification-settings-page .notification-settings')};
 }
 function installNotificationViewportTrace(){
  const entries=window.__qaNotificationViewportEvents=[];
@@ -146,13 +169,14 @@ function installNotificationViewportTrace(){
  for(const type of ['beforetoggle','toggle'])document.addEventListener(type,record,true);
 }
 async function captureNotificationViewport(page,path,{settings=false}={}){
+ if(settings)await expectSettingsPage(page);
  const surface=settings?page.getByRole('region',{name:'Notification choices',exact:true}):panel(page);
  await expect(surface).toBeVisible();
  if(!settings)await expect(bell(page)).toHaveAttribute('aria-expanded','true');
  const before=await page.evaluate(notificationCaptureState);
  events.push({check:currentCheck,type:'viewport-capture-before',path,state:before});if(events.length>120)events.shift();
- // These are fixed top-layer controls. A document-sized fullPage capture asks
- // Chromium to captureBeyondViewport and does not represent this device view.
+ // Capture the actual device viewport for either the top-layer inbox or
+ // full-page settings. A document-sized capture does not represent this view.
  await page.screenshot({path,fullPage:false});
  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
  const after=await page.evaluate(notificationCaptureState);
@@ -187,8 +211,10 @@ try{
    const original=Element.prototype.scrollIntoView;window.__qaCommentAnchorScrolls=0;
    Element.prototype.scrollIntoView=function(...args){if(this.hasAttribute('data-comment-id'))window.__qaCommentAnchorScrolls++;return original.apply(this,args)};
   });
+  const rememberDraft=async field=>field.evaluate(el=>{(window.__qaDraftNodes||={})[el.getAttribute('aria-label')]=el;});
+  const assertDraftNode=async field=>assert.equal(await field.evaluate(el=>window.__qaDraftNodes?.[el.getAttribute('aria-label')]===el),true,'Background refresh must preserve the textarea node');
   const selectDraft=async field=>{await field.focus();await field.evaluate(el=>el.setSelectionRange(5,12));};
-  const assertDraft=async(field,value)=>{await expect(field).toBeFocused();await expect(field).toHaveValue(value);assert.deepEqual(await field.evaluate(el=>[el.selectionStart,el.selectionEnd]),[5,12]);assert.equal(await alice.evaluate(()=>window.__qaCommentAnchorScrolls),0);};
+  const assertDraft=async(field,value)=>{await assertDraftNode(field);await expect(field).toBeFocused();await expect(field).toHaveValue(value);assert.deepEqual(await field.evaluate(el=>[el.selectionStart,el.selectionEnd]),[5,12]);assert.equal(await alice.evaluate(()=>window.__qaCommentAnchorScrolls),0);};
   const refreshComments=async(comments)=>{
    linkedComments=comments;
    // This invokes the same full-state refresh used by the 15-second poll. The
@@ -196,17 +222,26 @@ try{
    await refresh(alice);await expect(anchor).toContainText(comments[0].text);
    await alice.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   };
-  await selectDraft(draft);const beforeScroll=await alice.evaluate(()=>window.scrollY);
+  await rememberDraft(draft);await selectDraft(draft);const beforeScroll=await alice.evaluate(()=>window.scrollY);
   await refreshComments([{...comment,text:'The first fresh fixture reply.'}]);await assertDraft(draft,'Keep this unsent comment draft');
   assert.ok(Math.abs(await alice.evaluate(()=>window.scrollY)-beforeScroll)<=1,'Background refresh must not scroll back to the anchor');
   const nextComment={...comment,id:'next-comment',text:'A new reply arrived while writing.',createdAt:3000};
   await refreshComments([{...comment,text:'The next refreshed fixture reply.'},nextComment]);await assertDraft(draft,'Keep this unsent comment draft');
-  await anchor.getByRole('button',{name:'Reply',exact:true}).click();const reply=alice.getByRole('textbox',{name:'Write a reply…',exact:true});await reply.fill('Keep this unsent reply draft');await selectDraft(reply);
+  await anchor.getByRole('button',{name:'Reply',exact:true}).click();const reply=alice.getByRole('textbox',{name:'Write a reply…',exact:true});await reply.fill('Keep this unsent reply draft');await rememberDraft(reply);await selectDraft(reply);
   await refreshComments([{...comment,text:'The reply refreshed fixture text.'},nextComment]);await assertDraft(reply,'Keep this unsent reply draft');
-  await showInbox(alice);await panel(alice).getByRole('button',{name:'Notification settings',exact:true}).click();
-  await refreshComments([{...comment,text:'The sheet refreshed fixture text.'},nextComment]);await expect(alice.getByRole('region',{name:'Notification choices',exact:true})).toBeVisible();
+  // Settings navigates to a full page. Use an actual modal sheet to keep
+  // the post mounted while testing background hydration under an inert root.
+  const reportsBeforeSheet=requests.filter(request=>request.path==='/api/commands'&&request.payload.type==='REPORT').length;
+  await alice.locator('.detail-page .post-card').getByRole('button',{name:'•••',exact:true}).click();
+  const sheet=alice.getByRole('dialog',{name:'Report content',exact:true});await expect(sheet).toBeVisible();
+  const reason=sheet.getByRole('textbox',{name:'Reason for reporting',exact:true});await reason.fill('Unsubmitted synthetic sheet draft');await selectDraft(reason);
+  await refreshComments([{...comment,text:'The sheet refreshed fixture text.'},nextComment]);
+  await expect(sheet).toBeVisible();await expect(reason).toBeFocused();await expect(reason).toHaveValue('Unsubmitted synthetic sheet draft');
+  assert.deepEqual(await reason.evaluate(el=>[el.selectionStart,el.selectionEnd]),[5,12]);
+  await assertDraftNode(alice.locator('.detail-page textarea[aria-label="Write a comment…"]'));await assertDraftNode(alice.locator('.detail-page textarea[aria-label="Write a reply…"]'));
   assert.equal(await alice.evaluate(()=>window.__qaCommentAnchorScrolls),0);
-  await alice.getByRole('button',{name:'Close dialog',exact:true}).click();await selectDraft(reply);
+  await sheet.getByRole('button',{name:'Close dialog',exact:true}).click();await expect(sheet).toHaveCount(0);await selectDraft(reply);
+  assert.equal(requests.filter(request=>request.path==='/api/commands'&&request.payload.type==='REPORT').length,reportsBeforeSheet,'Opening, refreshing and canceling a sheet must not submit a report');
   await refreshComments([{...comment,text:'The final refreshed fixture text.'},nextComment]);await assertDraft(reply,'Keep this unsent reply draft');
   // Opening the identical route is a new explicit request, even though the
   // navigation hook does not push a duplicate history entry.
@@ -218,6 +253,27 @@ try{
    await showInbox(alice);await panel(alice).getByRole('button',{name:'Open Fixture update 135',exact:true}).click();
    await expect(alice.locator('[data-comment-id="next-comment"]')).toBeFocused();assert.equal(await alice.evaluate(()=>window.__qaCommentAnchorScrolls),2);
   }finally{notice.target=previousTarget;linkedComments=[comment];}
+  await alice.getByRole('button',{name:'Green and White family home',exact:true}).click();
+ });
+ await check('full-page settings uses Back and preserves drafts across explicit post reauthorization',async()=>{
+  await showInbox(alice);await panel(alice).getByRole('button',{name:'Open Fixture update 135',exact:true}).click();
+  const draft=alice.getByRole('textbox',{name:'Write a comment…',exact:true});await expect(draft).toHaveValue('Keep this unsent comment draft');
+  const previous=await openSettings(alice);await refresh(alice);await expectSettingsPage(alice);
+  // Navigation releases the old linked resource. Back restores history; a fresh
+  // notification open reauthorizes content outside the normal feed window.
+  await returnFromSettings(alice,previous);
+  await expect(alice.getByText('This post is unavailable.',{exact:true})).toBeVisible();
+  await expect(alice.locator('[data-comment-id="older-comment"]')).toHaveCount(0);
+  await showInbox(alice);await panel(alice).getByRole('button',{name:'Open Fixture update 135',exact:true}).click();
+  const anchor=alice.locator('[data-comment-id="older-comment"]');await expect(anchor).toBeFocused();
+  await expect(draft).toHaveValue('Keep this unsent comment draft');
+  await anchor.getByRole('button',{name:'Reply',exact:true}).click();
+  await expect(alice.getByRole('textbox',{name:'Write a reply…',exact:true})).toHaveValue('Keep this unsent reply draft');
+  await alice.getByRole('button',{name:'Green and White family home',exact:true}).click();
+  await alice.getByRole('navigation',{name:'Main navigation',exact:true}).getByRole('button',{name:'You',exact:true}).click();
+  const you=alice.url();await expect(alice).toHaveURL(/#\/you$/);
+  await alice.getByRole('button',{name:'Notifications Updates, following and this device',exact:true}).click();
+  await expectSettingsPage(alice);await returnFromSettings(alice,you);
   await alice.getByRole('button',{name:'Green and White family home',exact:true}).click();
  });
  await check('a delayed notification open cannot override a newer navigation intent',async()=>{
@@ -241,7 +297,7 @@ try{
  });
  await check('settings preserve Following through global Off and normalize Loved Ones',async()=>{
   const before=visible(accounts.alice).filter(notice=>!notice.readAt).length;
-  await showInbox(alice);await panel(alice).getByRole('button',{name:'Notification settings',exact:true}).click();const settings=alice.getByRole('region',{name:'Notification choices',exact:true});
+  const previousRoute=await openSettings(alice),settings=alice.getByRole('region',{name:'Notification choices',exact:true});
   const loved=settings.getByRole('radio',{name:'Loved Ones',exact:true}),replies=settings.getByRole('checkbox',{name:'Replies',exact:true}),saving=settings.getByRole('status',{name:'Saving notification choices',exact:true});
   await chooseRadio(loved);assert.equal(accounts.alice.settings.scope,'loved_ones');
   await chooseRadio(settings.getByRole('radio',{name:'Off',exact:true}));await expect(replies).toBeDisabled();await expect(backgroundBell(alice)).toHaveAttribute('aria-label','Notifications');
@@ -268,7 +324,7 @@ try{
    {expectedAccountId:'alice',revision:previous.revision+1,categories:{replies:true}},
   ]);
   assert.deepEqual(accounts.alice.settings,{...previous,revision:previous.revision+2});
-  await alice.getByRole('button',{name:'Close dialog',exact:true}).click();await expect(bell(alice)).toHaveAccessibleName(`Notifications, ${before} unread`);
+  await returnFromSettings(alice,previousRoute);await expect(bell(alice)).toHaveAccessibleName(`Notifications, ${before} unread`);
  });
  await check('read-all uses a server cutoff and leaves a later arrival unread',async()=>{
   await showInbox(alice);const previous=structuredClone(accounts.alice.notices),cutoff=Math.max(...previous.map(n=>n.sequence)),writesBefore=requests.length;
@@ -288,16 +344,27 @@ try{
   assert.deepEqual(visible(accounts.alice).filter(n=>!n.readAt).map(n=>n.id),['alice-new-after-cutoff']);
  });
  await check('account switch rejects stale settings writes and clears old-account inbox',async()=>{
-  await panel(alice).getByRole('button',{name:'Notification settings',exact:true}).click();const previous=structuredClone(accounts.bob.settings),oldSettings=structuredClone(accounts.alice.settings),writesBefore=settingsWrites().length;
-  const reactions=alice.getByRole('region',{name:'Notification choices'}).getByRole('checkbox',{name:'Reactions',exact:true});await expect(reactions).toBeChecked();await expect(reactions).toBeEnabled();viewer.id='bob';await reactions.click();
+  const previousRoute=await openSettings(alice),previous=structuredClone(accounts.bob.settings),oldSettings=structuredClone(accounts.alice.settings),writesBefore=settingsWrites().length;
+  const reactions=alice.getByRole('region',{name:'Notification choices'}).getByRole('checkbox',{name:'Reactions',exact:true});await expect(reactions).toBeChecked();await expect(reactions).toBeEnabled();
+  let release,started=false;holdSettingsArrival={promise:new Promise(resolve=>release=resolve),started:payload=>{
+   assert.deepEqual(payload,{expectedAccountId:'alice',revision:oldSettings.revision,categories:{reactions:false}});started=true;
+  }};
+  try{
+   // Changing the cookie before click lets a normal visible/timed refresh make
+   // this a valid Bob edit. Switch only after the real Alice PUT is captured.
+   await reactions.click();await expect.poll(()=>started).toBe(true);
+   await expect(reactions).toBeDisabled();await expect(reactions).toBeChecked();
+   assert.deepEqual(accounts.alice.settings,oldSettings);assert.deepEqual(accounts.bob.settings,previous);
+   viewer.id='bob';
+  }finally{holdSettingsArrival=null;release();}
   await expect(backgroundBell(alice)).toHaveAttribute('aria-label','Notifications, 2 unread');await expect(reactions).toBeEnabled();await expect(reactions).toBeChecked();
   assert.deepEqual(settingsWrites().slice(writesBefore).map(write=>({viewer:write.viewer,payload:write.payload})),[{viewer:'bob',payload:{expectedAccountId:'alice',revision:oldSettings.revision,categories:{reactions:false}}}]);
-  assert.deepEqual(accounts.alice.settings,oldSettings);assert.deepEqual(accounts.bob.settings,previous);await alice.getByRole('button',{name:'Close dialog',exact:true}).click();await expect(bell(alice)).toHaveAccessibleName('Notifications, 2 unread');await showInbox(alice);await expect(panel(alice).locator('[data-notice-id^="alice-"]')).toHaveCount(0);await expect(panel(alice).locator('[data-notice-id^="bob-"]')).toHaveCount(2);
+  assert.deepEqual(accounts.alice.settings,oldSettings);assert.deepEqual(accounts.bob.settings,previous);await returnFromSettings(alice,previousRoute);await expect(bell(alice)).toHaveAccessibleName('Notifications, 2 unread');await showInbox(alice);await expect(panel(alice).locator('[data-notice-id^="alice-"]')).toHaveCount(0);await expect(panel(alice).locator('[data-notice-id^="bob-"]')).toHaveCount(2);
  });
  await check('notification controls fit 320/390/768/1280 across approved materials and palettes',async()=>{
   for(const variant of [{width:320,theme:'light',material:'android'},{width:390,theme:'dark',material:'ios'},{width:768,theme:'light',material:'ios'},{width:1280,theme:'dark',material:'android'}]){
    await alice.setViewportSize({width:variant.width,height:900});await alice.evaluate(({theme,material})=>{localStorage.setItem('gw-theme',theme);localStorage.setItem('gw-platform',material)},variant);await alice.reload();await showInbox(alice);await checkFit(alice);await checkBellClear(alice);await checkNavigationClear(alice);await captureNotificationViewport(alice,`${output}/${engine}-${variant.width}-${variant.theme}-${variant.material}-inbox.png`);
-   await panel(alice).getByRole('button',{name:'Notification settings',exact:true}).click();await checkFit(alice);await captureNotificationViewport(alice,`${output}/${engine}-${variant.width}-${variant.theme}-${variant.material}-settings.png`,{settings:true});await alice.getByRole('button',{name:'Close dialog',exact:true}).click();
+   const previous=await openSettings(alice);await checkFit(alice);await captureNotificationViewport(alice,`${output}/${engine}-${variant.width}-${variant.theme}-${variant.material}-settings.png`,{settings:true});await returnFromSettings(alice,previous);
   }
  });
  await check('preview controls are isolated and resettable with no notification network writes',async()=>{

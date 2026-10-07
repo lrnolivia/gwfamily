@@ -86,7 +86,7 @@ test('notification hook checks identity before commits, clears on account switch
  assert.doesNotMatch(hook,/Notification\.requestPermission|pushManager\.subscribe|localStorage\.setItem/);
 });
 test('UI uses shared choice controls, direct open actions, authoritative counts, and reduced motion',()=>{
- const ui=source('notifications.jsx'),css=source('notifications.css'),adapter=source('live-adapter.js');assert.match(ui,/ChoiceControl label="Whose posts and memories\?"/);assert.match(ui,/aria-label="Activity updates"/);assert.match(ui,/data-notice-id/);assert.match(ui,/n\.unreadCount/);assert.match(ui,/This device|Push on this device/);assert.match(css,/prefers-reduced-motion:reduce/);assert.match(css,/var\(--flat-font/);assert.match(adapter,/expectedAccountId/);assert.match(adapter,/withLinkedResource/);
+ const ui=source('notifications.jsx'),css=source('notifications.css'),adapter=source('live-adapter.js');assert.match(ui,/ChoiceControl label="Whose posts and memories\?"/);assert.match(ui,/aria-label="Activity updates"/);assert.match(ui,/data-notice-id/);assert.match(ui,/n\.unreadCount/);assert.match(ui,/PushDeviceSettings/);assert.match(source('push-device.jsx'),/Push on this device/);assert.match(css,/prefers-reduced-motion:reduce/);assert.match(css,/var\(--flat-font/);assert.match(adapter,/expectedAccountId/);assert.match(adapter,/withLinkedResource/);
 });
 test('hosted notification fixture returns renderable canonical page content, including hero defaults',()=>{
  const fixture=fs.readFileSync(new URL('./notifications-browser.mjs',import.meta.url),'utf8');
@@ -113,3 +113,16 @@ test('hosted notification failures annotate the exact check and retain bounded d
  const annotation=vm.runInNewContext(fixture.slice(start,end)+';annotation;');
  assert.equal(annotation('check,colon:%\n',true),'check%2Ccolon%3A%25%0A');
 });
+
+test('Notifications settings has full-page entry from You and Notification Center with shared Back navigation',()=>{
+ const app=source('react-app.jsx'),ui=source('notifications.jsx'),css=source('notifications.css');
+ assert.match(app,/route.type==='notification-settings'\?<NotificationSettingsPage\/>/);
+ assert.match(app,/title="Notifications"[^\n]*onClick=\{\(\)=>go\(\{type:'notification-settings'\}\)\}/);
+ assert.match(ui,/aria-label="Notification settings" onClick=\{\(\)=>go\(\{type:'notification-settings'\}\)\}/);
+ assert.doesNotMatch(app,/case'notification-settings':return/);
+ assert.match(app,/onClick=\{\(\)=>navigation.back\(\)\}/);
+ assert.match(ui,/aria-labelledby="notification-settings-heading"/);assert.match(ui,/<h1 id="notification-settings-heading"/);
+ assert.match(css,/notification-settings-page/);assert.match(css,/max-width:520px/);
+});
+
+test('push deep link is captured before initial route normalization removes URL search',()=>{const src=source('push-device.jsx');assert.match(src,/pendingNotice=useRef\(new URL\(location.href\)\.searchParams.get\('gwNotice'\)\)/);assert.match(src,/id=pendingNotice.current\|\|url.searchParams.get\('gwNotice'\)/);assert.match(src,/if\(!account\|\|!notifications\?\.ready\)return/);assert.match(src,/pendingNotice.current=null/)});

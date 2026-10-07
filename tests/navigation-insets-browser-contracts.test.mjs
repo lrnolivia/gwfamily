@@ -18,7 +18,7 @@ function loadFunction(name, next, globals = {}) {
 }
 const fixtureSource = functionSource('installNavigationFixture', 'async function navigationStage');
 function fixture() {
-  const frames = [], storage = new Map(), nodes = new Map();
+  const frames = [], storage = new Map(), sessionStorage = new Map(), nodes = new Map();
   const navigator = {userAgent: 'Mozilla/5.0 (iPhone)'};
   const window = Object.assign(new EventTarget(), {navigator, innerWidth: 390, innerHeight: 844,
     matchMedia: () => ({matches: false}), requestAnimationFrame: callback => {frames.push(callback);return frames.length;},
@@ -33,13 +33,13 @@ function fixture() {
       remove() {nodes.delete(this.id);this.isConnected = false;document.activeElement = null;}}),
   });
   const context = vm.createContext({window, document, navigator, innerWidth: 390, innerHeight: 844,
-    localStorage: {setItem: (key, value) => storage.set(key, value)}, EventTarget, Event,
+    localStorage: {setItem: (key, value) => storage.set(key, value)}, sessionStorage: {setItem: (key,value)=>sessionStorage.set(key,value)}, EventTarget, Event,
     performance: {now: () => 0}, requestAnimationFrame: window.requestAnimationFrame,
     MutationObserver: class {observe(target, options) {assert.equal(target, document);assert.ok(options.attributeFilter.includes('data-keyboard-open'));}},
   });
   vm.runInContext(`(${fixtureSource})`, context)({device: {platform: 'iPhone', touch: 5, width: 390, height: 844},
     material: 'ios', theme: 'dark', mode: 'standalone', state: {onboarding: 'done', mode: 'preview'}, key: 'preview-fixture'});
-  return {window, document, storage, context};
+  return {window, document, storage, sessionStorage, context};
 }
 function evaluateCallback(context, marker) {
   const start = source.indexOf(marker), callback = source.indexOf('() => {', start), end = source.indexOf('\n          });', callback);
@@ -48,11 +48,11 @@ function evaluateCallback(context, marker) {
 }
 
 test('navigation fixture preserves preview and device setup and records bounded lifecycle/frame evidence', () => {
-  const {window, document, storage} = fixture(), qa = window.__gwNavigationQA;
+  const {window, document, storage, sessionStorage} = fixture(), qa = window.__gwNavigationQA;
   assert.equal(window.navigator.platform, 'iPhone');assert.equal(window.navigator.maxTouchPoints, 5);
   assert.equal(window.navigator.standalone, true);assert.equal(window.matchMedia('(display-mode: standalone)').matches, true);
   assert.deepEqual(JSON.parse(storage.get('preview-fixture')), {schema: 2, mode: 'preview', state: {onboarding: 'done', mode: 'preview'}});
-  assert.equal(storage.get('gw-preview-notice:v1'), 'seen');assert.equal(storage.get('gw-install-dismissed'), 'true');
+  assert.equal(sessionStorage.get('gw-active-mode'),'preview');assert.equal(storage.get('gw-preview-notice:v1'), 'seen');assert.equal(storage.get('gw-install-dismissed'), 'true');
   for (let i = 0; i < 55; i++) qa.log('synthetic-event', {index: i});
   assert.equal(qa.events.length, 40);assert.equal(qa.events[0].index, 15);
   qa.mark('keyboard dismissal');

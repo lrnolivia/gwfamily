@@ -6,4 +6,12 @@ paths.smile='M8 14s1.5 3 4 3 4-3 4-3M8 9h.01M16 9h.01M22 12a10 10 0 1 1-20 0 10 
 paths.grid='M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z';
 paths.mosaic='M3 3h11v11H3zM17 3h4v4h-4zM17 10h4v11h-4zM3 17h11v4H3z';
 paths.carousel='M3 5h18v14H3zM8 8l-3 4 3 4M16 8l3 4-3 4';
+paths.phone='M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1ZM10 18h4';
+paths.computer='M3 4h18v12H3ZM8 21h8M12 16v5';
+paths.globe='M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0ZM2 12h20M12 2c3 3 3 17 0 20M12 2c-3 3-3 17 0 20';
+paths.help='M9 9a3 3 0 1 1 5 2c-2 1-2 2-2 3M12 17h.01M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z';
+paths.info='M12 11v6M12 7h.01M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z';
+paths.history='M3 11a9 9 0 1 1 2.6 7M3 5v6h6M12 7v5l4 2';
+paths.lock='M5 10h14v11H5ZM8 10V7a4 4 0 0 1 8 0v3M12 14v3';
+paths.edit='m14 5 5 5M4 20l5-1L21 7l-4-4L5 15ZM4 20h7';
 export default paths;

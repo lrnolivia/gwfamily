@@ -76,11 +76,10 @@ html[data-theme][data-platform] .page-save-button.button:disabled>.liquid-glass-
 .page-hero-asset{display:block;width:100%;height:100%;max-height:420px;aspect-ratio:3/2;object-fit:cover;border-radius:inherit}
 .home-hero .page-hero-asset{height:210px;aspect-ratio:auto}
 .page-hero-gallery{position:relative;border-radius:inherit}
-.page-gallery-controls{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:flex;gap:5px;align-items:center;padding:3px 5px;border-radius:12px;background:#151812dc;color:#fffdf7;max-width:calc(100% - 16px);font-size:.75rem;white-space:nowrap}
-.page-gallery-controls button{min-width:40px;min-height:40px;border-radius:8px;padding:6px;display:grid;place-items:center;color:inherit}
-.page-gallery-controls button:hover{background:#ffffff1f}
-.page-gallery-controls>span{font-variant-numeric:tabular-nums;padding:0 3px}
-.page-gallery-controls .page-previous{transform:rotate(180deg)}
+.page-hero-gallery.gw-carousel-stage{touch-action:pan-y pinch-zoom}
+.page-gallery-status button{min-width:44px;min-height:44px;border-radius:var(--radius-control);padding:6px;display:grid;place-items:center;color:inherit}
+.page-gallery-status button:hover{background:var(--raised)}
+.page-gallery-status button:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
 .page-media-placeholder,.page-media-unavailable{display:grid;place-items:center;min-height:140px;padding:24px;background:var(--raised);color:var(--muted);font-size:.8125rem;text-align:center}
 .page-media-panel{display:grid;gap:12px;min-width:0}
 .page-media-panel>.page-editor-help{margin:0}
@@ -130,3 +129,5 @@ body,.app,.card,section,.intro,footer,.bottom,.muted,.page-edit-modebar,dialog,.
  body,.app,.card,section,.intro,footer,.bottom,.muted,.page-edit-modebar,dialog,.page-copy-input-wrap,.page-media-edit{transition:none!important}
 }
 @media(prefers-contrast:more){.page-copy-frame::after,.page-editable-media.is-editable::after{border-style:solid;border-width:2px}.page-media-edit>span{outline:2px solid var(--text)}}
+
+.page-body-edit-target{min-height:44px;border:1px dashed var(--line);border-radius:3px;padding:6px;cursor:text;overflow-wrap:anywhere}.page-body-edit-target:focus-visible{outline:2px solid var(--control);outline-offset:3px}.page-body-edit-target:hover{border-color:var(--text)}.page-body-editor-wrap{position:relative;min-width:0;max-width:100%;margin:4px 0}.page-editable-body{max-width:100%}

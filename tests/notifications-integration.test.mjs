@@ -17,12 +17,15 @@ test('hosted controlled-settings checks use real clicks and verify pending, comm
   "assert.equal(accounts.alice.settings.scope,'loved_ones')",
  ])assert.ok(settings.includes(required),required);
  for(const required of [
-  "viewer.id='bob';await reactions.click()",
+  "await reactions.click();await expect.poll(()=>started).toBe(true)",
+  "viewer.id='bob';",
+  "finally{holdSettingsArrival=null;release();}",
   'await expect(reactions).toBeEnabled();await expect(reactions).toBeChecked()',
   "{viewer:'bob',payload:{expectedAccountId:'alice',revision:oldSettings.revision,categories:{reactions:false}}}",
   'assert.deepEqual(accounts.alice.settings,oldSettings);assert.deepEqual(accounts.bob.settings,previous)',
   "await expect(panel(alice).locator('[data-notice-id^=\"alice-\"]')).toHaveCount(0)",
   "await expect(panel(alice).locator('[data-notice-id^=\"bob-\"]')).toHaveCount(2)",
  ])assert.ok(accountSwitch.includes(required),required);
+ assert.ok(accountSwitch.indexOf('await expect.poll(()=>started).toBe(true)')<accountSwitch.indexOf("viewer.id='bob'"),'The server account changes only after the outgoing Alice request is captured');
  assert.match(file,/async function chooseRadio\(radio\)\{await expect\(radio\)\.toBeEnabled\(\);await radio\.locator\('\.\.'\)\.click\(\);await expect\(radio\)\.toBeChecked\(\);await expect\(radio\)\.toBeEnabled\(\);\}/);
 });

@@ -34,7 +34,7 @@ export function ChoiceControl({label,options=[],value='',onChange,variant='auto'
  const normalized=useMemo(()=>normalizeChoices(options),[options]);
  const choices=required?normalized.filter(option=>option.value!==''):normalized;
  const selected=choices.find(option=>option.value===String(value??''));
- const chips=choices.length>0&&(variant==='chips'||variant==='auto'&&choices.length<=5);
+ const chips=choices.length>0&&(variant==='chips'||variant==='auto'&&choices.length<=4);
  const [open,setOpen]=useState(false),[query,setQuery]=useState(''),[active,setActive]=useState(-1),[invalid,setInvalid]=useState(false);
  const root=useRef(null),input=useRef(null),popup=useRef(null),list=useRef(null);
  const matches=useMemo(()=>filterChoices(choices,query),[choices,query]);
@@ -94,14 +94,14 @@ export function ChoiceControl({label,options=[],value='',onChange,variant='auto'
  },[open,activeIndex,query]);
  const feedback=<>{help&&<p id={helpId} className="choice-help">{help}</p>}{message&&<p id={errorId} className="choice-error" role="alert">{message}</p>}</>;
  if(chips)return <fieldset className={`choice-control choice-control-chips ${className}`} disabled={disabled} aria-invalid={isInvalid||undefined} aria-describedby={describedBy} aria-label={accessibleName}>
-  <legend id={labelId}>{label}{required&&<span className="choice-required">Required</span>}</legend>
+  <legend id={labelId}>{label}{required&&<span className="choice-required" aria-hidden="true">Required</span>}</legend>
   <div className="choice-chips">{choices.map((option,index)=><label className="choice-chip" key={option.value}>
    <input type="radio" id={id+'-'+index} name={name||id} form={form} value={option.value} checked={String(value??'')===option.value} disabled={disabled||option.disabled} required={required} aria-describedby={describedBy} aria-invalid={isInvalid||undefined} onInvalid={()=>setInvalid(true)} onChange={()=>choose(option)}/>
    <span className="choice-chip-face"><ChoiceMark checked={String(value??'')===option.value}/><span>{option.label}</span></span>
   </label>)}</div>{!choices.length&&<p className="choice-help">No choices are available yet.</p>}{feedback}
  </fieldset>;
  return <div ref={root} className={`choice-control choice-control-search ${className}`} data-disabled={disabled||undefined} data-invalid={isInvalid||undefined} onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget))close()}}>
-  <label id={labelId} htmlFor={id}>{label}{required&&<span className="choice-required">Required</span>}</label>
+  <label id={labelId} htmlFor={id}>{label}{required&&<span className="choice-required" aria-hidden="true">Required</span>}</label>
   <div className="choice-search-field">
    <input ref={input} id={id} type="text" role="combobox" aria-label={accessibleName} aria-labelledby={accessibleName?undefined:labelId} aria-autocomplete="list" aria-expanded={open} aria-controls={listId} aria-activedescendant={open&&activeIndex>=0?id+'-option-'+activeIndex:undefined} aria-describedby={describedBy} aria-invalid={isInvalid||undefined} aria-required={required||undefined} required={required} disabled={disabled} form={form} autoComplete="off" autoCorrect="off" spellCheck={false} value={open?query:selected?.label||''} placeholder={open?searchPlaceholder:placeholder} onFocus={()=>begin()} onClick={()=>{if(!open)begin()}} onChange={event=>{setQuery(event.target.value);setActive(-1);setOpen(true)}} onInvalid={event=>{event.preventDefault();setInvalid(true);begin();input.current?.focus()}} onKeyDown={event=>{
     if(event.nativeEvent.isComposing)return;

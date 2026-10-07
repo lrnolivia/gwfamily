@@ -1,3 +1,22 @@
 import {EditableText} from './page-content.jsx';
-import React,{useEffect,useState} from 'react';import {api} from './live-adapter.js';import {useApp} from './ui-core.jsx';
-export function ContactDirectory(){const {state}=useApp(),[cards,setCards]=useState([]),[error,setError]=useState('');useEffect(()=>{if(state.mode!=='live')return;let active=true;api('/api/directory').then(r=>active&&setCards(r.cards)).catch(e=>active&&setError(e.message));return()=>{active=false}},[state.mode,state.contact]);if(state.mode!=='live')return null;return <section className="card stack"><EditableText page="people" field="sharedTitle" as="h3">Shared with you</EditableText>{error&&<p role="alert">{error}</p>}{cards.filter(c=>c.memberId!==state.selfId).map(c=><div className="contact-entry" key={c.memberId}><strong>{c.name}</strong>{c.email&&<p><a href={'mailto:'+c.email}>{c.email}</a></p>}{c.phone&&<p><a href={'tel:'+c.phone}>{c.phone}</a></p>}{c.address&&<p>{c.address}</p>}{c.social&&<a href={c.social} target="_blank" rel="noreferrer">Social profile</a>}</div>)}{!cards.some(c=>c.memberId!==state.selfId)&&<EditableText page="people" field="sharedEmptyBody" as="p" className="muted">No family contact cards have been shared with you yet.</EditableText>}</section>}
+import React,{useEffect,useRef,useState} from 'react';
+import {api} from './live-adapter.js';
+import {Button,useApp} from './ui-core.jsx';
+import {PersonIdentity} from './person-identity.jsx';
+import {directoryView} from './contact-directory-state.js';
+export function ContactDirectory(){
+ const {state}=useApp(),account=state.mode+':'+state.selfId,generation=useRef(0),[retry,setRetry]=useState(0),[result,setResult]=useState({account:'',status:'loading',cards:null,error:''});
+ useEffect(()=>{
+  const current=++generation.current,controller=new AbortController();
+  if(state.mode!=='live'){setResult({account,status:'idle',cards:null,error:''});return()=>{generation.current++;controller.abort()}}
+  setResult({account,status:'loading',cards:null,error:''});
+  api('/api/directory',{signal:controller.signal}).then(response=>{
+   if(!Array.isArray(response?.cards))throw Error('Contact cards could not be read. Try again.');
+   if(generation.current===current&&!controller.signal.aborted)setResult({account,status:'ready',cards:response.cards,error:''});
+  }).catch(error=>{if(generation.current===current&&!controller.signal.aborted)setResult({account,status:'error',cards:null,error:error.message||'Contact cards could not be loaded.'})});
+  return()=>{generation.current++;controller.abort()};
+ },[state.mode,state.selfId,state.contact,retry]);
+ if(state.mode!=='live')return null;
+ const view=directoryView(result,account,state.selfId);
+ return <section className="card stack" aria-busy={view.status==='loading'}><EditableText page="people" field="sharedTitle" as="h3">Shared with you</EditableText>{view.status==='loading'?<p role="status">Loading shared contact cards…</p>:view.status==='error'?<div className="stack"><p role="alert">{view.error}</p><p className="small muted">We couldn’t check which cards are shared with you.</p><Button secondary onClick={()=>setRetry(value=>value+1)}>Try again</Button></div>:<>{view.cards.map(card=><div className="contact-entry" key={card.memberId}><PersonIdentity memberId={card.memberId} fallbackName={card.name} displayName={card.name} photo={card.photo}/>{card.email&&<p><a href={'mailto:'+card.email}>{card.email}</a></p>}{card.phone&&<p><a href={'tel:'+card.phone}>{card.phone}</a></p>}{card.address&&<p>{card.address}</p>}{card.social&&<a href={card.social} target="_blank" rel="noreferrer">Social profile</a>}</div>)}{view.empty&&<EditableText page="people" field="sharedEmptyBody" as="p" className="muted">No family contact cards have been shared with you yet.</EditableText>}</>}</section>;
+}

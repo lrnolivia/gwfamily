@@ -1,0 +1,348 @@
+# DRAFT ONLY. Root reviews/publishes/runs through existing exact-head ownership.
+name: GW release dependency preparation
+on:
+  workflow_dispatch:
+  push:
+    branches: ['grnwht/family-app-20261004']
+    paths: ['.github/workflows/gw-release-dependency-preparation.yml']
+permissions:
+  contents: read
+jobs:
+  acquire:
+    outputs:
+      inline_export_matrix: ${{ steps.prepare_inline_export.outputs.matrix }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      npm_config_update_notifier: 'false'
+      npm_config_audit: 'false'
+      npm_config_fund: 'false'
+      npm_config_ignore_scripts: 'true'
+      npm_config_registry: https://registry.npmjs.org/
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify exact existing frontend and backend dependency inputs
+        run: |
+          mkdir -p dependency-evidence/frontend dependency-evidence/backend
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import {createHash} from 'node:crypto';
+          const expected={
+            'package.json':'3db5f0a051f697448cd91b46f811cbb978955b1a739fddeca345e111add5ba1b',
+            'package-lock.json':'35a6cb2e836b94d4793a6efe28c5085f8b67c361c874f96ecda2d2aac6933d34',
+            'backend/package.json':'2d843ffaafaa094d9a78598b1b0153654f8f8140ed3ac7318e8a80e912614c0b',
+            'backend/package-lock.json':'4fe815c1839257ecc86ffd65db8d134a81c824a55180c2b322c9029b777b13d4'
+          };
+          for(const [file,hash] of Object.entries(expected))if(createHash('sha256').update(fs.readFileSync(file)).digest('hex')!==hash)throw Error('Dependency input drift: '+file);
+          fs.writeFileSync('dependency-evidence/input-provenance.json',JSON.stringify({workflowSha:process.env.GITHUB_SHA,baselineSource:'44b05b5d6697096798aa15b3a74a3d065ffb02f3',node:process.version,inputs:expected},null,2));
+          for(const [folder,prefix] of [['frontend',''],['backend','backend/']]){
+            fs.copyFileSync(prefix+'package.json','dependency-evidence/'+folder+'/original-package.json');
+            fs.copyFileSync(prefix+'package-lock.json','dependency-evidence/'+folder+'/original-package-lock.json');
+          }
+          JS
+      - name: Read exact official registry metadata
+        run: |
+          npm view web-push@3.6.7 version dist.integrity dist.tarball repository.url engines --json > dependency-evidence/backend/web-push-metadata.json
+          for package in core pm react starter-kit markdown; do
+            npm view "@tiptap/$package@3.30.3" version dist.integrity dist.tarball repository.url engines --json > "dependency-evidence/frontend/tiptap-$package-metadata.json"
+          done
+      - name: Generate authentic backend lock, without lifecycle scripts
+        working-directory: backend
+        run: npm install --package-lock-only --ignore-scripts --save-exact web-push@3.6.7
+      - name: Generate authentic frontend lock, without lifecycle scripts
+        run: npm install --package-lock-only --ignore-scripts --save-exact @tiptap/core@3.30.3 @tiptap/pm@3.30.3 @tiptap/react@3.30.3 @tiptap/starter-kit@3.30.3 @tiptap/markdown@3.30.3
+      - name: Verify manifest scope, npm metadata and registry integrity
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const tasks=[{folder:'backend',prefix:'backend/',packages:{'web-push':'3.6.7'}},{folder:'frontend',prefix:'',packages:Object.fromEntries(['core','pm','react','starter-kit','markdown'].map(name=>['@tiptap/'+name,'3.30.3']))}];
+          const canonical=value=>JSON.stringify(value,(_key,item)=>item&&typeof item==='object'&&!Array.isArray(item)?Object.fromEntries(Object.keys(item).sort().map(key=>[key,item[key]])):item);
+          for(const task of tasks){
+            const manifest=JSON.parse(fs.readFileSync(task.prefix+'package.json')),lock=JSON.parse(fs.readFileSync(task.prefix+'package-lock.json'));
+            const before=JSON.parse(fs.readFileSync('dependency-evidence/'+task.folder+'/original-package.json'));
+            const expected=structuredClone(before);expected.dependencies={...expected.dependencies,...task.packages};
+            if(canonical(manifest)!==canonical(expected))throw Error('Manifest changed beyond requested dependencies: '+task.folder);
+            if(canonical(lock.packages[''].dependencies)!==canonical(expected.dependencies))throw Error('Manifest/root-lock mismatch: '+task.folder);
+            const reviews=[];
+            for(const [name,version] of Object.entries(task.packages)){
+              const file=name==='web-push'?'web-push-metadata.json':'tiptap-'+name.split('/')[1]+'-metadata.json';
+              const metadata=JSON.parse(fs.readFileSync('dependency-evidence/'+task.folder+'/'+file)),item=lock.packages['node_modules/'+name];
+              if(manifest.dependencies[name]!==version||item?.version!==version||!item.integrity?.startsWith('sha512-'))throw Error('Unexpected resolution: '+name);
+              if(metadata.version!==version||metadata['dist.integrity']!==item.integrity||metadata['dist.tarball']!==item.resolved)throw Error('Registry/lock mismatch: '+name);
+              const repository=String(metadata['repository.url']).replace(/^git\+/,'').replace(/\.git$/,'');
+              if(repository!==(name==='web-push'?'https://github.com/web-push-libs/web-push':'https://github.com/ueberdosis/tiptap'))throw Error('Unexpected official repository: '+name);
+              reviews.push({name,version,integrity:item.integrity,resolved:item.resolved,dependencies:item.dependencies,peerDependencies:item.peerDependencies});
+            }
+            for(const [name,pkg] of Object.entries(lock.packages))if(name&&pkg.resolved&&!pkg.resolved.startsWith('https://registry.npmjs.org/'))throw Error('Unexpected registry source: '+name);
+            fs.writeFileSync('dependency-evidence/'+task.folder+'/lock-review.json',JSON.stringify(reviews,null,2));
+          }
+          JS
+      - name: Install frontend dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+      - name: Install backend dependencies without lifecycle scripts
+        working-directory: backend
+        run: npm ci --ignore-scripts
+      - name: Create fail-closed import-only verification guard
+        run: |
+          cat > dependency-evidence/import-guard.cjs <<'JS'
+          'use strict';
+          const deny=()=>{throw Error('Dependency smoke forbids network, servers, browser and subprocesses')};
+          for(const [name,methods] of Object.entries({net:['connect','createConnection'],tls:['connect'],http:['request','get'],https:['request','get'],http2:['connect'],dgram:['createSocket'],dns:['lookup','lookupService','resolve','resolve4','resolve6','resolveAny','resolveCname','resolveMx','resolveNaptr','resolveNs','resolvePtr','resolveSoa','resolveSrv','resolveTxt','reverse']})){const api=require('node:'+name);for(const method of methods)if(typeof api[method]==='function')api[method]=deny}
+          require('node:net').Socket.prototype.connect=deny;require('node:net').Server.prototype.listen=deny;
+          for(const key of Object.keys(require('node:dns').promises))if(typeof require('node:dns').promises[key]==='function')require('node:dns').promises[key]=deny;
+          globalThis.fetch=deny;globalThis.WebSocket=class{constructor(){deny()}};
+          for(const method of ['spawn','spawnSync','exec','execSync','execFile','execFileSync','fork'])require('node:child_process')[method]=deny;
+          require('node:worker_threads').Worker=class{constructor(){deny()}};
+          const moduleApi=require('node:module');moduleApi.registerHooks({resolve(name,context,next){if(/playwright|puppeteer|selenium|chromium|webkit|webdriver/i.test(name))deny();return next(name,context)}});moduleApi.syncBuiltinESMExports();
+          JS
+      - name: Verify backend standard API only, no signing keys or sends
+        working-directory: backend
+        run: |
+          node --require ../dependency-evidence/import-guard.cjs --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const module=await import('web-push'),library=module.default||module;
+          if(typeof library.generateRequestDetails!=='function')throw Error('Missing standard request-generation API');
+          fs.writeFileSync('../dependency-evidence/backend/import.json',JSON.stringify({imported:true,generateRequestDetails:true,keysCreated:false,sends:0}));
+          JS
+      - name: Verify frontend exports and pure parser only, no DOM/browser
+        run: |
+          node --require ./dependency-evidence/import-guard.cjs --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const core=await import('@tiptap/core'),react=await import('@tiptap/react'),pmState=await import('@tiptap/pm/state'),pmModel=await import('@tiptap/pm/model'),starter=(await import('@tiptap/starter-kit')).default,markdown=await import('@tiptap/markdown');
+          if(typeof core.Extension!=='function'||typeof react.EditorContent==='undefined'||typeof react.useEditor!=='function'||typeof pmState.Plugin!=='function'||typeof pmModel.Slice!=='function'||typeof starter.configure!=='function'||typeof markdown.MarkdownManager!=='function'||!markdown.Markdown)throw Error('Missing requested maintained editor exports');
+          const manager=new markdown.MarkdownManager({extensions:[starter.configure({underline:false,trailingNode:false})],markedOptions:{gfm:true,breaks:false}});
+          if(manager.serialize(manager.parse('Family news'))!=='Family news')throw Error('Pure parser smoke failed');
+          fs.writeFileSync('dependency-evidence/frontend/import.json',JSON.stringify({imported:true,pureParserRoundtrip:true,browserLaunched:false,editorMounted:false}));
+          JS
+      - name: Collect generated dependency files and exact diffs
+        run: |
+          cp package.json package-lock.json dependency-evidence/frontend/
+          cp backend/package.json backend/package-lock.json dependency-evidence/backend/
+          git diff -- package.json package-lock.json > dependency-evidence/frontend/manifest-lock.patch
+          git diff -- backend/package.json backend/package-lock.json > dependency-evidence/backend/manifest-lock.patch
+          git diff --stat -- package.json package-lock.json backend/package.json backend/package-lock.json > dependency-evidence/diff-stat.txt
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';import {createHash} from 'node:crypto';
+          const files=['frontend/package.json','frontend/package-lock.json','backend/package.json','backend/package-lock.json'];
+          fs.writeFileSync('dependency-evidence/output-hashes.json',JSON.stringify(Object.fromEntries(files.map(path=>[path,createHash('sha256').update(fs.readFileSync('dependency-evidence/'+path)).digest('hex')])),null,2));
+          JS
+      - name: Prepare bounded same-run dependency JSON export
+        id: prepare_inline_export
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          """Prepare a bounded same-run dependency export. Standard library only."""
+          import base64
+          import copy
+          import gzip
+          import hashlib
+          import io
+          import json
+          import os
+          from pathlib import Path
+          
+          INPUTS = {
+              "package.json": "3db5f0a051f697448cd91b46f811cbb978955b1a739fddeca345e111add5ba1b",
+              "package-lock.json": "35a6cb2e836b94d4793a6efe28c5085f8b67c361c874f96ecda2d2aac6933d34",
+              "backend/package.json": "2d843ffaafaa094d9a78598b1b0153654f8f8140ed3ac7318e8a80e912614c0b",
+              "backend/package-lock.json": "4fe815c1839257ecc86ffd65db8d134a81c824a55180c2b322c9029b777b13d4",
+          }
+          FILES = (
+              "frontend/package.json", "frontend/package-lock.json",
+              "backend/package.json", "backend/package-lock.json",
+          )
+          CHUNK_CHARACTERS = 3072
+          MAX_CHUNKS = 32
+          BASELINE = "44b05b5d6697096798aa15b3a74a3d065ffb02f3"
+          
+          
+          def require(condition, message):
+              if not condition:
+                  raise RuntimeError(message)
+          
+          
+          def digest(data):
+              return hashlib.sha256(data).hexdigest()
+          
+          
+          def read_file(root, relative):
+              path = root / relative
+              require(not path.is_symlink() and path.is_file(), "Not a regular file: " + relative)
+              data = path.read_bytes()
+              require(len(data) <= 524288, "Dependency file exceeds size bound: " + relative)
+              return data
+          
+          
+          def verify_files(root, source_sha):
+              provenance = json.loads(read_file(root, "input-provenance.json"))
+              outputs = json.loads(read_file(root, "output-hashes.json"))
+              require(provenance["workflowSha"] == source_sha, "Wrong source commit")
+              require(provenance["baselineSource"] == BASELINE, "Wrong input baseline")
+              require(provenance["inputs"] == INPUTS, "Wrong input hash allowlist")
+              require(set(outputs) == set(FILES), "Wrong output file allowlist")
+              verified = {}
+              for relative in FILES:
+                  folder, name = relative.split("/")
+                  input_name = ("backend/" if folder == "backend" else "") + name
+                  original = read_file(root, folder + "/original-" + name)
+                  require(digest(original) == INPUTS[input_name], "Original input hash mismatch")
+                  data = read_file(root, relative)
+                  require(digest(data) == outputs[relative], "Generated output hash mismatch")
+                  json.loads(data)
+                  verified[relative] = data
+              for folder in ("frontend", "backend"):
+                  requested = {"web-push": "3.6.7"} if folder == "backend" else {
+                      "@tiptap/" + name: "3.30.3" for name in ("core", "pm", "react", "starter-kit", "markdown")
+                  }
+                  before = json.loads(read_file(root, folder + "/original-package.json"))
+                  expected = copy.deepcopy(before)
+                  expected["dependencies"] = {**expected.get("dependencies", {}), **requested}
+                  manifest = json.loads(verified[folder + "/package.json"])
+                  lock = json.loads(verified[folder + "/package-lock.json"])
+                  require(manifest == expected, "Manifest changes exceed requested dependencies")
+                  require(lock["packages"][""]["dependencies"] == expected["dependencies"], "Manifest/lock mismatch")
+                  for name, version in requested.items():
+                      item = lock["packages"]["node_modules/" + name]
+                      metadata_name = "web-push" if folder == "backend" else "tiptap-" + name.split("/")[1]
+                      metadata = json.loads(read_file(root, folder + "/" + metadata_name + "-metadata.json"))
+                      require(item["version"] == metadata["version"] == version, "Wrong direct dependency version")
+                      require(item["integrity"].startswith("sha512-"), "Missing npm integrity")
+                      require(item["integrity"] == metadata["dist.integrity"], "npm integrity mismatch")
+                      require(item["resolved"] == metadata["dist.tarball"], "npm tarball mismatch")
+                  for name, item in lock["packages"].items():
+                      require(not name or not item.get("resolved") or item["resolved"].startswith("https://registry.npmjs.org/"), "Unexpected registry")
+              return verified, provenance, outputs
+          
+          
+          def build_export(verified, provenance, outputs, source_sha, run_id, attempt):
+              require(set(verified) == set(FILES), "Bundle file allowlist mismatch")
+              artifact_name = "gw-release-dependencies-" + source_sha
+              envelope = {
+                  "schema": "gw-dependency-json-v1", "source_sha": source_sha,
+                  "run_id": run_id, "run_attempt": attempt, "artifact_name": artifact_name,
+                  "input_provenance": {key: provenance[key] for key in ("workflowSha", "baselineSource", "node", "inputs")},
+                  "output_sha256": outputs,
+                  "files": {name: {"bytes": len(verified[name]), "sha256": digest(verified[name]),
+                                    "base64": base64.b64encode(verified[name]).decode("ascii")} for name in FILES},
+              }
+              raw = json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode("utf-8")
+              require(len(raw) <= 2097152, "Envelope exceeds size bound")
+              buffer = io.BytesIO()
+              with gzip.GzipFile(filename="", mode="wb", fileobj=buffer, mtime=0) as compressor:
+                  compressor.write(raw)
+              compressed = buffer.getvalue()
+              encoded = base64.b64encode(compressed).decode("ascii")
+              count = (len(encoded) + CHUNK_CHARACTERS - 1) // CHUNK_CHARACTERS
+              require(1 <= count <= MAX_CHUNKS, "Export exceeds bounded job count")
+              chunks = {}
+              for index in range(count):
+                  payload = encoded[index * CHUNK_CHARACTERS:(index + 1) * CHUNK_CHARACTERS]
+                  header = {
+                      "schema": "gw-dependency-chunk-v1", "source_sha": source_sha,
+                      "run_id": run_id, "run_attempt": attempt, "artifact_name": artifact_name,
+                      "index": index, "count": count, "encoding": "gzip+base64",
+                      "payload_characters": len(payload), "payload_sha256": digest(payload.encode("ascii")),
+                      "encoded_characters": len(encoded), "compressed_bytes": len(compressed),
+                      "compressed_sha256": digest(compressed), "envelope_bytes": len(raw),
+                      "envelope_sha256": digest(raw),
+                  }
+                  chunks[f"{index:03}"] = "\n".join(("GW_DEPENDENCY_CHUNK_V1_BEGIN",
+                      json.dumps(header, sort_keys=True, separators=(",", ":")), payload, "GW_DEPENDENCY_CHUNK_V1_END", ""))
+              return chunks
+          
+          
+          def main():
+              root = Path("dependency-evidence")
+              source_sha, run_id, attempt = (os.environ[name] for name in ("GITHUB_SHA", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT"))
+              verified, provenance, outputs = verify_files(root, source_sha)
+              chunks = build_export(verified, provenance, outputs, source_sha, run_id, attempt)
+              destination = root / "inline-export"
+              destination.mkdir(exist_ok=False)
+              for index, text in chunks.items():
+                  (destination / (index + ".log")).write_text(text, encoding="ascii")
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+                  output.write("matrix=" + json.dumps(list(chunks), separators=(",", ":")) + "\n")
+          
+          
+          if __name__ == "__main__":
+              main()
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gw-release-dependencies-${{ github.sha }}
+          path: dependency-evidence
+          retention-days: 7
+
+  inline_log_probe:
+    name: Dependency inline log probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Emit a bounded synthetic 4 KiB payload
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, json, os
+          raw = b''.join(hashlib.sha256(('gw-inline-probe-v1:' + str(i)).encode('ascii')).digest() for i in range(96))
+          payload = base64.b64encode(raw).decode('ascii')
+          assert len(raw) == 3072 and len(payload) == 4096
+          header = {
+              'schema': 'gw-inline-probe-v1',
+              'synthetic': True,
+              'source_sha': os.environ['GITHUB_SHA'],
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'encoding': 'base64',
+              'payload_characters': len(payload),
+              'payload_sha256': hashlib.sha256(payload.encode('ascii')).hexdigest(),
+              'decoded_bytes': len(raw),
+              'decoded_sha256': hashlib.sha256(raw).hexdigest(),
+          }
+          print('GW_INLINE_PROBE_V1_BEGIN')
+          print(json.dumps(header, sort_keys=True, separators=(',', ':')))
+          print(payload)
+          print('GW_INLINE_PROBE_V1_END')
+          PY
+  dependency_json_export:
+    name: Dependency JSON export ${{ matrix.chunk }}
+    needs: acquire
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    strategy:
+      fail-fast: true
+      max-parallel: 4
+      matrix:
+        chunk: ${{ fromJSON(needs.acquire.outputs.inline_export_matrix) }}
+    steps:
+      - name: Read only this run's dependency artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: gw-release-dependencies-${{ github.sha }}
+          path: dependency-export
+      - name: Emit one bounded dependency chunk
+        shell: bash
+        env:
+          CHUNK_INDEX: ${{ matrix.chunk }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, re, sys
+          index = os.environ['CHUNK_INDEX']
+          assert re.fullmatch(r'[0-9]{3}', index)
+          text = (pathlib.Path('dependency-export/inline-export') / (index + '.log')).read_text(encoding='ascii')
+          lines = text.splitlines()
+          assert len(lines) == 4 and lines[0] == 'GW_DEPENDENCY_CHUNK_V1_BEGIN' and lines[3] == 'GW_DEPENDENCY_CHUNK_V1_END'
+          header, payload = json.loads(lines[1]), lines[2]
+          assert header['schema'] == 'gw-dependency-chunk-v1' and header['index'] == int(index)
+          assert 0 <= header['index'] < header['count'] <= 32
+          assert header['source_sha'] == os.environ['GITHUB_SHA'] and header['run_id'] == os.environ['GITHUB_RUN_ID']
+          assert header['run_attempt'] == os.environ['GITHUB_RUN_ATTEMPT']
+          assert len(payload) == header['payload_characters'] <= 3072
+          assert hashlib.sha256(payload.encode('ascii')).hexdigest() == header['payload_sha256']
+          sys.stdout.write(text)
+          PY

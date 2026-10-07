@@ -1,3 +1,6 @@
+import {runtimeReady,drainPush,pushStorageReady} from './push-runtime.mjs';
+import {revokePushSession} from './push-routes.mjs';
+import {deriveAccountPlan,planningReminderAllowed} from '../../src/planning-model.js';
 import {celebrateBirthdays} from './birthdays.mjs';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -5,24 +8,30 @@ import { createAuth,authEnvironment } from './auth.mjs';
 import {registerPublic,registerFamily} from './routes.mjs';
 import {UserError,command,readPost,visiblePostSql} from './family-service.mjs';
 import { can, isMember, claimShirts } from './policy.mjs';
+import {recordUnexpectedError} from './error-diagnostics.mjs';
 export function createApp(authFactory=createAuth){const app=new Hono();
 app.use('*',async(c,next)=>{c.env=authEnvironment(c.env);await next()});
 app.use('/api/media',bodyLimit({maxSize:21*1024*1024,onError:c=>c.json({error:'Upload is too large'},413)}));
 app.use('/api/onboarding/photo',bodyLimit({maxSize:11*1024*1024,onError:c=>c.json({error:'Photo is too large'},413)}));
 app.use('/api/*',async(c,next)=>{if(['/api/media','/api/onboarding/photo'].includes(c.req.path))return next();return bodyLimit({maxSize:65536,onError:c=>c.json({error:'Request is too large'},413)})(c,next)});
-app.onError((err,c)=>c.json({error:err instanceof UserError?err.message:err instanceof SyntaxError?'Invalid request body':'Request could not be completed'},err instanceof UserError?err.status:err instanceof SyntaxError?400:500));
+app.onError((err,c)=>{
+ if(err instanceof UserError)return c.json({error:err.message},err.status);
+ if(err instanceof SyntaxError)return c.json({error:'Invalid request body'},400);
+ const requestId=recordUnexpectedError(err,c);c.header('X-Request-ID',requestId);
+ return c.json({error:'Request could not be completed',requestId},500);
+});
 app.use('*',async(c,next)=>{c.header('X-Content-Type-Options','nosniff');c.header('Referrer-Policy','no-referrer');c.header('Cache-Control','no-store');await next()});
 app.get('/health',c=>c.json({service:'gwfamily',status:'ok'}));
 registerPublic(app,authFactory);
-app.all('/api/auth/*',c=>{if(!c.env.DB||!c.env.BETTER_AUTH_SECRET||!c.env.AUTH_ORIGIN)return c.json({error:'Sign-in is not configured'},503);return authFactory(c.env).handler(c.req.raw)});
-app.use('/api/*',async(c,next)=>{if(!c.env.DB||!c.env.BETTER_AUTH_SECRET||!c.env.AUTH_ORIGIN)return c.json({error:'Service is not configured'},503);if(!['GET','HEAD','OPTIONS'].includes(c.req.method)&&c.req.header('Origin')!==c.env.AUTH_ORIGIN)return c.json({error:'Invalid request origin'},403);const session=await authFactory(c.env).api.getSession({headers:c.req.raw.headers});if(!session)return c.json({error:'Sign in required'},401);if(session.user.emailVerified!==true)return c.json({error:'Verify your email before accessing family data'},403);const row=await c.env.DB.prepare('SELECT * FROM members WHERE id = ?').bind(session.user.id).first();const actor=row?{id:row.id,status:row.status,group:row.member_group,isLeader:row.is_leader===1,roles:JSON.parse(row.roles_json),canPost:row.can_post===1}:null;if(!isMember(actor))return c.json({error:'Family membership approval required'},403);c.set('actor',actor);await next()});
+app.all('/api/auth/*',async c=>{if(!c.env.DB||!c.env.BETTER_AUTH_SECRET||!c.env.AUTH_ORIGIN)return c.json({error:'Sign-in is not configured'},503);if(pushStorageReady(c.env)&&c.req.method==='POST'&&c.req.path==='/api/auth/sign-out'&&c.req.header('Origin')===c.env.AUTH_ORIGIN){const prior=await authFactory(c.env).api.getSession({headers:c.req.raw.headers});if(prior?.user?.id&&prior?.session?.id)await revokePushSession(c.env.DB,prior.user.id,prior.session.id)}return authFactory(c.env).handler(c.req.raw)});
+app.use('/api/*',async(c,next)=>{if(!c.env.DB||!c.env.BETTER_AUTH_SECRET||!c.env.AUTH_ORIGIN)return c.json({error:'Service is not configured'},503);if(!['GET','HEAD','OPTIONS'].includes(c.req.method)&&c.req.header('Origin')!==c.env.AUTH_ORIGIN)return c.json({error:'Invalid request origin'},403);const session=await authFactory(c.env).api.getSession({headers:c.req.raw.headers});if(!session)return c.json({error:'Sign in required'},401);if(session.user.emailVerified!==true)return c.json({error:'Verify your email before accessing family data'},403);const row=await c.env.DB.prepare('SELECT * FROM members WHERE id = ?').bind(session.user.id).first();const actor=row?{id:row.id,status:row.status,group:row.member_group,isLeader:row.is_leader===1,roles:JSON.parse(row.roles_json),canPost:row.can_post===1}:null;if(!isMember(actor))return c.json({error:'Family membership approval required'},403);c.set('actor',actor);c.set('sessionId',session.session?.id||null);await next()});
 registerFamily(app);
 app.get('/api/me',c=>c.json({member:c.get('actor')}));
 app.get('/api/posts',async c=>{const author=c.req.query('author'),group=c.req.query('group'),limit=30;const parts=[visiblePostSql],values=[c.get('actor').id];if(author){parts.push('p.author_id = ?');values.push(author)}if(group){parts.push('p.group_id = ?');values.push(group)}const result=await c.env.DB.prepare('SELECT p.id,p.author_id,p.group_id,p.body,p.created_at,u.name,u.image FROM posts p JOIN user u ON u.id=p.author_id WHERE '+parts.join(' AND ')+' ORDER BY p.created_at DESC,p.id DESC LIMIT ?').bind(...values,limit).all();return c.json({posts:result.results})});
 app.post('/api/posts',async c=>{const data=await c.req.json(),result=await command(c.env.DB,c.get('actor'),{type:'ADD_POST',requestId:data.requestId||c.req.header('Idempotency-Key')||crypto.randomUUID(),post:{text:data.body,groupId:data.groupId}});return c.json({id:result.id},201)});
 app.get('/api/posts/:id/comments',async c=>{const post=await readPost(c.env.DB,c.get('actor'),c.req.param('id'));if(!post)return c.json({error:'Post not found'},404);const rows=await c.env.DB.prepare('SELECT c.id,c.parent_id,c.body,c.created_at,c.author_id,u.name,u.image FROM comments c JOIN user u ON u.id=c.author_id WHERE c.post_id=? AND c.deleted_at IS NULL ORDER BY c.created_at,c.id LIMIT 200').bind(post.id).all();return c.json({comments:rows.results})});
 app.post('/api/posts/:id/comments',async c=>{const data=await c.req.json(),result=await command(c.env.DB,c.get('actor'),{type:'ADD_COMMENT',requestId:data.requestId||c.req.header('Idempotency-Key')||crypto.randomUUID(),targetId:c.req.param('id'),parentId:data.parentId,text:data.body});return c.json({id:result.id},201)});
-app.post('/api/shirts/claims',async c=>{const data=await c.req.json(),actor=c.get('actor'),result=await command(c.env.DB,actor,{type:'CLAIM_ORDER',requestId:data.requestId||c.req.header('Idempotency-Key')||crypto.randomUUID(),lines:data.lines});const fee=await c.env.DB.prepare("SELECT id FROM fee_reports WHERE member_id=? AND status='confirmed' LIMIT 1").bind(actor.id).first();return c.json({id:result.id,status:'claimed',feeReminder:!fee},201)});
+app.post('/api/shirts/claims',async c=>{const data=await c.req.json(),actor=c.get('actor'),result=await command(c.env.DB,actor,{type:'CLAIM_ORDER',requestId:data.requestId||c.req.header('Idempotency-Key')||crypto.randomUUID(),lines:data.lines});const feeReports=(await c.env.DB.prepare('SELECT status FROM fee_reports WHERE member_id=?').bind(actor.id).all()).results;const rsvp=await c.env.DB.prepare('SELECT status,count FROM rsvps WHERE member_id=?').bind(actor.id).first();const plan=deriveAccountPlan({memberId:actor.id,feeReports,rsvp});return c.json({id:result.id,status:'claimed',feeReminder:planningReminderAllowed(plan,'fees',{authorized:true})},201)});
 app.get('/api/shirts/claims',async c=>{const rows=await c.env.DB.prepare('SELECT * FROM shirt_claims WHERE member_id=? ORDER BY created_at DESC').bind(c.get('actor').id).all();return c.json({claims:rows.results})});
 app.post('/api/shirts/claims/:id/received',async c=>{let data={};try{data=await c.req.json()}catch{}await command(c.env.DB,c.get('actor'),{type:'ORDER_RECEIVED',id:c.req.param('id'),requestId:data.requestId||c.req.header('Idempotency-Key')||crypto.randomUUID()});return c.json({status:'delivered'})});
 app.get('/api/members',async c=>{const filter=c.req.query('filter')||'all';const clauses=["m.status='active'"],args=[];if(['family','loved_ones'].includes(filter)){clauses.push('m.member_group=?');args.push(filter)}else if(filter==='leaders')clauses.push('m.is_leader=1');else if(filter!=='all')return c.json({error:'Invalid member filter'},400);const rows=await c.env.DB.prepare('SELECT m.id,m.member_group,m.is_leader,u.name,u.image FROM members m JOIN user u ON u.id=m.id WHERE '+clauses.join(' AND ')+' ORDER BY u.name LIMIT 200').bind(...args).all();return c.json({members:rows.results})});
@@ -32,5 +41,4 @@ app.put('/api/me/favorites/:id',async c=>{const actor=c.get('actor'),id=c.req.pa
 app.delete('/api/me/favorites/:id',async c=>{await c.env.DB.prepare('DELETE FROM favorites WHERE member_id=? AND favorite_member_id=?').bind(c.get('actor').id,c.req.param('id')).run();return c.json({favorite:false})});
 app.notFound(c=>c.json({error:'Not found'},404));return app}
 const app=createApp();
-export default {fetch:(request,env,ctx)=>app.fetch(request,env,ctx),scheduled:(controller,env,ctx)=>{if(env.BIRTHDAY_POSTS_ENABLED==='true')ctx.waitUntil(celebrateBirthdays(authEnvironment(env).DB,new Date(controller.scheduledTime)))}};
-
+export default {fetch:(request,env,ctx)=>app.fetch(request,env,ctx),scheduled:(controller,env,ctx)=>{if(controller.cron==='* * * * *'){if(runtimeReady(env))ctx.waitUntil(drainPush(authEnvironment(env)));return}if(env.BIRTHDAY_POSTS_ENABLED==='true')ctx.waitUntil(celebrateBirthdays(authEnvironment(env).DB,new Date(controller.scheduledTime)))}};

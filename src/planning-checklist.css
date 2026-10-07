@@ -1,0 +1,37 @@
+/* Theme tokens inherit both personal palettes and the light/dark app theme. */
+.planning-checklist{min-width:0;display:flex;flex-direction:column;gap:14px}
+.planning-checklist h2,.planning-checklist h3,.planning-checklist p{margin:0}
+.planning-summary{font-size:.94rem;line-height:1.5}
+.planning-links{min-width:0}
+.planning-link{width:100%;align-items:flex-start;text-align:start;min-width:0}
+.planning-link-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.planning-link-heading{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.planning-detail{display:block;font-size:.82rem;line-height:1.45;color:var(--muted);overflow-wrap:anywhere}
+.planning-status{display:inline-flex;align-items:center;gap:5px;flex-shrink:0;font-size:.76rem;font-weight:600;line-height:1.4;color:var(--text);white-space:normal}
+.planning-status-mark{width:1.15em;text-align:center;display:inline-block;font-family:system-ui,sans-serif;font-weight:700}
+.planning-status.is-complete{color:var(--text)}
+.planning-link.is-not-needed,.planning-member-task.is-not-needed{color:var(--muted)}
+.planning-link.is-not-needed .planning-task-label,.planning-member-task.is-not-needed .planning-task-label{text-decoration:line-through;text-decoration-thickness:1px}
+.planning-status.is-not-needed{color:var(--muted)}
+.planning-people{min-width:0;border-top:1px solid var(--line);padding-top:12px}
+.planning-people summary{cursor:pointer;min-height:44px;display:list-item;align-content:center;font-weight:600}
+.planning-people summary:focus-visible,.planning-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.planning-member-list,.planning-member-tasks{list-style:none;padding:0;margin:0}
+.planning-member{padding:14px 0;display:flex;flex-direction:column;gap:10px;min-width:0}
+.planning-member+.planning-member{border-top:1px solid var(--line)}
+.planning-member h3{font-size:1rem;overflow-wrap:anywhere}
+.planning-member-task{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;padding:7px 0}
+.planning-member-task .planning-detail{grid-column:1/-1}
+.planning-member-task .planning-status{max-width:160px}
+.planning-checklist-compact{gap:10px}
+.planning-checklist-compact .planning-link-heading{display:flex;flex-direction:column;gap:2px}
+.planning-checklist-compact .planning-member h3{font-size:.94rem}
+@media(min-width:760px){.planning-checklist:not(.planning-checklist-compact) .planning-member-tasks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.planning-checklist:not(.planning-checklist-compact) .planning-member-task{display:flex;flex-direction:column;gap:6px}}
+@media(forced-colors:active){.planning-status,.planning-detail{color:CanvasText}.planning-people,.planning-member+.planning-member{border-color:CanvasText}}
+
+.planning-member-identity{display:flex;align-items:center;gap:10px;min-width:0}
+.planning-member-identity>.avatar{flex:none;object-fit:cover}
+.planning-member-identity>div{min-width:0}
+.planning-member-identity .membership-chips{margin-top:6px}
+.planning-history summary{min-height:44px;cursor:pointer;align-content:center}
+.planning-history h3{margin-top:16px}

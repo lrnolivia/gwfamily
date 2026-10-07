@@ -1,4 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
+import {readWithRecovery} from './live-read-recovery.js';
 import {initialState,loadLocalState,saveLocalState,reducer} from './data-adapter.js';
 import {mergeNotificationResource} from './notification-model.js';
 import {clearChatDrafts} from './messaging-model.js';
@@ -6,7 +7,7 @@ import {saveLiveDrafts,readLiveDrafts,clearLiveDrafts,retainDraftAccount,hasLoca
 export async function api(path,options={}){
  const response=await fetch(path,{credentials:'same-origin',cache:'no-store',...options,headers:{...(options.body instanceof FormData?{}:{'Content-Type':'application/json'}),...options.headers}});
  let value;try{value=await response.json()}catch{throw Object.assign(new Error('The service returned an unreadable response. Please try again.'),{status:response.status,ambiguous:response.ok||response.status>=500})}
- if(!response.ok)throw Object.assign(new Error(value.error?.message||value.error||value.message||'That action could not be saved.'),{status:response.status});return value;
+ if(!response.ok){const requestId=typeof value?.requestId==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.requestId)?value.requestId:null;throw Object.assign(new Error((value?.error?.message||(typeof value?.error==='string'?value.error:null)||value?.message||'That action could not be saved.')+(requestId?' Reference: '+requestId:'')),{status:response.status,...(requestId?{requestId}:{})})}return value;
 }
 
 // Notification requests never refetch the full feed. Every open is reauthorized
@@ -39,12 +40,14 @@ export async function sendCommand(payload){
   await new Promise(resolve=>setTimeout(resolve,300));
  }
 }
+const readApi=(path,signal)=>readWithRecovery(attemptSignal=>api(path,{signal:attemptSignal}),{signal});
 const reviewOnly=typeof location!=='undefined'&&location.pathname.startsWith('/__review/');
 const modeKey=reviewOnly?'gw-review-mode':'gw-active-mode';
 const localTypes=new Set(['SET_DRAFT','SET_DRAFT_FILES','SET_COMPOSE','SET_FEED_FILTER','SET_PEOPLE_FILTER','SET_MEMORY_FILTERS','BAG_ADD','BAG_REMOVE']);
 const localFields=['drafts','compose','feedFilter','peopleFilter','memoryFilters','bag'];
 export function useFamilyData(){
- const [state,setState]=useState(loadLocalState),[session,setSession]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[pending,setPending]=useState(false),[draftStorageStatus,setDraftStorageStatus]=useState({ok:true}),[preview,setPreview]=useState(()=>{try{return reviewOnly||sessionStorage.getItem(modeKey)==='preview'}catch{return false}});
+ const [state,setState]=useState(loadLocalState),[session,setSession]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[actionError,setError]=useState(''),[loadError,setLoadError]=useState(''),[pending,setPending]=useState(false),[draftStorageStatus,setDraftStorageStatus]=useState({ok:true}),[preview,setPreview]=useState(()=>{try{return reviewOnly||sessionStorage.getItem(modeKey)==='preview'}catch{return false}});
+ const refreshRun=useRef({sequence:0,controller:null});
  const linkedResource=useRef(null),epoch=useRef(0),ref=useRef(state),busy=useRef(false),workCount=useRef(0),after=useRef(null),alive=useRef(true),requestBook=useRef({accountId:null,requests:{},confirmed:new Set()});ref.current=state;
  const save=next=>{
   ref.current=next;setState(next);
@@ -82,13 +85,19 @@ export function useFamilyData(){
   workCount.current++;setPending(true);let finished=false;
   return()=>{if(finished)return;finished=true;workCount.current=Math.max(0,workCount.current-1);settlePending()};
  }
- async function refresh(){
+ function cancelRefresh(){const run=refreshRun.current;run.sequence++;run.controller?.abort();run.controller=null}
+ async function refresh({previewMode=preview}={}){
   if(reviewOnly){setConfig({configured:false,email:false,providers:[]});setSession(null);setLoading(false);return}
-  const generation=epoch.current;
+  cancelRefresh();const run=refreshRun.current,sequence=run.sequence,controller=new AbortController();run.controller=controller;
+  const generation=epoch.current,current=()=>alive.current&&generation===epoch.current&&sequence===refreshRun.current.sequence;
   try{
-   const [cfg,sess]=await Promise.all([api('/api/config'),api('/api/session')]);if(!alive.current||generation!==epoch.current)return;setConfig(cfg);setSession(sess);
-   if(sess.status==='active'&&!preview){
-    const next=await withLinkedResource(await api('/api/state'));if(alive.current&&generation===epoch.current){
+   const [cfg,sess]=await Promise.all([readApi('/api/config',controller.signal),readApi('/api/session',controller.signal)]);if(!current())return;setConfig(cfg);setSession(sess);
+   if(sess.status==='active'&&!previewMode){
+    if(sess.user?.id&&ref.current.mode==='live'&&sess.user.id!==ref.current.selfId){
+     linkedResource.current=null;clearChatDrafts(ref.current.selfId);retainDraftAccount(null);requestBook.current={accountId:null,requests:{},confirmed:new Set()};save(initialState());
+    }
+    const next=await withLinkedResource(await readApi('/api/state',controller.signal));if(current()){
+     if(sess.user?.id&&next.selfId!==sess.user.id)throw Object.assign(new Error('Your signed-in account changed. Refresh to continue.'),{status:409});
      const sameAccount=ref.current.mode==='live'&&ref.current.selfId===next.selfId;
      if(ref.current.mode==='live'&&ref.current.selfId!==next.selfId){linkedResource.current=null;clearChatDrafts(ref.current.selfId)}
      retainDraftAccount(next.selfId);
@@ -96,21 +105,21 @@ export function useFamilyData(){
      if(requestBook.current.accountId!==next.selfId)requestBook.current={accountId:next.selfId,requests:readCommandRequests(next.selfId),confirmed:new Set()};
      save({...next,...local});
     }
-   }else if(sess.status!=='active'&&!preview&&ref.current.mode==='live'){
+   }else if(sess.status!=='active'&&!previewMode&&ref.current.mode==='live'){
     linkedResource.current=null;
     // A revoked or signed-out session must not leave the previous account in view.
     clearChatDrafts(ref.current.selfId);retainDraftAccount(null);requestBook.current={accountId:null,requests:{},confirmed:new Set()};save(initialState());
    }
-   return sess;
-  }catch(e){if(alive.current&&generation===epoch.current){setConfig({configured:false,email:false,providers:[]});setError(e.status===404?'':e.message)}}finally{if(alive.current&&generation===epoch.current)setLoading(false)}
+   if(current())setLoadError('');return current()?sess:undefined;
+  }catch(e){if(current()){controller.abort();setLoadError(e.message)}}finally{if(current()){run.controller=null;setLoading(false)}}
  }
- useEffect(()=>{alive.current=true;refresh();return()=>{alive.current=false}},[preview]);
- useEffect(()=>{if(preview||session?.status!=='active')return;const tick=()=>{if(document.visibilityState==='visible'&&!busy.current&&!workCount.current)refresh()};const timer=setInterval(tick,15000);window.addEventListener('online',tick);document.addEventListener('visibilitychange',tick);return()=>{clearInterval(timer);window.removeEventListener('online',tick);document.removeEventListener('visibilitychange',tick)}},[preview,session?.status]);
+ useEffect(()=>{alive.current=true;refresh();return()=>{alive.current=false;cancelRefresh()}},[preview]);
+ useEffect(()=>{if(preview||session?.status!=='active')return;const tick=()=>{if(document.visibilityState==='visible'&&!busy.current&&!workCount.current&&!refreshRun.current.controller)refresh()};const timer=setInterval(tick,15000);window.addEventListener('online',tick);document.addEventListener('visibilitychange',tick);return()=>{clearInterval(timer);window.removeEventListener('online',tick);document.removeEventListener('visibilitychange',tick)}},[preview,session?.status]);
  function dispatch(action){
   if(ref.current.mode==='preview'){save(reducer(ref.current,action));return Promise.resolve(true)}
   if(localTypes.has(action.type)){const next=reducer({...ref.current,mode:'preview'},action);save({...next,mode:'live'});return Promise.resolve(true)}
   if(busy.current)return Promise.resolve(false);
-  busy.current=true;setPending(true);setError('');const before=ref.current,generation=epoch.current,payload={...action};
+  busy.current=true;cancelRefresh();setLoading(false);setPending(true);setError('');const before=ref.current,generation=epoch.current,payload={...action};
   if(action.type==='CLAIM_ORDER')payload.lines=before.bag.flatMap(p=>Object.entries(p.sizes).filter(([,quantity])=>quantity>0).map(([size,quantity])=>({productId:p.productId,size,quantity})));
   if(action.type==='ORDER_RECEIVED')payload.id=before.order?.id;
   return (async()=>{
@@ -128,10 +137,14 @@ export function useFamilyData(){
     const local=Object.fromEntries(localFields.map(key=>[key,updated[key]]));if(action.type==='CLAIM_ORDER')local.bag=[];
     requestBook.current.confirmed.add(fingerprint);
     save({...ref.current,...local});
+    // A read started before this acknowledgement cannot restore old server data.
+    cancelRefresh();const run=refreshRun.current,sequence=run.sequence,controller=new AbortController();run.controller=controller;
+    const currentRead=()=>alive.current&&generation===epoch.current&&sequence===refreshRun.current.sequence&&ref.current.selfId===before.selfId;
     try{
-     const server=await withLinkedResource(await api('/api/state'));
-     if(alive.current&&generation===epoch.current&&ref.current.selfId===before.selfId){if(server.selfId!==before.selfId){await refresh()}else{const latest=Object.fromEntries(localFields.map(key=>[key,ref.current[key]]));save({...server,...latest})}}
-    }catch{if(alive.current&&generation===epoch.current)setError('Your change was saved. The latest view could not load; it will refresh when the connection returns.')}
+     const server=await withLinkedResource(await readApi('/api/state',controller.signal));
+     if(currentRead()){if(server.selfId!==before.selfId){await refresh()}else{const latest=Object.fromEntries(localFields.map(key=>[key,ref.current[key]]));save({...server,...latest});setLoadError('')}}
+    }catch{if(currentRead())setLoadError('Your change was saved. The latest view could not load; it will refresh when the connection returns.')}
+    finally{if(sequence===refreshRun.current.sequence)run.controller=null}
     return true;
    }catch(e){
     if(fingerprint&&!confirmed&&!isAmbiguousCommandError(e)){delete requestBook.current.requests[fingerprint];saveCommandRequests(before.selfId,requestBook.current.requests)}
@@ -141,13 +154,13 @@ export function useFamilyData(){
   })();
  }
  function defer(fn){if(busy.current||workCount.current){after.current=fn;return true}return false}
- function enterPreview(){if(busy.current||workCount.current)return;epoch.current++;linkedResource.current=null;try{sessionStorage.setItem(modeKey,'preview')}catch{}save(loadLocalState());setPreview(true);setLoading(false);setError('')}
- function leavePreview(){if(busy.current||workCount.current)return;epoch.current++;linkedResource.current=null;try{sessionStorage.removeItem(modeKey)}catch{}setPreview(false);setLoading(true);save(initialState());refresh()}
+ function enterPreview(){if(busy.current||workCount.current)return;epoch.current++;cancelRefresh();linkedResource.current=null;setLoadError('');try{sessionStorage.setItem(modeKey,'preview')}catch{}save(loadLocalState());setPreview(true);setLoading(false);setError('')}
+ function leavePreview(){if(busy.current||workCount.current)return;epoch.current++;cancelRefresh();linkedResource.current=null;setLoadError('');try{sessionStorage.removeItem(modeKey)}catch{}setPreview(false);setLoading(true);save(initialState());refresh({previewMode:false})}
  async function signOut(){
   if(busy.current||workCount.current)return;const finish=beginPending();
-  try{await api('/api/auth/sign-out',{method:'POST',body:'{}'});epoch.current++;linkedResource.current=null;clearLiveDrafts(ref.current.selfId);clearChatDrafts(ref.current.selfId);retainDraftAccount(null);requestBook.current={accountId:null,requests:{},confirmed:new Set()};setSession(null);save(initialState());setPreview(false);try{sessionStorage.removeItem(modeKey)}catch{}}
+  try{try{const registration=await navigator.serviceWorker?.getRegistration();const subscription=await registration?.pushManager?.getSubscription();if(subscription)await subscription.unsubscribe();const displayed=await registration?.getNotifications?.();displayed?.forEach(n=>n.close())}catch{}await api('/api/auth/sign-out',{method:'POST',body:'{}'});epoch.current++;cancelRefresh();setLoadError('');linkedResource.current=null;clearLiveDrafts(ref.current.selfId);clearChatDrafts(ref.current.selfId);retainDraftAccount(null);requestBook.current={accountId:null,requests:{},confirmed:new Set()};setSession(null);save(initialState());setPreview(false);try{sessionStorage.removeItem(modeKey)}catch{}}
   catch(e){setError(e.message)}finally{finish()}
  }
  async function upload(file){if(ref.current.mode==='preview'){const {readPreviewFile}=await import('./uploads.js');return readPreviewFile(file)}const data=new FormData();data.append('file',file);const finish=beginPending();try{return await api('/api/media',{method:'POST',body:data})}finally{finish()}}
- return {state,getCurrentState:()=>ref.current,dispatch,session,config,loading,error,pending,preview,enterPreview,leavePreview,refresh,signOut,upload,defer,setError,beginPending,notificationApi,hydrateNotificationResource,releaseNotificationResource:route=>{const link=linkedResource.current;if(link){const expectedId=link.target.kind==='comment'?link.target.containerId:link.target.id,expectedType=link.target.kind==='memory'?'memory':'post';if(route?.id!==expectedId||route?.type!==expectedType)linkedResource.current=null}},draftStorageStatus,hasLocalDrafts:hasLocalDrafts(state)};
+ return {state,getCurrentState:()=>ref.current,dispatch,session,config,loading,error:actionError||loadError,pending,preview,enterPreview,leavePreview,refresh,signOut,upload,defer,setError,beginPending,notificationApi,hydrateNotificationResource,releaseNotificationResource:route=>{const link=linkedResource.current;if(link){const expectedId=link.target.kind==='comment'?link.target.containerId:link.target.id,expectedType=link.target.kind==='memory'?'memory':'post';if(route?.id!==expectedId||route?.type!==expectedType)linkedResource.current=null}},draftStorageStatus,hasLocalDrafts:hasLocalDrafts(state)};
 }

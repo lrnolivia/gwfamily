@@ -4,6 +4,7 @@ import {buildDisplacementLUT,renderDisplacementMap} from '@sohumsuthar/liquid-gl
 import {useLiquidGlassEffects} from '@sohumsuthar/liquid-glass/hooks';
 import {useLiquidLens} from '@sohumsuthar/liquid-glass/hooks/useLiquidLens';
 import paths from './glyph-paths.js';
+import './member-badges.css';
 import {bindViewportBounds} from './viewport-bounds.js';
 import {bindNotificationPopoverPlacement} from './notification-popover-geometry.js';
 
@@ -34,18 +35,22 @@ export const Control=React.forwardRef(function Control({className='',children,gl
 export function Glyph({name,className=''}){return <svg className={'glyph '+className} viewBox="0 0 24 24" aria-hidden="true"><path d={paths[name]||paths.arrow}/></svg>}
 export function Avatar({member,size}){return member?.photo?<img className={'avatar '+(size||'')} src={member.photo} alt=""/>:
   <span className={'avatar '+(size||'')}>{member?.name?.slice(0,1)||'?'}</span>}
-export function MemberBadges({member,interactive=false}){
+export function MemberBadges({member,interactive=false,passive=false,id}){
   const {state,go}=useApp();
-  if(!member)return null;
-  const household=(state.households||[]).find(h=>h.memberIds.includes(member.id));const group=state.groups.find(g=>g.id===member.groupId);
-  return <span className="membership-chips">
-    {member.circle&&<span className="membership-chip"><Glyph name={member.circle==='loved'?'heart':'people'}/>{member.circle==='loved'?'Loved Ones':'Family'}</span>}
-    {household?<Control type="button" className="membership-chip membership-group" aria-label={'Household: '+household.name} onClick={e=>{e.stopPropagation();go({type:'household',id:household.id})}}><Glyph name="home"/>{household.name}</Control>:group&&(interactive?<Control type="button" className="membership-chip membership-group" onClick={e=>{e.stopPropagation();go({type:'group',id:group.id})}}><Glyph name="home"/>{group.name}</Control>:<span className="membership-chip membership-group"><Glyph name="home"/>{group.name}</span>)}
-    {member.leader&&<span className="membership-chip membership-shield" role="img" aria-label="Family leader" title="Family leader"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 6v5c0 5-3 8-7 10-4-2-7-5-7-10V6zM8.5 11.8l2.3 2.3 4.7-4.7"/></svg></span>}
+  // Never build membership or leader metadata from a management fallback record
+  // or an ancestor. The existing member state is the authorized identity source.
+  const person=member?.personKind==='ancestor'?null:(state.members||[]).find(p=>p.id===member?.id);
+  if(!person)return null;
+  const household=(state.households||[]).find(h=>h.memberIds?.includes(person.id)),group=(state.groups||[]).find(g=>g.id===person.groupId),destination=household?{type:'household',id:household.id}:group?{type:'group',id:group.id}:null,groupName=household?.name||group?.name,groupLabel=(household?'Household: ':'Family group: ')+groupName;
+  const canOpen=interactive&&!passive,circleName=person.circle==='loved'?'Loved Ones':'Family';
+  return <span id={id} className="membership-chips">
+    {person.circle&&<span className="membership-chip" title={circleName}><Glyph name={person.circle==='loved'?'heart':'people'}/><span className="membership-label">{circleName}</span></span>}
+    {destination&&(canOpen?<Control type="button" className="membership-chip membership-group" aria-label={groupLabel} title={groupName} onClick={event=>{event.stopPropagation();go(destination)}}><Glyph name="home"/><span className="membership-label">{groupName}</span></Control>:<span className="membership-chip membership-group" title={groupLabel}><Glyph name="home"/><span className="membership-label">{groupName}</span></span>)}
+    {person.leader&&<span className="membership-chip membership-shield" role="img" aria-label="Family leader" title="Family leader"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 6v5c0 5-3 8-7 10-4-2-7-5-7-10V6zM8.5 11.8l2.3 2.3 4.7-4.7"/></svg></span>}
   </span>
 }
 export function Button({children,onClick,secondary=false,className='',icon,...props}){return <Control type="button" className={'button '+(secondary?'secondary ':'')+className} onClick={onClick} {...props}>{icon&&<Glyph name={icon}/>}<span>{children}</span></Control>}
-export function ActionRow({icon,title,detail,onClick}){return <Control type="button" className="list-row" onClick={onClick}><Glyph name={icon}/><span><strong>{title}</strong><p>{detail}</p></span><span className="arrow"><Glyph name="arrow"/></span></Control>}
+export function ActionRow({icon,title,detail,onClick,tourTarget}){return <Control type="button" className="list-row" data-gw-tour={tourTarget} onClick={onClick}><Glyph name={icon}/><span><strong>{title}</strong><p>{detail}</p></span><span className="arrow"><Glyph name="arrow"/></span></Control>}
 export function formatTime(ms){const d=new Date(ms),delta=Math.max(0,Date.now()-ms);if(delta<60000)return 'now';if(delta<3600000)return Math.floor(delta/60000)+'m';
   if(delta<86400000)return Math.floor(delta/3600000)+'h';if(delta<604800000)return Math.floor(delta/86400000)+'d';return new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric'}).format(d)}
 export function GlassSystem(){

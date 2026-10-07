@@ -1,0 +1,14 @@
+.family-people-section{gap:28px}
+.family-people-directory{min-width:0}
+.family-people-directory>label{display:grid;gap:8px}
+.family-people-tools{display:grid;gap:24px;min-width:0}
+.family-people-tools>.card{min-width:0}
+.family-people-contact .directory-empty{padding-block:16px;gap:16px}
+.member-picker-person-copy{display:grid;gap:4px;min-width:0;flex:1;text-align:start}
+.member-picker-person-copy>strong{overflow-wrap:anywhere}
+.member-picker-option{gap:10px;min-height:52px;align-items:center}
+.member-picker-selected .memory-person-tag{display:flex;align-items:center;gap:10px;min-height:44px;max-width:100%}
+.member-picker-option>.avatar,.member-picker-selected .memory-person-tag>.avatar{flex:none;object-fit:cover}
+.member-picker-option .membership-chips,.member-picker-selected .membership-chips{margin-top:0}
+.member-picker-option>.glyph,.member-picker-selected .memory-person-tag>.glyph{flex:none}
+@media(min-width:760px){.family-people-tools{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}}

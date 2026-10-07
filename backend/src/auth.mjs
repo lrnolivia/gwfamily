@@ -2,6 +2,7 @@ import {signInCodeEmail,signInLinkEmail} from './email-template.mjs';
 import {googleAccess} from './google-access.mjs';
 import { betterAuth } from 'better-auth';
 import { emailOTP, magicLink } from 'better-auth/plugins';
+import {authDiagnosticLogger} from './error-diagnostics.mjs';
 
 export function authEnvironment(env) {
   return { ...env, DB: env.DB || env.D1,
@@ -34,6 +35,7 @@ export function createAuth(rawEnv) {
     await env.EMAIL.send({from:{email:'family@greenwhitefamily.com',name:'Green & White Family'},to:email,subject,text,html});
   };
   return betterAuth({
+    logger:authDiagnosticLogger,
     database: env.DB, secret: env.BETTER_AUTH_SECRET, baseURL: env.AUTH_ORIGIN,
     trustedOrigins:[env.AUTH_ORIGIN,...(providers.apple?['https://appleid.apple.com']:[])], emailAndPassword:{enabled:false}, socialProviders:providers,
     account:{accountLinking:{enabled:false}},

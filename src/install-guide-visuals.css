@@ -1,0 +1,17 @@
+/* Product materials surround the visual. Native neutral chrome keeps its own
+   typography and materials inside the SVG, independently of Glass/Flat/theme. */
+.guided-help .install-steps>li{grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}
+.install-visual-group{display:grid;gap:16px;width:100%;min-width:0;padding-left:38px;box-sizing:border-box}
+.install-native-visual{margin:0;width:min(100%,420px);min-width:0}
+.install-native-frame{background:var(--raised);border-radius:12px;overflow:hidden}
+.install-native-frame>img{display:block;width:100%;height:auto;max-width:100%;object-fit:contain}
+.install-native-visual figcaption{display:grid;gap:5px;padding:10px 2px 0;color:var(--text);font-size:.8125rem;line-height:1.5;max-width:65ch}
+.install-recreation-label{color:var(--muted);font-size:.75rem;font-weight:600}
+.install-visual-unavailable{padding:18px!important;color:var(--text);font-size:.875rem}
+.install-layout-choices{width:min(100%,420px);min-width:0}
+.guided-help .install-layout-choices .choice-help{font-size:.8125rem;line-height:1.5}
+.install-source-links{display:flex;flex-wrap:wrap;gap:8px 18px;padding-left:38px;font-size:.8125rem;line-height:1.5}
+.install-source-links>a{color:var(--text);text-decoration:underline;text-underline-offset:3px;padding-block:5px;min-height:32px;box-sizing:border-box}
+.guided-help .install-guide-note{font-size:.875rem;line-height:1.55}
+@media(max-width:500px){.install-visual-group{padding-left:0}.install-native-visual,.install-layout-choices{width:100%}.install-source-links{padding-left:0;gap:8px 14px}.install-native-visual figcaption{font-size:.875rem}}
+@media(forced-colors:active){.install-native-frame{outline:1px solid CanvasText}.install-source-links>a{color:LinkText}}

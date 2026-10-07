@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {SHARED_PAGE_SCHEMA} from '../src/shared-content-schema.js';
-const names=['react-app.jsx','features.jsx','family.jsx','memories.jsx','contact-directory.jsx','messaging.jsx'];
+const names=['react-app.jsx','features.jsx','family.jsx','memories.jsx','contact-directory.jsx','messaging.jsx','reunion-plans.jsx','calendar-events.jsx'];
 const files=Object.fromEntries(names.map(name=>[name,fs.readFileSync(new URL('../src/'+name,import.meta.url),'utf8')]));
 const source=Object.values(files).join('\n');
 test('every shared schema page and copy field has a rendered integration point',()=>{
@@ -15,7 +15,12 @@ test('every shared schema page and copy field has a rendered integration point',
  }
 });
 test('public entry, personal profiles, posts, menus and structured values retain separate boundaries',()=>{
- assert.match(files['react-app.jsx'],/<PageContentProvider enabled=\{!needsEntry\}>/);
+ assert.match(files['react-app.jsx'],/<PageContentProvider enabled=\{!actualNeedsEntry\}>/);
+ // Owner rehearsal hides the app visually while preserving its existing draft provider.
+ // Real loading, unauthenticated/pending sessions and incomplete profiles still disable it.
+ assert.match(files['react-app.jsx'],/const actualNeedsEntry=data\.loading\|\|entryLoading\|\|entryHydrating\|\|state\.onboarding!=='done'/);
+ assert.match(files['react-app.jsx'],/data\.session\?\.status!=='active'/);
+ assert.match(files['react-app.jsx'],/state\.mode==='live'&&!state\.profileComplete/);
  assert.match(files['react-app.jsx'],/<footer>\{needsEntry\?<p>Green/);
  assert.match(files['react-app.jsx'],/state.details.date\|\|<EditableText page="home" field="heroBodyFallback"/);
  assert.match(files['react-app.jsx'],/relatedPages=\{route.type==='family'\?\['people','memories','tree'\]/);

@@ -49,11 +49,11 @@ try {
   await page.getByRole('button',{name:'Add a memory',exact:true}).click();
   await(await chooser).setFiles(png);
   await page.getByText('Your memory is saved. Add any details you know, or close this window.').waitFor();
-  await decoded(page,'.memory-edit-media',imageSize);
+  await decoded(page,'dialog[open] .image-upload-preview img',imageSize);
   await page.waitForFunction(()=>[...document.querySelectorAll('.field-memory-open img')].every(img=>img.complete&&img.naturalWidth>0));
   assert.equal(failedMediaOnce,true,name+' exercises one failed private media request');
   assert.ok(retried>0,name+' exercises the bounded private media retry');
-  const mediaPath=new URL(await page.locator('.memory-edit-media').getAttribute('src'),origin).pathname;
+  const mediaPath=new URL(await page.locator('dialog[open] .image-upload-preview img').getAttribute('src'),origin).pathname;
   assert.equal(failedPath,mediaPath,name+' retries the newly uploaded image');
   const galleryImage=`.field-memory-open img[src^="${mediaPath}"],.field-memory-open img[src^="${origin+mediaPath}"]`;
   await page.getByRole('button',{name:'Close dialog',exact:true}).click();
@@ -83,7 +83,7 @@ try {
   await page.locator(galleryImage).click();
   await decoded(page,'.memory-large',imageSize);
   await page.getByRole('button',{name:'Add or edit details',exact:true}).click();
-  await decoded(page,'.memory-edit-media',imageSize);
+  await decoded(page,'dialog[open] .image-upload-preview img',imageSize);
   await page.keyboard.press('Escape');
   await page.locator('dialog').waitFor({state:'detached'});
   await page.locator('.page-back').click();
