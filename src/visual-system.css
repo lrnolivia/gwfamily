@@ -174,3 +174,8 @@ html[data-theme][data-platform] .calendar-filters .button[aria-pressed=true]>.li
 .calendar-filters .button[aria-pressed=true]:focus-visible{outline:2px solid var(--text);outline-offset:3px}
 .messages-options.card{margin:0;align-self:start}
 .messages-page .page-panel-columns{align-items:start}
+
+
+/* Keep supporting Messages actions below the primary action in every material. */
+html[data-theme][data-platform] .messages-options .button[data-button-level=supporting]:not(:disabled){--gw-control-color:color-mix(in srgb,var(--control,var(--accent)) 22%,var(--surface));background:var(--gw-control-color)!important;color:var(--text)!important}
+html[data-theme][data-platform] .messages-options .button[data-button-level=supporting]:not(:disabled)>.liquid-glass-tint{background:var(--gw-control-color)!important;opacity:1!important}

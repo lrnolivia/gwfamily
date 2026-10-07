@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {CARD_COLUMNS,cardSlots,defaultCardLayout,cardLayoutOf,validateCardLayouts,moveCardSlot,stepCardSlot,alignCardSlot,sizeCardImage,keyboardCardSlot,updateCardLayout} from '../src/card-content-layout-model.js';
+import {CARD_COLUMNS,cardSlots,defaultCardLayout,cardLayoutOf,validateCardLayouts,moveCardSlot,stepCardSlot,alignCardSlot,sizeCardImage,cardColumnVertical,alignCardColumn,keyboardCardSlot,updateCardLayout} from '../src/card-content-layout-model.js';
 import {sharedPageDefaults,validateSharedPageContent} from '../src/shared-content-schema.js';
 import {createSharedPanel,addSharedPanel,changeSharedPanel,validatePanelTransition} from '../src/shared-panels.js';
 import {pageContentPayload,pageContentFingerprint,mergePageDraft,validRestoredDraft,collectPageDrafts,reconcilePageRecord,initialRecord} from '../src/page-content-model.js';
@@ -74,4 +74,27 @@ test('image size and vertical alignment survive validated storage while text rej
  assert.throws(()=>updateCardLayout(base,'home','hero',layout=>sizeCardImage(layout,'title',{width:65})),/Only images/);
  assert.throws(()=>updateCardLayout(base,'home','hero',layout=>sizeCardImage(layout,'media',{width:101})),/image width/);
  assert.throws(()=>updateCardLayout(base,'home','hero',layout=>sizeCardImage(layout,'media',{vertical:'outside'})),/vertical alignment/);
+});
+
+
+test('text and image columns align independently and preserve vertical placement through storage',()=>{
+ const base=unlocked(),draft=updateCardLayout(base,'home','hero',layout=>alignCardColumn(alignCardColumn(layout,'left','top'),'right','bottom'));
+ const saved=validateSharedPageContent('home',pageContentPayload(draft));
+ assert.equal(cardColumnVertical(saved.cardLayouts.hero,'left'),'top');assert.equal(cardColumnVertical(saved.cardLayouts.hero,'right'),'bottom');
+ assert.deepEqual(saved.cardLayouts.hero.left,defaultCardLayout('home',hero).left);
+ const snapshots=pageStorageSnapshots('home',saved),restored=storedPageSnapshot(JSON.stringify(snapshots.content),JSON.stringify(snapshots.extension),JSON.stringify(snapshots.presentation));
+ assert.deepEqual(validateSharedPageContent('home',restored).cardLayouts,saved.cardLayouts);
+ const moved=moveCardSlot(saved.cardLayouts.hero,'title',{column:'right'});assert.equal(cardColumnVertical(moved,'left'),'top');assert.equal(cardColumnVertical(moved,'right'),'bottom');
+ assert.equal(alignCardColumn(moved,'other','top'),moved);assert.equal(alignCardColumn(moved,'left','outside'),moved);
+ const invalid=clone(saved);invalid.cardLayouts.hero.vertical.left='outside';assert.throws(()=>validateSharedPageContent('home',pageContentPayload(invalid)),/vertical alignment/);
+ assert.equal(cardColumnVertical(sizeCardImage(defaultCardLayout('home',hero),'media',{vertical:'bottom'}),'right'),'bottom');
+});
+test('compact editor uses named pressed glyph buttons and image-only size controls',()=>{
+ const jsx=readFileSync(new URL('../src/card-content-layout.jsx',import.meta.url),'utf8');
+ assert.match(jsx,/aria-pressed=\{value===id\}/);assert.match(jsx,/column vertical alignment/);assert.match(jsx,/Align all content vertically/);assert.match(jsx,/Decrease .*definition.label/);assert.doesNotMatch(jsx,/<select|type="range"/);
+});
+test('Messages empty invitations do not create a phantom sidebar row and birthday has one card',()=>{
+ const jsx=readFileSync(new URL('../src/messaging.jsx',import.meta.url),'utf8'),app=readFileSync(new URL('../src/react-app.jsx',import.meta.url),'utf8');
+ assert.match(jsx,/'native-invitations':Boolean\(view.invitations.length>0\|\|paging.invitationCursor\)&&/);
+ assert.match(app,/'native-birthdays':<Birthdays\/>/);assert.doesNotMatch(app,/'native-birthdays':<section[^>]*><Birthdays/);
 });

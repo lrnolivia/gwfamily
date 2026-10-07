@@ -24,7 +24,8 @@ export function validateCardLayouts(page,panelLayout,value){
  const panels=panelLayout.panels.filter(panel=>cardSlots(page,panel).length),allowed=panels.map(panel=>panel.id);
  keys(value,allowed);
  return Object.fromEntries(Object.entries(value).map(([id,layout])=>{
-  keys(layout,['version','left','right']);if(layout.version!==1)throw Error('Choose a supported card content layout');
+  keys(layout,['version','left','right','vertical']);
+  if(layout.vertical!==undefined){keys(layout.vertical,CARD_COLUMNS);if(Object.values(layout.vertical).some(value=>!['top','center','bottom'].includes(value)))throw Error('Choose a supported column vertical alignment');}if(layout.version!==1)throw Error('Choose a supported card content layout');
   const slots=cardSlots(page,panels.find(panel=>panel.id===id)),seen=new Set();
   const columns=Object.fromEntries(CARD_COLUMNS.map(column=>{
    if(!Array.isArray(layout[column])||layout[column].length>slots.length)throw Error('Use valid card content columns');
@@ -34,10 +35,10 @@ export function validateCardLayouts(page,panelLayout,value){
    })];
   }));
   if(seen.size!==slots.length)throw Error('Keep every card content item in the layout');
-  return [id,{version:1,...columns}];
+  return [id,{version:1,...columns,...(layout.vertical?{vertical:{...layout.vertical}}:{})}];
  }));
 }
-export function cardLayoutsPayload(layouts={}){return Object.fromEntries(Object.entries(layouts).map(([id,layout])=>[id,{version:layout.version,...Object.fromEntries(CARD_COLUMNS.map(column=>[column,layout[column].map(item=>({...item}))]))}]));}
+export function cardLayoutsPayload(layouts={}){return Object.fromEntries(Object.entries(layouts).map(([id,layout])=>[id,{version:layout.version,...(layout.vertical?{vertical:{...layout.vertical}}:{}),...Object.fromEntries(CARD_COLUMNS.map(column=>[column,layout[column].map(item=>({...item}))]))}]));}
 export function moveCardSlot(layout,id,{column,beforeId=null}={}){
  if(!CARD_COLUMNS.includes(column)||id===beforeId)return layout;
  const item=CARD_COLUMNS.flatMap(key=>layout[key]).find(item=>item.id===id);
@@ -61,3 +62,9 @@ export function updateCardLayout(content,page,id,change){
  const cardLayouts={...content.cardLayouts};if(next===undefined)delete cardLayouts[id];else cardLayouts[id]=next;
  validateCardLayouts(page,content.panelLayout,cardLayouts);return {...content,cardLayouts};
 }
+
+
+// Vertical placement belongs to the whole column, including its text and actions.
+// Older saved image-level alignment remains readable until explicitly changed.
+export function cardColumnVertical(layout,column){return layout.vertical?.[column]||layout[column]?.find(item=>item.vertical)?.vertical||'center';}
+export function alignCardColumn(layout,column,vertical){if(!CARD_COLUMNS.includes(column)||!['top','center','bottom'].includes(vertical))return layout;return {...layout,vertical:{...layout.vertical,[column]:vertical}};}

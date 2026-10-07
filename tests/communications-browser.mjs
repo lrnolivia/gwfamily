@@ -260,6 +260,28 @@ try {
     } finally { await anonymous.close(); }
   });
 
+  await check('empty Messages panels align and supporting actions stay distinct at each size', async () => {
+    await bob.goto(base + '/#/inbox');
+    const empty = bob.locator('.messages-empty'), options = bob.getByRole('complementary', {name: 'Messaging options'});
+    await expect(empty).toBeVisible(); await expect(options).toBeVisible();
+    await expect(bob.locator('[data-panel-id="native-invitations"]')).toHaveCount(0);
+    for (const width of [390, 768, 1280]) {
+      await bob.setViewportSize({width, height: 950});
+      await expect(bob.locator('[data-panel-page="inbox"]')).toHaveClass(width < 700 ? /is-mobile/ : /is-wide/);
+      const a = await empty.boundingBox(), b = await options.boundingBox();
+      assert.ok(a && b);
+      if (width >= 700) assert.ok(Math.abs(a.y - b.y) <= 2, 'Messages panel tops align');
+      else assert.ok(b.y >= a.y + a.height, 'Mobile options follow the inbox');
+      const primary = options.getByRole('button', {name: 'Message someone', exact: true});
+      const supporting = options.getByRole('button', {name: 'Start a group', exact: true});
+      await expect(primary).toHaveAttribute('data-button-level', 'primary');
+      await expect(supporting).toHaveAttribute('data-button-level', 'supporting');
+      assert.notEqual(await primary.evaluate(e => getComputedStyle(e).backgroundColor), await supporting.evaluate(e => getComputedStyle(e).backgroundColor));
+      assert.ok(await bob.evaluate(() => document.documentElement.scrollWidth - innerWidth) <= 1);
+    }
+    await bob.setViewportSize({width:1280,height:950});
+  });
+
   await check('DM invitation consent gates detail, message, read and typing access', async () => {
     directId = await createConversation(alice, 'direct', ['bob']);
     const secret = 'Private fixture DM before Bob accepts';
@@ -536,7 +558,10 @@ try {
     await expect(alice.getByRole('heading', {name: 'Fixture cousins planning', exact: true})).toBeVisible();
     await denied(bob, `/api/conversations/${groupId}`, {method: 'PATCH', data: {name: 'Not authorized'}});
     const bobRow = alice.locator('.conversation-member').filter({has: alice.getByText('Bob', {exact: true})});
+    const promotedResponse = alice.waitForResponse(response => response.url().startsWith(base + `/api/conversations/${groupId}/members/`) && response.request().method() === 'PATCH');
     await bobRow.getByRole('button', {name: 'Make manager', exact: true}).click();
+    const promoted = await promotedResponse;
+    assert.ok(promoted.ok(), 'Manager change is acknowledged: ' + promoted.status());
     await expect.poll(async () => (await ok(bob, `/api/conversations/${groupId}`)).conversation.myRole).toBe('manager');
     await bobRow.getByRole('button', {name: 'Remove manager role', exact: true}).click();
     await expect.poll(async () => (await ok(bob, `/api/conversations/${groupId}`)).conversation.myRole).toBe('member');
@@ -859,3 +884,4 @@ try {
   for (const {trace} of sessions) trace.log('browser-close-start', {pending: trace.snapshot().pending});
   try {await browser.close();} finally {await persist();}
 }
+

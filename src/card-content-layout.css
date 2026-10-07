@@ -63,3 +63,23 @@
 .card-content-slot[data-card-image-aspect=square]{--card-image-ratio:1}
 .card-content-slot[data-card-image-aspect] .card-slot-content :is(.photo,.page-hero-asset,.page-panel-photo-crop){aspect-ratio:var(--card-image-ratio)!important;height:auto!important;max-height:none!important;min-height:0!important;width:100%;object-fit:cover}
 .card-content-slot[data-card-image-aspect] .page-panel-photo-crop>img{height:100%;width:100%;object-fit:cover}
+
+
+/* A compact command strip, with column-level vertical placement stated honestly. */
+.card-slot-controls{display:grid;padding:8px;gap:8px;background:var(--raised);border:0;border-radius:12px}
+.card-slot-heading,.card-column-heading{display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-width:0}
+.card-slot-heading>.card-slot-drag{flex:1 1 100px;min-width:0;justify-content:flex-start;touch-action:none;cursor:grab;text-align:start}
+.card-slot-drag span{overflow-wrap:anywhere;line-height:1.3}
+.card-slot-order{flex:0 0 auto;flex-basis:auto;gap:0}
+.card-slot-placement,.card-image-controls{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.card-layout-choices,.card-image-size{display:inline-flex;align-items:center;gap:0;padding:2px;border-radius:12px;background:var(--surface);max-width:100%}
+.card-layout-choices button,.card-image-size button,.card-slot-order button{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:10px;border:0;box-shadow:none;background:transparent;border-radius:10px;flex:0 0 44px}
+.card-layout-choices button[aria-pressed=true]{background:var(--control);color:var(--control-text,var(--text))}
+.card-layout-choices button[aria-pressed=true]>.liquid-glass-tint{background:var(--control);opacity:1}
+.card-layout-choices button:focus-visible,.card-image-size button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.card-image-size output{min-width:48px;text-align:center;font-size:.8125rem;font-variant-numeric:tabular-nums;color:var(--text)}
+.card-column-heading{justify-content:space-between}.card-column-hint{flex-basis:100%;font-size:.6875rem;line-height:1.4;color:var(--muted)}
+.card-layout-toolbar .card-layout-finish{margin-left:auto;background:var(--control);color:var(--control-text,var(--text));padding-inline:16px;border-radius:999px}
+.card-layout-toolbar .card-layout-finish>.liquid-glass-tint{background:var(--control);opacity:1}
+.is-arranging .card-content-column[data-card-vertical]{justify-content:flex-start}
+@media(max-width:700px){.card-slot-controls{padding:8px}.card-slot-heading>.card-slot-drag{flex-basis:100px}.card-layout-toolbar .card-layout-finish{margin-left:0}.card-column-heading{align-items:flex-start}}

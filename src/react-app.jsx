@@ -100,7 +100,7 @@ function Reunion(){
  action:(state.mode==='preview'||state.capabilities?.manageReunion)&&<Button secondary onClick={()=>openSheet({type:'details'})}>Edit reunion details</Button>
  }}/></section></SharedPagePanels>:
   tab==='plans'?<ReunionPlans/>:
-  <section className="stack reunion-calendar-page"><EditableText page="reunion-calendar" field="heading" as="h2">Reunion calendar</EditableText><SharedPagePanels page="reunion-calendar" mediaOnly nativePanels={{'native-events':<section className="card stack"><MemberCalendar/></section>,'native-birthdays':<section className="card stack"><Birthdays/></section>}}><EditableMedia page="reunion-calendar" field="hero"/></SharedPagePanels></section>}</>
+  <section className="stack reunion-calendar-page"><EditableText page="reunion-calendar" field="heading" as="h2">Reunion calendar</EditableText><SharedPagePanels page="reunion-calendar" mediaOnly nativePanels={{'native-events':<section className="card stack"><MemberCalendar/></section>,'native-birthdays':<Birthdays/>}}><EditableMedia page="reunion-calendar" field="hero"/></SharedPagePanels></section>}</>
 }
 function Family(){
   const {state,go,route,replaceRoute}=React.useContext(AppContext),tab=route.tab||'people',setTab=tab=>replaceRoute({...route,tab});
@@ -129,3 +129,4 @@ function FirstViewAnnouncement(){const{state,dispatch,go}=React.useContext(AppCo
 function BuildUpdateNotice(){const {data,state,messaging}=React.useContext(AppContext),pageContent=usePageContent(),[ready,setReady]=useState(null),[deferred,setDeferred]=useState(null);useEffect(()=>watchBuild(setReady),[]);const pending=data.pending||pageContent.pending,drafts=data.hasLocalDrafts||hasChatDrafts(state.selfId)||messaging.draftStorageOk===false||pageContent.hasUnsavedDrafts,safe=pageContent.storageSafe!==false&&data.draftStorageStatus?.ok!==false&&!data.draftStorageStatus?.omittedMedia&&messaging.draftStorageOk!==false;return ready&&deferred===ready?<aside className="build-update-reminder"><button type="button" onClick={()=>setDeferred(null)}>Update ready</button></aside>:ready?<aside className="build-update-notice" role="status"><span>{pending?'A newer version is ready. Waiting for your changes to finish.':drafts?safe?'A newer version is ready. Your text drafts will stay here after reloading.':'A newer version is ready. Keep this page open until you save your draft.':'A newer version is ready.'}</span><div className="build-update-actions"><button type="button" disabled={pending||drafts&&!safe} onClick={()=>{if(pageContent.prepareReload?.()===false)return;window.location.reload()}}>Reload updated app</button><button type="button" className="update-later" onClick={()=>setDeferred(ready)}>Later</button></div></aside>:null}
 
 import './navigation-insets.css';
+
