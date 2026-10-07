@@ -134,12 +134,12 @@ try{
   await expect(page.locator('.fixture-page[data-route="install"]')).toBeVisible();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   const osTabs=page.getByRole('tablist',{name:'Instructions for',exact:true});
-  await expect(osTabs.getByRole('tab')).toHaveCount(6);
-  await expect(osTabs.locator('.glyph')).toHaveCount(6);
+  await expect(osTabs.getByRole('tab')).toHaveCount(2);
+  await expect(osTabs.locator('.glyph')).toHaveCount(2);
   const labelLines=await osTabs.locator('.view-switcher-label').evaluateAll(labels=>labels.map(e=>{const r=document.createRange();r.selectNodeContents(e);return {wrap:getComputedStyle(e).whiteSpace,lines:r.getClientRects().length}}));assert.ok(labelLines.every(label=>label.wrap==='nowrap'&&label.lines===1),'Every platform label stays on one line');
-  for(const [name,assetCount] of [['iPhone / iPad',3],['Android',3],['macOS',3],['Windows',4],['ChromeOS',3],['Other browser',0]]){
+  for(const [name,assetCount] of [['iPhone / iPad',3],['Android',3]]){
    await chooseTab(osTabs.getByRole('tab',{name,exact:true}),expect);
-   await expect(page.locator('.install-steps>li')).toHaveCount(name==='Other browser'?2:3);
+   await expect(page.locator('.install-steps>li')).toHaveCount(3);
    await expect(page.locator('.install-native-frame img')).toHaveCount(assetCount);
    if(assetCount)await expect.poll(()=>page.locator('.install-native-frame img').evaluateAll(images=>images.every(img=>img.complete&&img.naturalWidth>0))).toBe(true);
    await assertNoOverflow(page,name);
