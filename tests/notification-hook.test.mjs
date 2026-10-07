@@ -112,6 +112,25 @@ test('static preview fallback becomes ready after unconfigured bootstrap without
   await host.render().resetPreview();assert.equal(host.render().unreadCount,3);assert.equal(host.channels.length,0);assert.equal(data.pending,0);
  }finally{host.close()}
 });
+test('unknown config cannot activate a saved preview without explicit preview intent',async()=>{
+ const liveCalls=[],unexpected=name=>(...args)=>{liveCalls.push({name,args});throw new Error('Live API called from saved preview')};
+ const data=dataFor('alice',Object.fromEntries(['list','settings','read','dismiss','readAll','saveSettings','open'].map(name=>[name,unexpected(name)])));
+ // A failed /api/config bootstrap leaves config unknown. Restoring saved
+ // preview state does not imply the user's explicit gw-active-mode intent.
+ data.state={...initialState(),onboarding:'done'};data.preview=false;data.config=null;data.session=null;data.loading=true;
+ const savedState=data.state,host=await harness(data);
+ try{
+  host.render();await host.flush();assert.equal(host.render().enabled,false);assert.equal(host.render().ready,false);assert.equal(host.render().items.length,0);
+  data.loading=false;host.render();await host.flush();assert.equal(host.render().enabled,false);assert.equal(host.render().ready,false);assert.equal(host.render().unreadCount,0);
+  assert.equal(await host.render().saveSettings({globalOff:true}),false);assert.equal(await host.render().read('preview-notice-reply'),false);assert.equal(await host.render().refresh(),false);
+  window.dispatchEvent(new Event('online'));document.dispatchEvent(new Event('visibilitychange'));await host.flush();assert.strictEqual(data.state,savedState);assert.equal(host.channels.length,0);
+  data.preview=true;host.render();await host.flush();assert.equal(host.render().enabled,true);assert.equal(host.render().ready,true);assert.equal(host.render().unreadCount,3);
+  assert.equal(await host.render().saveSettings({globalOff:true}),true);assert.equal(host.render().settings.globalOff,true);assert.equal(host.render().unreadCount,0);
+  assert.equal(await host.render().saveSettings({globalOff:false}),true);assert.equal(await host.render().read('preview-notice-reply'),true);assert.equal(host.render().unreadCount,2);
+  assert.equal(await host.render().resetPreview(),true);assert.equal(host.render().unreadCount,3);
+  assert.deepEqual(liveCalls,[]);assert.equal(host.channels.length,0);assert.equal(data.refreshes,0);assert.equal(data.pending,0);assert.equal(data.config,null);
+ }finally{host.close()}
+});
 test('a saved preview stays inactive while a configured service resolves its signed-in state',async()=>{
  const data=dataFor();data.state={...initialState(),onboarding:'done'};data.preview=false;data.loading=false;data.config={configured:true};data.session={status:'signed_out'};
  const host=await harness(data);

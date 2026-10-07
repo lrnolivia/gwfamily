@@ -9,7 +9,7 @@ const url='http://127.0.0.1:4173',browser=await (process.env.GW_BROWSER==='webki
 await mkdir('docs/recovery-qa',{recursive:true});
 async function pageFor(width=390,theme='dark',platform='ios',state=initialState()){
  const page=await browser.newPage({viewport:{width,height:844},reducedMotion:'reduce'});page.setDefaultTimeout(7000);page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(!['GET','HEAD'].includes(r.method()))writes.push(r.url())});
- await page.goto(url);await page.waitForFunction(()=>Boolean(document.documentElement.dataset.platform));await page.evaluate(({state,theme,platform,key})=>{localStorage.setItem(key,JSON.stringify({schema:2,mode:'preview',state:{...state,onboarding:'done'}}));localStorage.setItem('gw-theme',theme);localStorage.setItem('gw-platform',platform);localStorage.setItem('gw-install-dismissed','true');localStorage.setItem('gw-preview-notice:v1','seen')},{state,theme,platform,key:PREVIEW_KEY});await page.reload({waitUntil:'domcontentloaded'});await page.waitForFunction(expected=>document.documentElement.dataset.platform===expected,platform);await page.getByRole('navigation',{name:'Main navigation'}).waitFor();return page;
+ await page.goto(url);await page.waitForFunction(()=>Boolean(document.documentElement.dataset.platform));await page.evaluate(({state,theme,platform,key})=>{localStorage.setItem(key,JSON.stringify({schema:2,mode:'preview',state:{...state,onboarding:'done'}}));sessionStorage.setItem('gw-active-mode','preview');localStorage.setItem('gw-theme',theme);localStorage.setItem('gw-platform',platform);localStorage.setItem('gw-install-dismissed','true');localStorage.setItem('gw-preview-notice:v1','seen')},{state,theme,platform,key:PREVIEW_KEY});await page.reload({waitUntil:'domcontentloaded'});await page.waitForFunction(expected=>document.documentElement.dataset.platform===expected,platform);await page.getByRole('navigation',{name:'Main navigation'}).waitFor();return page;
 }
 async function noOverflow(page,label){assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),label+' overflow')}
 async function close(page){if(await page.getByRole('button',{name:'Close dialog',exact:true}).count())await page.getByRole('button',{name:'Close dialog',exact:true}).click();else await page.locator('.page-back').click()}
@@ -18,6 +18,9 @@ try{
  await returning.route('**/api/config',async route=>{await configGate;await route.fulfill({contentType:'application/json',body:JSON.stringify({configured:true,email:true,providers:[],origin:url})})});
  await returning.route('**/api/session',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({signedIn:false,configured:true})}));
  try{
+  // This scenario intentionally returns to the live sign-in path. Saved preview
+  // data alone must not override a configured signed-out session.
+  await returning.evaluate(()=>sessionStorage.removeItem('gw-active-mode'));
   await returning.reload({waitUntil:'domcontentloaded'});
   const loading=returning.getByRole('region',{name:'Opening your family space…',exact:true});
   await expect(loading).toBeVisible();await expect(loading.getByRole('heading',{name:'Opening your family space…',exact:true})).toBeVisible();

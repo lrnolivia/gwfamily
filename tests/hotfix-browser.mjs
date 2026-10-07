@@ -8,7 +8,8 @@ async function pageFor(width,theme,platform){
  const page=await browser.newPage({viewport:{width,height:900},reducedMotion:'reduce'});page.setDefaultTimeout(12000);page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:4173');await page.waitForFunction(()=>!!document.documentElement.dataset.platform);
  const state=initialState();state.onboarding='done';state.members.find(m=>m.id===state.selfId).profileColor='#c9aa52';
- await page.evaluate(({state,key,theme,platform})=>{localStorage.setItem(key,JSON.stringify({schema:2,mode:'preview',state}));localStorage.setItem('gw-theme',theme);localStorage.setItem('gw-platform',platform);localStorage.setItem('gw-preview-notice:v1','seen');localStorage.setItem('gw-install-dismissed','true')},{state,key:PREVIEW_KEY,theme,platform});
+ await page.evaluate(({state,key,theme,platform})=>{localStorage.setItem(key,JSON.stringify({schema:2,mode:'preview',state}));
+  sessionStorage.setItem('gw-active-mode','preview');localStorage.setItem('gw-theme',theme);localStorage.setItem('gw-platform',platform);localStorage.setItem('gw-preview-notice:v1','seen');localStorage.setItem('gw-install-dismissed','true')},{state,key:PREVIEW_KEY,theme,platform});
  await page.reload({waitUntil:'domcontentloaded'});await page.getByRole('navigation',{name:'Main navigation'}).waitFor();return page;
 }
 try{

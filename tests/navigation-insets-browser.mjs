@@ -68,6 +68,7 @@ function installNavigationFixture({device, material, theme, mode, state, key}) {
   Object.assign(viewport, {height: device.height, width: device.width, offsetTop: 0, offsetLeft: 0, scale: 1});
   Object.defineProperty(window, 'visualViewport', {get: () => viewport});
   localStorage.setItem(key, JSON.stringify({schema: 2, mode: 'preview', state}));
+  sessionStorage.setItem('gw-active-mode','preview');
   localStorage.setItem('gw-platform', material);
   localStorage.setItem('gw-theme', theme);
   localStorage.setItem('gw-preview-notice:v1', 'seen');

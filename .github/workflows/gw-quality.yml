@@ -41,6 +41,14 @@ jobs:
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 --directory dist > /tmp/gw-http.log 2>&1 &
           node scripts/ci-test-summary.mjs recovery-browser --browser tests/recovery-browser.mjs
+      - name: Hotfix browser checks
+        if: ${{ !cancelled() && steps.frontend_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS --connect-timeout 1 --max-time 2 http://127.0.0.1:4173/ > /dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS --connect-timeout 1 --max-time 2 http://127.0.0.1:4173/ > /dev/null
           node scripts/ci-test-summary.mjs hotfix-browser --browser tests/hotfix-browser.mjs
       - name: Live API integration browser checks
         if: ${{ !cancelled() && steps.frontend_build.outcome == 'success' && steps.backend_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
