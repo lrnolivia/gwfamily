@@ -278,7 +278,11 @@ try {
     // establish that its paired browser detail/messages reads have finished.
     await expect(bob).toHaveURL(new RegExp('#/chat/' + directId + '$'));
     await expect(messageRow(bob, secret)).toHaveCount(1);
-    await navigate(bob, 'chat', directId);
+    // Acceptance already opened this document's chat. Wait for its read
+    // acknowledgement and resulting inbox refresh before any later navigation;
+    // forcing a second document load here can interrupt that refresh in WebKit.
+    await expect.poll(async () => (await summary(bob, directId))?.unreadCount).toBe(0);
+    await settleBrowserReads(bob);
     await expect(messageRow(bob, secret)).toHaveCount(1);
   });
 
