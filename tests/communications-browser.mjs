@@ -855,7 +855,10 @@ try {
     await picker.setInputFiles({name:'photo-discussion.png',mimeType:'image/png',buffer:createTestPng()});
     await expect(alice.getByRole('img',{name:'Alice profile photo',exact:true})).toHaveAttribute('src',/^\/api\/media\//);
     await alice.getByRole('button',{name:'Save profile',exact:true}).click();
+    await expect(alice).toHaveURL(/#\/profile\/alice$/);
+    const savedPhoto=(await ok(alice,'/api/state')).members.find(member=>member.id==='alice').photo;assert.match(savedPhoto,/^\/api\/media\//,'Profile photo is committed before the second account reads it');
     await navigate(bob,'profile','alice');
+    await expect(bob.locator('.profile-overview .profile-photo-open img')).toHaveAttribute('src',savedPhoto);
     await bob.locator('.profile-overview').getByRole('button',{name:'View Alice profile photo',exact:true}).click();
     await expect(bob.locator('.photo-viewer-image')).toBeVisible();
     const comment=bob.getByRole('textbox',{name:'Write a comment…',exact:true});
@@ -867,6 +870,8 @@ try {
     const photo=await ok(alice,'/api/photo-discussions/profile/alice');assert.equal(photo.comments.length,1);assert.equal(photo.reactions.length,1);
     const bytes=await alice.request.get(base+'/api/photo-discussions/profile/alice/download');assert.equal(bytes.status(),200);assert.match(bytes.headers()['content-disposition'],/^attachment;/);assert.deepEqual(await bytes.body(),createTestPng());
     await navigate(alice,'edit-profile');await alice.getByRole('checkbox',{name:'Let family save my profile photo',exact:true}).uncheck();await alice.getByRole('button',{name:'Save profile',exact:true}).click();
+    await expect(alice).toHaveURL(/#\/profile\/alice$/);
+    assert.equal((await ok(alice,'/api/state')).members.find(member=>member.id==='alice').allowPhotoSave,false,'Photo-save preference is committed before cross-account enforcement');
     await navigate(bob,'photo','alice');await expect(bob.getByRole('button',{name:'Save photo',exact:true})).toHaveCount(0);await expect(bob.getByText('Photo saving is turned off for this profile.',{exact:true})).toBeVisible();assert.equal((await bob.request.get(base+'/api/photo-discussions/profile/alice/download')).status(),403);
     await ok(alice,'/api/commands',{method:'POST',data:{type:'SAVE_CONTACT',requestId:randomUUID(),contact:{name:'Alice',phone:'+1 555 0100',email:'alice@example.test',address:'1 Example Lane',website:'https://example.test',optIn:true,visibility:'Selected family members',selectedIds:['bob'],useProfile:true}}});
     await navigate(bob,'profile','alice');await expect(bob.getByRole('link',{name:'Phone: +1 555 0100',exact:true})).toBeVisible();await expect(bob.getByRole('link',{name:'Email: alice@example.test',exact:true})).toHaveAttribute('href','mailto:alice%40example.test');
