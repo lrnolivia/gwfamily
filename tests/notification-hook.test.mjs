@@ -215,3 +215,20 @@ test('a callback owned by Alice cannot dispatch through a newly installed Bob ru
   assert.equal(bob.pending,0);assert.equal(host.render().settings.categories.reactions,true);
  }finally{host.close()}
 });
+
+
+test('clear-all captures the server cutoff and account, serializes writes and leaves a newer arrival visible',async()=>{
+ const pending=deferred(),writes=[];let cleared=false;
+ const data=dataFor('alice',{list:async()=>cleared?page('alice',{count:1,notifications:[{id:'later',sequence:301}],readAllCutoff:301}):page(),dismissAll:(cutoff,accountId)=>{writes.push({cutoff,accountId});return pending.promise}}),host=await harness(data);
+ try{host.render();await host.flush();const operation=host.render().clearAll();assert.equal(host.render().busy,true);assert.equal(await host.render().clearAll(),false);cleared=true;pending.resolve({accountId:'alice',ok:true});await operation;assert.deepEqual(writes,[{cutoff:300,accountId:'alice'}]);assert.deepEqual(host.render().items.map(n=>n.id),['later']);assert.equal(host.render().unreadCount,1);assert.equal(data.pending,0)}finally{pending.resolve({accountId:'alice'});host.close()}
+});
+test('clear-all failure retains the inbox, and a late old-account completion cannot clear a replacement inbox',async()=>{
+ const pending=deferred(),alice=dataFor('alice',{dismissAll:()=>pending.promise}),bob=dataFor('bob'),host=await harness(alice);
+ try{host.render();await host.flush();const oldView=host.render();const operation=oldView.clearAll();pending.reject(new Error('Fixture offline'));assert.equal(await operation,false);assert.equal(host.render().items.length,3);assert.match(host.render().error,/Fixture offline/);
+  const late=deferred();alice.notificationApi.dismissAll=()=>late.promise;const second=host.render().clearAll();host.render(bob);await host.flush();late.resolve({accountId:'alice',ok:true});assert.equal(await second,false);assert.equal(await oldView.clearAll(),false);assert.equal(host.render().identity,'live:bob');assert.equal(host.render().items.length,3);
+ }finally{host.close()}
+});
+test('preview clear-all retains hidden and later history and can reset without live writes',async()=>{
+ const unexpected=()=>{throw new Error('Live API called from preview')},data=dataFor('alice',{dismissAll:unexpected});data.state={...initialState(),onboarding:'done'};data.preview=true;const host=await harness(data);
+ try{host.render();await host.flush();await host.render().clearAll();assert.equal(host.render().items.length,0);assert.equal(host.render().unreadCount,0);assert.equal(data.state.notifications.length,4);assert.equal(data.state.notifications.filter(n=>n.dismissedAt).length,3);assert.equal(host.channels.length,0);await host.render().resetPreview();assert.equal(host.render().unreadCount,3)}finally{host.close()}
+});

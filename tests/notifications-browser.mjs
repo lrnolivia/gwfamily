@@ -17,7 +17,7 @@ const oldPost={id:'older-authorized-post',authorId:'bob',text:'An authorized old
 const comment={id:'older-comment',authorId:'bob',text:'The exact older fixture reply.',createdAt:2000,parentId:null,files:[]};
 let linkedComments=[comment];
 function account(id){return {id,settings:{accountId:id,scope:'leaders',globalOff:false,selectedIds:[],categories:{...DEFAULT_NOTIFICATION_CATEGORIES},revision:0,pushEnabled:false},notices:Array.from({length:id==='alice'?135:2},(_,i)=>({id:id+'-notice-'+(i+1),sequence:i+1,kind:'reply.created',category:'replies',title:`${id==='alice'?'Fixture':'Other account'} update ${i+1}`,text:'A fictional update for hosted QA.',createdAt:Date.now()-i*1000,readAt:null,target:{kind:'comment',id:comment.id,containerId:oldPost.id,anchorId:comment.id}}))}}
-const accounts={alice:account('alice'),bob:account('bob')};let holdOpen=null,holdSettings=null,holdReadAll=null,holdSettingsArrival=null;
+const accounts={alice:account('alice'),bob:account('bob')};let holdOpen=null,holdSettings=null,holdReadAll=null,holdSettingsArrival=null,holdDismissAll=null;
 function stateFor(id){return {...initialState(),mode:'live',schema:3,selfId:id,onboarding:'done',profileComplete:true,capabilities:{},
  members:[{id:'alice',name:'QA Alice',circle:'family',registered:true,adult:true,profileColor:'#4f996c'},{id:'bob',name:'QA Bob',circle:'family',registered:true,adult:true,profileColor:'#754c95'}],groups:[],memories:[],memorials:[],relationships:[],posts:[{id:'recent-fixture',authorId:'bob',text:'The current fixture feed.',createdAt:Date.now(),files:[]}],comments:{},reactions:{},notifications:[],readNotices:[],notificationSettings:{...accounts[id].settings},notificationUnreadCount:visible(accounts[id]).filter(n=>!n.readAt).length};}
 function visible(account){return account.settings.globalOff?[]:account.notices.filter(n=>!n.dismissedAt&&account.settings.categories[n.category]);}
@@ -54,6 +54,10 @@ async function attachRoutes(context,viewer){
   if(url.pathname==='/api/notifications/read-all'){
    if(holdReadAll){const pending=holdReadAll;holdReadAll=null;pending.started();await pending.promise;}
    for(const notice of visible(a))if(notice.sequence<=payload.cutoff&&notice.kind!=='message.created')notice.readAt||=Date.now();return json(route,{accountId:viewer.id,ok:true});
+  }
+  if(url.pathname==='/api/notifications/dismiss-all'){
+   if(holdDismissAll){const pending=holdDismissAll;holdDismissAll=null;pending.started();await pending.promise;}
+   for(const notice of visible(a))if(notice.sequence<=payload.cutoff)notice.dismissedAt||=Date.now();return json(route,{accountId:viewer.id,ok:true});
   }
   const match=/^\/api\/notifications\/([^/]+)\/(open|read|dismiss)$/.exec(url.pathname);
   if(match){
@@ -370,9 +374,27 @@ try{
    const previous=await openSettings(alice);await checkFit(alice);await captureNotificationViewport(alice,`${output}/${engine}-${variant.width}-${variant.theme}-${variant.material}-settings.png`,{settings:true});await returnFromSettings(alice,previous);
   }
  });
+ await check('Clear all dismisses the full paged inbox but retains later arrivals and other-account history',async()=>{
+  const original=structuredClone(accounts.bob.notices),aliceBefore=structuredClone(accounts.alice.notices),settingsBefore=structuredClone(accounts.bob.settings),writesBefore=requests.length;
+  // This document now belongs to Bob after the preceding account-switch check.
+  accounts.bob.notices=Array.from({length:65},(_,i)=>({id:'bob-clear-'+i,sequence:500+i,kind:'reply.created',category:'replies',title:'Isolated clear activity '+i,createdAt:Date.now(),target:{kind:'post',id:oldPost.id}}));
+  await alice.reload();await showInbox(alice);await expect(panel(alice).locator('[data-notice-id]')).toHaveCount(30);
+  const cutoff=564;let release,started=false;holdDismissAll={promise:new Promise(resolve=>release=resolve),started:()=>{started=true;}};
+  try{
+   await panel(alice).getByRole('button',{name:'Clear all',exact:true}).click();await expect.poll(()=>started).toBe(true);
+   await expect(panel(alice).getByRole('button',{name:'Clear all',exact:true})).toBeDisabled();
+   assert.ok(accounts.bob.notices.every(n=>!n.dismissedAt));
+   accounts.bob.notices.push({id:'bob-clear-later',sequence:565,kind:'reply.created',category:'replies',title:'A later isolated arrival',createdAt:Date.now(),target:{kind:'post',id:oldPost.id}});
+  }finally{holdDismissAll=null;release();}
+  await expect(panel(alice).locator('[data-notice-id]')).toHaveCount(1);await expect(bell(alice)).toHaveAccessibleName('Notifications, 1 unread');
+  assert.ok(accounts.bob.notices.filter(n=>n.sequence<=cutoff).every(n=>n.dismissedAt));assert.equal(accounts.bob.notices.at(-1).dismissedAt,undefined);
+  assert.deepEqual(requests.slice(writesBefore).filter(r=>r.path==='/api/notifications/dismiss-all'),[{viewer:'bob',path:'/api/notifications/dismiss-all',method:'POST',payload:{cutoff,expectedAccountId:'bob'}}]);
+  assert.deepEqual(accounts.alice.notices,aliceBefore);assert.deepEqual(accounts.bob.settings,settingsBefore);
+  accounts.bob.notices=original;await alice.reload();await showInbox(alice);
+ });
  await check('preview controls are isolated and resettable with no notification network writes',async()=>{
   const preview=initialState();preview.onboarding='done';const p=await pageFor({id:'alice'});await p.page.evaluate(({key,state})=>{localStorage.setItem(key,JSON.stringify({schema:2,mode:'preview',state}));sessionStorage.setItem('gw-active-mode','preview')},{key:PREVIEW_KEY,state:preview});await p.page.reload();const before=requests.filter(r=>r.method!=='GET').length;
-  await showInbox(p.page);await panel(p.page).getByRole('button',{name:'Mark A sample reply is waiting read',exact:true}).click();await panel(p.page).getByRole('button',{name:'Dismiss A sample memory includes you',exact:true}).click();await panel(p.page).getByRole('button',{name:'Reset sample activity',exact:true}).click();await expect(bell(p.page)).toHaveAccessibleName('Notifications, 3 unread');assert.equal(requests.filter(r=>r.method!=='GET').length,before);
+  await showInbox(p.page);await panel(p.page).getByRole('button',{name:'Mark A sample reply is waiting read',exact:true}).click();await panel(p.page).getByRole('button',{name:'Dismiss A sample memory includes you',exact:true}).click();await panel(p.page).getByRole('button',{name:'Reset sample activity',exact:true}).click();await expect(bell(p.page)).toHaveAccessibleName('Notifications, 3 unread');await panel(p.page).getByRole('button',{name:'Clear all',exact:true}).click();await expect(panel(p.page).locator('[data-notice-id]')).toHaveCount(0);await expect(panel(p.page).getByRole('button',{name:'Clear all',exact:true})).toBeDisabled();await panel(p.page).getByRole('button',{name:'Reset sample activity',exact:true}).click();await expect(bell(p.page)).toHaveAccessibleName('Notifications, 3 unread');assert.equal(requests.filter(r=>r.method!=='GET').length,before);
  });
  assert.deepEqual(errors,[],'No browser runtime errors');
 }catch(error){

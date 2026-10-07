@@ -74,6 +74,7 @@ export function useNotifications(data){
  const read=id=>perform(async(run,live)=>run.mode==='preview'?live.dispatch({type:'MARK_NOTICE_READ',id}):live.notificationApi.read(id,run.accountId));
  const dismiss=id=>perform(async(run,live)=>run.mode==='preview'?live.dispatch({type:'DISMISS_NOTICE',id}):live.notificationApi.dismiss(id,run.accountId));
  const readAll=()=>{const cutoff=snapshot.identity===identity?snapshot.readAllCutoff:null;if(!Number.isSafeInteger(cutoff))return Promise.resolve(false);return perform(async(run,live)=>run.mode==='preview'?live.dispatch({type:'MARK_NOTICES_READ_ALL',cutoff}):live.notificationApi.readAll(cutoff,run.accountId))};
+ const clearAll=()=>{const cutoff=snapshot.identity===identity&&snapshot.ready?snapshot.readAllCutoff:null;if(!Number.isSafeInteger(cutoff))return Promise.resolve(false);return perform(async(run,live)=>run.mode==='preview'?live.dispatch({type:'DISMISS_NOTICES_ALL',cutoff}):live.notificationApi.dismissAll(cutoff,run.accountId))};
  const saveSettings=patch=>{const revision=snapshot.identity===identity?snapshot.settings.revision:0;return perform(async(run,live)=>{
   if(run.mode==='live')return live.notificationApi.saveSettings(patch,revision,run.accountId);
   const latest=normalizeNotificationSettings((live.getCurrentState?.()||live.state).notificationSettings);if(latest.revision!==revision)throw Object.assign(new Error('Notification choices changed.'),{status:409});
@@ -104,5 +105,5 @@ export function useNotifications(data){
  };
  const resetPreview=()=>perform((run,live)=>run.mode==='preview'?live.dispatch({type:'RESET_NOTIFICATIONS_PREVIEW'}):false);
  const view=snapshot.identity===identity?snapshot:{...blank(identity,state),loading:enabled};
- return {...view,enabled,refresh:()=>refresh({force:true}),loadMore:()=>refresh({more:true}),read,dismiss,readAll,saveSettings,open,resetPreview};
+ return {...view,enabled,refresh:()=>refresh({force:true}),loadMore:()=>refresh({more:true}),read,dismiss,readAll,clearAll,saveSettings,open,resetPreview};
 }

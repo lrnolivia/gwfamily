@@ -83,6 +83,13 @@ export async function readAllNotifications(db,actor,cutoff){
  cutoff=integer(cutoff,'read-all cutoff');
  await db.prepare(`UPDATE notifications SET read_at=COALESCE(read_at,CURRENT_TIMESTAMP),updated_at=CURRENT_TIMESTAMP WHERE id IN (SELECT n.id ${joins} WHERE ${visible} AND n.kind!='message.created' AND seq.sequence<=?)`).bind(actor.id,cutoff).run();return {ok:true,cutoff};
 }
+export async function dismissAllNotifications(db,actor,cutoff){
+ cutoff=integer(cutoff,'clear-all cutoff');
+ // The same eligibility predicate as the inbox covers earlier pages while
+ // retaining hidden history, other accounts and arrivals after this snapshot.
+ const result=await db.prepare(`UPDATE notifications SET dismissed_at=COALESCE(dismissed_at,CURRENT_TIMESTAMP),updated_at=CURRENT_TIMESTAMP WHERE id IN (SELECT n.id ${joins} WHERE ${visible} AND seq.sequence<=?)`).bind(actor.id,cutoff).run();
+ return {ok:true,cutoff,dismissedCount:result.meta.changes};
+}
 export async function openNotification(db,actor,id){
  const row=await db.prepare(`SELECT n.*,seq.sequence,e.data_json AS event_data_json ${joins} WHERE ${visible} AND n.id=?`).bind(actor.id,id).first();
  if(!row)return {accountId:actor.id,available:false,message:'This update is no longer available.'};

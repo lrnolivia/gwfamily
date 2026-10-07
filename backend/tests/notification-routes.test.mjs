@@ -13,7 +13,7 @@ test('notification endpoints reject anonymous, pending, suspended, unverified an
 test('account identity is returned and late cross-account settings/read/dismiss/open requests fail before mutation',async()=>{
  const {DB,request}=setup();await send(DB,'owner','ADD_POST',{post:{text:'Fixture'}});const a=(await request('alice','/api/notifications')).body,b=(await request('bob','/api/notifications')).body;assert.equal(a.accountId,'alice');assert.equal(a.settings.accountId,'alice');assert.equal((await request('bob','/api/me/notifications')).body.accountId,'bob');
  assert.equal((await request('bob','/api/me/notifications','PUT',{scope:'off',expectedAccountId:'alice'})).status,409);
- for(const path of ['/api/notifications/read-all','/api/notifications/'+b.notifications[0].id+'/read','/api/notifications/'+b.notifications[0].id+'/dismiss'])assert.equal((await request('bob',path,'POST',{cutoff:b.readAllCutoff,expectedAccountId:'alice'})).status,409);
+ for(const path of ['/api/notifications/read-all','/api/notifications/dismiss-all','/api/notifications/'+b.notifications[0].id+'/read','/api/notifications/'+b.notifications[0].id+'/dismiss'])assert.equal((await request('bob',path,'POST',{cutoff:b.readAllCutoff,expectedAccountId:'alice'})).status,409);
  assert.equal((await request('bob','/api/notifications/'+b.notifications[0].id+'/open?expectedAccountId=alice')).status,409);assert.equal((await request('bob','/api/notifications')).body.unreadCount,1);
  assert.equal((await request('bob','/api/notifications/'+a.notifications[0].id+'/open')).body.available,false);
 });
@@ -56,4 +56,38 @@ test('generic read and read-all cannot mark unread chat messages; chat cursor re
 
 test('generic settings PUT changes Following while preserving independent Off until explicit enable',async()=>{
  const {request}=setup();let s=await request('alice','/api/me/notifications','PUT',{globalOff:true});assert.equal(s.body.globalOff,true);s=await request('alice','/api/me/notifications','PUT',{scope:'all'});assert.equal(s.body.globalOff,true);assert.equal(s.body.scope,'all');s=await request('alice','/api/me/notifications','PUT',{globalOff:false});assert.equal(s.body.globalOff,false);assert.equal(s.body.scope,'all');
+});
+
+
+test('clear-all covers earlier pages, preserves later arrivals, hidden history and other accounts, and retries safely',async()=>{
+ const {DB,request,sqlite}=setup();
+ for(let i=0;i<35;i++)await send(DB,'owner','ADD_POST',{post:{text:'Isolated clear fixture '+i}});
+ const page=(await request('alice','/api/notifications?limit=3')).body;assert.equal(page.notifications.length,3);assert.ok(page.nextCursor);
+ const total=sqlite.prepare("SELECT count(*) n FROM notifications WHERE recipient_id='alice'").get().n;
+ const bobBefore=sqlite.prepare("SELECT * FROM notifications WHERE recipient_id='bob' ORDER BY id").all();
+ await saveNotificationSettings(DB,person('alice'),{categories:{following:false}});
+ assert.equal((await request('alice','/api/notifications/dismiss-all','POST',{cutoff:page.readAllCutoff,expectedAccountId:'alice'})).body.dismissedCount,0,'Hidden category history is retained');
+ await saveNotificationSettings(DB,person('alice'),{categories:{following:true}});
+ await send(DB,'owner','ADD_POST',{post:{text:'Later isolated arrival'}});
+ const result=await request('alice','/api/notifications/dismiss-all','POST',{cutoff:page.readAllCutoff,expectedAccountId:'alice'});
+ assert.equal(result.status,200);assert.equal(result.body.dismissedCount,total);
+ const after=(await request('alice','/api/notifications')).body;assert.equal(after.notifications.length,1);assert.ok(after.notifications[0].sequence>page.readAllCutoff);assert.equal(after.unreadCount,1);
+ assert.equal(sqlite.prepare("SELECT count(*) n FROM notifications WHERE recipient_id='alice'").get().n,total+1,'Dismissal retains durable rows');
+ assert.deepEqual(sqlite.prepare("SELECT * FROM notifications WHERE recipient_id='bob' ORDER BY id").all().filter(n=>bobBefore.some(old=>old.id===n.id)),bobBefore);
+ assert.equal((await request('alice','/api/notifications/dismiss-all','POST',{cutoff:page.readAllCutoff,expectedAccountId:'alice'})).body.dismissedCount,0);
+ for(const cutoff of [undefined,-1,1.5,'bad'])assert.equal((await request('alice','/api/notifications/dismiss-all','POST',{cutoff})).status,400);
+ assert.equal((await request('','/api/notifications/dismiss-all','POST',{cutoff:0})).status,401);
+ assert.equal((await request('pending','/api/notifications/dismiss-all','POST',{cutoff:0})).status,403);
+ assert.equal((await request('alice','/api/notifications/dismiss-all','POST',{cutoff:0},{Origin:'https://evil.example.test'})).status,403);
+});
+
+test('clearing message activity does not mark the underlying conversation read',async()=>{
+ const {request,sqlite}=setup();const created=await request('alice','/api/conversations','POST',{requestId:crypto.randomUUID(),type:'direct',memberIds:['bob']});assert.equal(created.status,201);const id=created.body.id;
+ await request('bob','/api/conversations/'+id+'/invitation','POST',{action:'accept'});
+ await request('alice','/api/conversations/'+id+'/messages','POST',{requestId:crypto.randomUUID(),body:'Isolated unread message'});
+ const before=(await request('bob','/api/notifications')).body;assert.ok(before.notifications.some(n=>n.kind==='message.created'));
+ const cursor=sqlite.prepare('SELECT read_sequence FROM conversation_members WHERE conversation_id=? AND member_id=?').get(id,'bob');
+ assert.equal((await request('bob','/api/notifications/dismiss-all','POST',{cutoff:before.readAllCutoff,expectedAccountId:'bob'})).status,200);
+ assert.deepEqual(sqlite.prepare('SELECT read_sequence FROM conversation_members WHERE conversation_id=? AND member_id=?').get(id,'bob'),cursor);
+ assert.equal((await request('bob','/api/conversations')).body.unreadCount,1);
 });

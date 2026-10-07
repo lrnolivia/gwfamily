@@ -91,6 +91,7 @@ function reduceState(state,action){
     case 'MARK_NOTICES_READ_ALL':return {...state,readNotices:[...new Set([...state.readNotices,...previewVisibleNotifications(state).filter(n=>n.sequence<=action.cutoff&&n.kind!=='message.created').map(n=>n.id)])]};
     case 'RESET_NOTIFICATIONS_PREVIEW':return {...state,notifications:previewNotificationSeed(),readNotices:[],notificationSettings:normalizeNotificationSettings(),notificationScope:'leaders',selectedNotificationIds:[]};
     case 'DISMISS_NOTICE':return {...state,notifications:(state.notifications||[]).filter(n=>n.id!==action.id)};
+    case 'DISMISS_NOTICES_ALL':{if(!Number.isSafeInteger(action.cutoff)||action.cutoff<0)return state;const ids=new Set(previewVisibleNotifications(state).filter(n=>n.sequence<=action.cutoff).map(n=>n.id));return {...state,notifications:(state.notifications||[]).map(n=>ids.has(n.id)?{...n,dismissedAt:n.dismissedAt||Date.now()}:n)}};
     case 'MARK_NOTICE_READ':return {...state,readNotices:[...new Set([...state.readNotices,action.id])]};
     case 'SET_COMPOSE':return {...state,compose:{...state.compose,...action.values}};
     case 'SET_DRAFT_FILES':return {...state,drafts:{...state.drafts,files:{...state.drafts.files,[action.key]:action.files}}};
