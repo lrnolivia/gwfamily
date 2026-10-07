@@ -101,3 +101,10 @@ html[data-theme][data-platform] :is(.choice-chip>input:checked+.choice-chip-face
 .post-head .member-link .avatar{width:48px;height:48px;min-width:48px;flex:0 0 48px;align-self:center}
 
 html[data-theme=light][data-platform] .wordmark-amp{color:#947852!important}
+
+/* The Custom accent has the same compact circular paint in every picker. */
+.profile-colors .profile-color-options>.profile-custom-color{grid-column:1/-1;display:flex!important;flex-direction:row-reverse;align-items:center;justify-content:space-between;justify-self:stretch;width:100%;max-width:none;min-height:64px;margin-top:4px;padding:10px 14px;border:0;border-radius:16px;background:var(--raised);color:var(--text);font-size:.875rem;font-weight:500}
+.profile-colors .profile-custom-color input[type=color]{appearance:none;-webkit-appearance:none;flex:none;box-sizing:border-box;width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;margin:0;padding:6px!important;border:0!important;border-radius:50%;background:transparent!important;box-shadow:none!important;cursor:pointer}
+.profile-custom-color input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+.profile-custom-color input[type=color]::-webkit-color-swatch{border:0!important;border-radius:50%}
+.profile-custom-color input[type=color]::-moz-color-swatch{border:0!important;border-radius:50%}

@@ -8,7 +8,7 @@ const textOn=bg=>{const candidates=['#fffaf0','#171714'];const preferred=candida
 // Accent controls use white. The approved yellow keeps its hue with a warm text glow.
 export function controlPalette(surface,color='#4f996c',dark=true){
  if(!/^#[0-9a-f]{6}$/i.test(color))color='#4f996c';
- if(color.toLowerCase()==='#ec9d00')return {'--control':'#ec9d00','--control-text':'#ffffff','--control-edge':dark?'#f5f1df':'#714300','--accent-label-glow':'0 0 1px #714300,0 0 5px #714300,0 0 10px rgba(113,67,0,.45)','--accent-label-glow-core':'#714300'};
+ if(color.toLowerCase()==='#ec9d00')return {'--control':'#ec9d00','--control-text':'#ffffff','--control-edge':dark?'#f5f1df':'#714300','--accent-label-glow':'0 0 1px rgba(113,67,0,.1),0 0 5px rgba(113,67,0,.1),0 0 10px rgba(113,67,0,.1)','--accent-label-glow-core':'#714300'};
  let fill=color,found=false;
  for(let i=0;i<=100&&!found;i++)for(const target of ['#000000','#ffffff']){
   const candidate=mix(color,target,i/100);
@@ -23,7 +23,7 @@ export function sendControlPalette(surface,color='#4f996c',dark=true){
 }
 export function profilePalette(color='#4f996c',theme='dark'){
  if(!/^#[0-9a-f]{6}$/i.test(color))color='#4f996c';
- const dark=theme==='dark',vibrant=color.toLowerCase()==='#ec9d00'?color:vibrantAccent(color,dark),paletteColor=color.toLowerCase()==='#ec9d00'?color:dark?vibrant:warmGold(vibrant),gold=!dark&&paletteColor!==vibrant,base=dark?'#111111':'#fffdf8',surface=mix(paletteColor,base,dark?.94:gold?.94:.96),raised=mix(paletteColor,base,dark?.88:gold?.86:.90),controls=controlPalette(surface,paletteColor,dark),accent=controls['--control'];
+ const dark=theme==='dark',vividPreset={'#ed8b32':'#c94f00','#ff7a00':'#c94f00','#f08091':'#d43662','#ff6685':'#d43662'}[color.toLowerCase()],vibrant=vividPreset||(color.toLowerCase()==='#ec9d00'?color:vibrantAccent(color,dark)),paletteColor=color.toLowerCase()==='#ec9d00'?color:dark?vibrant:warmGold(vibrant),gold=!dark&&paletteColor!==vibrant,base=dark?'#111111':'#fffdf8',surface=mix(paletteColor,base,dark?.94:gold?.94:.96),raised=mix(paletteColor,base,dark?.88:gold?.86:.90),controls=controlPalette(surface,paletteColor,dark),accent=controls['--control'];
  return {...controls,...sendControlPalette(surface,paletteColor,dark),'--bg':mix(paletteColor,base,gold?.96:.98),'--surface':surface,'--nav':surface,'--raised':raised,'--soft':raised,'--text':textOn(surface),'--muted':textOn(surface),'--accent':accent,'--ink':controls['--control-text'],'--line':mix(surface,textOn(surface),.4),'--profile-color':color};
 }
 export function safeWebUrl(value){try{const u=new URL(value);if(u.protocol!=='https:'||u.username||u.password||u.port)return null;return u}catch{return null}}

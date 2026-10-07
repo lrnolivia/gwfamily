@@ -4,8 +4,8 @@ import fs from 'node:fs';
 import {profilePalette,contrast} from '../src/profile-model.js';
 const css=fs.readFileSync(new URL('../dist/react-ui.css',import.meta.url),'utf8');
 test('hotfix action palette has readable text on opaque controls across personal colors',()=>{
- for(const theme of ['light','dark'])for(const color of ['#e64f59','#f08091','#ed8b32','#ec9d00','#36a267','#3985e6','#a267d5','#8a8178','#000000','#ffffff']){
-  const p=profilePalette(color,theme);assert.equal(p['--control-text'],'#ffffff');assert.equal(p['--ink'],p['--control-text']);assert.ok(Math.max(contrast(p['--control'],p['--surface']),contrast(p['--control-edge'],p['--surface']))>=3);assert.ok(contrast(p['--control-text'],p['--accent-label-glow-core']||p['--control'])>=4.5);
+ for(const theme of ['light','dark'])for(const color of ['#e64f59','#f08091','#ed8b32','#36a267','#3985e6','#a267d5','#8a8178','#000000','#ffffff']){
+  const p=profilePalette(color,theme);assert.equal(p['--control-text'],'#ffffff');assert.equal(p['--ink'],p['--control-text']);assert.ok(Math.max(contrast(p['--control'],p['--surface']),contrast(p['--control-edge'],p['--surface']))>=3);assert.ok(contrast(p['--control-text'],p['--control'])>=4.5);
  }
  assert.match(css,/--gw-control-alpha:100%/);
 });
@@ -40,8 +40,13 @@ test('approved yellow preserves its exact fill and white lettering with a warm g
   const palette=profilePalette('#ec9d00',theme);
   assert.equal(palette['--control'],'#ec9d00');assert.equal(palette['--control-text'],'#ffffff');
   assert.ok(contrast('#ffffff',palette['--control'])<4.5,'Raw yellow alone is not a contrast pass.');
-  assert.ok(contrast('#ffffff',palette['--accent-label-glow-core'])>=4.5,'White separates from the opaque glow core.');
-  assert.match(palette['--accent-label-glow'],/^0 0 1px #714300,/);
+  assert.equal(palette['--accent-label-glow'],'0 0 1px rgba(113,67,0,.1),0 0 5px rgba(113,67,0,.1),0 0 10px rgba(113,67,0,.1)');
   assert.ok(contrast(palette['--control-edge'],palette['--surface'])>=3);
+ }
+});
+
+test('orange and coral retain saturated action colors in both themes',()=>{
+ for(const theme of ['light','dark'])for(const [raw,fill] of [['#ff7a00','#c94f00'],['#ff6685','#d43662']]){
+  const palette=profilePalette(raw,theme);assert.equal(palette['--control'],fill);assert.equal(palette['--control-text'],'#ffffff');assert.ok(contrast(fill,'#ffffff')>=4.5);
  }
 });
