@@ -98,7 +98,7 @@ html[data-theme][data-platform] :is(.button:not(.secondary),.choice-chip>input:c
 html[data-theme][data-platform] :is(.choice-chip>input:checked+.choice-chip-face,.choice-option[aria-selected=true],.heading-font-option[aria-pressed=true],.view-switcher>button[aria-selected=true],.bottom button[aria-current=page],.material-fab,.fab-glass .fab) .glyph{filter:drop-shadow(0 0 1px var(--accent-label-glow-core,transparent))}
 
 /* Post identity needs enough visual weight beside the name and audience badge. */
-.post-head .member-link .avatar{width:48px;height:48px;min-width:48px;flex:0 0 48px;align-self:center}
+.post-head :is(.member-link,.identity-avatar) .avatar{width:36px;height:36px;min-width:36px;flex:0 0 36px;align-self:center}
 
 html[data-theme=light][data-platform] .wordmark-amp{color:#947852!important}
 
@@ -136,3 +136,5 @@ html[data-theme][data-platform] :is(.page-panel-inline-controls,.card-slot-contr
 html[data-theme][data-platform] .page-editor-actions>.page-edit-tools{margin-inline-end:12px}
 html[data-theme][data-platform] .page-edit-tools>summary{background:var(--surface);min-height:44px;border:0;border-radius:12px;padding:8px 12px;font-size:.8125rem;box-shadow:var(--gw-action-shadow)!important}
 html[data-theme][data-platform] .page-edit-tools[open]>div{left:0;right:auto;max-width:calc(100vw - 32px);margin-top:8px}
+
+.post-head .identity-avatar{width:44px;height:44px;min-width:44px;min-height:44px;flex:0 0 44px}.post-head .identity-avatar .avatar:not(.avatar-photo){font-size:1rem;line-height:1}
