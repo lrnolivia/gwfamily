@@ -1,6 +1,7 @@
 // Hosted-only authenticated communications checks. Start the isolated fixture on
 // port 4175 first. Never substitute these checks for physical-device keyboard QA.
 import {chromium, webkit, expect} from '@playwright/test';
+import {settlePointerTarget} from './browser-transition-readiness.mjs';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {mkdir, writeFile} from 'node:fs/promises';
@@ -869,7 +870,7 @@ try {
     await navigate(alice,'photo','alice');await expect(alice.locator('.chat-bubble').filter({hasText:'A synthetic comment on this profile photo'})).toHaveCount(1);
     const photo=await ok(alice,'/api/photo-discussions/profile/alice');assert.equal(photo.comments.length,1);assert.equal(photo.reactions.length,1);
     const bytes=await alice.request.get(base+'/api/photo-discussions/profile/alice/download');assert.equal(bytes.status(),200);assert.match(bytes.headers()['content-disposition'],/^attachment;/);assert.deepEqual(await bytes.body(),createTestPng());
-    await navigate(alice,'edit-profile');await alice.getByRole('checkbox',{name:'Let family save my profile photo',exact:true}).uncheck();await alice.getByRole('button',{name:'Save profile',exact:true}).click();
+    await navigate(alice,'edit-profile');const allowPhotoSave=alice.getByRole('checkbox',{name:'Let family save my profile photo',exact:true});await settlePointerTarget(allowPhotoSave);await allowPhotoSave.uncheck();await expect(allowPhotoSave).not.toBeChecked();await alice.getByRole('button',{name:'Save profile',exact:true}).click();
     await expect(alice).toHaveURL(/#\/profile\/alice$/);
     assert.equal((await ok(alice,'/api/state')).members.find(member=>member.id==='alice').allowPhotoSave,false,'Photo-save preference is committed before cross-account enforcement');
     await navigate(bob,'photo','alice');await expect(bob.getByRole('button',{name:'Save photo',exact:true})).toHaveCount(0);await expect(bob.getByText('Photo saving is turned off for this profile.',{exact:true})).toBeVisible();assert.equal((await bob.request.get(base+'/api/photo-discussions/profile/alice/download')).status(),403);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync} from 'node:fs';
 import {emojiPickerLayout,emojiPage} from '../src/emoji-picker-model.js';
 import {emojiChoices} from '../src/emoji-data.js';
 
@@ -32,4 +32,17 @@ test('post menu retains every action and keyboard semantics without primary butt
  for(const glyph of ['focus','share','copy','flag'])assert.ok(menu.includes('name="'+glyph+'"'));
  assert.ok(menu.includes("['ArrowDown','ArrowUp','Home','End']"));assert.ok(menu.includes("event.key==='Escape'"));
  assert.doesNotMatch(menu,/className="button/);assert.ok(menu.includes('navigator.clipboard.writeText'));assert.ok(menu.includes('navigator.share'));
+});
+
+test('browser consumers use the post menu item role and retain report-draft refresh coverage',()=>{
+ const stale=/getByRole\(\s*['"]button['"]\s*,\s*\{\s*name:\s*['"](?:Report|Focus View|Share post|Copy link)['"]/;
+ for(const file of readdirSync(new URL('.',import.meta.url)).filter(name=>name.includes('browser')&&name.endsWith('.mjs'))){
+  assert.doesNotMatch(readFileSync(new URL(file,import.meta.url),'utf8'),stale,file+' must select post menu actions by their accessible menuitem role');
+ }
+ const source=readFileSync(new URL('./notifications-browser.mjs',import.meta.url),'utf8'),scenario=source.slice(source.indexOf('const reportsBeforeSheet='),source.indexOf("await check('full-page settings"));
+ assert.ok(scenario.includes("getByRole('menu',{name:'Post options',exact:true}).getByRole('menuitem',{name:'Report',exact:true})"));
+ assert.ok(scenario.includes("await refreshComments([{...comment,text:'The sheet refreshed fixture text.'},nextComment])"));
+ assert.ok(scenario.includes("toHaveValue('Unsubmitted synthetic sheet draft')"));
+ assert.ok(scenario.includes("[el.selectionStart,el.selectionEnd]),[5,12]"));
+ assert.ok(scenario.includes('Opening, refreshing and canceling a sheet must not submit a report'));
 });

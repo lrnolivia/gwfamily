@@ -620,20 +620,21 @@ try {
     await expect.poll(() => owner.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(original.bg);
   });
 
-  await check('in-place fields keep Done inside the rectangle and pending saves never claim persistence', async () => {
+  await check('in-place fields keep compact Done inside the editor without covering text and pending saves never claim persistence', async () => {
     await edit(owner);
     let entered = false, release;
     const gate = new Promise(resolve => { release = resolve; });
     const handler = async route => {if (route.request().method() === 'PATCH') {entered = true; await gate;} await route.continue();};
     await owner.route('**/api/page-content/home', handler);
+    try {
     await editText(owner, 'home.heading', firstText, {finish: false});
-    const boxes = await field(owner, 'home.heading').evaluate(element => ({input: element.querySelector('.page-copy-input').getBoundingClientRect().toJSON(), done: element.querySelector('.page-field-done').getBoundingClientRect().toJSON()}));
-    assert.ok(boxes.done.left >= boxes.input.left && boxes.done.right <= boxes.input.right + 1 && boxes.done.top >= boxes.input.top && boxes.done.bottom <= boxes.input.bottom + 1,
-      'The Done checkmark is inside the text field: ' + JSON.stringify(boxes));
+    const boxes = await field(owner, 'home.heading').evaluate(element => ({editor: element.querySelector('.page-copy-input-wrap').getBoundingClientRect().toJSON(), input: element.querySelector('.page-copy-input').getBoundingClientRect().toJSON(), done: element.querySelector('.page-field-done').getBoundingClientRect().toJSON(), glyph: element.querySelector('.page-field-done .glyph').getBoundingClientRect().toJSON()}));
+    assert.ok(boxes.done.left >= boxes.editor.left && boxes.done.right <= boxes.editor.right + 1 && boxes.done.top >= boxes.editor.top && boxes.done.bottom <= boxes.editor.bottom + 1,
+      'The Done checkmark remains inside the shared editor surface: ' + JSON.stringify(boxes));
+    assert.ok(boxes.input.right <= boxes.done.left && boxes.input.width > 0, 'Done has its own column and never covers editable text.');
+    assert.ok(boxes.done.width >= 44 && boxes.done.width <= 45 && boxes.done.height >= 44 && boxes.done.height <= 45 && boxes.glyph.width <= 18.5 && boxes.glyph.height <= 18.5, 'Done keeps a compact glyph within a usable 44px target.');
     assert.equal(await owner.getByRole('dialog').count(), 0, 'Text editing is in place.');
     await field(owner, 'home.heading').getByRole('button', {name: 'Finish editing Page heading', exact: true}).click();
-    try {
-
       await expect.poll(() => entered).toBe(true);
       await expect(saveStatus(owner)).toHaveText('Saving…');
       await expect(modeDone(owner)).toBeDisabled();
