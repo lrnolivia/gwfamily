@@ -275,7 +275,7 @@ try{
    const numericRect=el=>{if(!el)return null;const r=el.getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height}};
    const v=window.visualViewport;
    return {step:step||null,viewport:{width:v?.width??innerWidth,height:v?.height??innerHeight,left:v?.offsetLeft??0,top:v?.offsetTop??0},target:numericRect(targetName?document.querySelector('[data-gw-tour="'+targetName+'"]'):null),coach:numericRect(document.querySelector('.tour-coach')),spotlight:numericRect(document.querySelector('.tour-spotlight')),state:tour?.dataset.tourGeometry||null,stableFrames:Number(tour?.dataset.tourStableFrames)||0,nextDisabled:document.querySelector('.tour-next')?.disabled??null};
-  })).catch(e=>({error:e.message})),2500);
+  }).catch(e=>({error:e.message})),2500);
   diagnostics.dom=await bounded(lastPage.evaluate(()=>({url:location.href,readyState:document.readyState,title:document.title,rootChildren:document.getElementById('root')?.childElementCount,bodyText:document.body.innerText.slice(0,4000),tourStep:document.querySelector('.contextual-tour')?.dataset.tourStep,dialogs:[...document.querySelectorAll('dialog')].map(el=>({open:el.open,label:el.getAttribute('aria-labelledby')})),buttons:[...document.querySelectorAll('button')].slice(0,40).map(el=>({text:el.textContent.slice(0,100),label:el.getAttribute('aria-label'),disabled:el.disabled}))})).catch(e=>({error:e.message})),2500);
   await lastPage.screenshot({path:output+'/'+(process.env.GW_BROWSER||'chromium')+'-failure.png',fullPage:true,timeout:4000}).catch(()=>{});
  }
