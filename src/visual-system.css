@@ -73,3 +73,10 @@ html[data-theme=light][data-platform] .wordmark-green{color:#c9b68d!important}
 html[data-theme=light][data-platform] :is(.wordmark-amp,.wordmark-white){color:#fffaf0!important}
 html[data-theme=light][data-platform] .wordmark-bottom{color:#603b26!important}
 html[data-theme=light][data-platform] :is(.wordmark-green,.wordmark-amp,.wordmark-white){-webkit-text-stroke:1px #603b26;paint-order:stroke fill;text-shadow:none}
+
+/* Appearance slide-over: Custom gets its own quiet horizontal row. */
+.profile-menu[data-menu-page=appearance] .profile-colors{container-type:inline-size;container-name:appearance-accent}
+.profile-menu[data-menu-page=appearance] .profile-colors .profile-color-options{grid-template-columns:repeat(3,minmax(44px,1fr))}
+.profile-menu[data-menu-page=appearance] .profile-color-options>.profile-custom-color{grid-column:1/-1;display:flex!important;flex-direction:row-reverse;align-items:center;justify-content:space-between;justify-self:stretch;width:100%;max-width:none;min-height:64px;margin-top:4px;padding:10px 14px;border:0;border-radius:16px;background:var(--raised);color:var(--text);font-size:.875rem;font-weight:500}
+.profile-menu[data-menu-page=appearance] .profile-custom-color input[type=color]{flex:none;margin:0}
+@container appearance-accent (min-width:330px){.profile-menu[data-menu-page=appearance] .profile-colors .profile-color-options{grid-template-columns:repeat(6,minmax(44px,1fr))}}
