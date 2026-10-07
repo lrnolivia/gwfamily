@@ -899,7 +899,9 @@ try {
       }
       await closeEditorPanel(otherOwner, 'Page history');
       await otherOwner.getByRole('tab', {name: 'Memories', exact: true}).click();
-      await otherOwner.locator('.memory-filter-panel > summary').click();
+      const memoryControls=otherOwner.getByRole('region',{name:'Memory',exact:true});
+      await memoryControls.getByRole('button',{name:'Filter & sort',exact:true}).click();
+      await expect(memoryControls.getByRole('button',{name:'Filter & sort',exact:true})).toHaveAttribute('aria-expanded','true');
       const category = otherOwner.getByRole('combobox', {name: 'Category', exact: true});
       await category.click();
       await expect(otherOwner.getByRole('listbox', {name: 'Category', exact: true})).toBeVisible();

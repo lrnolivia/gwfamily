@@ -2,6 +2,7 @@ import {chromium,webkit,expect} from '@playwright/test';
 import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {initialState,PREVIEW_KEY} from '../src/data-adapter.js';
+import {parsePaintColor} from './page-save-contrast.mjs';
 const browser=await (process.env.GW_BROWSER==='webkit'?webkit:chromium).launch({headless:true}),results=[],errors=[];
 await mkdir('docs/recovery-qa',{recursive:true});
 async function pageFor(width,theme,platform,mode='browser'){
@@ -22,7 +23,9 @@ async function verifyFilterPlatter(page,locator,label){
  });
  assert.equal(paint.background,paint.raised,label+' follows the active raised surface');assert.equal(paint.color,paint.text,label+' follows active text');
  const search=locator.locator('input[type="search"]');if(await search.count()){
-  const placeholder=await search.evaluate(element=>{const probe=document.createElement('span');probe.style.color='var(--work-control-muted)';element.parentElement.append(probe);const result={actual:getComputedStyle(element,'::placeholder').color,expected:getComputedStyle(probe).color,opacity:getComputedStyle(element,'::placeholder').opacity};probe.remove();return result});assert.equal(placeholder.actual,placeholder.expected,label+' search hint follows theme text');assert.equal(placeholder.opacity,'1');
+  const placeholder=await search.evaluate(element=>{const probe=document.createElement('span');probe.style.color='var(--work-control-muted)';element.parentElement.append(probe);const trigger=element.closest('.browse-controls').querySelector('.browse-menu-trigger');const result={actual:getComputedStyle(element,'::placeholder').color,expected:getComputedStyle(probe).color,opacity:getComputedStyle(element,'::placeholder').opacity,search:getComputedStyle(element).backgroundColor,filter:getComputedStyle(trigger).backgroundColor};probe.remove();return result});assert.equal(placeholder.actual,placeholder.expected,label+' search hint follows theme text');assert.equal(placeholder.opacity,'1');
+  const tone=color=>parsePaintColor(color).slice(0,3).map(channel=>channel<=.04045?channel/12.92:((channel+.055)/1.055)**2.4).reduce((sum,channel,index)=>sum+channel*[.2126,.7152,.0722][index],0);
+  assert.ok(tone(placeholder.search)>tone(placeholder.filter)+.001,label+' search field is lighter than Filter & sort: '+JSON.stringify(placeholder));
  }
  assert.ok(paint.padding>=12&&paint.radius>=12&&paint.width>200,label+' has its own padded platter');assert.ok(paint.overflow<=1,label+' stays within viewport');
  // Changing a theme token must immediately repaint the shell without remounting.
@@ -35,7 +38,9 @@ async function verifyFilterPlatters(page,width,theme){
  await page.screenshot({path:`docs/recovery-qa/filter-feed-${width}-${theme}.png`,fullPage:true});
  await nav.getByRole('button',{name:'Family',exact:true}).click();await page.getByRole('tab',{name:'People',exact:true}).click();
  const people=page.getByRole('region',{name:'Family directory',exact:true});await verifyFilterPlatter(page,people,'People');await people.getByRole('button',{name:'Filter & sort',exact:true}).click();await expect(people.getByRole('button',{name:'Done',exact:true})).toBeVisible();
- await page.screenshot({path:`docs/recovery-qa/filter-people-${width}-${theme}.png`,fullPage:true});await people.getByRole('button',{name:'Done',exact:true}).click();await expect(people.getByRole('button',{name:'Filter & sort',exact:true})).toBeFocused();
+ const peopleTrigger=people.getByRole('button',{name:'Filter & sort',exact:true}),peopleDone=people.getByRole('button',{name:'Done',exact:true});
+ await peopleDone.scrollIntoViewIfNeeded();await expect(peopleTrigger).toHaveAttribute('aria-expanded','true');await expect(peopleDone).toBeVisible();
+ await page.screenshot({path:`docs/recovery-qa/filter-people-${width}-${theme}.png`});await expect(peopleTrigger).toHaveAttribute('aria-expanded','true');await peopleDone.click();await expect(people.getByRole('button',{name:'Filter & sort',exact:true})).toBeFocused();
  await page.getByRole('tab',{name:'Memories',exact:true}).click();const memories=page.getByRole('region',{name:'Memory',exact:true});await verifyFilterPlatter(page,memories,'Memories');await memories.getByRole('button',{name:'Filter & sort',exact:true}).click();await expect(memories.getByRole('button',{name:'Done',exact:true})).toBeVisible();
  // Capture the interactive panel in its normal viewport, and prove that
  // scrolling and capture leave its controls open and usable.
