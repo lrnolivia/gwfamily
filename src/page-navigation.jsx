@@ -27,6 +27,13 @@ export function PageNavigationHeader({previous,compact}){
   const update=()=>{const next=root.querySelector('h1');setHeading(current=>current===next?current:next)};
   update();const observer=new MutationObserver(update);observer.observe(root,{childList:true,subtree:true});return()=>observer.disconnect();
  },[route.type,route.id,showBack]);
+ useLayoutEffect(()=>{
+  if(!heading)return;
+  const original=heading.getAttribute('aria-label');
+  const update=()=>{const copy=heading.cloneNode(true);copy.querySelectorAll('.page-back').forEach(button=>button.remove());const name=copy.textContent.trim();if(name)heading.setAttribute('aria-label',name)};
+  update();const observer=new MutationObserver(update);observer.observe(heading,{childList:true,subtree:true,characterData:true});
+  return()=>{observer.disconnect();if(original===null)heading.removeAttribute('aria-label');else heading.setAttribute('aria-label',original)};
+ },[heading]);
  const chat=route.type==='chat'?messaging.conversations?.find(item=>item.id===route.id):null;
  const title=page.content?.text?.heading||(chat?conversationTitle(chat,state.selfId):route.type==='chat'?'Conversation':pageIdentity(route,state)),destination=previous||{type:'home'},unread=backUnread(previous,messaging),label='Back to '+pageIdentity(destination,state)+(unread?', '+unread+' unread':'');
  const back=className=><Control type="button" className={'page-back '+className} aria-label={label} onClick={goBack}><svg className="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M20 12H4m6-6-6 6 6 6" strokeLinecap="round" strokeLinejoin="round"/></svg>{unread>0&&<span className="page-back-unread" aria-hidden="true">{unread>99?'99+':unread}</span>}</Control>;

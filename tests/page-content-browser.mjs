@@ -497,7 +497,9 @@ try {
       const layout=owner.locator(`[data-panel-page="${key}"]`),panel=layout.locator(`[data-panel-id="${panelId}"]`);
       await expect(layout.locator('.page-panel-zone-side > .page-shared-panel')).not.toHaveCount(0);
       await expect(panel).toBeVisible();
-      const unlock=panel.getByRole('button',{name:/^Unlock /});await unlock.click();await save(owner);
+      await expect(panel).not.toHaveAttribute('data-panel-locked','true');
+      await panel.getByRole('button',{name:/^Lock /}).click();await save(owner);await expect(panel).toHaveAttribute('data-panel-locked','true');
+      const unlock=panel.getByRole('button',{name:/^Unlock /});await unlock.click();await save(owner);await expect(panel).not.toHaveAttribute('data-panel-locked','true');
       const before=(await record(owner,key)).content.text[titleField];await editText(owner,key+'.'+titleField,before+' Synthetic edit');await save(owner);
       assert.equal((await record(owner,key)).content.text[titleField],before+' Synthetic edit');
       await toolbar(owner).getByRole('button',{name:'Arrange page',exact:true}).click();

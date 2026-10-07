@@ -6,7 +6,7 @@
  "workers_dev":false,
  "keep_vars":true,
  "assets":{"directory":"../dist","binding":"ASSETS","run_worker_first":["/api/*","/health"]},
- "vars":{"AUTH_ORIGIN":"https://greenwhitefamily.com","AUTH_EMAIL_ENABLED":"true","BIRTHDAY_POSTS_ENABLED":"true"},
+ "vars":{"AUTH_ORIGIN":"https://greenwhitefamily.com","AUTH_EMAIL_ENABLED":"true","BIRTHDAY_POSTS_ENABLED":"true","AUTH_MICROSOFT_ACCESS_ENABLED":"true","AUTH_YAHOO_ACCESS_ENABLED":"true","FAMILY_INVITATIONS_ENABLED":"true","LAUNCH_PROVISIONAL_READ_ENABLED":"true"},
  "d1_databases":[{"binding":"D1","database_name":"gwfamily-db","database_id":"e0e481ba-3025-44f0-bf30-6dd64e2b61b9","migrations_dir":"migrations"}],
  "r2_buckets":[{"binding":"R2","bucket_name":"gwfamily-media"}],
  "send_email":[{"name":"EMAIL","allowed_sender_addresses":["family@greenwhitefamily.com"]}],

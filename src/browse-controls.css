@@ -12,5 +12,5 @@
 @media(max-width:699.98px){.browse-controls .work-control-summary{flex-wrap:wrap}.browse-controls .work-search-compact{flex:1 1 100%}.browse-controls .work-view-switch{justify-content:space-between;flex:1 1 100%}.browse-controls .work-view-switch button{flex:1}}
 
 .browse-controls.work-view-controls{border:0;border-radius:12px;gap:8px;background:var(--raised)}
-.browse-controls.work-view-controls .work-search-compact input{background:color-mix(in srgb,var(--raised) 92%,var(--text));border:0}
+.browse-controls.work-view-controls .work-search-compact input{background:var(--work-control-search);border:0}
 html[data-theme][data-platform] .browse-controls :is(button,input,.filter-trigger){border:0!important}
