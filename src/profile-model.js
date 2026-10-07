@@ -6,8 +6,9 @@ const textOn=bg=>{const candidates=['#fffaf0','#171714'];const preferred=candida
 export function controlPalette(surface,color='#4f996c',dark=true){let fill=color;for(let i=0;i<=100;i++){fill=mix(color,dark?'#ffffff':'#000000',i/100);if(contrast(fill,surface)>=3)break}return {'--control':fill,'--control-text':textOn(fill),'--control-edge':fill};}
 export function sendControlPalette(surface,color='#4f996c',dark=true){
  if(!/^#[0-9a-f]{6}$/i.test(color))color='#4f996c';
- const fill=mix(color,'#ffffff',dark?.28:.18),edge=controlPalette(surface,color,dark)['--control-edge'];
- return {'--send-active':fill,'--send-text':textOn(fill),'--send-edge':edge};
+ const ink='#171714';let fill;
+ for(let i=dark?28:18;i<=100;i++){fill=mix(color,'#ffffff',i/100);if(contrast(ink,fill)>=4.5)break}
+ return {'--send-active':fill,'--send-text':ink,'--send-edge':ink};
 }
 export function profilePalette(color='#4f996c',theme='dark'){
  if(!/^#[0-9a-f]{6}$/i.test(color))color='#4f996c';

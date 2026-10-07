@@ -45,15 +45,3 @@
 @media(max-width:420px){.choice-chips>.choice-chip{flex-basis:130px}}
 @media(prefers-reduced-motion:reduce){.choice-chip-face{transition:none}}
 @media(forced-colors:active){.choice-chip>input:checked+.choice-chip-face,.choice-options>.choice-option[aria-selected=true]{border:2px solid Highlight;background:Highlight;color:HighlightText}.choice-chip>input:focus-visible+.choice-chip-face,.choice-search-field>input[role=combobox]:focus-visible{outline-color:Highlight}.choice-options>.choice-option[data-active=true]{border-color:Highlight}.choice-mark{forced-color-adjust:none;color:inherit}}
-
-/* The supplied screenshot shows an EMPTY, disabled composer. Keep that state
-   quiet but readable; enabled Send is a filled action in the current palette.
-   Specificity intentionally outranks legacy hard-coded green Send overrides.
-   Dimensions, position and radius remain owned by the existing composer. */
-html[data-theme][data-platform] .writing-box>.send-button.send-button:not(:disabled),
-html[data-theme][data-platform] .writing-box>.send-button.send-button[aria-busy=true]{background:var(--control,var(--accent))!important;color:var(--control-text,var(--ink))!important;border:1px solid var(--control-edge,var(--accent))!important;--gw-control-color:var(--control,var(--accent));--gw-control-alpha:100%;opacity:1!important;box-shadow:none!important}
-html[data-theme][data-platform] .writing-box>.send-button.send-button:disabled:not([aria-busy=true]){background:var(--surface)!important;color:var(--control,var(--accent))!important;border:1px solid var(--control-edge,var(--accent))!important;--gw-control-color:var(--surface);--gw-control-alpha:100%;opacity:1!important;box-shadow:none!important;cursor:default}
-html[data-theme][data-platform] .writing-box>.send-button.send-button:focus-visible{outline:3px solid var(--control,var(--accent));outline-offset:3px}
-html[data-theme][data-platform] .writing-box>.send-button.send-button:not(:disabled):hover{filter:brightness(1.06)}
-html[data-theme][data-platform] .writing-box>.send-button.send-button:disabled:active{transform:none;filter:none}
-html[data-theme][data-platform] .writing-box>.send-button.send-button>.liquid-glass-tint{background:var(--gw-control-color)!important}
