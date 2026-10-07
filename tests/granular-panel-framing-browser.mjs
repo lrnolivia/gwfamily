@@ -16,7 +16,7 @@ const save=async()=>{await expect(page.locator('.page-edit-toolbar .page-edit-mo
 try{
  await page.goto(base+'/__test/signin?user=owner');await expect(page.getByRole('navigation',{name:'Main navigation',exact:true})).toBeVisible();
  await page.locator('.page-edit-toolbar').getByRole('button',{name:/^(Edit page|Resume page edits)$/}).click();await page.locator('.page-edit-toolbar').getByRole('button',{name:'Arrange page',exact:true}).click();
- const hero=panel('hero');if(await hero.getAttribute('data-panel-locked')==='true')await hero.getByRole('button',{name:'Unlock Primary hero',exact:true}).click();
+ const hero=panel('hero');if(await hero.getAttribute('data-panel-locked')==='true')await hero.getByRole('button',{name:/^Unlock /}).click();
  const reunion=panel('native-reunion');if(await reunion.getAttribute('data-panel-locked')==='true')await reunion.getByRole('button',{name:'Unlock Your reunion',exact:true}).click();
  await reunion.getByLabel('Location for Your reunion',{exact:true}).selectOption('main');await expect(reunion).toHaveAttribute('data-panel-zone','main');
  await reunion.locator('.page-panel-drag').focus();await page.keyboard.press('ArrowRight');await expect(reunion).toHaveAttribute('data-panel-zone','side');await save();

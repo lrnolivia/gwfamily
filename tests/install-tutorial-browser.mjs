@@ -260,6 +260,9 @@ try{
   assert.equal(snapshot.draft,SYNTHETIC_DRAFT+' after interruption');
   await assertNoOverflow(page,'final state');
   results.push({width,material,theme,result:'passed',steps:7,textZoomPercent:200,accounts:['fixture-a','fixture-b'],installation:'mock-only; not performed',notificationDelivery:false});
+  // Desktop guides are retained assets, but the product guide now offers only
+  // iOS and Android phones/tablets. Verify retained bytes without adding tabs.
+  if(results.length===1)for(const file of ASSET_ALLOWLIST){const svg=await page.evaluate(async file=>{const response=await fetch('/__review/help/install-guide/'+file);if(!response.ok)throw Error('Retained guide asset failed: '+file);return response.text()},file);assert.match(svg,/<svg[ >]/);}
   await context.close();
  }
  assert.deepEqual([...assetLoads].sort(),[...ASSET_ALLOWLIST].sort(),'Every allowlisted SVG was actually requested');

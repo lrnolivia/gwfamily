@@ -91,6 +91,15 @@ try{
   for(const name of ['Home','Reunion','Family']){await nav.getByRole('button',{name,exact:true}).click();await expect(p.getByRole('button',{name:'Edit page',exact:true})).toHaveCount(0);}
   results.push({check:'regular member profile editing and hidden shared-page tools',status:'passed'});await p.close();
  }
+ // Both materials retain the selected heading font and editable font controls.
+ for(const platform of ['ios','android']){
+  const p=await pageFor(390,'light',platform);await p.getByRole('button',{name:'Profile and appearance'}).click();await p.getByRole('button',{name:/^Appearance Style/}).click();
+  const fonts=p.getByRole('group',{name:'GW heading fonts'});await expect(fonts).toBeVisible();await fonts.getByRole('button',{name:/Momo Trust Display/}).click();
+  await expect.poll(()=>p.locator('.appearance-panel-heading h2').evaluate(e=>getComputedStyle(e).fontFamily)).toContain('Momo Trust Display');
+  const selected=p.getByRole('group',{name:'Color theme',exact:true}).locator('.choice-chip').filter({has:p.getByRole('radio',{checked:true})}).locator('.choice-chip-face');
+  const paint=await selected.evaluate(e=>{const c=getComputedStyle(e);return {border:c.borderTopColor,shadow:c.boxShadow}});assert.equal(paint.border,'rgba(0, 0, 0, 0)');assert.notEqual(paint.shadow,'none');
+  results.push({check:'heading fonts in both materials and strokeless accent shadows',platform,paint});await p.close();
+ }
  // Inspect the requested yellow at real control size, without treating its
  // soft shadow as proof of WCAG text contrast on the bright fill.
  for(const theme of ['light','dark'])for(const platform of ['ios','android']){

@@ -145,7 +145,7 @@ async function checkNavigationClear(page){
   if(!navigation||!popover?.matches(':popover-open'))return {clear:false,hit:false,buttonsClear:false};
   const nav=navigation.getBoundingClientRect(),panel=popover.getBoundingClientRect(),hit=document.elementFromPoint(nav.left+nav.width/2,nav.top+nav.height/2);
   const buttons=[...navigation.querySelectorAll('button')];
-  return {clear:panel.bottom<=nav.top-7,hit:hit===navigation||navigation.contains(hit),buttonsClear:buttons.length>0&&buttons.every(button=>{
+  return {clear:panel.bottom<=nav.top-7||panel.top>=nav.bottom+7||panel.right<=nav.left-7||panel.left>=nav.right+7,hit:hit===navigation||navigation.contains(hit),buttonsClear:buttons.length>0&&buttons.every(button=>{
    const rect=button.getBoundingClientRect(),target=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);return target===button||button.contains(target);
   })};
  })).toEqual({clear:true,hit:true,buttonsClear:true});

@@ -5,17 +5,18 @@ const mix=(a,b,t)=>'#'+rgb(a).map((v,i)=>Math.round(v*(1-t)+rgb(b)[i]*t).toStrin
 const vibrantAccent=(color,dark)=>{const values=rgb(color),hi=Math.max(...values),lo=Math.min(...values),spread=hi-lo;if(spread<24||values[1]===hi&&values[0]<values[1])return color;const gain=dark?1.22:1.18,center=(hi+lo)/2;return '#'+values.map(v=>Math.round(Math.max(0,Math.min(255,center+(v-center)*gain))).toString(16).padStart(2,'0')).join('')};
 const warmGold=color=>{const [r,g,b]=rgb(color),spread=Math.max(r,g,b)-Math.min(r,g,b);if((b<70&&g/r>.7)||spread<40||r<=g||g<=b||g-r*.65<0||b/r>.65)return color;return '#'+[r,Math.round(g*.75+(r+b)*.125),Math.round(b*.65)].map(v=>v.toString(16).padStart(2,'0')).join('')};
 const textOn=bg=>{const candidates=['#fffaf0','#171714'];const preferred=candidates.sort((a,b)=>contrast(bg,b)-contrast(bg,a))[0];return contrast(bg,preferred)>=4.5?preferred:contrast(bg,'#ffffff')>=contrast(bg,'#000000')?'#ffffff':'#000000'};
+const accentShadow=color=>{const core=color.toLowerCase()==='#ec9d00'?'#714300':mix(color,'#000000',.62),channels=rgb(core).join(',');return {'--accent-shadow-color':core,'--accent-label-glow':`0 0 2px rgba(${channels},.1),0 0 8px rgba(${channels},.1),0 0 16px rgba(${channels},.1)`,'--accent-label-glow-core':core};};
 // Accent controls use white. The approved yellow keeps its hue with a warm text glow.
 export function controlPalette(surface,color='#4f996c',dark=true){
  if(!/^#[0-9a-f]{6}$/i.test(color))color='#4f996c';
- if(color.toLowerCase()==='#ec9d00')return {'--control':'#ec9d00','--control-text':'#ffffff','--control-edge':dark?'#f5f1df':'#714300','--accent-label-glow':'0 0 1px rgba(113,67,0,.1),0 0 5px rgba(113,67,0,.1),0 0 10px rgba(113,67,0,.1)','--accent-label-glow-core':'#714300'};
+ if(color.toLowerCase()==='#ec9d00')return {'--control':'#ec9d00','--control-text':'#ffffff','--control-edge':'#ec9d00',...accentShadow(color)};
  let fill=color,found=false;
  for(let i=0;i<=100&&!found;i++)for(const target of ['#000000','#ffffff']){
   const candidate=mix(color,target,i/100);
   if(contrast(candidate,'#ffffff')>=4.5&&contrast(candidate,surface)>=3){fill=candidate;found=true;break}
  }
  if(!found)for(let i=0;i<=100;i++){fill=mix(color,'#000000',i/100);if(contrast(fill,'#ffffff')>=4.5)break}
- return {'--control':fill,'--control-text':'#ffffff','--control-edge':fill,'--accent-label-glow':'none'};
+ return {'--control':fill,'--control-text':'#ffffff','--control-edge':fill,...accentShadow(fill)};
 }
 export function sendControlPalette(surface,color='#4f996c',dark=true){
  const palette=controlPalette(surface,color,dark);

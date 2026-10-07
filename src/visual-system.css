@@ -93,7 +93,7 @@ html[data-theme=light][data-platform] :is(.wordmark-green,.wordmark-amp,.wordmar
 .profile-color-swatch[aria-pressed=true]>span,.profile-color-swatch[aria-pressed=true]>.liquid-glass-content>span{background:var(--swatch)}
 .profile-color-swatch[aria-pressed=true] .glyph{width:20px;height:20px;padding:3px;box-sizing:border-box;border-radius:50%;background:var(--swatch-active,var(--control));color:var(--swatch-active-text,#ffffff)}
 
-/* Approved yellow uses a soft warm halo; other colors retain crisp labels. */
+/* Accent labels use a dispersed darker version of their own color. */
 html[data-theme][data-platform] :is(.button:not(.secondary),.choice-chip>input:checked+.choice-chip-face,.choice-option[aria-selected=true],.heading-font-option[aria-pressed=true],.view-switcher>button[aria-selected=true],.bottom button[aria-current=page],.material-fab,.fab-glass .fab){text-shadow:var(--accent-label-glow,none)}
 html[data-theme][data-platform] :is(.choice-chip>input:checked+.choice-chip-face,.choice-option[aria-selected=true],.heading-font-option[aria-pressed=true],.view-switcher>button[aria-selected=true],.bottom button[aria-current=page],.material-fab,.fab-glass .fab) .glyph{filter:drop-shadow(0 0 1px var(--accent-label-glow-core,transparent))}
 
@@ -114,3 +114,25 @@ html[data-theme=light][data-platform] .wordmark-amp{color:#947852!important}
 html[data-theme][data-platform] .appearance-panel-heading .appearance-back{display:grid;place-items:center;flex:0 0 48px;width:48px;height:48px;min-height:48px;padding:12px;border-radius:50%;background:var(--raised)!important;color:var(--text)!important;border:0!important;box-shadow:none!important;--gw-control-color:var(--raised);--gw-control-alpha:100%}
 .appearance-back .glyph{width:24px;height:24px;transform:none}
 .appearance-back:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+
+/* Filled choices have no dark stroke; keyboard focus remains separate. */
+html[data-theme][data-platform] .choice-chip>input:checked+.choice-chip-face{border-color:transparent!important;box-shadow:0 4px 18px color-mix(in srgb,var(--accent-shadow-color,#174c2d) 10%,transparent)}
+html[data-platform=android] body,html[data-platform=android] :is(button,input,textarea,select){font-family:Inter,system-ui,sans-serif!important}
+html[data-platform=android][data-font=sans] :is(h1,h2,h3,h4,h5,h6,.mini-identity strong,.profile-style-preview strong,.planner-entry strong){font-family:'Momo Trust Display',sans-serif!important;font-weight:400}
+html[data-platform=android][data-font=serif] :is(h1,h2,h3,h4,h5,h6,.mini-identity strong,.profile-style-preview strong,.planner-entry strong){font-family:'DM Serif Text',Georgia,serif!important;font-weight:400}
+
+html[data-theme]{--accent-shadow-color:color-mix(in srgb,var(--accent) 38%,#000);--accent-label-glow:0 0 2px color-mix(in srgb,var(--accent-shadow-color) 10%,transparent),0 0 8px color-mix(in srgb,var(--accent-shadow-color) 10%,transparent),0 0 16px color-mix(in srgb,var(--accent-shadow-color) 10%,transparent);--gw-action-shadow:0 4px 18px color-mix(in srgb,var(--button-shadow-color,var(--accent-shadow-color)) 14%,transparent);--gw-action-glass-shadow:0 4px 22px color-mix(in srgb,var(--button-shadow-color,var(--accent-shadow-color)) 10%,transparent)}
+html[data-theme][data-platform] :is(.button,.icon-button,.filter-trigger,.fab,.heading-font-option,.page-mode-done,.page-edit-tools>summary){box-shadow:var(--gw-action-shadow)!important}
+
+/* Arrangement tools share one quiet, compact treatment after card styles. */
+html[data-theme][data-platform] :is(.page-panel-inline-controls,.card-slot-controls){padding:4px 0 8px;background:transparent;border:0;border-bottom:1px solid var(--decorative-line,var(--line));border-radius:0;gap:4px}
+html[data-theme][data-platform] :is(.page-panel-inline-controls,.card-slot-controls) button{min-width:44px;min-height:44px;height:44px;padding:8px;font-size:.8125rem;line-height:1.2;border:0;border-radius:10px;background:transparent;box-shadow:none!important}
+html[data-theme][data-platform] :is(.page-panel-inline-controls,.card-slot-controls) button:hover{background:var(--raised)}
+html[data-theme][data-platform] :is(.page-panel-inline-controls,.card-slot-controls) .glyph{width:16px;height:16px}
+html[data-theme][data-platform] .page-panel-inline-controls .page-panel-name{font-size:.8125rem;line-height:1.4}
+html[data-theme][data-platform] :is(.page-panel-inline-controls,.card-slot-controls) select{height:44px;min-height:44px;width:auto;font-size:.8125rem;line-height:1.2;padding:8px 24px 8px 10px;border:0;border-radius:10px;background:transparent;box-shadow:none;color:var(--text)}
+html[data-theme][data-platform] :is(.page-panel-inline-controls,.card-slot-controls) select:hover{background:var(--raised)}
+
+html[data-theme][data-platform] .page-editor-actions>.page-edit-tools{margin-inline-end:12px}
+html[data-theme][data-platform] .page-edit-tools>summary{background:var(--surface);min-height:44px;border:0;border-radius:12px;padding:8px 12px;font-size:.8125rem;box-shadow:var(--gw-action-shadow)!important}
+html[data-theme][data-platform] .page-edit-tools[open]>div{left:0;right:auto;max-width:calc(100vw - 32px);margin-top:8px}

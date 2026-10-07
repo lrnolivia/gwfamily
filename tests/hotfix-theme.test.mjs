@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {profilePalette,contrast} from '../src/profile-model.js';
+import {luminance,profilePalette,contrast} from '../src/profile-model.js';
 const css=fs.readFileSync(new URL('../dist/react-ui.css',import.meta.url),'utf8');
 test('hotfix action palette has readable text on opaque controls across personal colors',()=>{
  for(const theme of ['light','dark'])for(const color of ['#e64f59','#f08091','#ed8b32','#36a267','#3985e6','#a267d5','#8a8178','#000000','#ffffff']){
@@ -40,13 +40,19 @@ test('approved yellow preserves its exact fill and white lettering with a warm g
   const palette=profilePalette('#ec9d00',theme);
   assert.equal(palette['--control'],'#ec9d00');assert.equal(palette['--control-text'],'#ffffff');
   assert.ok(contrast('#ffffff',palette['--control'])<4.5,'Raw yellow alone is not a contrast pass.');
-  assert.equal(palette['--accent-label-glow'],'0 0 1px rgba(113,67,0,.1),0 0 5px rgba(113,67,0,.1),0 0 10px rgba(113,67,0,.1)');
-  assert.ok(contrast(palette['--control-edge'],palette['--surface'])>=3);
+  assert.equal(palette['--accent-label-glow'],'0 0 2px rgba(113,67,0,.1),0 0 8px rgba(113,67,0,.1),0 0 16px rgba(113,67,0,.1)');
+  assert.equal(palette['--control-edge'],'#ec9d00');
  }
 });
 
 test('orange and coral retain saturated action colors in both themes',()=>{
  for(const theme of ['light','dark'])for(const [raw,fill] of [['#ff7a00','#c94f00'],['#ff6685','#d43662']]){
   const palette=profilePalette(raw,theme);assert.equal(palette['--control'],fill);assert.equal(palette['--control-text'],'#ffffff');assert.ok(contrast(fill,'#ffffff')>=4.5);
+ }
+});
+
+test('every accent gets a dispersed darker shadow without changing its label color',()=>{
+ for(const theme of ['light','dark'])for(const color of ['#e64f59','#ff7a00','#ec9d00','#36a267','#3985e6','#a267d5','#ff6685','#8a8178']){
+  const palette=profilePalette(color,theme);assert.equal(palette['--control-text'],'#ffffff');assert.match(palette['--accent-label-glow'],/0 0 16px rgba/);assert.ok(luminance(palette['--accent-shadow-color'])<luminance(palette['--control']));
  }
 });

@@ -305,7 +305,7 @@ async function mediaPanel(page, key = 'home') {
   return panel;
 }
 async function unlockHero(page, key) {
-  const optional=page.locator(`[data-panel-page="${key}"] > .page-optional-media`);
+  const optional=page.locator(`[data-panel-page="${key}"] .page-optional-media`);
   if(await optional.count()&&!await optional.evaluate(node=>node.open))await optional.locator('summary').click();
   const hero = primaryHero(page, key);
   await expect(hero).toHaveCount(1);

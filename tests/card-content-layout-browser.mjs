@@ -13,7 +13,7 @@ await page.addInitScript(()=>{localStorage.setItem('gw-platform','android');loca
 const output='docs/card-content-qa',hero=()=>page.locator('[data-panel-page="home"] [data-panel-id="hero"]'),card=()=>hero().locator('[data-card-layout="hero"]'),toolbar=()=>page.locator('.page-edit-toolbar');
 const read=async()=>{const response=await page.request.get(base+'/api/page-content/home');assert.equal(response.status(),200);return response.json()};
 const order=async(column,root=card())=>root.locator(`[data-card-column="${column}"] > [data-card-slot]`).evaluateAll(nodes=>nodes.map(node=>node.dataset.cardSlot));
-const begin=async()=>{await toolbar().getByRole('button',{name:/^(Edit page|Resume page edits)$/}).click();await page.locator('.page-edit-toolbar').getByRole('button',{name:'Arrange page',exact:true}).click();if(await hero().getAttribute('data-panel-locked')==='true')await hero().getByRole('button',{name:'Unlock Primary hero',exact:true}).click()};
+const begin=async()=>{await toolbar().getByRole('button',{name:/^(Edit page|Resume page edits)$/}).click();await page.locator('.page-edit-toolbar').getByRole('button',{name:'Arrange page',exact:true}).click();if(await hero().getAttribute('data-panel-locked')==='true')await hero().getByRole('button',{name:/^Unlock /}).click()};
 const arrange=async()=>card().getByRole('button',{name:'Arrange card content',exact:true}).click();
 const save=async()=>{await expect(toolbar().locator('.page-edit-mode-label').getByRole('status')).toHaveText(/^(Saved for the family|Changes save automatically)$/)};
 const check=async(name,fn)=>{await fn();results.push({check:name,status:'passed'});console.log('CARD CONTENT PASS:',name)};
@@ -33,7 +33,7 @@ try{
  });
  await check('lock guard, keyboard reordering, alignment and arrangement cancel',async()=>{
   await toolbar().getByRole('button',{name:'Edit page',exact:true}).click();await expect(card().getByRole('button',{name:'Arrange card content',exact:true})).toHaveCount(0);
-  await toolbar().getByRole('button',{name:'Arrange page',exact:true}).click();await hero().getByRole('button',{name:'Unlock Primary hero',exact:true}).click();await arrange();
+  await toolbar().getByRole('button',{name:'Arrange page',exact:true}).click();await hero().getByRole('button',{name:/^Unlock /}).click();await arrange();
   const handle=card().getByRole('button',{name:'Move Heading',exact:true});await handle.focus();await page.keyboard.press('ArrowRight');await expect(card().locator('[data-card-column="right"] [data-card-slot="title"]')).toBeVisible();await handle.focus();await page.keyboard.press('ArrowUp');assert.deepEqual(await order('right'),['title','media']);
   await card().getByLabel('Heading alignment',{exact:true}).selectOption('center');await expect(card().locator('[data-card-slot="title"]')).toHaveAttribute('data-card-align','center');
   await card().getByRole('button',{name:'Cancel arrangement',exact:true}).click();assert.deepEqual(await order('left'),['eyebrow','title','body','action']);assert.deepEqual((await read()).content.cardLayouts,{});

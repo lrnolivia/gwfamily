@@ -1,7 +1,7 @@
 html[data-theme=light]{--destructive-accent:#d93a45}
 html[data-theme=dark]{--destructive-accent:#d93742}
 /* One account-exit treatment, shared by Profile, You and onboarding. */
-html[data-theme][data-platform] .button.sign-out.sign-out{background:var(--destructive-accent,#d93a45)!important;color:#fff!important;border:0!important;--gw-control-color:var(--destructive-accent,#d93a45);--gw-control-alpha:100%;box-shadow:none!important;min-height:48px;white-space:normal}
+html[data-theme][data-platform] .button.sign-out.sign-out{background:var(--destructive-accent,#d93a45)!important;color:#fff!important;border:0!important;--gw-control-color:var(--destructive-accent,#d93a45);--gw-control-alpha:100%;--button-shadow-color:color-mix(in srgb,var(--destructive-accent) 38%,#000);box-shadow:var(--gw-action-shadow)!important;min-height:48px;white-space:normal}
 html[data-theme][data-platform] .gw-optic-control.button.sign-out.sign-out>.liquid-glass-tint{background:var(--destructive-accent,#d93a45)!important}
 html[data-theme=dark][data-platform] .button.sign-out.sign-out{background:var(--destructive-accent,#d93a45)!important;color:#fff!important}
 .you-account-actions{display:grid;gap:12px;justify-items:start;margin-block:24px;min-width:0}

@@ -103,4 +103,4 @@ try{
 }catch(e){await writeFile('docs/recovery-qa/results.json',JSON.stringify({results,errors,writes,failure:e.message},null,2));console.error(e);console.log('::error title=GW recovery browser::'+String(e.stack||e.message).replaceAll('%','%25').replaceAll('\n','%0A').replaceAll('\r','%0D'));process.exitCode=1}finally{await browser.close()}
 
 
-async function chooseRadio(radio){await expect(radio).toBeEnabled();await radio.locator('..').click();await expect(radio).toBeChecked();}
+async function chooseRadio(radio){await expect(radio).toBeEnabled();await radio.locator('..').locator('.choice-chip-face').click();await expect(radio).toBeChecked();}
