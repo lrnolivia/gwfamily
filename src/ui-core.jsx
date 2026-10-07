@@ -53,7 +53,15 @@ export function MemberBadges({member,interactive=false,passive=false,id}){
     {person.leader&&<span className="membership-chip membership-shield" role="img" aria-label="Family leader" title="Family leader"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 6v5c0 5-3 8-7 10-4-2-7-5-7-10V6zM8.5 11.8l2.3 2.3 4.7-4.7"/></svg></span>}
   </span>
 }
-export function Button({children,onClick,secondary=false,className='',icon,...props}){return <Control type="button" className={'button '+(secondary?'secondary ':'')+className} onClick={onClick} {...props}>{icon&&<Glyph name={icon}/>}<span>{children}</span></Control>}
+export function Button({children,onClick,secondary=false,level,className='',icon,...props}){
+ const ref=useRef(null),requested=level||(secondary?'secondary':'primary');
+ useEffect(()=>{
+  const panel=ref.current?.closest('.card,.panel');if(!panel)return;
+  const actions=[...panel.querySelectorAll('.button')].filter(button=>button.closest('.card,.panel')===panel);
+  for(const action of actions)action.dataset.buttonLevel=actions.length===1&&!action.matches('.danger,.destructive,[data-destructive]')?'primary':action.dataset.requestedLevel;
+ });
+ return <Control ref={ref} type="button" data-requested-level={requested} data-button-level={requested} className={'button '+(requested==='secondary'?'secondary ':'')+className} onClick={onClick} {...props}>{icon&&<Glyph name={icon}/>}<span>{children}</span></Control>
+}
 export function ActionRow({icon,title,detail,onClick,tourTarget}){return <Control type="button" className="list-row" data-gw-tour={tourTarget} onClick={onClick}><Glyph name={icon}/><span><strong>{title}</strong><p>{detail}</p></span><span className="arrow"><Glyph name="arrow"/></span></Control>}
 export function formatTime(ms){const d=new Date(ms),delta=Math.max(0,Date.now()-ms);if(delta<60000)return 'now';if(delta<3600000)return Math.floor(delta/60000)+'m';
   if(delta<86400000)return Math.floor(delta/3600000)+'h';if(delta<604800000)return Math.floor(delta/86400000)+'d';return new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric'}).format(d)}

@@ -50,3 +50,17 @@ test('all native sections use edited heading fields rather than body copy and he
  const records={birthdays:{draft:{text:{monthTitle:'Celebrating in'}}}};
  assert.equal(sharedPanelTitle('reunion-calendar',{id:'native-birthdays',kind:'native'},sharedPageDefaults('reunion-calendar'),records),'Celebrating in');
 });
+
+test('full width is a saved hero-only setting, retains mobile order and respects locks',()=>{
+ const before={...sharedPageDefaults('home'),panelLayout:sample()},next=clone(before);
+ next.panelLayout=changeSharedPanel(next.panelLayout,'hero',{fullWidth:true});
+ const saved=validateSharedPageContent('home',next);
+ assert.equal(panel(saved.panelLayout,'hero').fullWidth,true);
+ assert.deepEqual(saved.panelLayout.mobileOrder,before.panelLayout.mobileOrder);
+ assert.doesNotThrow(()=>validatePanelTransition('home',before,saved));
+ const locked=changeSharedPanel(saved.panelLayout,'hero',{locked:true});
+ assert.equal(changeSharedPanel(locked,'hero',{fullWidth:false}),locked);
+ const invalid=clone(saved);panel(invalid.panelLayout,'native-feed').fullWidth=true;
+ assert.throws(()=>validateSharedPageContent('home',invalid),/Unsupported/);
+ panel(next.panelLayout,'hero').fullWidth='yes';assert.throws(()=>validateSharedPageContent('home',next),/hero width/);
+});

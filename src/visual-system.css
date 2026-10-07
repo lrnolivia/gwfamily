@@ -138,3 +138,25 @@ html[data-theme][data-platform] .page-edit-tools>summary{background:var(--surfac
 html[data-theme][data-platform] .page-edit-tools[open]>div{left:0;right:auto;max-width:calc(100vw - 32px);margin-top:8px}
 
 .post-head .identity-avatar{width:44px;height:44px;min-width:44px;min-height:44px;flex:0 0 44px}.post-head .identity-avatar .avatar:not(.avatar-photo){font-size:1rem;line-height:1}
+
+/* Post identity uses the name-and-badge block as its avatar size. */
+.post-head.row{align-items:stretch}
+.post-head .identity-info{min-height:44px;align-content:center;gap:3px}
+.post-head .identity-avatar{align-self:stretch;aspect-ratio:1;width:auto;height:auto;min-width:44px;min-height:44px;flex:0 0 auto}
+html[data-theme][data-platform] .post-head .identity-avatar .avatar{width:100%;height:100%;min-width:0;flex:none;aspect-ratio:1}
+
+/* One action leads; supporting actions sit between the accent and dark glass. */
+html[data-theme][data-platform] .button[data-button-level=primary]:not(.danger):not(.destructive):not(.sign-out):not(.membership-remove){background:var(--control,var(--accent))!important;color:var(--control-text,#fff)!important;border-color:transparent!important;text-shadow:var(--accent-label-glow);box-shadow:var(--gw-action-shadow)!important}
+html[data-theme][data-platform] .button[data-button-level=supporting]{background:color-mix(in srgb,var(--control,var(--accent)) 55%,var(--surface))!important;color:#fff!important;border-color:transparent!important;box-shadow:var(--gw-action-glass-shadow)!important}
+.page-panel-full-width{width:100%;min-width:0;margin-bottom:20px}
+.messages-heading{overflow:visible;flex-wrap:wrap;align-items:center;padding-block:8px 16px}
+.messages-heading>div{min-width:0}.messages-heading>.row{flex-shrink:0;gap:12px;padding:8px;overflow:visible;max-width:100%}
+.messages-heading>.row>.button{flex-shrink:0;min-height:44px}
+.messages-options{padding:24px;min-width:0}.messages-options h2,.messages-options p{margin:0}.messages-options>.button{width:100%}
+@media(max-width:600px){.messages-heading>.row{width:100%;padding-inline:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.messages-heading>.row>.button{min-width:0;width:100%;padding-inline:12px}}
+
+html[data-font=sans] .appearance-panel-heading :is(h2,h3){font-family:'Momo Trust Display',sans-serif!important;font-weight:400}
+html[data-font=serif] .appearance-panel-heading :is(h2,h3){font-family:'DM Serif Text',Georgia,serif!important;font-weight:400}
+html[data-theme][data-platform] .button[data-button-level=primary]:not(.sign-out):not(.membership-remove){--gw-control-color:var(--control,var(--accent));--gw-control-alpha:100%}
+html[data-theme][data-platform] .button[data-button-level=supporting]{--gw-control-color:color-mix(in srgb,var(--control,var(--accent)) 55%,var(--surface));--gw-control-alpha:100%}
+html[data-theme][data-platform] .button[data-button-level=primary]:not(.sign-out):not(.membership-remove)>.liquid-glass-tint,html[data-theme][data-platform] .button[data-button-level=supporting]>.liquid-glass-tint{background:var(--gw-control-color)!important;opacity:1!important}

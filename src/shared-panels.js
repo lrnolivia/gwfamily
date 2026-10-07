@@ -61,12 +61,12 @@ export function validatePanelLayout(page,value,cleanText){
  if(!PANEL_PAGES.includes(page)&&value.panels.length)throw Error('Panels are only available on shared family pages');
  const ids=new Set();
  const panels=value.panels.map(panel=>{
-  keys(panel,panel.kind!=='content'?['id','kind','zone','locked','removed']:['id','kind','zone','locked','removed','layout','title','body','secondary','media']);
+  keys(panel,panel.kind!=='content'?['id','kind','zone','locked','removed',...(panel.kind==='hero'?['fullWidth']:[])]:['id','kind','zone','locked','removed','layout','title','body','secondary','media']);
   if(typeof panel.id!=='string'||!/^(?:hero|native-[a-z-]{1,40}|panel-[A-Za-z0-9_-]{1,80})$/.test(panel.id)||ids.has(panel.id))throw Error('Use distinct shared panel IDs');ids.add(panel.id);
   if(!['main','side'].includes(panel.zone)||typeof panel.locked!=='boolean'||typeof panel.removed!=='boolean')throw Error('Use a valid panel location and lock state');
   const base={id:panel.id,kind:panel.kind,zone:panel.zone,locked:panel.locked,removed:panel.removed};
   if(panel.kind==='native'){if(!nativePanelDefinition(page,panel.id))throw Error('Choose a built-in panel from this page');return base;}
-  if(panel.kind==='hero'){if(panel.id!=='hero')throw Error('The primary hero has a fixed identity');return base;}
+  if(panel.kind==='hero'){if(panel.id!=='hero')throw Error('The primary hero has a fixed identity');if(panel.fullWidth!==undefined&&typeof panel.fullWidth!=='boolean')throw Error('Use a valid hero width');return {...base,...(panel.fullWidth!==undefined?{fullWidth:panel.fullWidth}:{})};}
   if(panel.kind!=='content'||!panel.id.startsWith('panel-')||!PANEL_PRESETS.some(p=>p.id===panel.layout))throw Error('Choose a premade shared panel layout');
   if(!Array.isArray(panel.media)||panel.media.length>1||!['photo','feature'].includes(panel.layout)&&panel.media.length)throw Error('This layout accepts at most one photo');
   return {...base,layout:panel.layout,title:cleanText(panel.title,PANEL_LIMITS.maxTitle),body:cleanText(panel.body,PANEL_LIMITS.maxBody,true),secondary:cleanText(panel.secondary,PANEL_LIMITS.maxBody,true),media:panel.media.map(file=>{keys(file,['id','alt','frame']);if(typeof file.id!=='string'||!/^[A-Za-z0-9_-]{1,100}$/.test(file.id))throw Error('Choose an uploaded panel photo');return {id:file.id,alt:cleanText(file.alt??'',240),...photoFramePayload(file.frame)};})};
