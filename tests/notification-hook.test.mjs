@@ -1,10 +1,15 @@
+import './offline-test-guard.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {build} from 'esbuild';
+import {registerHooks} from 'node:module';
 import {initialState,reducer} from '../src/data-adapter.js';
 import {normalizeNotificationSettings,mergeNotificationResource} from '../src/notification-model.js';
 import {notificationApi} from '../src/live-adapter.js';
-let bundle;
+// Load the inspected hook directly. This pure harness needs no compiler, process,
+// browser or network. The scoped React shim preserves the hook's actual imports.
+const hookUrl=new URL('../src/use-notifications.js',import.meta.url);
+const hookReact='data:text/javascript,'+encodeURIComponent(['useState','useRef','useEffect','useCallback'].map(name=>`export const ${name}=(...args)=>globalThis.__gwNotificationHarness.${name}(...args);`).join(''));
+registerHooks({resolve(specifier,context,next){if(specifier==='react'&&context.parentURL?.startsWith(hookUrl.href))return {url:hookReact,shortCircuit:true};return next(specifier,context)}});
 const same=(a,b)=>!!a&&!!b&&a.length===b.length&&a.every((value,index)=>Object.is(value,b[index]));
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b});return {promise,resolve,reject}};
 function page(accountId='alice',{count=135,revision=0,items=3,...rest}={}){return {accountId,notifications:Array.from({length:items},(_,i)=>({id:accountId+'-'+(items-i),sequence:items-i,kind:'reply.created',category:'replies',title:'Private '+accountId,readAt:null,target:{kind:'post',id:'p'}})),unreadCount:count,readAllCutoff:300,nextCursor:null,settings:{...normalizeNotificationSettings(),revision},...rest};}
@@ -14,7 +19,7 @@ function dataFor(accountId='alice',overrides={}){
  data.getCurrentState=()=>data.state;data.dispatch=async action=>{data.state=reducer(data.state,action);return true};data.refresh=async()=>{data.refreshes++;return data.session};data.beginPending=()=>{data.pending++;return()=>data.pending--};data.hydrateNotificationResource=(result,{accountId})=>{if(accountId!==data.state.selfId||result.accountId&&accountId!==result.accountId)return false;data.hydrations++;data.state=mergeNotificationResource(data.state,result);return true};return data;
 }
 async function harness(data){
- if(!bundle){const result=await build({entryPoints:[new URL('../src/use-notifications.js',import.meta.url).pathname],bundle:true,write:false,format:'esm',platform:'node',plugins:[{name:'notification-hooks',setup(build){build.onResolve({filter:/^react$/},()=>({path:'react',namespace:'notification-hooks'}));build.onLoad({filter:/.*/,namespace:'notification-hooks'},()=>({contents:'const h=globalThis.__gwNotificationHarness;export const useState=h.useState,useRef=h.useRef,useEffect=h.useEffect,useCallback=h.useCallback;'}))}}]});bundle=result.outputFiles[0].text;}
+
  const saved={document:globalThis.document,window:globalThis.window,navigator:Object.getOwnPropertyDescriptor(globalThis,'navigator'),BroadcastChannel:globalThis.BroadcastChannel,host:globalThis.__gwNotificationHarness},slots=[],queue=[],channels=[];let cursor=0,currentData=data;
  const hooks={
   useState(initial){const index=cursor++;if(!(index in slots))slots[index]={value:typeof initial==='function'?initial():initial};return [slots[index].value,value=>{slots[index].value=typeof value==='function'?value(slots[index].value):value}]},
@@ -24,7 +29,7 @@ async function harness(data){
  };
  class Channel{constructor(name){this.name=name;this.sent=[];channels.push(this)}postMessage(value){this.sent.push(value)}close(){this.closed=true}}
  globalThis.__gwNotificationHarness=hooks;globalThis.document=Object.assign(new EventTarget(),{visibilityState:'visible'});globalThis.window=new EventTarget();globalThis.BroadcastChannel=Channel;Object.defineProperty(globalThis,'navigator',{value:{onLine:true},configurable:true});
- const module=await import('data:text/javascript;base64,'+Buffer.from(bundle).toString('base64')+'#'+crypto.randomUUID());
+ const module=await import(hookUrl.href+'?harness='+crypto.randomUUID());
  return {channels,render(nextData){if(nextData)currentData=nextData;cursor=0;const result=module.useNotifications(currentData);for(const effect of queue.splice(0))effect();return result},async flush(){for(let index=0;index<15;index++)await Promise.resolve()},close(){for(const slot of slots)slot?.cleanup?.();globalThis.document=saved.document;globalThis.window=saved.window;globalThis.BroadcastChannel=saved.BroadcastChannel;if(saved.navigator)Object.defineProperty(globalThis,'navigator',saved.navigator);else delete globalThis.navigator;if(saved.host===undefined)delete globalThis.__gwNotificationHarness;else globalThis.__gwNotificationHarness=saved.host}};
 }
 
@@ -148,4 +153,46 @@ test('actual adapter body rejection is handled, and account replacement aborts o
   reads[2].body.resolve(page('bob',{count:2}));assert.equal(await next,false);await host.flush();await new Promise(setImmediate);
   assert.equal(host.render().error,'');assert.equal(host.render().unreadCount,2);assert.ok(host.render().items.every(value=>value.id.startsWith('bob-')));
  }finally{host.close();globalThis.fetch=original}
+});
+
+
+test('an adapter account replacement before the next React render blocks old-account writes and commits',async()=>{
+ const listing=deferred(),saving=deferred();let lists=0,writes=0;
+ const alice=dataFor('alice',{list:()=>++lists===1?Promise.resolve(page('alice')):listing.promise,
+  saveSettings:()=>{writes++;return saving.promise}}),host=await harness(alice);
+ try{
+  host.render();await host.flush();const staleView=host.render();
+  const refresh=staleView.refresh();
+  // useFamilyData.save synchronously updates its authoritative ref before a
+  // React render updates the hook's current.current identity.
+  alice.state={...alice.state,selfId:'bob'};
+  saving.resolve({accountId:'alice'});listing.resolve(page('alice',{count:91}));
+  assert.equal(await staleView.saveSettings({categories:{reactions:false}}),false);
+  assert.equal(writes,0,'No old-account mutation may start in the render gap');
+  listing.resolve(page('alice',{count:91}));assert.equal(await refresh,false);
+  assert.equal(host.render().unreadCount,0,'Old notification data cannot commit for Bob');
+ }finally{listing.resolve(page('alice'));saving.resolve({accountId:'alice'});host.close()}
+});
+
+test('a settings acknowledgment in the synchronous account-change gap cannot start an old-account read-back',async()=>{
+ const saving=deferred();let lists=0;const alice=dataFor('alice',{list:async()=>{lists++;return page('alice')},saveSettings:()=>saving.promise}),host=await harness(alice);
+ try{
+  host.render();await host.flush();const operation=host.render().saveSettings({categories:{reactions:false}});
+  alice.state={...alice.state,selfId:'bob'};saving.resolve({accountId:'alice',ok:true});
+  assert.equal(await operation,false);assert.equal(lists,1,'Old settings acknowledgment cannot issue a fresh Alice read');
+  assert.equal(alice.pending,0);await host.flush();assert.equal(host.render().unreadCount,0);
+ }finally{saving.resolve({accountId:'alice'});host.close()}
+});
+
+test('a callback owned by Alice cannot dispatch through a newly installed Bob runtime',async()=>{
+ const writes=[],alice=dataFor('alice'),record=name=>(...args)=>{writes.push({name,args});return Promise.resolve({accountId:'bob'})},bob=dataFor('bob',{saveSettings:record('settings'),read:record('read'),dismiss:record('dismiss'),readAll:record('read-all'),open:record('open')}),host=await harness(alice);
+ try{
+  host.render();await host.flush();const aliceView=host.render();
+  host.render(bob);await host.flush();assert.equal(host.render().ready,true);
+  assert.equal(await aliceView.saveSettings({categories:{reactions:false}}),false);
+  assert.equal(await aliceView.read('alice-3'),false);assert.equal(await aliceView.dismiss('alice-3'),false);
+  assert.equal(await aliceView.readAll(),false);assert.equal(await aliceView.open('alice-3'),false);assert.equal(await aliceView.refresh(),false);
+  assert.deepEqual(writes,[],'The old visible handler must not borrow the replacement runtime identity');
+  assert.equal(bob.pending,0);assert.equal(host.render().settings.categories.reactions,true);
+ }finally{host.close()}
 });

@@ -17,7 +17,7 @@ const oldPost={id:'older-authorized-post',authorId:'bob',text:'An authorized old
 const comment={id:'older-comment',authorId:'bob',text:'The exact older fixture reply.',createdAt:2000,parentId:null,files:[]};
 let linkedComments=[comment];
 function account(id){return {id,settings:{accountId:id,scope:'leaders',globalOff:false,selectedIds:[],categories:{...DEFAULT_NOTIFICATION_CATEGORIES},revision:0,pushEnabled:false},notices:Array.from({length:id==='alice'?135:2},(_,i)=>({id:id+'-notice-'+(i+1),sequence:i+1,kind:'reply.created',category:'replies',title:`${id==='alice'?'Fixture':'Other account'} update ${i+1}`,text:'A fictional update for hosted QA.',createdAt:Date.now()-i*1000,readAt:null,target:{kind:'comment',id:comment.id,containerId:oldPost.id,anchorId:comment.id}}))}}
-const accounts={alice:account('alice'),bob:account('bob')};let holdOpen=null,holdSettings=null,holdReadAll=null;
+const accounts={alice:account('alice'),bob:account('bob')};let holdOpen=null,holdSettings=null,holdReadAll=null,holdSettingsArrival=null;
 function stateFor(id){return {...initialState(),mode:'live',schema:3,selfId:id,onboarding:'done',profileComplete:true,capabilities:{},
  members:[{id:'alice',name:'QA Alice',circle:'family',registered:true,adult:true,profileColor:'#4f996c'},{id:'bob',name:'QA Bob',circle:'family',registered:true,adult:true,profileColor:'#754c95'}],groups:[],memories:[],memorials:[],relationships:[],posts:[{id:'recent-fixture',authorId:'bob',text:'The current fixture feed.',createdAt:Date.now(),files:[]}],comments:{},reactions:{},notifications:[],readNotices:[],notificationSettings:{...accounts[id].settings},notificationUnreadCount:visible(accounts[id]).filter(n=>!n.readAt).length};}
 function visible(account){return account.settings.globalOff?[]:account.notices.filter(n=>!n.dismissedAt&&account.settings.categories[n.category]);}
@@ -30,7 +30,11 @@ async function attachRoutes(context,viewer){
  await context.route('**/*',async route=>{
   const request=route.request(),url=new URL(request.url());if(url.origin!==base)return route.abort();
   if(!url.pathname.startsWith('/api/'))return route.continue();
-  const method=request.method(),a=accounts[viewer.id],payload=method==='GET'?{}:request.postDataJSON()||{};requests.push({viewer:viewer.id,path:url.pathname,method,payload});
+  const method=request.method(),payload=method==='GET'?{}:request.postDataJSON()||{};
+  // Hold this captured PUT in transit before resolving the authenticated
+  // account. The normal click constructs Alice's intent before a cookie switch.
+  if(method==='PUT'&&url.pathname==='/api/me/notifications'&&holdSettingsArrival){const pending=holdSettingsArrival;holdSettingsArrival=null;pending.started(payload);await pending.promise;}
+  const a=accounts[viewer.id];requests.push({viewer:viewer.id,path:url.pathname,method,payload});
   if(payload.expectedAccountId&&payload.expectedAccountId!==viewer.id)return json(route,{error:'Your signed-in account changed. Refresh before trying again.'},409);
   if(url.pathname==='/api/config')return json(route,{configured:true,email:false,providers:[],pushEnabled:false});
   if(url.pathname==='/api/session')return json(route,{status:'active',member:{id:viewer.id},user:{id:viewer.id}});
@@ -341,7 +345,18 @@ try{
  });
  await check('account switch rejects stale settings writes and clears old-account inbox',async()=>{
   const previousRoute=await openSettings(alice),previous=structuredClone(accounts.bob.settings),oldSettings=structuredClone(accounts.alice.settings),writesBefore=settingsWrites().length;
-  const reactions=alice.getByRole('region',{name:'Notification choices'}).getByRole('checkbox',{name:'Reactions',exact:true});await expect(reactions).toBeChecked();await expect(reactions).toBeEnabled();viewer.id='bob';await reactions.click();
+  const reactions=alice.getByRole('region',{name:'Notification choices'}).getByRole('checkbox',{name:'Reactions',exact:true});await expect(reactions).toBeChecked();await expect(reactions).toBeEnabled();
+  let release,started=false;holdSettingsArrival={promise:new Promise(resolve=>release=resolve),started:payload=>{
+   assert.deepEqual(payload,{expectedAccountId:'alice',revision:oldSettings.revision,categories:{reactions:false}});started=true;
+  }};
+  try{
+   // Changing the cookie before click lets a normal visible/timed refresh make
+   // this a valid Bob edit. Switch only after the real Alice PUT is captured.
+   await reactions.click();await expect.poll(()=>started).toBe(true);
+   await expect(reactions).toBeDisabled();await expect(reactions).toBeChecked();
+   assert.deepEqual(accounts.alice.settings,oldSettings);assert.deepEqual(accounts.bob.settings,previous);
+   viewer.id='bob';
+  }finally{holdSettingsArrival=null;release();}
   await expect(backgroundBell(alice)).toHaveAttribute('aria-label','Notifications, 2 unread');await expect(reactions).toBeEnabled();await expect(reactions).toBeChecked();
   assert.deepEqual(settingsWrites().slice(writesBefore).map(write=>({viewer:write.viewer,payload:write.payload})),[{viewer:'bob',payload:{expectedAccountId:'alice',revision:oldSettings.revision,categories:{reactions:false}}}]);
   assert.deepEqual(accounts.alice.settings,oldSettings);assert.deepEqual(accounts.bob.settings,previous);await returnFromSettings(alice,previousRoute);await expect(bell(alice)).toHaveAccessibleName('Notifications, 2 unread');await showInbox(alice);await expect(panel(alice).locator('[data-notice-id^="alice-"]')).toHaveCount(0);await expect(panel(alice).locator('[data-notice-id^="bob-"]')).toHaveCount(2);

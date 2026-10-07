@@ -35,13 +35,15 @@ jobs:
       - id: backend_build
         run: node ../scripts/ci-test-summary.mjs backend && node ../scripts/ci-test-summary.mjs backend-build --build
         working-directory: backend
-      - run: npx playwright install --with-deps chromium ${{ matrix.browser }}
+      - id: browser_install
+        run: npx playwright install --with-deps chromium ${{ matrix.browser }}
       - name: Full recovery browser checks
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 --directory dist > /tmp/gw-http.log 2>&1 &
           node scripts/ci-test-summary.mjs recovery-browser --browser tests/recovery-browser.mjs
           node scripts/ci-test-summary.mjs hotfix-browser --browser tests/hotfix-browser.mjs
       - name: Live API integration browser checks
+        if: ${{ !cancelled() && steps.frontend_build.outcome == 'success' && steps.backend_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         run: |
           node backend/tests/fixture-server.mjs > /tmp/gw-fixture.log 2>&1 &
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4174/api/config && break; sleep 1; done

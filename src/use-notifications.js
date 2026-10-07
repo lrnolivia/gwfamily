@@ -9,7 +9,12 @@ export function useNotifications(data){
  const enabled=state.onboarding==='done'&&(state.mode==='preview'?previewReady:state.mode==='live'&&data.session?.status==='active');
  const identity=enabled?`${state.mode}:${state.selfId}`:'inactive',current=useRef({identity,data});current.current={identity,data};
  const runtime=useRef(null),channel=useRef(null),[snapshot,setSnapshot]=useState(()=>blank(identity,state));
- const valid=run=>run?.active&&!run.accountInvalidated&&runtime.current===run&&current.current.identity===run.identity;
+ // Adapter state changes synchronously before React installs the next render.
+ // Both that state and the callback's rendered owner must still own this run.
+ const valid=run=>{
+  const live=current.current.data,latest=live.getCurrentState?.()||live.state;
+  return run?.active&&!run.accountInvalidated&&runtime.current===run&&current.current.identity===run.identity&&latest.mode===run.mode&&latest.selfId===run.accountId;
+ };
  const update=(run,patch)=>{if(valid(run))setSnapshot(previous=>({...previous,...patch,identity:run.identity}))};
  const accountMatches=(run,result)=>{
   if(run.mode==='preview'||!result?.accountId||result.accountId===run.accountId)return true;
@@ -17,7 +22,7 @@ export function useNotifications(data){
   run.accountInvalidated=true;run.sequence++;run.controller?.abort();current.current.data.refresh();return false;
  };
  const refresh=useCallback(async({more=false,force=false}={})=>{
-  const run=runtime.current;if(!valid(run)||!enabled||run.mutating&&!force)return false;
+  const run=runtime.current;if(!valid(run)||run.identity!==identity||!enabled||run.mutating&&!force)return false;
   if(run.fetching&&!force)return false;
   run.controller?.abort();const controller=new AbortController(),sequence=++run.sequence;run.controller=controller;run.fetching=true;
   const depth=run.depth+(more?1:0);update(run,{refreshing:true,error:''});
@@ -51,7 +56,7 @@ export function useNotifications(data){
  // immediately. No draft/compose/filter/bag field is read or replaced here.
  useEffect(()=>{if(enabled)refresh()},[state.notifications,state.readNotices,state.notificationSettings?.revision,state.notificationUnreadCount]);
  async function perform(operation,{conflict=false}={}){
-  const run=runtime.current;if(!valid(run)||!enabled||run.mutating)return false;
+  const run=runtime.current;if(!valid(run)||run.identity!==identity||!enabled||run.mutating)return false;
   run.mutating=true;run.sequence++;run.controller?.abort();run.fetching=false;update(run,{busy:true,error:''});
   const live=current.current.data,finish=live.beginPending?.()||(()=>{});
   try{
