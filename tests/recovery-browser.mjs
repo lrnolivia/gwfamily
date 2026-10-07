@@ -35,6 +35,9 @@ try{
   await expect(returning.locator('.app')).toHaveClass(/is-first-load/);await expect(returning.locator('.onboard,.welcome-mark,.onboarding-progress')).toHaveCount(0);
   assert.equal(await returning.getByRole('navigation',{name:'Main navigation'}).count(),0);assert.equal(await returning.getByRole('heading',{name:'Family feed',exact:true}).count(),0);
   releaseConfig();await returning.getByRole('button',{name:'Email me a code',exact:true}).waitFor();await expect(loading).toHaveCount(0);await expect(returning.locator('.onboard')).toBeVisible();
+  const emailPaint=await returning.locator('.email-field-label').evaluate(label=>{const icon=label.querySelector('.glyph'),r=label.getBoundingClientRect(),g=icon.getBoundingClientRect(),s=getComputedStyle(label);return {centerDelta:Math.abs(g.y+g.height/2-r.y-r.height/2),gap:parseFloat(s.columnGap),iconWidth:g.width,fontSize:parseFloat(s.fontSize)}});
+  assert.ok(emailPaint.centerDelta<=1,'email glyph is vertically centered beside the label');assert.ok(emailPaint.gap>=4,'email glyph has a visible gap before the label');assert.ok(Math.abs(emailPaint.iconWidth-emailPaint.fontSize)<=1,'email glyph scales to the label text');
+  await returning.screenshot({path:'docs/recovery-qa/sign-in-email-label.png',fullPage:true});
   results.push('quiet loading stays separate from welcome and returning preview state never flashes while live session loads');
  }finally{releaseConfig();await returning.close()}
  for(const width of [390,768,1280])for(const theme of ['light','dark'])for(const platform of ['ios','android']){

@@ -10,6 +10,12 @@ const Button=createOfficialSignInButton({createElement:h});
 const button=tree=>tree.children.find(node=>node.type==='button');
 const providers=['google','microsoft','yahoo'];
 
+test('email label aligns its existing glyph with text and scales with label typography',async()=>{
+ const css=await readFile(new URL('../src/official-sign-in-button.css',import.meta.url),'utf8');
+ assert.match(css,/\.sign-in-form \.email-field-label\{display:inline-flex;align-items:center;gap:\.4em;line-height:1\.35\}/);
+ assert.match(css,/\.sign-in-form \.email-field-label>\.glyph\{inline-size:1em;block-size:1em;flex:none\}/);
+});
+
 test('all three official brands exist, and unknown or inherited providers fail closed',()=>{
  assert.deepEqual(officialProviderBrandStatus(),providers.map(id=>({id,ready:true})));
  for(const id of [undefined,null,{},'', 'apple','__proto__','constructor','toString','yahoo.com'])assert.equal(officialProviderBrand(id),null);
