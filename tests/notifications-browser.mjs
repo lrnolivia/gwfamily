@@ -374,6 +374,10 @@ try{
    const previous=await openSettings(alice);await checkFit(alice);await captureNotificationViewport(alice,`${output}/${engine}-${variant.width}-${variant.theme}-${variant.material}-settings.png`,{settings:true});await returnFromSettings(alice,previous);
   }
  });
+ await check('preview controls are isolated and resettable with no notification network writes',async()=>{
+  const preview=initialState();preview.onboarding='done';const p=await pageFor({id:'alice'});await p.page.evaluate(({key,state})=>{localStorage.setItem(key,JSON.stringify({schema:2,mode:'preview',state}));sessionStorage.setItem('gw-active-mode','preview')},{key:PREVIEW_KEY,state:preview});await p.page.reload();const before=requests.filter(r=>r.method!=='GET').length;
+  await showInbox(p.page);await panel(p.page).getByRole('button',{name:'Mark A sample reply is waiting read',exact:true}).click();await panel(p.page).getByRole('button',{name:'Dismiss A sample memory includes you',exact:true}).click();await panel(p.page).getByRole('button',{name:'Reset sample activity',exact:true}).click();await expect(bell(p.page)).toHaveAccessibleName('Notifications, 3 unread');await panel(p.page).getByRole('button',{name:'Clear all',exact:true}).click();await expect(panel(p.page).locator('[data-notice-id]')).toHaveCount(0);await expect(panel(p.page).getByRole('button',{name:'Clear all',exact:true})).toBeDisabled();await panel(p.page).getByRole('button',{name:'Reset sample activity',exact:true}).click();await expect(bell(p.page)).toHaveAccessibleName('Notifications, 3 unread');assert.equal(requests.filter(r=>r.method!=='GET').length,before);
+ });
  await check('Clear all dismisses the full paged inbox but retains later arrivals and other-account history',async()=>{
   const original=structuredClone(accounts.bob.notices),aliceBefore=structuredClone(accounts.alice.notices),settingsBefore=structuredClone(accounts.bob.settings),writesBefore=requests.length;
   // This document now belongs to Bob after the preceding account-switch check.
@@ -391,10 +395,6 @@ try{
   assert.deepEqual(requests.slice(writesBefore).filter(r=>r.path==='/api/notifications/dismiss-all'),[{viewer:'bob',path:'/api/notifications/dismiss-all',method:'POST',payload:{cutoff,expectedAccountId:'bob'}}]);
   assert.deepEqual(accounts.alice.notices,aliceBefore);assert.deepEqual(accounts.bob.settings,settingsBefore);
   accounts.bob.notices=original;await alice.reload();await showInbox(alice);
- });
- await check('preview controls are isolated and resettable with no notification network writes',async()=>{
-  const preview=initialState();preview.onboarding='done';const p=await pageFor({id:'alice'});await p.page.evaluate(({key,state})=>{localStorage.setItem(key,JSON.stringify({schema:2,mode:'preview',state}));sessionStorage.setItem('gw-active-mode','preview')},{key:PREVIEW_KEY,state:preview});await p.page.reload();const before=requests.filter(r=>r.method!=='GET').length;
-  await showInbox(p.page);await panel(p.page).getByRole('button',{name:'Mark A sample reply is waiting read',exact:true}).click();await panel(p.page).getByRole('button',{name:'Dismiss A sample memory includes you',exact:true}).click();await panel(p.page).getByRole('button',{name:'Reset sample activity',exact:true}).click();await expect(bell(p.page)).toHaveAccessibleName('Notifications, 3 unread');await panel(p.page).getByRole('button',{name:'Clear all',exact:true}).click();await expect(panel(p.page).locator('[data-notice-id]')).toHaveCount(0);await expect(panel(p.page).getByRole('button',{name:'Clear all',exact:true})).toBeDisabled();await panel(p.page).getByRole('button',{name:'Reset sample activity',exact:true}).click();await expect(bell(p.page)).toHaveAccessibleName('Notifications, 3 unread');assert.equal(requests.filter(r=>r.method!=='GET').length,before);
  });
  assert.deepEqual(errors,[],'No browser runtime errors');
 }catch(error){
