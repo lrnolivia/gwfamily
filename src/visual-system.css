@@ -160,3 +160,8 @@ html[data-font=serif] .appearance-panel-heading :is(h2,h3){font-family:'DM Serif
 html[data-theme][data-platform] .button[data-button-level=primary]:not(.sign-out):not(.membership-remove){--gw-control-color:var(--control,var(--accent));--gw-control-alpha:100%}
 html[data-theme][data-platform] .button[data-button-level=supporting]{--gw-control-color:color-mix(in srgb,var(--control,var(--accent)) 55%,var(--surface));--gw-control-alpha:100%}
 html[data-theme][data-platform] .button[data-button-level=primary]:not(.sign-out):not(.membership-remove)>.liquid-glass-tint,html[data-theme][data-platform] .button[data-button-level=supporting]>.liquid-glass-tint{background:var(--gw-control-color)!important;opacity:1!important}
+
+/* Keep the measured identity square while badges retain their intrinsic size. */
+html[data-theme][data-platform] .post-head .identity-avatar{align-self:center;width:var(--post-identity-size,44px);height:var(--post-identity-size,44px);flex:0 0 var(--post-identity-size,44px);border-radius:50%}
+.post-head .identity-info{align-self:center;justify-items:start}.post-head .identity-info>.membership-chips{align-self:start;justify-self:start;width:fit-content}
+html[data-theme][data-platform] .planning-link>.glyph{align-self:flex-start;margin-top:2px;flex-shrink:0}
