@@ -1,3 +1,4 @@
+import {settlePointerTarget} from './browser-transition-readiness.mjs';
 import {pageContentPayload} from '../src/page-content-model.js';
 import {validatePhotoFrame} from '../src/photo-framing-model.js';
 import {validateCardLayouts} from '../src/card-content-layout-model.js';
@@ -281,7 +282,10 @@ async function editText(page, key, value, {finish = true} = {}) {
   const input = root.getByRole('textbox', {name: label, exact: true});
   const trigger = root.getByRole('button', {name: 'Edit ' + label, exact: true});
   try {
-    if (!await input.count()) await trigger.click();
+    if (!await input.count()) {
+      if (key === 'global.footerTagline') await settlePointerTarget(trigger);
+      await trigger.click();
+    }
     await expect(input).toBeVisible();
     await input.fill(value);
     if (finish) {
@@ -311,6 +315,9 @@ async function openHistory(page){
 async function mediaPanel(page, key = 'home') {
   await unlockHero(page, key);
   await field(page, key + '.hero').getByRole('button', {name: 'Edit ' + SHARED_PAGE_SCHEMA[key].label + ' page media', exact: true}).click();
+  const imageEditor = field(page, key + '.hero').getByRole('region', {name: 'Photo framing', exact: true});
+  await expect(imageEditor.or(page.getByRole('region', {name: 'Page media', exact: true}))).toBeVisible();
+  if (await imageEditor.count()) await imageEditor.getByRole('button', {name: 'Change media', exact: true}).click();
   const panel = page.getByRole('region', {name: 'Page media', exact: true});
   await expect(panel).toBeVisible();
   await expect(page.getByRole('dialog'), 'Media edits stay inline.').toHaveCount(0);

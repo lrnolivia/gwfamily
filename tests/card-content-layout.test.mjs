@@ -90,8 +90,8 @@ test('text and image columns align independently and preserve vertical placement
  assert.equal(cardColumnVertical(sizeCardImage(defaultCardLayout('home',hero),'media',{vertical:'bottom'}),'right'),'bottom');
 });
 test('compact editor uses named pressed glyph buttons and image-only size controls',()=>{
- const jsx=readFileSync(new URL('../src/card-content-layout.jsx',import.meta.url),'utf8');
- assert.match(jsx,/aria-pressed=\{value===id\}/);assert.match(jsx,/column vertical alignment/);assert.match(jsx,/Align all content vertically/);assert.match(jsx,/Decrease .*definition.label/);assert.doesNotMatch(jsx,/<select|type="range"/);
+ const jsx=readFileSync(new URL('../src/card-content-layout.jsx',import.meta.url),'utf8')+readFileSync(new URL('../src/image-edit-controls.jsx',import.meta.url),'utf8');
+ assert.match(jsx,/aria-pressed=\{value===id\}/);assert.match(jsx,/column vertical alignment/);assert.match(jsx,/Align all content vertically/);assert.match(jsx,/Decrease .*label/);assert.doesNotMatch(jsx,/<select|type="range"/);
 });
 test('Messages empty invitations do not create a phantom sidebar row and birthday has one card',()=>{
  const jsx=readFileSync(new URL('../src/messaging.jsx',import.meta.url),'utf8'),app=readFileSync(new URL('../src/react-app.jsx',import.meta.url),'utf8');
