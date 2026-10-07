@@ -1,13 +1,13 @@
 /* Final shared geometry, loaded after the legacy surface styles. This file owns
    form metrics/containment; it does not alter profile palettes or semantic rings. */
 :root{--field-height:max(48px,calc(1.4em + 1.5rem + 2px));--field-pad-block:.75rem;--field-pad-inline:.875rem;--decorative-line:color-mix(in srgb,var(--line) 30%,transparent)}
-:is(.app,#sheet-body,.gw-glass-menu) :is(input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]):not([type=range]):not([type=hidden]),select){box-sizing:border-box;min-width:0;min-inline-size:0;max-width:100%;max-inline-size:100%;height:var(--field-height);min-height:var(--field-height);margin-block:0;padding:var(--field-pad-block) var(--field-pad-inline);font-family:inherit;font-size:max(1rem,16px);line-height:1.4;vertical-align:middle;border-radius:14px}
+:is(.app,#sheet-body,.gw-glass-menu) :is(input:not(.page-copy-input):not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]):not([type=range]):not([type=hidden]),select){box-sizing:border-box;min-width:0;min-inline-size:0;max-width:100%;max-inline-size:100%;height:var(--field-height);min-height:var(--field-height);margin-block:0;padding:var(--field-pad-block) var(--field-pad-inline);font-family:inherit;font-size:max(1rem,16px);line-height:1.4;vertical-align:middle;border-radius:14px}
 :is(.app,#sheet-body,.gw-glass-menu) input:is([type=date],[type=time],[type=datetime-local]){appearance:none;-webkit-appearance:none;width:100%;max-width:100%}
 :is(.app,#sheet-body,.gw-glass-menu) input::-webkit-date-and-time-value{text-align:start;min-height:1.4em}
 :is(.app,#sheet-body,.gw-glass-menu) .choice-search-field>input[role=combobox]{padding-inline-end:82px}
 :is(.app,#sheet-body,.gw-glass-menu) select{padding-inline-end:2rem}
-:is(.app,#sheet-body,.gw-glass-menu) textarea{box-sizing:border-box;min-width:0;max-width:100%;min-inline-size:0;max-inline-size:100%;font-family:inherit;font-size:max(1rem,16px);line-height:1.5;resize:vertical}
-:is(.app,#sheet-body,.gw-glass-menu) :is(.gw-form,.form-section,.details-form,.page-panel-field) textarea{min-height:6.5em;height:auto;line-height:1.5;padding:var(--field-pad-block) var(--field-pad-inline)}
+:is(.app,#sheet-body,.gw-glass-menu) textarea:not(.page-copy-input){box-sizing:border-box;min-width:0;max-width:100%;min-inline-size:0;max-inline-size:100%;font-family:inherit;font-size:max(1rem,16px);line-height:1.5;resize:vertical}
+:is(.app,#sheet-body,.gw-glass-menu) :is(.gw-form,.form-section,.details-form,.page-panel-field) textarea:not(.page-copy-input){min-height:6.5em;height:auto;line-height:1.5;padding:var(--field-pad-block) var(--field-pad-inline)}
 :is(.app,#sheet-body,.gw-glass-menu) :is(form,fieldset,label){min-width:0;max-width:100%;overflow-wrap:anywhere}
 :is(.app,#sheet-body,.gw-glass-menu) :is(.form-short-row,.form-image-fields,.field-row){align-items:start}
 :is(.app,#sheet-body,.gw-glass-menu) .field-row>label{min-width:min(100%,10rem)}

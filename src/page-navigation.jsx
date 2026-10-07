@@ -7,6 +7,13 @@ import {mainPages} from './navigation.js';
 import './page-navigation.css';
 export function useCompactChrome(){
  const [compact,setCompact]=useState(()=>window.scrollY>96);
+ useEffect(()=>{
+  const header=document.querySelector('.app>.app-header'),app=header?.parentElement;
+  if(!header||!app)return;
+  const measure=()=>app.style.setProperty('--gw-app-header-offset',Math.ceil(header.getBoundingClientRect().height)+'px');
+  measure();const observer=new ResizeObserver(measure);observer.observe(header);
+  return()=>{observer.disconnect();app.style.removeProperty('--gw-app-header-offset')};
+ },[]);
  useEffect(()=>{let frame;const update=()=>{frame=null;setCompact(window.scrollY>96)},schedule=()=>{if(frame==null)frame=requestAnimationFrame(update)};window.addEventListener('scroll',schedule,{passive:true});window.addEventListener('resize',schedule);return()=>{window.removeEventListener('scroll',schedule);window.removeEventListener('resize',schedule);if(frame!=null)cancelAnimationFrame(frame)}},[]);
  return compact;
 }
