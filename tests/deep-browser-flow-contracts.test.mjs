@@ -1,3 +1,4 @@
+import {NOTIFICATION_SCOPES} from '../src/notification-model.js';
 // Pure/source contracts only. Never import or launch the browser fixtures.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -76,4 +77,38 @@ test('below-fold fulfillment opens through a real visible pointer choice before 
   assert.match(browser, /expect\(deliveredChoice\)\.toHaveCount\(1\);await expect\(deliveredChoice\)\.toBeVisible\(\);await deliveredChoice\.click\(\)/);
   assert.match(browser, /toEqual\(\{claimId:orderId,claimStatus:'delivered',orderId,orderStatus:'delivered'\}\)/);
   assert.doesNotMatch(browser, /(?:selectOption\(|\.click\(\{force:|evaluate\([^;]*\.value\s*=)/);
+});
+
+
+test('Recovery Following verifies every real scope and keeps Off separate from preserved history',()=>{
+ const choices=NOTIFICATION_SCOPES.filter(option=>option.value!=='off'),browser=read('tests/recovery-browser.mjs'),ui=read('src/notifications.jsx');
+ assert.deepEqual(choices.map(option=>option.label),['Everyone','Family','Loved Ones','Selected people','Leaders']);
+ assert.match(ui,/options=\{NOTIFICATION_SCOPES.filter\(option=>option.value!=='off'\)\}/);
+ assert.match(browser,/followingLabels=\['Everyone','Family','Loved Ones','Selected people','Leaders'\]/);
+ assert.match(browser,/NOTIFICATION_SCOPES.filter\(option=>option.value!=='off'\).map\(option=>option.label\),followingLabels/);
+ assert.match(browser,/expect\(following.getByRole\('radio'\)\).toHaveCount\(5\)/);
+ assert.match(browser,/for\(const label of followingLabels\)await expect\(following.getByRole\('radio',\{name:label,exact:true\}\)\).toBeVisible\(\)/);
+ assert.match(browser,/following.getByRole\('radio',\{name:'Off',exact:true\}\).count\(\),0/);
+ assert.match(browser,/pausedSettings.globalOff,true/);assert.match(browser,/pausedSettings.scope,'leaders'/);
+ assert.doesNotMatch(browser,/following.getByRole\('radio'\).count\(\),4/);
+});
+
+
+test('fresh preview asserts the actual welcome and observes exceptions/writes through reload',()=>{
+ const app=read('src/react-app.jsx'),browser=read('tests/recovery-browser.mjs'),welcome=browser.slice(browser.indexOf('const welcome=await browser.newPage'),browser.indexOf('// Field gallery geometry'));
+ assert.match(app,/className="stack preview-welcome"/);
+ assert.match(welcome,/welcome.on\('pageerror',error=>errors.push\(error.message\)\)/);
+ assert.match(welcome,/welcome.on\('request',request=>\{if\(!\['GET','HEAD'\].includes\(request.method\(\)\)\)writes.push\(request.url\(\)\)\}\)/);
+ assert.match(welcome,/expect\(welcome.locator\('\.preview-welcome'\)\).toBeVisible\(\)/);
+ assert.match(welcome,/expect\(welcome.locator\('\.preview-welcome'\)\).toHaveCount\(0\)/);
+ assert.doesNotMatch(welcome,/\.preview-notice/);
+ assert.match(welcome,/await welcome.reload\(\)/);assert.match(welcome,/name:'Continue using preview',exact:true\}\).count\(\),0/);
+});
+
+
+test('Recovery gallery Home verifies first focus after the same real End navigation',()=>{
+ const browser=read('tests/recovery-browser.mjs'),keyboard=read('src/carousel-model.js');
+ assert.match(keyboard,/key==='Home'\)return 0/);
+ assert.match(browser,/await p.keyboard.press\('Home'\);assert.equal\(await p.locator\('\.field-memory-open'\).first\(\).evaluate\(e=>document.activeElement===e\),true,'Home restores first gallery item focus'\)/);
+ assert.match(browser,/await p.locator\('\.field-memory-open'\).last\(\).evaluate\(e=>document.activeElement===e\),true/);
 });
