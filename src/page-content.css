@@ -17,7 +17,7 @@ html[data-page-edit-mode=true]{
  --bg:var(--page-edit-bg)!important;--surface:var(--page-edit-surface)!important;
  --raised:var(--page-edit-raised)!important;--soft:var(--page-edit-raised)!important;
  --nav:var(--page-edit-surface)!important;--text:var(--page-edit-text)!important;
- --muted:var(--page-edit-muted)!important;--line-raw:var(--page-edit-line)!important;
+ --muted:var(--page-edit-muted)!important;--line:var(--page-edit-line)!important;
  --accent:var(--page-edit-control)!important;--ink:var(--page-edit-control-text)!important;
  --control:var(--page-edit-control)!important;--control-text:var(--page-edit-control-text)!important;
  --control-edge:var(--page-edit-control)!important;--profile-color:var(--page-edit-control)!important;

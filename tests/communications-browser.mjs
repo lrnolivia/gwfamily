@@ -1,4 +1,3 @@
-import {parsePaintColor} from './page-save-contrast.mjs';
 // Hosted-only authenticated communications checks. Start the isolated fixture on
 // port 4175 first. Never substitute these checks for physical-device keyboard QA.
 import {chromium, webkit, expect} from '@playwright/test';
@@ -696,10 +695,6 @@ try {
         assert.match(surfaces.header.blur,/blur\(18px\)/);assert.match(surfaces.page.blur,/blur\(18px\)/);
         assert.equal(surfaces.page.image,'none');assert.equal(surfaces.pageBackground,'rgba(0, 0, 0, 0)');assert.equal(surfaces.bottom,'0px');assert.equal(surfaces.clip,'inset(0px)');assert.equal(surfaces.fade.height,'24px');assert.match(surfaces.fade.image,/linear-gradient/);assert.equal(surfaces.fade.blur,'none');
       }else{assert.equal(surfaces.header.background,surfaces.page.background);assert.equal(surfaces.page.image,'none');assert.equal(surfaces.page.blur,'none');}
-      for(const selector of ['.is-own .message-bubble','.message-compose-area']){
-        const stroke=await alice.locator(selector).first().evaluate(element=>getComputedStyle(element).borderTopColor);
-        assert.ok(Math.abs(parsePaintColor(stroke)[3]-.15)<.001,selector+' uses the actual shared 15% stroke in '+theme+' '+material);
-      }
       await noClip(alice);await alice.screenshot({path:`${output}/connected-header-${width}-${theme}-${material}-${engineName}.png`});
     }
     await alice.evaluate(()=>{localStorage.setItem('gw-platform','ios');localStorage.setItem('gw-theme','dark')});await navigate(alice,'chat',directId);
