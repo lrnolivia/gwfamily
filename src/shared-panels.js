@@ -9,7 +9,7 @@ export const PANEL_PRESETS=Object.freeze([
  {id:'photo',label:'Photo above',description:'One photo above your message'},
  {id:'feature',label:'Photo beside',description:'One photo alongside your message'}
 ]);
-export const PANEL_PAGES=Object.freeze(['home','reunion','family','people','memories','tree','birthdays','shop','inbox','you','leader-calendar']);
+export const PANEL_PAGES=Object.freeze(['home','reunion','reunion-plans','reunion-calendar','family','people','memories','tree','birthdays','shop','inbox','you','leader-calendar']);
 export const HERO_FIELDS=Object.freeze({home:['heroEyebrow','heroTitle','heroBodyFallback'],reunion:['heroEyebrow','heroTitle','dateFallback','locationFallback','pricingNote'],memories:['heroEyebrow','heroTitle','heroBody'],tree:['heroTitle','heroBody']});
 const clone=value=>JSON.parse(JSON.stringify(value));
 const plain=value=>value!==null&&typeof value==='object'&&!Array.isArray(value)&&(Object.getPrototypeOf(value)===Object.prototype||Object.getPrototypeOf(value)===null);
@@ -19,6 +19,8 @@ function keys(value,allowed){if(!plain(value)||Object.keys(value).some(key=>!all
 export const NATIVE_PANEL_DEFINITIONS=Object.freeze({
  'leader-calendar':[['calendar-events','Reunion events','main',[]],['calendar-settings','Calendar settings','side',[]]],
  home:[['feed','Family feed','main',['feedTitle']],['reunion','Your reunion','side',['reunionTitle','nextRsvpTitle','nextRsvpBody','nextShirtsTitle','nextShirtsBody','nextFeesTitle','nextFeesBody']]],
+ 'reunion-plans':[['rsvp','RSVP','main',['rsvpTitle']],['merchandise','Merchandise','main',['merchandiseTitle']],['fees','Reunion fees','main',['feesTitle']],['checklist','Your reunion','side',['checklistTitle']],['history','Saved records','side',[]]],
+ 'reunion-calendar':[['events','Reunion events','main',[]],['birthdays','Family birthdays','side',[]]],
  reunion:[['plans','Your reunion','main',['plansTitle']],['schedule','Reunion schedule','side',['weekendTitle','weekendEmptyTitle','weekendEmptyBody']],['clarity','A little clarity','side',['clarityTitle','clarityBody']]],
  people:[['directory','Our people','main',['peopleTitle','noResults']],['profiles','Your family profiles','side',['profilesTitle']],['contact','Address book','side',['heading','intro','sharingNote','emptyTitle','emptyBody']],['shared-contacts','Shared contact cards','main',['sharedTitle','sharedEmptyBody']]],
  memories:[['gallery','Shared memories','main',['listTitle','emptyBody']]],

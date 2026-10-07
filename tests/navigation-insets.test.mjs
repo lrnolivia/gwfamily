@@ -18,7 +18,7 @@ function events(target = {}) {
       listeners.get(type).add(fn);
     },
     removeEventListener(type, fn) { listeners.get(type)?.delete(fn); },
-    emit(type) { for (const listener of listeners.get(type) || []) listener(); },
+    emit(type,event={}) { for (const listener of listeners.get(type) || []) listener(event); },
     listenerCount() { return [...listeners.values()].reduce((total, set) => total + set.size, 0); },
   });
 }
@@ -80,7 +80,7 @@ test('device and display mode are independent of selected material and theme', (
     assert.equal(doc.documentElement.dataset.deviceOs, 'android');
     cleanup();
   }
-  assert.doesNotMatch(css, /\[data-(?:platform|theme)[=\]]/);
+  assert.match(css, /data-platform=android/); // Geometry differs by material; OS detection does not.
 });
 
 test('390px, 768px and landscape geometry consumes the safe-area inset once in either material', () => {
@@ -89,7 +89,8 @@ test('390px, 768px and landscape geometry consumes the safe-area inset once in e
       const options = {width, mobileOS: os, displayMode: mode, safeAreaBottom: safe};
       const glass = navigationInsetMetrics({...options, material: 'ios'});
       const flat = navigationInsetMetrics({...options, material: 'android'});
-      assert.deepEqual(glass, flat);
+      if(width>=700)assert.deepEqual(glass,flat);
+      else {assert.equal(flat.bottom,0);assert.equal(flat.height,64+safe);assert.equal(flat.buttonBottom,safe+8);assert.equal(flat.fabBottom-flat.height,12);}
       assert.ok(glass.bottom >= 0);
       assert.ok(glass.buttonBottom >= safe, 'every button stays above the home-indicator inset');
       const chosenGap=mode==='browser'&&width>=700?18:os==='ios'&&mode==='browser'?2:0;assert.equal(glass.bottom,Math.max(chosenGap,safe-7),'single hardware inset plus explicit regular-browser wide-screen lift');
@@ -151,7 +152,7 @@ test('keyboard signal excludes browser toolbar motion, hardware keyboards and pi
 test('binder updates on focus, visual viewport changes and keyboard dismissal', () => {
   const {win, doc} = environment();
   const cleanup = bindNavigationInsets(win, doc);
-  assert.deepEqual(doc.documentElement.dataset, {mobileOs: 'ios', displayMode: 'browser', keyboardOpen: 'false'});
+  assert.deepEqual(doc.documentElement.dataset, {mobileOs: 'ios', displayMode: 'browser', keyboardOpen: 'false',inputMode:'pointer'});
   doc.activeElement = {tagName: 'TEXTAREA'};
   doc.emit('focusin'); win.flush();
   assert.equal(doc.documentElement.dataset.keyboardOpen, 'false');
@@ -222,3 +223,5 @@ test('cleanup restores owned attributes, removes listeners and cancels pending w
 test('server-side/no-document binding is harmless', () => {
   assert.doesNotThrow(() => bindNavigationInsets(undefined, undefined)());
 });
+
+test('pointer focus suppression changes back to visible keyboard focus and cleans up',()=>{const {win,doc}=environment();const cleanup=bindNavigationInsets(win,doc);doc.emit('keydown',{key:'Tab'});assert.equal(doc.documentElement.dataset.inputMode,'keyboard');doc.emit('pointerdown');assert.equal(doc.documentElement.dataset.inputMode,'pointer');doc.emit('keydown',{key:'ArrowDown'});assert.equal(doc.documentElement.dataset.inputMode,'keyboard');doc.emit('click',{detail:1});assert.equal(doc.documentElement.dataset.inputMode,'pointer');cleanup();assert.equal(doc.documentElement.dataset.inputMode,undefined);});

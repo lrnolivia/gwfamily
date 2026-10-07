@@ -266,7 +266,7 @@ async function assertSavePaint(page, {theme, platform, disabled}) {
   await expect.poll(async () => pageSaveContrast(await button.evaluate(readPageSavePaint)), {message: 'Save label contrast uses the actual painted tint and composited opacity.'}).toBeGreaterThanOrEqual(4.5);
   const paint = await button.evaluate(readPageSavePaint);
   assert.equal(paint.theme, theme); assert.equal(paint.platform, platform); assert.equal(paint.disabled, disabled);
-  assert.equal(paint.text.trim(), 'View page'); assert.equal(paint.hostOpacity, 1);
+  assert.equal(paint.text.trim(), 'Done'); assert.equal(paint.hostOpacity, 1);
   assert.deepEqual(parsePaintColor(paint.foreground), parsePaintColor(paint.hostForeground), 'The innermost label inherits the state foreground.');
   assert.equal(paint.tintBackground, null, 'Editor actions use a solid native control in either material.');
   if (paint.tintBackground !== null) {
@@ -305,6 +305,8 @@ async function mediaPanel(page, key = 'home') {
   return panel;
 }
 async function unlockHero(page, key) {
+  const optional=page.locator(`[data-panel-page="${key}"] > .page-optional-media`);
+  if(await optional.count()&&!await optional.evaluate(node=>node.open))await optional.locator('summary').click();
   const hero = primaryHero(page, key);
   await expect(hero).toHaveCount(1);
   if (await hero.getAttribute('data-panel-locked') === 'true') {
@@ -489,7 +491,27 @@ try {
     await expect(owner.locator('html')).not.toHaveAttribute('data-page-edit-mode', 'true');
   });
 
-  await check('automatic save status and View page stay readable in both themes and materials', async () => {
+  await check('Plan and Calendar sections edit independently, retain sidebars and save placement',async()=>{
+    for(const [tab,key,panelId,titleField] of [['Plan','reunion-plans','native-rsvp','rsvpTitle'],['Calendar','reunion-calendar','native-events','heading']]){
+      await navigate(owner,'reunion');await owner.getByRole('tab',{name:tab,exact:true}).click();await edit(owner);
+      const layout=owner.locator(`[data-panel-page="${key}"]`),panel=layout.locator(`[data-panel-id="${panelId}"]`);
+      await expect(layout.locator('.page-panel-zone-side > .page-shared-panel')).not.toHaveCount(0);
+      await expect(panel).toBeVisible();
+      const unlock=panel.getByRole('button',{name:/^Unlock /});await unlock.click();await save(owner);
+      const before=(await record(owner,key)).content.text[titleField];await editText(owner,key+'.'+titleField,before+' Synthetic edit');await save(owner);
+      assert.equal((await record(owner,key)).content.text[titleField],before+' Synthetic edit');
+      await toolbar(owner).getByRole('button',{name:'Arrange page',exact:true}).click();
+      await panel.getByRole('combobox',{name:/^Location for /}).selectOption('side');await save(owner);
+      assert.equal((await record(owner,key)).content.panelLayout.panels.find(row=>row.id===panelId).zone,'side');
+      await owner.screenshot({path:`${output}/${key}-editable-sidebar-${engineName}.png`});
+      await panel.getByRole('combobox',{name:/^Location for /}).selectOption('main');await save(owner);
+      await editText(owner,key+'.'+titleField,before);await save(owner);await panel.getByRole('button',{name:/^Lock /}).click();await save(owner);await modeDone(owner).click();
+      await owner.reload();await expect(owner.getByRole('tab',{name:tab,exact:true})).toHaveAttribute('aria-selected','true');
+      assert.equal((await record(owner,key)).content.text[titleField],before);
+    }
+  });
+
+  await check('automatic save status and Done stay readable in both themes and materials', async () => {
     for (const theme of ['light','dark']) for (const platform of ['ios','android']) {
       const page=await person('owner',{theme,platform,label:`save-contrast-${theme}-${platform}`});
       await edit(page);const original=(await record(page)).content.text.heading,paints=[];

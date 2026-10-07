@@ -66,8 +66,8 @@ test('Home, Reunion and dedicated pages share the same planning model and route 
  assert.equal(count(source,/<YourReunionPanel\s*\/>/g),2);
  assert.doesNotMatch(source,/<PlanningChecklist\b/);
  assert.equal(count(source,/<PlanningLinks\s*\/>/g),1);
- assert.match(reunionSource,/export function YourReunionPanel\(\{compact=false\}\)\{return <PlanningChecklist compact=\{compact\} title="Your reunion" heading=/);
- assert.match(reunionSource,/<YourReunionPanel compact\s*\/>/);
+ assert.match(reunionSource,/export function YourReunionPanel\(\{compact=false,page='home',field='reunionTitle'\}\)\{return <PlanningChecklist compact=\{compact\} title="Your reunion" heading=/);
+ assert.match(reunionSource,/<YourReunionPanel compact page="reunion-plans" field="checklistTitle"\/>/);
  assert.match(checklistSource,/export function FamilyPlanningPage\(\)\{return <section className="stack"><h1>Family member checklist<\/h1><PlanningChecklist showMembers\/>/);
  assert.match(checklistSource,/export function PlanningHistoryPage\(\)\{return <section className="stack"><h1>Saved planning records<\/h1><SavedPlanningHistory expanded\/>/);
  assert.match(source,/route\.type==='family-checklist'\?<FamilyPlanningPage\/>/);

@@ -9,6 +9,9 @@ test('every shared schema page and copy field has a rendered integration point',
  const pairs=new Set([...source.matchAll(/<EditableText\s+page="([^"]+)"\s+field="([^"]+)"/g)].map(([,page,field])=>page+'.'+field));
  for(const field of ['nextRsvpTitle','nextRsvpBody','nextShirtsTitle','nextShirtsBody','nextFeesTitle','nextFeesBody'])pairs.add('home.'+field);
  for(const field of ['emptyTitle','emptyBody','caughtUpTitle','caughtUpBody'])pairs.add('inbox.'+field);
+ assert.match(files['reunion-plans.jsx'],/page='home',field='reunionTitle'/);
+ pairs.add('home.reunionTitle');pairs.add('reunion-plans.checklistTitle');
+ assert.match(files['reunion-plans.jsx'],/legacy.content\?\.text\?\.plansTitle/);pairs.add('reunion.plansTitle');
  for(const [page,schema]of Object.entries(SHARED_PAGE_SCHEMA)){
   for(const field of Object.keys(schema.fields))assert.ok(pairs.has(page+'.'+field),page+'.'+field+' is reachable in page content');
   if(schema.hero)assert.ok(source.includes('<EditableMedia page="'+page+'" field="hero"'),page+' has an editable hero slot');

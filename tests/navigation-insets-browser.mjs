@@ -1,6 +1,6 @@
 // Hosted-only geometry regression. Run after build against the isolated static
 // preview on port 4173. Simulated UA/insets/keyboard cannot replace device QA.
-import {chromium, webkit} from '@playwright/test';
+import {chromium, webkit, expect} from '@playwright/test';
 import assert from 'node:assert/strict';
 import {mkdir, writeFile} from 'node:fs/promises';
 import {initialState, PREVIEW_KEY} from '../src/data-adapter.js';
@@ -174,6 +174,16 @@ try {
       const current = {};
       try {
         const {page, trace} = await open(device, material, theme, mode, current);
+        await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'Family',exact:true}).click();
+        await page.evaluate(()=>document.getElementById('main').focus());
+        assert.equal(await page.locator('#main').evaluate(node=>getComputedStyle(node).outlineStyle),'none',`${label}: pointer navigation has no page glow`);
+        await page.keyboard.press('Tab');await page.evaluate(()=>document.getElementById('main').focus());
+        assert.equal(await page.locator('#main').evaluate(node=>getComputedStyle(node).outlineStyle),'solid',`${label}: keyboard page focus remains visible`);
+        await page.evaluate(()=>window.scrollTo(0,300));
+        await expect(page.locator('.page-navigation-header')).toHaveAttribute('data-compact','true');
+        const back=page.getByRole('button',{name:/^Back to /});await expect(back).toBeVisible();
+        const backBox=await back.boundingBox();assert.ok(backBox.y>=0&&backBox.y+backBox.height<=device.height,`${label}: Back stays reachable after scroll`);
+        await page.evaluate(()=>window.scrollTo(0,0));
         for (const safe of [0, 21, 34]) {
           await navigationStage(page, trace, `safe-area geometry ${safe}px`);
           await page.evaluate(value => document.documentElement.style.setProperty('--gw-safe-bottom', `${value}px`), safe);
@@ -182,9 +192,10 @@ try {
             const rect = node => {const r = node.getBoundingClientRect(); return {x: r.x, y: r.y, width: r.width, height: r.height, bottom: r.bottom, right: r.right};};
             return {nav: rect(nav), fab: rect(fab), buttons: [...nav.querySelectorAll('button')].map(rect), width: innerWidth, height: innerHeight, scrollWidth: document.documentElement.scrollWidth};
           });
-          const expected = navigationInsetMetrics({mobileOS: device.os, displayMode: mode, safeAreaBottom: safe, width: device.width});
+          const expected = navigationInsetMetrics({mobileOS: device.os, displayMode: mode, safeAreaBottom: safe, width: device.width, material});
           assert.ok(Math.abs(geometry.height - geometry.nav.bottom - expected.bottom) <= 1, `${label}: dock gap matches OS/display mode`);
           assert.ok(Math.abs(geometry.height - geometry.fab.bottom - expected.fabBottom) <= 1, `${label}: FAB consumes the same inset once`);
+          assert.ok(Math.abs(geometry.nav.height-expected.height)<=1,`${label}: dock has correct material height`);
           assert.ok(geometry.buttons.every(button => button.height >= 44 && geometry.height - button.bottom >= safe - 1), `${label}: controls clear the full simulated OS inset`);
           assert.ok(geometry.scrollWidth <= geometry.width + 1, `${label}: no horizontal overflow`);
           if (device.width >= 700) {
@@ -201,9 +212,11 @@ try {
               root.style.setProperty('--gw-safe-right', `${right}px`);
               const nav = document.querySelector('.bottom').getBoundingClientRect();
               const fab = document.querySelector('.fab-glass, .material-fab').getBoundingClientRect();
-              return {left: nav.left, right: nav.right, fabRight: fab.right};
+              const buttons=[...document.querySelectorAll('.bottom button')].map(button=>button.getBoundingClientRect());
+              return {left:nav.left,right:nav.right,buttonLeft:buttons[0].left,buttonRight:buttons.at(-1).right,fabRight:fab.right};
             }, {left, right});
-            assert.ok(edges.left >= left && edges.right <= device.width - right, `${label}: centered capsule clears an asymmetric notch`);
+            if(material==='android'){assert.equal(edges.left,0);assert.equal(edges.right,device.width);assert.ok(edges.buttonLeft>=left&&edges.buttonRight<=device.width-right,`${label}: Flat controls clear asymmetric notch`);}
+            else assert.ok(edges.left >= left && edges.right <= device.width - right, `${label}: centered capsule clears an asymmetric notch`);
             assert.ok(edges.fabRight <= device.width - right, `${label}: FAB clears the right notch`);
           }
           await page.evaluate(() => {

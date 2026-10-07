@@ -1,14 +1,21 @@
 import React from 'react';
 import {useApp} from './ui-core.jsx';
-import {EditableText} from './page-content.jsx';
+import {SharedPagePanels} from './page-panels.jsx';
+import {EditableText,EditableMedia,usePageContent} from './page-content.jsx';
 import {PlanningChecklist,PlanningStatus,SavedPlanningHistory} from './planning-checklist.jsx';
 import {derivePlanning} from './planning-model.js';
 import {Rsvp,ReunionFeesPanel} from './planner.jsx';
 import {ProductList} from './features.jsx';
 import './reunion-plans.css';
 
-export function YourReunionPanel({compact=false}){return <PlanningChecklist compact={compact} title="Your reunion" heading={<EditableText page="home" field="reunionTitle" as="span">Your reunion</EditableText>}/>}
+export function YourReunionPanel({compact=false,page='home',field='reunionTitle'}){return <PlanningChecklist compact={compact} title="Your reunion" heading={<EditableText page={page} field={field} as="span">Your reunion</EditableText>}/>}
 export function ReunionPlans(){
- const {state}=useApp(),plan=derivePlanning(state),shirts=plan.byId.shirts;
- return <div className="stack reunion-plans-page"><EditableText page="reunion" field="plansTitle" as="h2">Your plans</EditableText><section className="card stack"><h2>RSVP</h2><PlanningStatus task={plan.byId.rsvp}/><p className="small muted">{plan.byId.rsvp.detail}</p><Rsvp/></section><section className={'reunion-merchandise-panel stack is-'+shirts.status} aria-label="Merchandise"><div className="reunion-plan-heading"><h2 className="planning-task-label">Merchandise</h2><PlanningStatus task={shirts}/></div><p className="small muted">{shirts.detail}</p>{shirts.status==='not-needed'||shirts.status==='waiting'?<p>Saved orders remain available below. Update your RSVP if your attendance changes.</p>:<ProductList/>}</section><ReunionFeesPanel/><YourReunionPanel compact/><SavedPlanningHistory/></div>;
+ const {state}=useApp(),plan=derivePlanning(state),shirts=plan.byId.shirts,legacy=usePageContent('reunion');
+ return <div className="stack reunion-plans-page"><EditableText page="reunion-plans" field="heading" as="h2">{legacy.content?.text?.plansTitle||'Your plans'}</EditableText><SharedPagePanels page="reunion-plans" mediaOnly nativePanels={{
+  'native-rsvp':<section className="card stack"><EditableText page="reunion-plans" field="rsvpTitle" as="h2">RSVP</EditableText><PlanningStatus task={plan.byId.rsvp}/><p className="small muted">{plan.byId.rsvp.detail}</p><Rsvp/></section>,
+  'native-merchandise':<section className={'reunion-merchandise-panel stack is-'+shirts.status} aria-label="Merchandise"><div className="reunion-plan-heading"><EditableText page="reunion-plans" field="merchandiseTitle" as="h2" className="planning-task-label">Merchandise</EditableText><PlanningStatus task={shirts}/></div><p className="small muted">{shirts.detail}</p>{shirts.status==='not-needed'||shirts.status==='waiting'?<p>Saved orders remain available below. Update your RSVP if your attendance changes.</p>:<ProductList/>}</section>,
+  'native-fees':<ReunionFeesPanel heading={<EditableText page="reunion-plans" field="feesTitle" as="span">Reunion fees</EditableText>}/>,
+  'native-checklist':<YourReunionPanel compact page="reunion-plans" field="checklistTitle"/>,
+  'native-history':<SavedPlanningHistory/>
+ }}><EditableMedia page="reunion-plans" field="hero"/></SharedPagePanels></div>;
 }
