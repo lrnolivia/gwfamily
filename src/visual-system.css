@@ -90,4 +90,9 @@ html[data-theme=light][data-platform] :is(.wordmark-green,.wordmark-amp,.wordmar
 @container appearance-accent (min-width:380px){.profile-menu[data-menu-page=appearance] .profile-colors .profile-color-options{grid-template-columns:repeat(8,minmax(44px,1fr))}}
 
 .profile-swatches-scroll>.profile-color-swatch[aria-pressed=true]:not(:focus-visible){outline:0}
-.profile-color-swatch[aria-pressed=true]>span,.profile-color-swatch[aria-pressed=true]>.liquid-glass-content>span{background:var(--swatch-active,var(--swatch))}
+.profile-color-swatch[aria-pressed=true]>span,.profile-color-swatch[aria-pressed=true]>.liquid-glass-content>span{background:var(--swatch)}
+.profile-color-swatch[aria-pressed=true] .glyph{width:20px;height:20px;padding:3px;box-sizing:border-box;border-radius:50%;background:var(--swatch-active,var(--control));color:var(--swatch-active-text,#ffffff)}
+
+/* Approved yellow uses a soft warm halo; other colors retain crisp labels. */
+html[data-theme][data-platform] :is(.button:not(.secondary),.choice-chip>input:checked+.choice-chip-face,.choice-option[aria-selected=true],.heading-font-option[aria-pressed=true],.view-switcher>button[aria-selected=true],.bottom button[aria-current=page],.material-fab,.fab-glass .fab){text-shadow:var(--accent-label-glow,none)}
+html[data-theme][data-platform] :is(.choice-chip>input:checked+.choice-chip-face,.choice-option[aria-selected=true],.heading-font-option[aria-pressed=true],.view-switcher>button[aria-selected=true],.bottom button[aria-current=page],.material-fab,.fab-glass .fab) .glyph{filter:drop-shadow(0 0 1px var(--accent-label-glow-core,transparent))}

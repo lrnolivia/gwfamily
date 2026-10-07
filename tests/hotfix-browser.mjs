@@ -54,8 +54,16 @@ try{
   const p=await pageFor(width,theme,platform),nav=p.getByRole('navigation',{name:'Main navigation'}),fab=p.getByRole('button',{name:'Post an update',exact:true});
   assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'page stays within viewport');
   if(width<=768&&platform==='android')await verifyFilterPlatters(p,width,theme);
-  if(width>=700){const a=await nav.boundingBox(),b=await fab.boundingBox();assert.ok(b.x>=a.x+a.width+8,'FAB beside nav with gap');assert.ok(b.x+b.width<=width-12,'FAB stays onscreen');assert.ok(Math.abs((a.y+a.height/2)-(b.y+b.height/2))<20,'FAB aligned with nav');}
+  if(width>=700){const a=await nav.boundingBox(),b=await fab.boundingBox();assert.ok(b.x>=a.x+a.width+8,'FAB clears navigation');assert.ok(b.x+b.width<=width-12,'FAB stays onscreen');if(platform==='android'){assert.ok(a.x<=1&&a.width<=100&&a.height>700,'Flat uses the full-height left rail');assert.ok(b.y<200&&width-b.x-b.width>=23,'Flat Post stays at the top right');}else assert.ok(Math.abs((a.y+a.height/2)-(b.y+b.height/2))<20,'Glass FAB aligned with dock');}
+  if(platform==='android'){
+   const home=nav.getByRole('button',{name:'Home',exact:true}),family=nav.getByRole('button',{name:'Family',exact:true});
+   await family.click();await home.hover();
+   const paint=await home.evaluate(e=>({background:getComputedStyle(e).backgroundColor,capsule:getComputedStyle(e.querySelector('.glyph')).backgroundColor}));assert.equal(paint.background,'rgba(0, 0, 0, 0)','Unselected hover never fills the destination rectangle');assert.notEqual(paint.capsule,'rgba(0, 0, 0, 0)','Hover remains visible inside icon capsule');
+   await home.focus();assert.ok(await home.evaluate(e=>parseFloat(getComputedStyle(e).outlineWidth)>=2),'Keyboard navigation keeps visible focus');await home.click();
+  }
   await p.getByRole('button',{name:'Profile and appearance'}).click();
+  const signOut=p.getByRole('button',{name:'Sign out',exact:true});await expect(signOut).toBeVisible();
+  const exitPaint=await signOut.evaluate(e=>({background:getComputedStyle(e).backgroundColor,color:getComputedStyle(e).color,tint:e.querySelector('.liquid-glass-tint')?getComputedStyle(e.querySelector('.liquid-glass-tint')).backgroundColor:null}));assert.equal(exitPaint.background,'rgb(229, 34, 54)','Sign out keeps bright red on every theme');assert.equal(exitPaint.color,'rgb(255, 255, 255)');if(exitPaint.tint)assert.equal(exitPaint.tint,exitPaint.background,'Glass tint preserves destructive red');
   const rows=await p.locator('.profile-menu .list-row').evaluateAll(rows=>rows.map(e=>{const s=getComputedStyle(e);return {top:s.paddingTop,bottom:s.paddingBottom,align:s.alignItems}}));assert.ok(rows.length);assert.ok(rows.every(r=>r.top===r.bottom&&r.align==='center'));
   await p.screenshot({path:`docs/recovery-qa/hotfix-menu-${width}-${theme}-${platform}.png`});await p.keyboard.press('Escape');
   await fab.click();await p.getByText('Tag family',{exact:false}).first().click();const picker=p.getByRole('combobox',{name:'Family in this post'});await picker.fill('Shirley');await p.getByRole('option',{name:/Shirley Thomas/}).click();await p.getByRole('textbox',{name:"What's on your mind"}).fill('A family memory from the hotfix test');await p.getByRole('button',{name:'Send post',exact:true}).click();await p.getByText('A family memory from the hotfix test',{exact:true}).waitFor();const savedPost=await p.evaluate(key=>JSON.parse(localStorage.getItem(key)).state.posts.find(post=>post.text==='A family memory from the hotfix test'),PREVIEW_KEY);assert.ok(savedPost?.memberIds?.includes('shirley'),'saved post retains selected ancestor ID');assert.equal(await p.locator('.ancestor-tag').filter({hasText:'Shirley Thomas'}).count(),1,'ancestor tag is rendered with its memorial description');
@@ -68,6 +76,17 @@ try{
   const fieldStroke=await profileField.evaluate(element=>{const probe=document.createElement('span');probe.style.color='var(--decorative-line)';element.parentElement.append(probe);const result={actual:getComputedStyle(element).borderTopColor,expected:getComputedStyle(probe).color};probe.remove();return result});assert.deepEqual(parsePaintColor(fieldStroke.actual),parsePaintColor(fieldStroke.expected),'Neutral field stroke follows 30% active-theme token');
   await p.screenshot({path:`docs/recovery-qa/hotfix-profile-${width}-${theme}-${platform}.png`,fullPage:true});
   results.push({width,theme,platform,status:'passed'});await p.close();
+ }
+ // Inspect the requested yellow at real control size, without treating its
+ // soft shadow as proof of WCAG text contrast on the bright fill.
+ for(const theme of ['light','dark'])for(const platform of ['ios','android']){
+  const p=await pageFor(390,theme,platform);
+  await p.evaluate(()=>localStorage.setItem('gw-interface-accent:v1',JSON.stringify({mode:'custom',color:'#ec9d00'})));await p.reload({waitUntil:'domcontentloaded'});
+  await p.getByRole('button',{name:'Profile and appearance'}).click();
+  const action=p.getByRole('button',{name:'Go to You',exact:true});await expect(action).toBeVisible();
+  const paint=await action.evaluate(e=>{const s=getComputedStyle(e),r=e.getBoundingClientRect();return {background:s.backgroundColor,color:s.color,shadow:s.textShadow,width:r.width,height:r.height}});
+  assert.equal(paint.background,'rgb(236, 157, 0)','Yellow keeps the exact approved fill');assert.equal(paint.color,'rgb(255, 255, 255)','Yellow labels stay white');assert.notEqual(paint.shadow,'none','Yellow receives its soft warm-brown shadow');assert.ok(paint.width>=44&&paint.height>=44);
+  await p.screenshot({path:`docs/recovery-qa/yellow-white-label-${theme}-${platform}.png`});results.push({check:'yellow white label paint, visual review required',theme,platform,paint});await p.close();
  }
  // Exercise the real display-mode listener and CSS; this is a simulation, not a physical-device install check.
  for(const width of [390,768]){

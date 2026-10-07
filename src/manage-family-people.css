@@ -12,5 +12,5 @@
 .membership-removal .button{justify-self:stretch;width:100%;min-height:48px}
 .membership-confirmation{padding:16px;border:1px solid var(--line);border-radius:18px}
 .membership-confirmation h3,.membership-confirmation p,.membership-removal p{margin:0}
-html[data-theme][data-platform] .membership-remove.membership-remove{background:#c9283d!important;color:#fff!important;border:0!important;--gw-control-color:#c9283d;--gw-control-alpha:100%;box-shadow:none!important;min-height:48px}
-html[data-theme][data-platform] .membership-remove.membership-remove>.liquid-glass-tint{background:#c9283d!important}
+html[data-theme][data-platform] .button.membership-remove.membership-remove{background:#e52236!important;color:#fff!important;border:0!important;--gw-control-color:#e52236;--gw-control-alpha:100%;box-shadow:none!important;min-height:48px}
+html[data-theme][data-platform] .gw-optic-control.button.membership-remove.membership-remove>.liquid-glass-tint{background:#e52236!important}

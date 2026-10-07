@@ -82,3 +82,8 @@ html[data-keyboard-open=true] .app:has(>.bottom)::after {
 /* Selection belongs to the icon capsule, never the full destination hitbox. */
 html[data-platform=android][data-theme] .bottom.material-nav>button[aria-current=page]{background:transparent!important;border:0!important;box-shadow:none!important;color:var(--text)!important}
 html[data-platform=android][data-theme] .bottom.material-nav>button[aria-current=page]>.glyph{background:var(--control)!important;color:var(--control-text)!important}
+
+/* Pointer hover/focus must never paint the entire Flat destination rectangle.
+   Keep the keyboard outline and put the state layer inside the icon capsule. */
+html[data-platform=android][data-theme] .bottom.material-nav>button:is(:hover,:focus,:focus-visible,:active){background:transparent!important;color:var(--text)!important;box-shadow:none!important;backdrop-filter:none!important}
+html[data-platform=android][data-theme] .bottom.material-nav>button:not([aria-current=page]):is(:hover,:focus-visible)>.glyph{background:var(--raised)!important;color:var(--text)!important}
