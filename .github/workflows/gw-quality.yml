@@ -159,6 +159,8 @@ jobs:
             docs/notifications-qa
             backend/build/worker.mjs
             backend/build/worker-provenance.json
+            backend/build/site-worker.mjs
+            backend/build/site-worker-provenance.json
             backend/build/year-safe-rollback.mjs
             backend/build/year-safe-rollback-provenance.json
           retention-days: 7
