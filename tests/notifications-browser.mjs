@@ -236,7 +236,8 @@ try{
   // Settings navigates to a full page. Use an actual modal sheet to keep
   // the post mounted while testing background hydration under an inert root.
   const reportsBeforeSheet=requests.filter(request=>request.path==='/api/commands'&&request.payload.type==='REPORT').length;
-  await alice.locator('.detail-page .post-card').getByRole('button',{name:'•••',exact:true}).click();
+  await alice.locator('.detail-page .post-card').getByRole('button',{name:'Post options',exact:true}).click();
+  await alice.getByRole('button',{name:'Report',exact:true}).click();
   const sheet=alice.getByRole('dialog',{name:'Report content',exact:true});await expect(sheet).toBeVisible();
   const reason=sheet.getByRole('textbox',{name:'Reason for reporting',exact:true});await reason.fill('Unsubmitted synthetic sheet draft');await selectDraft(reason);
   await refreshComments([{...comment,text:'The sheet refreshed fixture text.'},nextComment]);
@@ -425,3 +426,4 @@ async function captureFailure(){
   return result;
  }));
 }
+

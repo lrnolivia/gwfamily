@@ -23,7 +23,7 @@ export function PageNavigationHeader({previous,compact}){
  const {route,state,messaging,goBack}=useApp(),page=usePageContent(route.type),main=mainPages.has(route.type),showBack=!main,[heading,setHeading]=useState(null),headerRef=useRef(null),[position,setPosition]=useState(null);
  useLayoutEffect(()=>{
   const root=document.getElementById('main');if(!root){setHeading(null);return;}
-  const update=()=>{const next=root.querySelector('h1')||root.querySelector(':scope > section > h2,:scope > div > h2');setHeading(current=>current===next?current:next)};
+  const update=()=>{const next=root.querySelector('h1')||(!['post','memory','chat'].includes(route.type)&&root.querySelector(':scope > section > h2,:scope > div > h2'));setHeading(current=>current===next?current:next)};
   update();const observer=new MutationObserver(update);observer.observe(root,{childList:true,subtree:true});return()=>observer.disconnect();
  },[route.type,route.id,showBack]);
  useLayoutEffect(()=>{

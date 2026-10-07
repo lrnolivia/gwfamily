@@ -64,7 +64,7 @@ html[data-theme][data-platform] :is(.page-media-modes,.view-switcher)>button{bor
 @media(min-width:700px){.profile-colors .profile-color-options{grid-template-columns:repeat(8,minmax(44px,1fr))}}
 
 /* Default and personal accents share white foregrounds in both materials. */
-html[data-theme][data-platform]{--control:#387b51;--control-text:#ffffff;--control-edge:#387b51;--accent:#387b51;--ink:#ffffff;--send-active:var(--control);--send-text:#ffffff;--send-edge:#ffffff}
+html[data-theme][data-platform]{--control:#387b51;--control-text:#fffaf0;--control-edge:#387b51;--accent:#387b51;--ink:#fffaf0;--send-active:var(--control);--send-text:#fffaf0;--send-edge:#ffffff}
 html[data-theme][data-platform] :is(.choice-chip>input:checked+.choice-chip-face,.choice-option[aria-selected=true],.heading-font-option[aria-pressed=true]){color:var(--control-text)!important}
 html[data-theme][data-platform] .view-switcher.view-switcher>button[aria-selected=true]{color:var(--control-text)!important}
 
@@ -79,7 +79,7 @@ html[data-theme][data-platform] .view-switcher.view-switcher>button[aria-selecte
 
 /* Compact swatch paint inside the existing touch targets. */
 .profile-swatches-scroll>.profile-color-swatch{background:transparent!important;--gw-control-color:transparent;--gw-control-alpha:0%;border:0!important;box-shadow:none!important;padding:6px;border-radius:50%}
-.profile-color-swatch>span,.profile-color-swatch>.liquid-glass-content>span{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--swatch);color:#ffffff}
+.profile-color-swatch>span,.profile-color-swatch>.liquid-glass-content>span{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--swatch);color:var(--bright-text,#fffaf0)}
 .profile-color-swatch .glyph{width:16px;height:16px}
 .profile-color-swatch[aria-pressed=true]>span,.profile-color-swatch[aria-pressed=true]>.liquid-glass-content>span{outline:2px solid var(--text);outline-offset:3px}
 .profile-menu[data-menu-page=appearance] .profile-colors .profile-color-options{grid-template-columns:repeat(4,minmax(44px,1fr));column-gap:4px}
@@ -142,7 +142,7 @@ html[data-theme][data-platform] .post-head .identity-avatar .avatar{width:100%;h
 
 /* One action leads; supporting actions sit between the accent and dark glass. */
 html[data-theme][data-platform] .button[data-button-level=primary]:not(.danger):not(.destructive):not(.sign-out):not(.membership-remove){background:var(--control,var(--accent))!important;color:var(--control-text,#fff)!important;border-color:transparent!important;text-shadow:var(--accent-label-glow);box-shadow:var(--gw-action-shadow)!important}
-html[data-theme][data-platform] .button[data-button-level=supporting]{background:color-mix(in srgb,var(--control,var(--accent)) 55%,var(--surface))!important;color:#fff!important;border-color:transparent!important;box-shadow:var(--gw-action-glass-shadow)!important}
+html[data-theme][data-platform] .button[data-button-level=supporting]{background:color-mix(in srgb,var(--control,var(--accent)) 55%,var(--surface))!important;color:var(--bright-text,#fffaf0)!important;border-color:transparent!important;box-shadow:var(--gw-action-glass-shadow)!important}
 .page-panel-full-width{width:100%;min-width:0;margin-bottom:20px}
 .messages-heading{overflow:visible;flex-wrap:wrap;align-items:center;padding-block:8px 16px}
 .messages-heading>div{min-width:0}.messages-heading>.row{flex-shrink:0;gap:12px;padding:8px;overflow:visible;max-width:100%}
@@ -161,10 +161,10 @@ html[data-theme][data-platform] .post-head .identity-avatar{align-self:center;wi
 .post-head .identity-info{align-self:center;justify-items:start}.post-head .identity-info>.membership-chips{align-self:start;justify-self:start;width:fit-content}
 html[data-theme][data-platform] .planning-link>.glyph{align-self:flex-start;margin-top:2px;flex-shrink:0}
 
-.family-branch{display:grid;gap:12px;margin-block:16px}.family-branch-diagram{display:grid;gap:14px;min-width:0}.tree-branch-generation{display:flex;justify-content:center;gap:8px;min-width:0}.tree-branch-generation:empty{display:none}.tree-branch-center{display:flex;justify-content:center}.tree-branch-person{position:relative;display:grid;justify-items:center;align-content:start;gap:3px;width:100%;max-width:130px;min-width:0;padding:8px 6px;border-radius:16px;background:var(--raised);color:var(--text);text-align:center}.tree-branch-person .avatar{width:32px;height:32px;min-width:32px;border-radius:50%;flex:none}.tree-branch-person strong{font-size:.75rem;line-height:1.2;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.tree-branch-person small{font-size:.6875rem;color:var(--muted)}.tree-branch-parents .tree-branch-person:after{content:'';position:absolute;bottom:-14px;left:50%;height:14px;border-left:1px solid var(--muted)}.tree-branch-children .tree-branch-person:before{content:'';position:absolute;top:-14px;left:50%;height:14px;border-left:1px solid var(--muted)}.tree-branch-person.is-focus{background:var(--control);color:#fff}.tree-branch-person.is-focus small{color:inherit}.tree-branch-siblings{padding-top:8px}.tree-branch-paging{display:flex;justify-content:space-between;align-items:center;gap:8px}.tree-branch-paging button{min-height:44px;padding:8px;background:var(--raised);color:var(--text);border-radius:12px}
+.family-branch{display:grid;gap:12px;margin-block:16px}.family-branch-diagram{display:grid;gap:14px;min-width:0}.tree-branch-generation{display:flex;justify-content:center;gap:8px;min-width:0}.tree-branch-generation:empty{display:none}.tree-branch-center{display:flex;justify-content:center}.tree-branch-person{position:relative;display:grid;justify-items:center;align-content:start;gap:3px;width:100%;max-width:130px;min-width:0;padding:8px 6px;border-radius:16px;background:var(--raised);color:var(--text);text-align:center}.tree-branch-person .avatar{width:32px;height:32px;min-width:32px;border-radius:50%;flex:none}.tree-branch-person strong{font-size:.75rem;line-height:1.2;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.tree-branch-person small{font-size:.6875rem;color:var(--muted)}.tree-branch-parents .tree-branch-person:after{content:'';position:absolute;bottom:-14px;left:50%;height:14px;border-left:1px solid var(--muted)}.tree-branch-children .tree-branch-person:before{content:'';position:absolute;top:-14px;left:50%;height:14px;border-left:1px solid var(--muted)}.tree-branch-person.is-focus{background:var(--control);color:var(--bright-text,#fffaf0)}.tree-branch-person.is-focus small{color:inherit}.tree-branch-siblings{padding-top:8px}.tree-branch-paging{display:flex;justify-content:space-between;align-items:center;gap:8px}.tree-branch-paging button{min-height:44px;padding:8px;background:var(--raised);color:var(--text);border-radius:12px}
 
 /* Selection changes the fill; keyboard focus retains its own visible cue. */
-html[data-theme][data-platform] .calendar-filters .button[aria-pressed=true]{--gw-control-color:color-mix(in srgb,var(--control,var(--accent)) 65%,var(--surface));--gw-control-alpha:100%;background:var(--gw-control-color)!important;color:#fff!important;border-color:transparent!important;box-shadow:var(--gw-action-shadow)!important}
+html[data-theme][data-platform] .calendar-filters .button[aria-pressed=true]{--gw-control-color:color-mix(in srgb,var(--control,var(--accent)) 65%,var(--surface));--gw-control-alpha:100%;background:var(--gw-control-color)!important;color:var(--bright-text,#fffaf0)!important;border-color:transparent!important;box-shadow:var(--gw-action-shadow)!important}
 html[data-theme][data-platform] .calendar-filters .button[aria-pressed=true]>.liquid-glass-tint{background:var(--gw-control-color)!important;opacity:1!important}
 .calendar-filters .button[aria-pressed=true]:focus-visible{outline:2px solid var(--text);outline-offset:3px}
 .messages-options.card{margin:0;align-self:start}
@@ -200,8 +200,8 @@ html[data-theme][data-platform] .button[data-button-level=primary]:not(.danger):
 @media(max-width:600px){.messages-heading{align-items:stretch}.messages-heading>div:first-child{width:100%;text-align:start}}
 
 /* Brand lettering follows the chosen palette without outlines or text effects. */
-html[data-theme=dark]{--wordmark-green:#f6edcf;--wordmark-amp:#f8efdc;--wordmark-white:#83c695;--wordmark-family:#cfaa7d;--text:#f5eedc;--muted:#c8bea9}
-html[data-theme=light]{--wordmark-green:#295b3a;--wordmark-amp:#354d30;--wordmark-white:#2e603f;--wordmark-family:#795438;--text:#4b382b;--muted:#715b49}
+html[data-theme=dark]{--wordmark-green:#f6edcf;--wordmark-amp:#f6edcf;--wordmark-white:#a0bb9b;--wordmark-family:#588f69;--text:#f5eedc;--muted:#c8bea9}
+html[data-theme=light]{--wordmark-green:#237943;--wordmark-amp:#237943;--wordmark-white:#1b5c33;--wordmark-family:#123d22;--text:#4b382b;--muted:#715b49}
 html[data-platform] .wordmark-green{color:var(--wordmark-green)!important}
 html[data-platform] .wordmark-amp{color:var(--wordmark-amp)!important}
 html[data-platform] .wordmark-white{color:var(--wordmark-white)!important}
@@ -220,3 +220,14 @@ html[data-platform] :is(.wordmark-green,.wordmark-amp,.wordmark-white,.wordmark-
 
 /* Keep focus rings inside scroll-clipped modal fields. */
 #sheet-body :is(input,textarea,select):focus-visible{outline:2px solid var(--control,var(--accent));outline-offset:-2px}
+
+:root{--bright-text:#fffaf0;--near-dark-text:#171714}
+
+/* Feed identity stays compact regardless of wrapped names or badge counts. */
+html[data-theme][data-platform] .post-head .identity-avatar{width:44px;height:44px;min-width:44px;max-width:44px;min-height:44px;max-height:44px;flex:0 0 44px;align-self:center}
+.notification-badge{box-sizing:border-box;display:grid;place-items:center;width:24px;height:24px;min-width:24px;min-height:24px;padding:0;border-radius:50%;line-height:1}
+html[data-theme=dark]{--status-success:#91d6a6;--status-danger:#ff9a9e;--status-caution:#efce78}
+html[data-theme=light]{--status-success:#236b3b;--status-danger:#b32a38;--status-caution:#805c00}
+.poll-indicator.selected{background:color-mix(in srgb,var(--status-success) 16%,var(--surface));color:var(--status-success);border-color:var(--status-success)}
+.received-reactions .reaction-pill{position:relative;border:0!important;background:transparent!important;isolation:isolate}
+.received-reactions .reaction-pill::before{content:'';position:absolute;inset:7px 0;border-radius:999px;background:var(--raised);z-index:-1}
