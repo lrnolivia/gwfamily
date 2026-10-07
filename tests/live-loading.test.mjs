@@ -35,7 +35,7 @@ test('canceling an obsolete request also cancels backoff without making another 
  const cancel=new AbortController();let calls=0;const pending=readWithRecovery(async()=>{calls++;throw new TypeError('offline')},{signal:cancel.signal,retryDelayMs:1000});await Promise.resolve();cancel.abort();await assert.rejects(pending,{name:'AbortError'});assert.equal(calls,1);
 });
 test('a successful refresh clears only its own previous loading failure',async()=>{
- let failing=true;const h=await host(path=>Promise.resolve(path==='/api/state'&&failing?response({error:'Request could not be completed'},500):normal(path)));
+ let failing=true;const h=await host(path=>Promise.resolve(new URL(path,'https://fixture.invalid').pathname==='/api/state'&&failing?response({error:'Request could not be completed'},500):normal(path)));
  try{await h.render().refresh();assert.equal(h.render().error,'Request could not be completed');failing=false;await h.render().refresh();assert.equal(h.render().error,'');assert.equal(h.render().state.version,1);h.render().setError('Your unsent changes are still here.');await h.render().refresh();assert.equal(h.render().error,'Your unsent changes are still here.')}finally{h.close()}
 });
 test('a failed configuration refresh does not falsify last known service configuration',async()=>{
@@ -43,30 +43,30 @@ test('a failed configuration refresh does not falsify last known service configu
  try{await h.render().refresh();failing=true;await h.render().refresh();assert.equal(h.render().config.configured,true);assert.equal(h.render().error,'Configuration service error')}finally{h.close()}
 });
 test('real 401, 403 and 500 read failures are displayed and preserved until successful recovery',async()=>{
- for(const status of [401,403,500]){let reads=0;const h=await host(path=>{if(path==='/api/state'){reads++;return Promise.resolve(response({error:'Failure '+status},status))}return Promise.resolve(normal(path))});try{await h.render().refresh();assert.equal(h.render().error,'Failure '+status);assert.equal(reads,1)}finally{h.close()}}
+ for(const status of [401,403,500]){let reads=0;const h=await host(path=>{if(new URL(path,'https://fixture.invalid').pathname==='/api/state'){reads++;return Promise.resolve(response({error:'Failure '+status},status))}return Promise.resolve(normal(path))});try{await h.render().refresh();assert.equal(h.render().error,'Failure '+status);assert.equal(reads,1)}finally{h.close()}}
 });
 test('newest refresh wins; a late previous success cannot overwrite state or a local draft',async()=>{
- const old=deferred(),newer=deferred(),signals=[];let reads=0;const h=await host((path,options)=>{if(path==='/api/state'){signals.push(options.signal);return ++reads===1?old.promise:newer.promise}return Promise.resolve(normal(path))});
+ const old=deferred(),newer=deferred(),signals=[];let reads=0;const h=await host((path,options)=>{if(new URL(path,'https://fixture.invalid').pathname==='/api/state'){signals.push(options.signal);return ++reads===1?old.promise:newer.promise}return Promise.resolve(normal(path))});
  try{const first=h.render().refresh();await h.flush();const second=h.render().refresh();await h.flush();assert.equal(signals[0].aborted,true);assert.equal(signals[1].aborted,false);await h.render().dispatch({type:'SET_DRAFT',kind:'post',value:'Keep this draft'});newer.resolve(response(live('alice',2)));await second;old.resolve(response(live('alice',1)));await first;assert.equal(h.render().state.version,2);assert.equal(h.render().state.drafts.post,'Keep this draft');assert.equal(h.render().error,'')}finally{h.close()}
 });
 test('an aborted obsolete request failure cannot replace current successful state or surface an error',async()=>{
- const old=deferred();let reads=0;const h=await host(path=>path==='/api/state'&&++reads===1?old.promise:Promise.resolve(normal(path,2)));
+ const old=deferred();let reads=0;const h=await host(path=>new URL(path,'https://fixture.invalid').pathname==='/api/state'&&++reads===1?old.promise:Promise.resolve(normal(path,2)));
  try{const first=h.render().refresh();await h.flush();await h.render().refresh();old.reject(new DOMException('navigation canceled','AbortError'));await first;assert.equal(h.render().state.version,2);assert.equal(h.render().error,'');assert.equal(h.render().loading,false)}finally{h.close()}
 });
 test('latest failing refresh is not replaced by a late older successful snapshot',async()=>{
- const old=deferred();let reads=0;const h=await host(path=>path==='/api/state'?(++reads===1?old.promise:Promise.resolve(response({error:'Latest real error'},500))):Promise.resolve(normal(path)));
+ const old=deferred();let reads=0;const h=await host(path=>new URL(path,'https://fixture.invalid').pathname==='/api/state'?(++reads===1?old.promise:Promise.resolve(response({error:'Latest real error'},500))):Promise.resolve(normal(path)));
  try{const first=h.render().refresh();await h.flush();await h.render().refresh();old.resolve(response(live('alice',8)));await first;assert.equal(h.render().error,'Latest real error');assert.equal(h.render().state.version,0)}finally{h.close()}
 });
 test('preview transition invalidates pending live reads and does not leak a late error',async()=>{
- const old=deferred();const h=await host(path=>path==='/api/state'?old.promise:Promise.resolve(normal(path)));
+ const old=deferred();const h=await host(path=>new URL(path,'https://fixture.invalid').pathname==='/api/state'?old.promise:Promise.resolve(normal(path)));
  try{const first=h.render().refresh();await h.flush();h.render().enterPreview();old.reject(new Error('Old account error'));await first;assert.equal(h.render().preview,true);assert.equal(h.render().state.mode,'preview');assert.equal(h.render().error,'')}finally{h.close()}
 });
 test('leaving preview immediately requests live state despite the previous render closure',async()=>{
- let reads=0;const h=await host(path=>{if(path==='/api/state')reads++;return Promise.resolve(normal(path))},{state:initialState(),preview:true});
+ let reads=0;const h=await host(path=>{if(new URL(path,'https://fixture.invalid').pathname==='/api/state')reads++;return Promise.resolve(normal(path))},{state:initialState(),preview:true});
  try{h.render().leavePreview();await h.flush();assert.equal(reads,1);assert.equal(h.render().state.mode,'live')}finally{h.close()}
 });
 test('unmount aborts live reads and late completion cannot update hook state',async()=>{
- const old=deferred();let signal;const h=await host((path,options)=>{if(path==='/api/state'){signal=options.signal;return old.promise}return Promise.resolve(normal(path))},{effects:true});
+ const old=deferred();let signal;const h=await host((path,options)=>{if(new URL(path,'https://fixture.invalid').pathname==='/api/state'){signal=options.signal;return old.promise}return Promise.resolve(normal(path))},{effects:true});
  h.render();await h.flush();h.close();assert.equal(signal.aborted,true);old.resolve(response(live('alice',20)));await h.flush();assert.equal(h.render().state.version,0);
 });
 test('safe server support references survive API errors without reflecting arbitrary response strings',async()=>{
@@ -74,25 +74,25 @@ test('safe server support references survive API errors without reflecting arbit
 });
 
 test('acknowledged command prevents older reads from overwriting the saved result',async()=>{
- const old=deferred();let reads=0;const h=await host(path=>path==='/api/state'?(++reads===1?old.promise:Promise.resolve(response(live('alice',2)))):path==='/api/commands'?Promise.resolve(response({ok:true})):Promise.resolve(normal(path)));
+ const old=deferred();let reads=0;const h=await host(path=>new URL(path,'https://fixture.invalid').pathname==='/api/state'?(++reads===1?old.promise:Promise.resolve(response(live('alice',2)))):path==='/api/commands'?Promise.resolve(response({ok:true})):Promise.resolve(normal(path)));
  try{const first=h.render().refresh();await h.flush();assert.equal(await h.render().dispatch({type:'RSVP',value:{count:2,status:'Planning to come'}}),true);old.resolve(response(live('alice',1)));await first;assert.equal(h.render().state.version,2);assert.equal(h.render().error,'')}finally{h.close()}
 });
 test('a newer refresh supersedes an acknowledged command read-back without a stale error',async()=>{
- const old=deferred();let reads=0;const h=await host(path=>path==='/api/state'?(++reads===1?old.promise:Promise.resolve(response(live('alice',3)))):path==='/api/commands'?Promise.resolve(response({ok:true})):Promise.resolve(normal(path)));
+ const old=deferred();let reads=0;const h=await host(path=>new URL(path,'https://fixture.invalid').pathname==='/api/state'?(++reads===1?old.promise:Promise.resolve(response(live('alice',3)))):path==='/api/commands'?Promise.resolve(response({ok:true})):Promise.resolve(normal(path)));
  try{const save=h.render().dispatch({type:'RSVP',value:{count:2,status:'Planning to come'}});for(let i=0;i<100&&reads===0;i++){await h.flush();await new Promise(r=>setTimeout(r,1))}assert.equal(reads,1);await h.render().refresh();old.reject(new TypeError('Obsolete read-back failed'));assert.equal(await save,true);assert.equal(h.render().state.version,3);assert.equal(h.render().error,'')}finally{h.close()}
 });
 
 test('a late older success cannot overwrite the latest refresh snapshot',async()=>{
- const old=deferred();let reads=0;const h=await host(path=>path==='/api/state'&&++reads===1?old.promise:Promise.resolve(normal(path,2)));
+ const old=deferred();let reads=0;const h=await host(path=>new URL(path,'https://fixture.invalid').pathname==='/api/state'&&++reads===1?old.promise:Promise.resolve(normal(path,2)));
  try{const first=h.render().refresh();await h.flush();await h.render().refresh();old.resolve(response(live('alice',1)));await first;assert.equal(h.render().state.version,2)}finally{h.close()}
 });
 
 test('account replacement clears old private state even when the new state read fails',async()=>{
- const h=await host(path=>Promise.resolve(path==='/api/session'?response({status:'active',user:{id:'bob'}}):path==='/api/state'?response({error:'New account read failed'},500):normal(path)));
+ const h=await host(path=>Promise.resolve(path==='/api/session'?response({status:'active',user:{id:'bob'}}):new URL(path,'https://fixture.invalid').pathname==='/api/state'?response({error:'New account read failed'},500):normal(path)));
  try{await h.render().refresh();assert.notEqual(h.render().state.selfId,'alice');assert.notEqual(h.render().state.mode,'live');assert.equal(h.render().error,'New account read failed')}finally{h.close()}
 });
 test('a state result for a different cookie identity cannot be committed with the previous session',async()=>{
- const h=await host(path=>Promise.resolve(path==='/api/state'?response(live('bob',7)):normal(path)));
+ const h=await host(path=>Promise.resolve(new URL(path,'https://fixture.invalid').pathname==='/api/state'?response(live('bob',7)):normal(path)));
  try{await h.render().refresh();assert.notEqual(h.render().state.selfId,'bob');assert.match(h.render().error,/signed-in account changed/)}finally{h.close()}
 });
 test('a null error body retains its HTTP500 status and cannot be mistaken for a retryable fetch TypeError',async()=>{
