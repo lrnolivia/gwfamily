@@ -1,6 +1,7 @@
 import {canAccessLeaderTools} from './leader-access.js';
 import {shareUnchangedSnapshot,refreshingPageRecord} from './refresh-stability.js';
 import {PhotoFramingEditor,photoFrameStyle} from './photo-framing.jsx';
+import {pageReadLifecycle} from './page-read-lifecycle.js';
 import {PageMarkdownEditor,PageMarkdownBody} from './page-markdown.jsx';
 import {CarouselControls,useCarouselSwipe} from './carousel-controls.jsx';
 import {carouselKeyboardDestination,wrapCarouselIndex} from './carousel-model.js';
@@ -25,6 +26,7 @@ export function PageContentProvider({children,enabled=true}){
  const [records,setRecords]=useState({}),[editingPage,setEditingPage]=useState(null),[editingPages,setEditingPages]=useState([]),[arrangingPage,setArrangingPage]=useState(false),[activeEditor,setActiveEditor]=useState(null),[workCount,setWorkCount]=useState(0),[autosaveHolds,setAutosaveHolds]=useState(0),[storageError,setStorageError]=useState('');
  const pauseAutosave=useCallback(()=>{setAutosaveHolds(count=>count+1);let released=false;return()=>{if(!released){released=true;setAutosaveHolds(count=>Math.max(0,count-1))}}},[]);
  const ref=useRef({}),epoch=useRef(0),identity=useRef(account),loading=useRef(new Map()),pageUsers=useRef({}),previewStore=useRef({}),draftStore=useRef({}),routeAtEdit=useRef(null),activeSurface=useRef(null),workRef=useRef(0),reloadAllowed=useRef(false),mounted=useRef(true);
+ const reads=useRef(null);if(!reads.current)reads.current=pageReadLifecycle();
  const routeKey=app?.route?.type+':'+(app?.route?.id||'')+':'+(app?.route?.section||'');
  const install=useCallback((page,value)=>{const next=shareUnchangedSnapshot(ref.current[page],value);if(next!==ref.current[page]){ref.current={...ref.current,[page]:next};if(mounted.current)setRecords(ref.current)}return next},[]);
  const persistDrafts=useCallback(()=>{
@@ -33,10 +35,10 @@ export function PageContentProvider({children,enabled=true}){
   draftStore.current=drafts;
   const safe=writeStored(pageBrowserStorage('sessionStorage'),pageDraftKey(account),drafts);if(!safe)setStorageError('This browser could not keep a recovery copy. Keep this tab open until your page changes are saved.');else setStorageError('');return safe;
  },[account]);
- useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;epoch.current++}},[]);
+ useEffect(()=>{mounted.current=true;reads.current.resume();return()=>{mounted.current=false;epoch.current++;reads.current.suspend()}},[]);
  useLayoutEffect(()=>{
   const previousAccount=identity.current;if(previousAccount?.startsWith('live:')&&previousAccount!==account){try{sessionStorage.removeItem(pageDraftKey(previousAccount))}catch{}}
-  epoch.current++;identity.current=account;ref.current={};setRecords({});setEditingPage(null);setStorageError('');loading.current.clear();
+  epoch.current++;reads.current.cancel();identity.current=account;ref.current={};setRecords({});setEditingPage(null);setStorageError('');loading.current.clear();
   const recoveryStorage=pageBrowserStorage('sessionStorage');draftStore.current=account?readStored(recoveryStorage,pageDraftKey(account),{}):{};if(account&&!recoveryStorage)setStorageError('Draft recovery is unavailable in this browser. Keep this tab open until your page changes are saved.');
   previewStore.current=preview?readStored(pageBrowserStorage('localStorage'),PREVIEW_KEY,{}):{};
  },[account,preview]);
@@ -52,27 +54,33 @@ export function PageContentProvider({children,enabled=true}){
   window.addEventListener('beforeunload',protect);return()=>window.removeEventListener('beforeunload',protect);
  },[]);
  useEffect(()=>{
+  const leave=event=>{if(event.defaultPrevented)return;reads.current.suspend()};
+  const resume=()=>reads.current.resume();
+  window.addEventListener('beforeunload',leave);window.addEventListener('pagehide',leave);window.addEventListener('pageshow',resume);
+  return()=>{window.removeEventListener('beforeunload',leave);window.removeEventListener('pagehide',leave);window.removeEventListener('pageshow',resume)};
+ },[]);
+ useEffect(()=>{
   const reset=()=>{if(!preview)return;epoch.current++;ref.current={};previewStore.current={};draftStore.current={};loading.current.clear();setRecords({});setEditingPage(null);try{sessionStorage.removeItem(pageDraftKey(account))}catch{}};
   window.addEventListener('gw-shared-pages-preview-reset',reset);return()=>window.removeEventListener('gw-shared-pages-preview-reset',reset);
  },[preview,account]);
  const load=useCallback(async(page,{force=false,keepDraft=true}={})=>{
-  if(!allowed||!knownPage(page)||identity.current!==account)return null;
+  if(!allowed||!knownPage(page)||identity.current!==account||reads.current.suspended)return null;
   if(loading.current.has(page))return loading.current.get(page);
   if(!force&&ref.current[page]?.status&&ref.current[page].status!=='idle')return ref.current[page];
-  const generation=epoch.current,before=ref.current[page]||initialRecord(page);
+  const generation=epoch.current,before=ref.current[page]||initialRecord(page),controller=reads.current.begin();
   install(page,refreshingPageRecord(before));
   const operation=(async()=>{
    await Promise.resolve();
    try{
     let result;
     if(preview){const saved=previewStore.current[page];result={...initialRecord(page),...(saved?.record||{}),canEdit:canEditPreview};if(!validRestoredDraft(page,result.content))result={...initialRecord(page),canEdit:canEditPreview}}
-    else result=await pageContentRequest('/api/page-content/'+encodeURIComponent(page));
-    if(generation!==epoch.current||identity.current!==account||!mounted.current)return null;
+    else result=await pageContentRequest('/api/page-content/'+encodeURIComponent(page),{signal:controller.signal});
+    if(controller.signal.aborted||generation!==epoch.current||identity.current!==account||!mounted.current)return null;
     const freshest=ref.current[page]||before,stored=keepDraft?draftStore.current[page]:null;
     const next=reconcilePageRecord(page,result,keepDraft?freshest:null,stored);
     install(page,next);return next;
-   }catch(error){if(generation===epoch.current&&ref.current[page]?.status!=='saving')install(page,{...(ref.current[page]||before),status:'error',error:error.message});return null}
-   finally{if(generation===epoch.current)loading.current.delete(page)}
+   }catch(error){if(!controller.signal.aborted&&generation===epoch.current&&ref.current[page]?.status!=='saving')install(page,{...(ref.current[page]||before),status:'error',error:error.message});return null}
+   finally{reads.current.finish(controller);if(generation===epoch.current){loading.current.delete(page);if(controller.signal.aborted&&ref.current[page]?.status==='loading')install(page,{...ref.current[page],status:'ready'})}}
   })();loading.current.set(page,operation);return operation;
  },[allowed,account,preview,canEditPreview,install]);
  const retainPage=useCallback(page=>{if(!knownPage(page))return;pageUsers.current[page]=(pageUsers.current[page]||0)+1;return()=>{pageUsers.current[page]=Math.max(0,(pageUsers.current[page]||0)-1)}},[]);

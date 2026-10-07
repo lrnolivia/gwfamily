@@ -16,6 +16,12 @@ const touch=async(locator,{dx=0,dy=0,cancel=false}={})=>locator.evaluate((elemen
 const save=async()=>{await expect(page.locator('.page-edit-toolbar .page-edit-mode-label').getByRole('status')).toHaveText(/^(Saved for the family|Changes save automatically)$/)};
 try{
  await page.goto(base+'/__test/signin?user=owner');await expect(page.getByRole('navigation',{name:'Main navigation',exact:true})).toBeVisible();
+ // The preceding suite deliberately leaves a video selected. Restore only
+ // this synthetic page through the revisioned API before testing photo tools.
+ const initial=await getRecord('home');
+ const reset=await page.request.post(base+'/api/page-content/home/restore',{data:{requestId:'framing-fixture-reset-'+Date.now(),expectedRevision:initial.revision,revision:0},headers:{Origin:base}});
+ assert.equal(reset.status(),200);await page.reload();
+ assert.equal((await getRecord('home')).content.hero.mode,'default');
  await page.locator('.page-edit-toolbar').getByRole('button',{name:/^(Edit page|Resume page edits)$/}).click();await page.locator('.page-edit-toolbar').getByRole('button',{name:'Arrange page',exact:true}).click();
  const hero=panel('hero');if(await hero.getAttribute('data-panel-locked')==='true')await hero.getByRole('button',{name:/^Unlock /}).click();
  await hero.getByRole('combobox',{name:/^Location for /}).selectOption('full');await save();
@@ -74,4 +80,3 @@ try{
  await page.setViewportSize({width:390,height:844});await expect(page.locator('[data-panel-page="you"]')).toHaveClass(/is-mobile/);const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth);assert.ok(overflow<=1,'You remains a single non-overflowing mobile column');
  assert.deepEqual(errors,[]);console.log('PASS granular desktop/mobile pointer and keyboard moves; saved framing and cancel; reload');
 }finally{await context.close();await browser.close()}
-

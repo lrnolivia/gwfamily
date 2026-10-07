@@ -57,16 +57,18 @@ export function mergePageDraft(base,draft,latest){
  }
  return {content,conflicts};
 }
-export async function pageContentRequest(path,{fetchImpl=globalThis.fetch,...options}={}){
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);timer?.unref?.();
+export async function pageContentRequest(path,{fetchImpl=globalThis.fetch,timeoutMs=20000,...options}={}){
+ const controller=new AbortController(),abort=()=>controller.abort();
+ options.signal?.addEventListener('abort',abort,{once:true});if(options.signal?.aborted)abort();
+ const timer=setTimeout(abort,timeoutMs);timer?.unref?.();
  try{
   let response;
-  try{response=await fetchImpl(path,{...options,signal:options.signal||controller.signal,credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json',...options.headers}})}
+  try{response=await fetchImpl(path,{...options,signal:controller.signal,credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json',...options.headers}})}
   catch(error){throw Object.assign(new Error(error.name==='AbortError'?'The page request timed out. Your draft is still here. Try again.':'Couldn’t reach the page service. Your draft is still here. Check your connection and try again.'),{ambiguous:true})}
   let value;try{value=await response.json()}catch{throw Object.assign(new Error('The page service did not respond clearly. Your draft is still here. Try saving again.'),{status:response.status,ambiguous:true})}
   if(!response.ok)throw Object.assign(new Error(value.error?.message||value.error||'That page change could not be saved. Your draft is still here.'),{status:response.status,current:value.current});
   return value;
- }finally{clearTimeout(timer)}
+ }finally{clearTimeout(timer);options.signal?.removeEventListener('abort',abort)}
 }
 export function pageBrowserStorage(kind,host=globalThis){try{return host[kind]||null}catch{return null}}
 export function resetPageContentPreview(storage){
