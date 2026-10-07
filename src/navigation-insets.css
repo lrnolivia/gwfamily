@@ -49,3 +49,15 @@ html[data-keyboard-open=true] .app:has(>.bottom)::after {
   visibility: hidden;
   pointer-events: none;
 }
+
+/* Flat phones use a solid full-width bar; hardware inset is padding below controls. */
+@media(max-width:699.98px){
+ html[data-platform=android]{--gw-nav-bottom:0px;--gw-nav-height:calc(64px + var(--gw-safe-bottom));--gw-nav-fab-bottom:calc(var(--gw-nav-height) + 12px)}
+ html[data-platform=android][data-mobile-os] .bottom.material-nav{width:100%;left:0;transform:none;border-radius:0!important;border:0!important;padding:8px max(8px,var(--gw-safe-right)) calc(8px + var(--gw-safe-bottom)) max(8px,var(--gw-safe-left));background:var(--surface)!important;box-shadow:none;backdrop-filter:none;gap:0;grid-template-columns:repeat(4,minmax(0,1fr))}
+ html[data-platform=android] .bottom.material-nav button{padding:0;min-width:0;min-height:48px;height:48px;gap:2px;background:transparent!important;border-radius:0;color:var(--text)!important}
+ html[data-platform=android] .bottom.material-nav button>.glyph{width:56px;height:32px;padding:4px 16px;border-radius:16px;box-sizing:border-box;stroke-width:2;background:transparent}
+ html[data-platform=android] .bottom.material-nav button[aria-current=page]>.glyph{background:var(--control)!important;color:var(--control-text)!important}
+ html[data-platform=android] .bottom.material-nav button>span{font-size:.75rem;line-height:14px;color:var(--text)}
+ html[data-platform=android] .bottom.material-nav button:focus-visible{outline:2px solid var(--text);outline-offset:-2px}
+ html[data-platform=android] .bottom.material-nav button:not([aria-current=page]):hover>.glyph{background:var(--raised)}
+}

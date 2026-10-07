@@ -140,9 +140,9 @@ body,.app,.card,section,.intro,footer,.bottom,.muted,.page-edit-modebar,dialog,.
 .page-mode-done{background:var(--control);color:var(--control-text)}
 .page-editor-guide{margin:10px 0 14px;font:.8125rem/1.5 system-ui,sans-serif;color:var(--muted);max-width:65ch}
 .page-edit-tools{position:relative;font:.8125rem/1.4 system-ui,sans-serif}
-.page-edit-tools>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;padding:8px 10px;border-radius:9px;list-style:none}
+.page-edit-tools>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;padding:8px 12px;border-radius:999px;background:var(--raised);border:1px solid var(--decorative-line,var(--line));list-style:none}
 .page-edit-tools>summary::-webkit-details-marker{display:none}
 .page-edit-tools[open]>div{position:absolute;top:100%;right:0;z-index:35;min-width:220px;display:grid;padding:8px;background:var(--raised);border:1px solid var(--line);border-radius:12px}
 .page-edit-tools[open]>div>button{min-height:44px;text-align:left;padding:10px;font:inherit}
 .page-edit-tools :focus-visible,.page-arrange-toggle:focus-visible{outline:2px solid var(--text);outline-offset:3px}
-@media(max-width:650px){.page-edit-modebar>.page-editor-actions{justify-content:flex-start}.page-edit-tools{margin-left:auto}.page-mode-done{margin-left:auto}}
+@media(max-width:650px){.page-edit-modebar>.page-editor-actions{justify-content:flex-start}.page-edit-tools{margin-left:0}.page-mode-done{margin-left:auto}}

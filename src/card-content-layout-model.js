@@ -9,7 +9,7 @@ export const HERO_CARD_SLOTS=Object.freeze({
  memories:Object.freeze([slot('eyebrow','Eyebrow','text'),slot('title','Heading','text'),slot('body','Introduction','text'),slot('action','Add memory button','action'),media]),
  tree:Object.freeze([slot('title','Heading','text'),slot('body','Introduction','text'),media])
 });
-const MEDIA_ONLY_PAGES=new Set(['family','people','birthdays','shop','inbox','you']);
+const MEDIA_ONLY_PAGES=new Set(['reunion-plans','reunion-calendar','family','people','birthdays','shop','inbox','you']);
 const plain=value=>value!==null&&typeof value==='object'&&!Array.isArray(value)&&(Object.getPrototypeOf(value)===Object.prototype||Object.getPrototypeOf(value)===null);
 function keys(value,allowed){if(!plain(value)||Object.keys(value).some(key=>!allowed.includes(key)))throw Error('Unsupported card content layout fields');}
 export function cardSlots(page,panel){

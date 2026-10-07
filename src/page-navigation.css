@@ -23,3 +23,20 @@ html[data-platform=ios] .page-navigation-header::before{background:color-mix(in 
 html[data-platform=android] .page-back{background:var(--raised);backdrop-filter:none;box-shadow:none}
 @media(max-width:699.98px){:root{--gw-app-header-height:78px}.app>.app-header{padding-block:10px}.page-navigation-header.is-main-page{width:calc(100% - 32px)}.page-back-label{display:none}.page-navigation-header .page-back{padding:10px}}
 @media(prefers-reduced-motion:reduce){.app>.app-header .brand,.page-compact-title{transition:none}}
+
+/* Keep the source-owned editable H1; Back joins it without another title. */
+.page-navigation-header.has-inline-title{min-height:0;height:0;margin:0;pointer-events:none}
+.page-navigation-header.has-inline-title>.page-compact-title{display:none}
+#main h1:has(>.page-title-back){position:relative;padding-inline-start:64px;min-height:48px;align-content:center}
+#main h1>.page-title-back{position:absolute;inset-inline-start:0;top:50%;transform:translateY(-50%);width:48px;height:48px;min-width:48px;padding:12px;border-radius:50%;font-family:var(--sans-font,system-ui);font-size:1rem;line-height:1}
+.page-back.page-back>.glyph{width:24px;height:24px;transform:none}
+html[dir=rtl] .page-back.page-back>.glyph{transform:scaleX(-1)}
+html[data-platform=android] .page-back.page-back{background:transparent!important;box-shadow:none;border:0;color:var(--text)}
+html[data-platform=android] .page-back.page-back:is(:hover,:active){background:var(--raised)!important}
+html[data-platform=ios] .page-back.page-back{background:color-mix(in srgb,var(--raised) 90%,transparent);color:var(--text);border:1px solid var(--decorative-line,var(--line));backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.page-back:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+.page-back-unread{position:absolute;inset-inline-end:-3px;top:-3px}
+@media(forced-colors:active){.page-back.page-back{background:ButtonFace!important;color:ButtonText!important;border:1px solid ButtonText!important}}
+
+html[data-page-edit-mode=true] .app>.app-header::after,html[data-page-edit-mode=true] .page-navigation-header::after{display:none}
+html[data-page-edit-mode=true] .page-navigation-header.is-main-page{display:none}

@@ -45,3 +45,8 @@
 @media(max-width:700px){.card-content-columns{grid-template-columns:minmax(0,1fr);gap:20px}.card-content-column{gap:14px}.home-hero .card-slot-content .photo,.home-hero .card-slot-content .page-hero-asset{aspect-ratio:3/2}.card-layout-toolbar>div{align-items:stretch}}
 @container(max-width:520px){.card-content-columns{grid-template-columns:minmax(0,1fr)}}
 @media(prefers-reduced-motion:reduce){.card-content-layout *{scroll-behavior:auto!important;transition:none!important}}
+
+.arrange-up{transform:rotate(-90deg)}.arrange-down{transform:rotate(90deg)}
+:is(.page-panel-inline-controls,.card-slot-controls){padding:12px;border-radius:12px;background:var(--raised);gap:8px;border:0}
+:is(.page-panel-inline-controls,.card-slot-controls) button{min-width:44px;min-height:44px;background:var(--surface);border-radius:10px}
+:is(.page-panel-inline-controls,.card-slot-controls) .glyph{width:20px;height:20px;flex:none}

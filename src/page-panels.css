@@ -45,3 +45,10 @@
 .page-panel-copy-target:focus-visible{outline:2px solid var(--control)}
 .page-panel-text-edit{display:block;position:relative;font:inherit}
 .page-panel-text-edit>input.page-copy-input{width:100%;min-height:48px;margin:0;padding:8px 52px 8px 8px;font:inherit;line-height:inherit;color:var(--text);background:var(--raised);border:1px solid var(--control);border-radius:8px}
+
+.arrange-up{transform:rotate(-90deg)}.arrange-down{transform:rotate(90deg)}
+:is(.page-panel-inline-controls,.card-slot-controls){padding:12px;border-radius:12px;background:var(--raised);gap:8px;border:0}
+:is(.page-panel-inline-controls,.card-slot-controls) button{min-width:44px;min-height:44px;background:var(--surface);border-radius:10px}
+:is(.page-panel-inline-controls,.card-slot-controls) .glyph{width:20px;height:20px;flex:none}
+
+.page-optional-media{margin-block:12px}.page-optional-media>summary{display:flex;align-items:center;min-height:44px;padding:8px 12px;border-radius:12px;background:var(--raised);cursor:pointer;font-size:.875rem}.page-optional-media[open]>.page-shared-panel{margin-top:12px}

@@ -35,3 +35,6 @@
 .build-update-reminder{max-width:860px;margin:0 auto 12px;text-align:right}
 .build-update-reminder>button{min-height:40px;padding:8px 12px;background:var(--surface);color:var(--text);border-radius:12px;font-size:.8125rem}
 @media(max-width:600px){.app>.build-update-notice{align-items:flex-start;flex-direction:column;gap:12px}.build-update-actions{width:100%}.build-update-actions>button{min-height:44px}}
+
+/* Messaging alone softens neutral borders; focus and error semantics stay distinct. */
+@media(forced-colors:none){.messages-page :is(.conversation-row,.message-compose-area,.message-writing,.conversation-invite,.conversation-settings .card){border-color:color-mix(in srgb,var(--text) 15%,transparent)}.messages-page .chat-heading{border-bottom:0}}
