@@ -16,9 +16,9 @@ export function PageNavigationHeader({previous,compact}){
  useLayoutEffect(()=>{
   const header=document.querySelector('.app>.app-header'),app=header?.parentElement;
   if(!header||!app)return;
-  const measure=()=>app.style.setProperty('--gw-app-header-offset',Math.ceil(header.getBoundingClientRect().height)+'px');
+  const measure=()=>{const height=Math.ceil(header.getBoundingClientRect().height)+'px';app.style.setProperty('--gw-app-header-offset',height);document.documentElement.style.setProperty('--gw-app-header-offset',height)};
   measure();const observer=new ResizeObserver(measure);observer.observe(header);
-  return()=>{observer.disconnect();app.style.removeProperty('--gw-app-header-offset')};
+  return()=>{observer.disconnect();app.style.removeProperty('--gw-app-header-offset');document.documentElement.style.removeProperty('--gw-app-header-offset')};
  },[]);
  const {route,state,messaging,goBack}=useApp(),page=usePageContent(route.type),main=mainPages.has(route.type),showBack=!main||Boolean(previous),[heading,setHeading]=useState(null),headerRef=useRef(null),[position,setPosition]=useState(null);
  useLayoutEffect(()=>{

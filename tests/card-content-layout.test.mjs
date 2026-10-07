@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {CARD_COLUMNS,cardSlots,defaultCardLayout,cardLayoutOf,validateCardLayouts,moveCardSlot,stepCardSlot,alignCardSlot,keyboardCardSlot,updateCardLayout} from '../src/card-content-layout-model.js';
+import {CARD_COLUMNS,cardSlots,defaultCardLayout,cardLayoutOf,validateCardLayouts,moveCardSlot,stepCardSlot,alignCardSlot,sizeCardImage,keyboardCardSlot,updateCardLayout} from '../src/card-content-layout-model.js';
 import {sharedPageDefaults,validateSharedPageContent} from '../src/shared-content-schema.js';
 import {createSharedPanel,addSharedPanel,changeSharedPanel,validatePanelTransition} from '../src/shared-panels.js';
 import {pageContentPayload,pageContentFingerprint,mergePageDraft,validRestoredDraft,collectPageDrafts,reconcilePageRecord,initialRecord} from '../src/page-content-model.js';
@@ -66,4 +66,12 @@ test('UI source supplies labelled keyboard/touch alternatives and no arbitrary r
  const jsx=readFileSync(new URL('../src/card-content-layout.jsx',import.meta.url),'utf8'),css=readFileSync(new URL('../src/card-content-layout.css',import.meta.url),'utf8');
  for(const marker of ['onPointerCancel','onLostPointerCapture',"event.key==='Escape'",'Cancel arrangement','Finish arranging','aria-live="polite"','aria-describedby={helpId}','inert={arranging?true:undefined}'])assert.ok(jsx.includes(marker),marker);
  assert.doesNotMatch(jsx,/dangerouslySetInnerHTML|fetch\(|editor\.save\(/);assert.match(css,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);assert.match(css,/@media\(max-width:700px\)/);assert.match(css,/@container\(max-width:520px\)/);assert.match(css,/touch-action:none/);assert.match(css,/min-height:44px/);
+});
+
+test('image size and vertical alignment survive validated storage while text rejects image fields',()=>{
+ const base=unlocked(),draft=updateCardLayout(base,'home','hero',layout=>sizeCardImage(layout,'media',{width:65,vertical:'bottom'}));
+ const saved=validateSharedPageContent('home',pageContentPayload(draft));assert.equal(saved.cardLayouts.hero.right[0].width,65);assert.equal(saved.cardLayouts.hero.right[0].vertical,'bottom');
+ assert.throws(()=>updateCardLayout(base,'home','hero',layout=>sizeCardImage(layout,'title',{width:65})),/Only images/);
+ assert.throws(()=>updateCardLayout(base,'home','hero',layout=>sizeCardImage(layout,'media',{width:101})),/image width/);
+ assert.throws(()=>updateCardLayout(base,'home','hero',layout=>sizeCardImage(layout,'media',{vertical:'outside'})),/vertical alignment/);
 });

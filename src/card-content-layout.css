@@ -50,3 +50,9 @@
 :is(.page-panel-inline-controls,.card-slot-controls){padding:12px;border-radius:12px;background:var(--raised);gap:8px;border:0}
 :is(.page-panel-inline-controls,.card-slot-controls) button{min-width:44px;min-height:44px;background:var(--surface);border-radius:10px}
 :is(.page-panel-inline-controls,.card-slot-controls) .glyph{width:20px;height:20px;flex:none}
+
+.card-content-column[data-card-vertical]{align-self:stretch;justify-content:center}
+.card-content-column[data-card-vertical=top]{justify-content:flex-start}
+.card-content-column[data-card-vertical=bottom]{justify-content:flex-end}
+.card-content-slot[data-card-role=image] .card-slot-content>*{width:var(--card-image-width,100%)!important;max-width:100%}
+.card-slot-controls input[type=range]{width:120px;min-height:44px;accent-color:var(--control)}

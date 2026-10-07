@@ -48,8 +48,8 @@ try{
  let saved;
  await check('independent text, photo, action placement saves and reloads durably',async()=>{
   await arrange();await card().getByLabel('Heading column',{exact:true}).selectOption('right');await card().getByRole('button',{name:'Move Heading earlier',exact:true}).click();await card().getByLabel('Heading alignment',{exact:true}).selectOption('center');await card().getByLabel('Reunion details button alignment',{exact:true}).selectOption('end');
-  await card().getByRole('button',{name:'Finish arranging',exact:true}).click();await save();saved=await read();assert.deepEqual(saved.content.cardLayouts.hero.right.map(item=>item.id),['title','media']);assert.equal(saved.content.cardLayouts.hero.left.at(-1).align,'end');
-  await page.reload();await expect(card().locator('[data-card-slot="title"]')).toHaveAttribute('data-card-align','center');assert.deepEqual(await order('right'),['title','media']);assert.deepEqual((await read()).content.cardLayouts,saved.content.cardLayouts);
+  await card().getByLabel('Photo or video width',{exact:true}).fill('65');await card().getByLabel('Photo or video vertical alignment',{exact:true}).selectOption('bottom');await card().getByRole('button',{name:'Finish arranging',exact:true}).click();await save();saved=await read();assert.deepEqual(saved.content.cardLayouts.hero.right.map(item=>item.id),['title','media']);assert.equal(saved.content.cardLayouts.hero.left.at(-1).align,'end');
+  await page.reload();await expect(card().locator('[data-card-slot="title"]')).toHaveAttribute('data-card-align','center');assert.deepEqual(await order('right'),['title','media']);assert.deepEqual((await read()).content.cardLayouts,saved.content.cardLayouts);assert.equal(saved.content.cardLayouts.hero.right.find(item=>item.id==='media').width,65);assert.equal(saved.content.cardLayouts.hero.right.find(item=>item.id==='media').vertical,'bottom');
   await page.screenshot({path:`${output}/${engine}-desktop-arranged.png`,fullPage:true});
  });
  await check('mobile stacks left then right, supports touch/selects, preserves save through reload',async()=>{

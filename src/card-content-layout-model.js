@@ -29,15 +29,15 @@ export function validateCardLayouts(page,panelLayout,value){
   const columns=Object.fromEntries(CARD_COLUMNS.map(column=>{
    if(!Array.isArray(layout[column])||layout[column].length>slots.length)throw Error('Use valid card content columns');
    return [column,layout[column].map(item=>{
-    keys(item,['id','align']);if(!slots.some(slot=>slot.id===item.id)||seen.has(item.id)||!CARD_ALIGNMENTS.includes(item.align))throw Error('Use each allowed card content item once with a supported alignment');
-    seen.add(item.id);return {id:item.id,align:item.align};
+    keys(item,['id','align','width','vertical']);if(!slots.some(slot=>slot.id===item.id)||seen.has(item.id)||!CARD_ALIGNMENTS.includes(item.align))throw Error('Use each allowed card content item once with a supported alignment');
+    const image=slots.find(slot=>slot.id===item.id)?.role==='image';if((item.width!==undefined||item.vertical!==undefined)&&!image)throw Error('Only images have size and vertical alignment');if(item.width!==undefined&&(!Number.isInteger(item.width)||item.width<25||item.width>100))throw Error('Choose an image width from 25 to 100 percent');if(item.vertical!==undefined&&!['top','center','bottom'].includes(item.vertical))throw Error('Choose a supported vertical alignment');seen.add(item.id);return {id:item.id,align:item.align,...(item.width!==undefined?{width:item.width}:{}),...(item.vertical!==undefined?{vertical:item.vertical}:{})};
    })];
   }));
   if(seen.size!==slots.length)throw Error('Keep every card content item in the layout');
   return [id,{version:1,...columns}];
  }));
 }
-export function cardLayoutsPayload(layouts={}){return Object.fromEntries(Object.entries(layouts).map(([id,layout])=>[id,{version:layout.version,...Object.fromEntries(CARD_COLUMNS.map(column=>[column,layout[column].map(({id,align})=>({id,align}))]))}]));}
+export function cardLayoutsPayload(layouts={}){return Object.fromEntries(Object.entries(layouts).map(([id,layout])=>[id,{version:layout.version,...Object.fromEntries(CARD_COLUMNS.map(column=>[column,layout[column].map(item=>({...item}))]))}]));}
 export function moveCardSlot(layout,id,{column,beforeId=null}={}){
  if(!CARD_COLUMNS.includes(column)||id===beforeId)return layout;
  const item=CARD_COLUMNS.flatMap(key=>layout[key]).find(item=>item.id===id);
@@ -53,6 +53,7 @@ export function stepCardSlot(layout,id,direction){
  const list=[...layout[column]];[list[index],list[target]]=[list[target],list[index]];return {...layout,[column]:list};
 }
 export function alignCardSlot(layout,id,align){if(!CARD_ALIGNMENTS.includes(align))return layout;return {...layout,...Object.fromEntries(CARD_COLUMNS.map(column=>[column,layout[column].map(item=>item.id===id?{...item,align}:item)]))};}
+export function sizeCardImage(layout,id,changes){return {...layout,...Object.fromEntries(CARD_COLUMNS.map(column=>[column,layout[column].map(item=>item.id===id?{...item,...changes}:item)]))};}
 export function keyboardCardSlot(layout,id,key){if(key==='ArrowUp'||key==='ArrowDown')return stepCardSlot(layout,id,key==='ArrowUp'?-1:1);if(key==='ArrowLeft'||key==='ArrowRight')return moveCardSlot(layout,id,{column:key==='ArrowLeft'?'left':'right'});return layout;}
 export function updateCardLayout(content,page,id,change){
  const panel=content.panelLayout?.panels.find(panel=>panel.id===id);if(!panel||panel.locked||panel.removed||!cardSlots(page,panel).length)return content;
