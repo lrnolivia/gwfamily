@@ -61,7 +61,7 @@ html[data-theme][data-platform] :is(.page-media-modes,.view-switcher)>button{bor
 .profile-swatches-scroll>.profile-color-swatch{justify-self:center;min-width:44px;width:44px;height:44px;margin:0}
 .profile-color-options>.profile-custom-color{justify-self:center;display:grid!important;width:44px;max-width:44px;min-width:0;gap:4px!important;padding:0;font-size:.6875rem}
 .profile-custom-color input[type=color]{width:44px!important;min-width:44px!important;max-width:44px!important;height:44px;min-height:44px}
-@media(min-width:700px){.profile-colors .profile-color-options{grid-template-columns:repeat(7,minmax(44px,1fr))}}
+@media(min-width:700px){.profile-colors .profile-color-options{grid-template-columns:repeat(8,minmax(44px,1fr))}}
 
 /* Default and personal accents share white foregrounds in both materials. */
 html[data-theme][data-platform]{--control:#387b51;--control-text:#ffffff;--control-edge:#387b51;--accent:#387b51;--ink:#ffffff;--send-active:var(--control);--send-text:#ffffff;--send-edge:#ffffff}
@@ -80,3 +80,14 @@ html[data-theme=light][data-platform] :is(.wordmark-green,.wordmark-amp,.wordmar
 .profile-menu[data-menu-page=appearance] .profile-color-options>.profile-custom-color{grid-column:1/-1;display:flex!important;flex-direction:row-reverse;align-items:center;justify-content:space-between;justify-self:stretch;width:100%;max-width:none;min-height:64px;margin-top:4px;padding:10px 14px;border:0;border-radius:16px;background:var(--raised);color:var(--text);font-size:.875rem;font-weight:500}
 .profile-menu[data-menu-page=appearance] .profile-custom-color input[type=color]{flex:none;margin:0}
 @container appearance-accent (min-width:330px){.profile-menu[data-menu-page=appearance] .profile-colors .profile-color-options{grid-template-columns:repeat(6,minmax(44px,1fr))}}
+
+/* Compact swatch paint inside the existing touch targets. */
+.profile-swatches-scroll>.profile-color-swatch{background:transparent!important;--gw-control-color:transparent;--gw-control-alpha:0%;border:0!important;box-shadow:none!important;padding:6px;border-radius:50%}
+.profile-color-swatch>span,.profile-color-swatch>.liquid-glass-content>span{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--swatch);color:#ffffff}
+.profile-color-swatch .glyph{width:16px;height:16px}
+.profile-color-swatch[aria-pressed=true]>span,.profile-color-swatch[aria-pressed=true]>.liquid-glass-content>span{outline:2px solid var(--text);outline-offset:3px}
+.profile-menu[data-menu-page=appearance] .profile-colors .profile-color-options{grid-template-columns:repeat(4,minmax(44px,1fr));column-gap:4px}
+@container appearance-accent (min-width:380px){.profile-menu[data-menu-page=appearance] .profile-colors .profile-color-options{grid-template-columns:repeat(8,minmax(44px,1fr))}}
+
+.profile-swatches-scroll>.profile-color-swatch[aria-pressed=true]:not(:focus-visible){outline:0}
+.profile-color-swatch[aria-pressed=true]>span,.profile-color-swatch[aria-pressed=true]>.liquid-glass-content>span{background:var(--swatch-active,var(--swatch))}

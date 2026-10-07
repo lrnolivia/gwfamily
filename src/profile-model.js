@@ -3,7 +3,7 @@ export function luminance(hex){return rgb(hex).map(v=>{v/=255;return v<=.04045?v
 export function contrast(a,b){const x=luminance(a),y=luminance(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
 const mix=(a,b,t)=>'#'+rgb(a).map((v,i)=>Math.round(v*(1-t)+rgb(b)[i]*t).toString(16).padStart(2,'0')).join('');
 const vibrantAccent=(color,dark)=>{const values=rgb(color),hi=Math.max(...values),lo=Math.min(...values),spread=hi-lo;if(spread<24||values[1]===hi&&values[0]<values[1])return color;const gain=dark?1.22:1.18,center=(hi+lo)/2;return '#'+values.map(v=>Math.round(Math.max(0,Math.min(255,center+(v-center)*gain))).toString(16).padStart(2,'0')).join('')};
-const warmGold=color=>{const [r,g,b]=rgb(color),spread=Math.max(r,g,b)-Math.min(r,g,b);if(spread<40||r<=g||g<=b||g-r*.65<0||b/r>.65)return color;return '#'+[r,Math.round(g*.75+(r+b)*.125),Math.round(b*.65)].map(v=>v.toString(16).padStart(2,'0')).join('')};
+const warmGold=color=>{const [r,g,b]=rgb(color),spread=Math.max(r,g,b)-Math.min(r,g,b);if((b<70&&g/r>.7)||spread<40||r<=g||g<=b||g-r*.65<0||b/r>.65)return color;return '#'+[r,Math.round(g*.75+(r+b)*.125),Math.round(b*.65)].map(v=>v.toString(16).padStart(2,'0')).join('')};
 const textOn=bg=>{const candidates=['#fffaf0','#171714'];const preferred=candidates.sort((a,b)=>contrast(bg,b)-contrast(bg,a))[0];return contrast(bg,preferred)>=4.5?preferred:contrast(bg,'#ffffff')>=contrast(bg,'#000000')?'#ffffff':'#000000'};
 // Accent controls always use white; adjust the fill rather than switching labels to black.
 export function controlPalette(surface,color='#4f996c',dark=true){

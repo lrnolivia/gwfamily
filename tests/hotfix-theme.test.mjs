@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import {profilePalette,contrast} from '../src/profile-model.js';
 const css=fs.readFileSync(new URL('../dist/react-ui.css',import.meta.url),'utf8');
 test('hotfix action palette has readable text on opaque controls across personal colors',()=>{
- for(const theme of ['light','dark'])for(const color of ['#4f996c','#c9aa52','#efcf46','#d24978','#627bf0','#9a57dc','#000000','#ffffff']){
+ for(const theme of ['light','dark'])for(const color of ['#e64f59','#f08091','#ed8b32','#f2cf2c','#36a267','#3985e6','#a267d5','#8a8178','#000000','#ffffff']){
   const p=profilePalette(color,theme);assert.equal(p['--control-text'],'#ffffff');assert.equal(p['--ink'],'#ffffff');assert.ok(contrast(p['--control'],p['--surface'])>=3);assert.ok(contrast(p['--control-text'],p['--control'])>=4.5);
  }
  assert.match(css,/--gw-control-alpha:100%/);
