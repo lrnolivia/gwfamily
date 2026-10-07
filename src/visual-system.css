@@ -179,3 +179,25 @@ html[data-theme][data-platform] .calendar-filters .button[aria-pressed=true]>.li
 /* Keep supporting Messages actions below the primary action in every material. */
 html[data-theme][data-platform] .messages-options .button[data-button-level=supporting]:not(:disabled){--gw-control-color:color-mix(in srgb,var(--control,var(--accent)) 22%,var(--surface));background:var(--gw-control-color)!important;color:var(--text)!important}
 html[data-theme][data-platform] .messages-options .button[data-button-level=supporting]:not(:disabled)>.liquid-glass-tint{background:var(--gw-control-color)!important;opacity:1!important}
+
+/* Panel actions occupy their section; a shared action row divides the width. */
+:is(.card,.panel,.page-shared-panel) .button,.form-save>.button{width:100%;max-width:none}
+:is(.card,.panel,.page-shared-panel) :is(.row,.action-row,.form-actions):has(>.button){display:flex;flex-wrap:wrap;width:100%;align-items:stretch}
+:is(.card,.panel,.page-shared-panel) :is(.row,.action-row,.form-actions)>.button{flex:1 1 0;min-width:0;max-width:none}
+.page-shared-panel .card-content-slot[data-card-role=action] .button{width:100%;max-width:none}
+
+/* Editor commands keep visible surfaces; legacy quiet-toolbar rules must not
+   erase pressed fills or leave their contrasting glyphs on bare backgrounds. */
+html[data-theme][data-platform] .card-content-layout .card-slot-controls button,
+html[data-theme][data-platform] .card-content-layout .card-column-heading button{background:var(--raised);color:var(--text);border:1px solid var(--decorative-line,var(--line));border-radius:10px}
+html[data-theme][data-platform] .card-content-layout .card-layout-choices button[aria-pressed=true]{background:var(--control);color:var(--control-text);border-color:transparent}
+html[data-theme][data-platform] .card-content-layout .card-layout-choices{gap:4px;background:transparent;padding:0}
+html[data-theme][data-platform] .card-content-layout .card-layout-choices button:has(>span){width:auto;flex-basis:auto;padding-inline:10px;gap:6px}
+html[data-theme][data-platform] .card-content-layout .card-layout-choices button:has(>span)>span{font-size:.75rem}
+.card-image-controls{flex-wrap:nowrap;overflow-x:auto;max-width:100%;padding-block:3px;scrollbar-width:thin;scrollbar-color:var(--muted) transparent}
+.card-image-controls>*{flex:0 0 auto}.card-image-controls .card-image-size{background:var(--surface)}
+/* A minimal inset edge supplies control separation only where the preserved
+   accent fill sits close to its new surface; the fill itself never changes. */
+html[data-theme=dark][data-platform]{--control-separation:inset 0 0 0 1px #3c7e54}
+html[data-theme=light][data-platform]{--control-separation:inset 0 0 0 0 transparent}
+html[data-theme][data-platform] .button[data-button-level=primary]:not(.danger):not(.destructive):not(.sign-out):not(.membership-remove):not(:disabled){box-shadow:var(--control-separation,inset 0 0 0 0 transparent),var(--gw-action-shadow)!important}

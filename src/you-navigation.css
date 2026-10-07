@@ -4,3 +4,5 @@
 
 /* Keep full-page Appearance choices clear of the sticky header when focused or scrolled into view. */
 .appearance-page .choice-chip{scroll-margin-block:calc(var(--gw-app-header-offset,96px) + 64px) calc(var(--gw-nav-height,72px) + 24px)}
+
+.you-account-actions{display:grid;justify-items:stretch;width:100%}.you-account-actions>.preview-account-actions,.you-account-actions>.sign-out,.you-account-actions .sign-out{width:100%;max-width:none;min-width:0}

@@ -49,3 +49,15 @@ html[data-platform] #main h1{font-size:clamp(1.5rem,3vw,2.25rem);line-height:1.2
 .page-navigation-header.has-inline-title>.page-title-back{width:44px;height:44px;min-width:44px;min-height:44px;padding:10px}
 
 html{scroll-padding-block-start:calc(var(--gw-app-header-offset,96px) + 60px);scroll-padding-block-end:120px}
+
+/* Main destinations carry their navigation glyph, never a history action. */
+.page-navigation-header.is-main-page.has-inline-title{position:sticky;left:auto;transform:none;width:auto;visibility:visible;min-height:0;height:0;border-radius:0}
+.page-route-glyph{display:inline-flex;align-items:center;justify-content:center;flex:0 0 44px;width:44px;height:44px;color:var(--text);background:none;border:0;box-shadow:none;pointer-events:none}
+.page-route-glyph>.glyph{width:24px;height:24px}
+.page-navigation-header.has-inline-title>.page-title-glyph{position:absolute;left:var(--gw-inline-back-left,0px);top:var(--gw-inline-back-top,0px)}
+/* One backdrop spans the compact brand and page-title rows. Independent blur
+   layers show a seam when content crosses their shared edge, especially Safari. */
+html[data-platform=ios] .app[data-compact=true]>.app-header::before{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
+html[data-platform=ios] .app[data-compact=true]>.page-navigation-header::before{top:calc(-1 * var(--gw-app-header-offset,var(--gw-app-header-height)));bottom:0;background:color-mix(in srgb,var(--bg) 90%,transparent);border-radius:0;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+
+#main :is(button,a,input,select,textarea){scroll-margin-block-start:calc(var(--gw-app-header-offset,96px) + 76px);scroll-margin-block-end:calc(var(--gw-nav-height,72px) + 48px)}

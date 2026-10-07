@@ -20,9 +20,9 @@ export function PageNavigationHeader({previous,compact}){
   measure();const observer=new ResizeObserver(measure);observer.observe(header);
   return()=>{observer.disconnect();app.style.removeProperty('--gw-app-header-offset');document.documentElement.style.removeProperty('--gw-app-header-offset')};
  },[]);
- const {route,state,messaging,goBack}=useApp(),page=usePageContent(route.type),main=mainPages.has(route.type),showBack=!main||Boolean(previous),[heading,setHeading]=useState(null),headerRef=useRef(null),[position,setPosition]=useState(null);
+ const {route,state,messaging,goBack}=useApp(),page=usePageContent(route.type),main=mainPages.has(route.type),showBack=!main,[heading,setHeading]=useState(null),headerRef=useRef(null),[position,setPosition]=useState(null);
  useLayoutEffect(()=>{
-  const root=document.getElementById('main');if(!root||!showBack){setHeading(null);return;}
+  const root=document.getElementById('main');if(!root){setHeading(null);return;}
   const update=()=>{const next=root.querySelector('h1');setHeading(current=>current===next?current:next)};
   update();const observer=new MutationObserver(update);observer.observe(root,{childList:true,subtree:true});return()=>observer.disconnect();
  },[route.type,route.id,showBack]);
@@ -38,8 +38,8 @@ export function PageNavigationHeader({previous,compact}){
  const chat=route.type==='chat'?messaging.conversations?.find(item=>item.id===route.id):null;
  const title=page.content?.text?.heading||(chat?conversationTitle(chat,state.selfId):route.type==='chat'?'Conversation':pageIdentity(route,state)),destination=previous||{type:'home'},unread=backUnread(previous,messaging),label='Back to '+pageIdentity(destination,state)+(unread?', '+unread+' unread':'');
  const back=className=><Control type="button" className={'page-back '+className} aria-label={label} onClick={goBack}><svg className="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M20 12H4m6-6-6 6 6 6" strokeLinecap="round" strokeLinejoin="round"/></svg>{unread>0&&<span className="page-back-unread" aria-hidden="true">{unread>99?'99+':unread}</span>}</Control>;
- const inline=showBack&&heading&&!compact;
- return <div ref={headerRef} style={inline&&position?{'--gw-inline-back-top':position.top+'px','--gw-inline-back-left':position.left+'px'}:undefined} className={'page-back-row page-navigation-header '+(main&&!showBack?'is-main-page':'')+(inline?' has-inline-title':'')} data-compact={compact||undefined}>
- {showBack&&back(inline?'page-title-back icon-button':'icon-button')}
+ const inline=Boolean(heading)&&!compact,mainGlyph={home:'home',reunion:'calendar',family:'people',you:'user'}[route.type];
+ return <div ref={headerRef} style={inline&&position?{'--gw-inline-back-top':position.top+'px','--gw-inline-back-left':position.left+'px'}:undefined} className={'page-back-row page-navigation-header '+(main?'is-main-page':'')+(inline?' has-inline-title':'')} data-compact={compact||undefined}>
+ {main?<span className={'page-route-glyph '+(inline?'page-title-glyph':'')} aria-hidden="true"><Glyph name={mainGlyph}/></span>:showBack&&back(inline?'page-title-back icon-button':'icon-button')}
  <span className="page-compact-title" aria-hidden="true">{title}</span></div>;
 }
