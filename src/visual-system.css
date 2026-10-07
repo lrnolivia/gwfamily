@@ -45,3 +45,7 @@
 .page-panel-zone>.page-shared-panel{align-self:start;min-height:0}
 .you-columns.you-columns{align-items:start}
 @media(max-width:700px){.you-columns.you-columns{grid-template-columns:minmax(0,1fr)}.profile.profile-overview{width:100%}}
+
+/* Clip only the cover artwork; cards keep visible overflow for edit controls. */
+.profile-overview>.profile-cover{border-start-start-radius:inherit;border-start-end-radius:inherit}
+.planner-section>h2{margin:0 0 16px}
