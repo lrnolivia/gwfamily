@@ -1,6 +1,7 @@
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {useApp} from './ui-core.jsx';
 import {api} from './live-adapter.js';
+import {typingRequest} from './typing-request.js';
 
 export function ActivityDots({label='Saving…',compact=false,className='',...props}){
  return <span {...props} className={'activity-dots '+(compact?'is-compact ':'')+className} role="status" aria-live="polite" aria-label={label}><span className="activity-dots-visual" aria-hidden="true"><span/><span/><span/></span><span className={compact?'sr-only':'activity-dots-label'}>{label}</span></span>;
@@ -9,13 +10,9 @@ const POLL_MS=2500,HEARTBEAT_MS=2500,IDLE_MS=4500,MAX_TTL_MS=8000;
 const channels=new Map();
 const visible=()=>typeof document==='undefined'||document.visibilityState==='visible';
 const expiresAt=value=>typeof value==='number'?value:Date.parse(value);
-async function typingRequest(path,options={}){
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),5000);
- try{return await api(path,{...options,signal:controller.signal})}finally{clearTimeout(timer)}
-}
 function channelFor(key,path,selfId){
  let entry=channels.get(key);if(entry)return entry;
- let snapshot=[],disposed=false,polling=false,pollTimer,expiryTimer,idleTimer,lastSent=0,signaled=false,lastPoll=0,version=0,chain=Promise.resolve();
+ let snapshot=[],disposed=false,suspended=false,polling=false,readController=null,pollTimer,expiryTimer,idleTimer,lastSent=0,signaled=false,lastPoll=0,version=0,chain=Promise.resolve();
  const subscribers=new Set(),sources=new Map();
  const notify=()=>{for(const listener of subscribers)listener(snapshot)};
  const setSnapshot=next=>{snapshot=next;notify()};
@@ -29,10 +26,11 @@ function channelFor(key,path,selfId){
    return person?.memberId&&person.memberId!==selfId&&typeof person.name==='string'&&Number.isFinite(remaining)&&remaining>0?[{memberId:person.memberId,name:person.name,expiresAt:now+remaining}]:[];
   });setSnapshot(next);
  };
+ const abortRead=()=>{version++;readController?.abort();readController=null;polling=false};
  const read=async()=>{
-  if(disposed||polling||!visible())return;
-  polling=true;const ticket=++version,startedAt=Date.now();lastPoll=startedAt;
-  try{accept(await typingRequest(path),ticket,startedAt)}catch{if(ticket===version)setSnapshot([])}finally{polling=false}
+  if(disposed||suspended||polling||!visible())return;
+  polling=true;const controller=new AbortController();readController=controller;const ticket=++version,startedAt=Date.now();lastPoll=startedAt;
+  try{accept(await typingRequest(path,{signal:controller.signal},api),ticket,startedAt)}catch{if(!disposed&&!controller.signal.aborted&&ticket===version)setSnapshot([])}finally{if(readController===controller){readController=null;polling=false}}
  };
  const write=typing=>{
   const ticket=++version;
@@ -40,7 +38,7 @@ function channelFor(key,path,selfId){
    // An input that ended while an earlier request was pending is never replayed.
    if(typing&&(!sources.size||disposed))return;
    const startedAt=Date.now();
-   try{accept(await typingRequest(path,{method:'POST',body:JSON.stringify({typing}),keepalive:!typing}),ticket,startedAt)}catch{if(!disposed&&ticket===version)setSnapshot([])}
+   try{accept(await typingRequest(path,{method:'POST',body:JSON.stringify({typing}),keepalive:!typing},api),ticket,startedAt)}catch{if(!disposed&&ticket===version)setSnapshot([])}
   });
  };
  const endPresence=()=>{if(signaled){signaled=false;lastSent=0;write(false)}};
@@ -51,15 +49,17 @@ function channelFor(key,path,selfId){
  };
  const stop=source=>{sources.delete(source);expireSources()};
  const stopAll=()=>{sources.clear();clearTimeout(idleTimer);endPresence()};
- const onVisibility=()=>{if(!visible()){stopAll();setSnapshot([])}else read()};
+ const onVisibility=()=>{if(!visible()){abortRead();stopAll();setSnapshot([])}else read()};
+ const onPageHide=()=>{suspended=true;abortRead();stopAll();setSnapshot([])};
+ const onPageShow=()=>{suspended=false;read()};
  entry={
   subscribe(listener){
    subscribers.add(listener);listener(snapshot);
-   if(subscribers.size===1){read();pollTimer=setInterval(read,POLL_MS);expiryTimer=setInterval(expire,250);document.addEventListener('visibilitychange',onVisibility);window.addEventListener('pagehide',stopAll);window.addEventListener('blur',stopAll)}
-   return()=>{subscribers.delete(listener);if(!subscribers.size){stopAll();disposed=true;clearInterval(pollTimer);clearInterval(expiryTimer);clearTimeout(idleTimer);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('pagehide',stopAll);window.removeEventListener('blur',stopAll);channels.delete(key)}};
+   if(subscribers.size===1){read();pollTimer=setInterval(read,POLL_MS);expiryTimer=setInterval(expire,250);document.addEventListener('visibilitychange',onVisibility);window.addEventListener('beforeunload',abortRead);window.addEventListener('pagehide',onPageHide);window.addEventListener('pageshow',onPageShow);window.addEventListener('blur',stopAll)}
+   return()=>{subscribers.delete(listener);if(!subscribers.size){disposed=true;abortRead();stopAll();clearInterval(pollTimer);clearInterval(expiryTimer);clearTimeout(idleTimer);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('beforeunload',abortRead);window.removeEventListener('pagehide',onPageHide);window.removeEventListener('pageshow',onPageShow);window.removeEventListener('blur',stopAll);channels.delete(key)}};
   },
   signal(source){
-   if(disposed||!visible())return;
+   if(disposed||suspended||!visible())return;
    const now=Date.now();sources.set(source,now);expireSources();
    // Renewal happens only inside this input callback, never on a heartbeat timer.
    if(!signaled||now-lastSent>=HEARTBEAT_MS){signaled=true;lastSent=now;write(true)}
