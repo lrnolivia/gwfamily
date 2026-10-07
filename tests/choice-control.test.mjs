@@ -106,7 +106,7 @@ test('Send preserves geometry, current palette, visible empty state, and busy ac
  assert.match(send,/\.send-button\.send-button\.send-button\{background:var\(--send-active/);
  const disabled=send.match(/>\.send-button[^{}]*:disabled\{([^{}]*)\}/)?.[1];assert.ok(disabled);assert.doesNotMatch(disabled,/(?:background|color|opacity):/);
  assert.match(send,/--gw-control-alpha:100%/);
- assert.doesNotMatch(send,/(?:width|height|border-radius):/);
+ assert.doesNotMatch(send,/(?:width|height):/);assert.match(send,/border-radius:50%!important/);
  const semantic=send.slice(send.indexOf('html[data-theme]'));assert.doesNotMatch(semantic,/#[0-9a-f]{3,8}/i);
  for(const theme of ['light','dark'])for(const color of ['#c9aa52','#4f996c','#d24978','#627bf0','#9a57dc','#000000','#ffffff']){
   const palette=profilePalette(color,theme);

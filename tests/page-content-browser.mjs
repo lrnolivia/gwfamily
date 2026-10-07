@@ -1,5 +1,6 @@
 import {pageContentPayload} from '../src/page-content-model.js';
 import {validatePhotoFrame} from '../src/photo-framing-model.js';
+import {validateCardLayouts} from '../src/card-content-layout-model.js';
 // Hosted-only shared-page editor checks. Start the isolated port-4176 fixture.
 // All accounts, copy, posts and uploaded media below are synthetic test data.
 // Authoring or syntax-checking this file is not evidence of a browser pass.
@@ -368,6 +369,9 @@ async function inlineEditorFits(page, panel) {
   for (let index = 0; index < await controls.count(); index++) {
     const control = controls.nth(index);
     await control.scrollIntoViewIfNeeded();
+    // A minimal scroll can leave a fractional pixel clipped at the viewport
+    // edge. Center the ordinary page scroll, then retain the full-fit assertion.
+    await control.evaluate(element => element.scrollIntoView({block: 'center', inline: 'nearest', behavior: 'instant'}));
     await expect(control).toBeInViewport({ratio: 1});
   }
   await noClip(page);
@@ -924,7 +928,7 @@ try {
     assert.ok(writes.some(write => write.method === 'PATCH'), 'The suite exercised actual UI save requests.');
     for (const write of writes.filter(write => write.method === 'PATCH')) {
       assert.deepEqual(Object.keys(write.body).sort(), ['content', 'expectedRevision', 'requestId']);
-      assert.deepEqual(Object.keys(write.body.content).sort(), ['bodyFormats', 'hero', 'panelLayout', 'text']);
+      assert.deepEqual(Object.keys(write.body.content).sort(), ['bodyFormats', 'cardLayouts', 'hero', 'panelLayout', 'text']);
       const key = decodeURIComponent(write.path.split('/').at(-1));
       assert.deepEqual(Object.keys(write.body.content.text).sort(), Object.keys(SHARED_PAGE_SCHEMA[key].fields).sort(), 'Only this shared page’s declared copy enters the snapshot.');
       for (const [field, format] of Object.entries(write.body.content.bodyFormats)) {
@@ -935,6 +939,7 @@ try {
       if(write.body.content.hero.frame)validatePhotoFrame(write.body.content.hero.frame);
       for (const file of write.body.content.hero.media) assert.deepEqual(Object.keys(file).sort(), file.frame?['alt','frame','id']:['alt','id'], 'Client URLs and file metadata never become write authority.');
       const layout = write.body.content.panelLayout;
+      assert.deepEqual(validateCardLayouts(key, layout, write.body.content.cardLayouts), write.body.content.cardLayouts);
       assert.deepEqual(Object.keys(layout).sort(), ['desktopOrder', 'mobileOrder', 'panels', 'version']);
       assert.equal(layout.version, 2);
       const visible = layout.panels.filter(panel => !panel.removed).map(panel => panel.id).sort();
