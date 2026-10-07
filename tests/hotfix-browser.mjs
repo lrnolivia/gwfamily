@@ -91,12 +91,12 @@ try{
   for(const name of ['Home','Reunion','Family']){await nav.getByRole('button',{name,exact:true}).click();await expect(p.getByRole('button',{name:'Edit page',exact:true})).toHaveCount(0);}
   results.push({check:'regular member profile editing and hidden shared-page tools',status:'passed'});await p.close();
  }
- // Photos and fallback initials share the name-and-badge block's height.
+ // Photos and fallback initials retain the approved compact 44px square even with multi-line names/badges.
  for(const platform of ['ios','android']){
   const p=await pageFor(390,'dark',platform);await expect(p.locator('.post-head .identity-info').first()).toBeVisible();
   const identities=await p.locator('.post-head').evaluateAll(nodes=>nodes.map(node=>{const avatar=node.querySelector('.identity-avatar'),info=node.querySelector('.identity-info');if(!avatar||!info)return null;const a=avatar.getBoundingClientRect(),b=info.getBoundingClientRect(),v=avatar.querySelector('.avatar').getBoundingClientRect();return {height:a.height,textHeight:b.height,width:a.width,visibleHeight:v.height,gap:parseFloat(getComputedStyle(info).rowGap)}}).filter(Boolean));
-  assert.ok(identities.length);for(const identity of identities){assert.ok(Math.abs(identity.height-identity.textHeight)<=1,JSON.stringify(identity));assert.ok(Math.abs(identity.width-identity.height)<=1,JSON.stringify(identity));assert.ok(Math.abs(identity.visibleHeight-identity.height)<=1,JSON.stringify(identity));assert.ok(identity.gap<=3);}
-  results.push({check:'unified post identity sizing',platform,identities});await p.close();
+  assert.ok(identities.length);for(const identity of identities){assert.ok(Math.abs(identity.height-44)<=1,JSON.stringify(identity));assert.ok(Math.abs(identity.width-identity.height)<=1,JSON.stringify(identity));assert.ok(Math.abs(identity.visibleHeight-identity.height)<=1,JSON.stringify(identity));assert.ok(identity.gap<=3);}
+  results.push({check:'compact post identity sizing',platform,identities});await p.close();
  }
  // Both materials retain the selected heading font and editable font controls.
  for(const platform of ['ios','android']){
