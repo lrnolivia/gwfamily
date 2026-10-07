@@ -151,3 +151,13 @@ body,.app,.card,section,.intro,footer,.bottom,.muted,.page-edit-modebar,dialog,.
 .page-edit-toolbar.is-entry{margin:24px 0 12px}
 .page-edit-toolbar.is-entry .page-edit-entry{justify-content:center}
 .page-edit-entry-button{min-height:44px}
+
+/* Inline Done keeps a full touch target without a large filled block over text. */
+.page-copy-input-wrap{display:grid;grid-template-columns:minmax(0,1fr) 44px;align-items:start;gap:4px;padding:4px;border:1px solid var(--control)}
+.page-copy-input-wrap .page-copy-input{position:relative;inset:auto;min-height:44px;padding:0;border:0;min-width:0;height:100%;background:transparent}
+.page-copy-input-wrap .page-copy-input:focus{outline:0}
+.page-copy-input-wrap:focus-within{outline:2px solid var(--control);outline-offset:1px}
+.page-copy-input-wrap .page-field-done{position:relative;inset:auto;align-self:start;width:44px;height:44px;min-height:44px;max-height:44px;padding:0;border-radius:50%;background:transparent;box-shadow:none;color:var(--text)}
+.page-copy-input-wrap .page-field-done>.liquid-glass-tint{background:transparent;opacity:0}
+.page-copy-input-wrap .page-field-done:hover{background:var(--surface)}
+.page-copy-input-wrap .page-field-done .glyph{width:18px;height:18px;flex:none}

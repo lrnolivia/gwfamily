@@ -83,3 +83,20 @@
 .card-layout-toolbar .card-layout-finish>.liquid-glass-tint{background:var(--control);opacity:1}
 .is-arranging .card-content-column[data-card-vertical]{justify-content:flex-start}
 @media(max-width:700px){.card-slot-controls{padding:8px}.card-slot-heading>.card-slot-drag{flex-basis:100px}.card-layout-toolbar .card-layout-finish{margin-left:0}.card-column-heading{align-items:flex-start}}
+
+/* Commands wrap by group, never into a clipped horizontal strip. Keep the
+   editor full-width even when the image itself is only 25% of its column. */
+.card-slot-controls,.card-slot-placement,.card-slot-heading{min-width:0}
+.card-slot-controls{grid-template-columns:minmax(0,1fr)}
+.image-layout-controls{display:grid;gap:8px;min-width:0;width:100%}
+.image-control-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;min-width:0;width:100%}
+.image-control-label{flex:1 1 72px;font-size:.75rem;line-height:1.4;color:var(--muted);text-align:start}
+.image-control-row>.card-layout-choices,.image-control-row>.card-image-size{flex:0 1 auto;min-width:0;max-width:100%;flex-wrap:wrap}
+.card-layout-choices,.card-image-size{display:inline-flex;align-items:center;gap:0;padding:2px;border-radius:12px;background:var(--surface);max-width:100%;min-width:0;flex-wrap:wrap}
+.card-layout-choices button,.card-image-size button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:44px;min-height:44px;width:auto;padding:10px;border:0;box-shadow:none;background:transparent;border-radius:10px;flex:0 0 auto}
+.card-layout-choices .glyph,.card-image-size .glyph{width:20px;height:20px;flex:none}
+.card-layout-choices button span{font-size:.8125rem;line-height:1.4}
+.card-image-size output{min-width:48px;text-align:center;font-size:.8125rem;font-variant-numeric:tabular-nums;color:var(--text)}
+.photo-framing-tools button:disabled{opacity:.5;cursor:default}
+.card-content-slot[data-card-role=image] .card-slot-content>*:has(.photo-framing-editor){width:100%!important}
+.card-slot-controls:has(+.card-slot-content .photo-framing-editor) .image-layout-controls{display:none}

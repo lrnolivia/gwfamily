@@ -38,3 +38,10 @@
 
 /* Messaging alone softens neutral borders; focus and error semantics stay distinct. */
 @media(forced-colors:none){.messages-page :is(.conversation-row,.message-compose-area,.message-writing,.conversation-invite,.conversation-settings .card){border-color:color-mix(in srgb,var(--text) 15%,transparent)}.messages-page .chat-heading{border-bottom:0}}
+
+/* Private message composer: media, text and send share one baseline. */
+html[data-theme][data-platform] .message-writing.writing-box{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:end;gap:4px;padding:6px;min-height:58px}
+html[data-theme][data-platform] .message-writing.writing-box>textarea{grid-column:2;grid-row:1;min-height:44px;height:44px;max-height:160px;width:100%;margin:0;padding:10px 4px;line-height:24px;resize:vertical}
+html[data-theme][data-platform] .message-writing.writing-box>:is(.attach-direct,.send-button){position:relative!important;inset:auto!important;grid-row:1;width:44px;height:44px;min-width:44px;min-height:44px;margin:0;padding:0;align-self:end;display:grid;place-items:center}
+html[data-theme][data-platform] .message-writing.writing-box>.attach-direct{grid-column:1;background:transparent;border:0;box-shadow:none}
+html[data-theme][data-platform] .message-writing.writing-box>.send-button{grid-column:3}

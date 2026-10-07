@@ -12,13 +12,13 @@ const visible=()=>typeof document==='undefined'||document.visibilityState==='vis
 const expiresAt=value=>typeof value==='number'?value:Date.parse(value);
 function channelFor(key,path,selfId){
  let entry=channels.get(key);if(entry)return entry;
- let snapshot=[],disposed=false,suspended=false,polling=false,readController=null,pollTimer,expiryTimer,idleTimer,lastSent=0,signaled=false,lastPoll=0,version=0,chain=Promise.resolve();
+ let snapshot=[],disposed=false,suspended=false,unloading=false,polling=false,readController=null,writeController=null,pollTimer,expiryTimer,idleTimer,lastSent=0,signaled=false,lastPoll=0,version=0,writeGeneration=0,chain=Promise.resolve();
  const subscribers=new Set(),sources=new Map();
  const notify=()=>{for(const listener of subscribers)listener(snapshot)};
  const setSnapshot=next=>{snapshot=next;notify()};
  const expire=()=>{const next=snapshot.filter(person=>person.expiresAt>Date.now());if(next.length!==snapshot.length)setSnapshot(next)};
  const accept=(result,ticket,startedAt)=>{
-  if(disposed||ticket!==version)return;
+  if(disposed||suspended||unloading||ticket!==version)return;
   const now=Date.now(),serverNow=Number(result.serverNow)||now,transit=Math.max(0,now-startedAt);
   const next=(Array.isArray(result.typing)?result.typing:[]).flatMap(person=>{
    if(!person||typeof person!=='object')return [];
@@ -27,18 +27,20 @@ function channelFor(key,path,selfId){
   });setSnapshot(next);
  };
  const abortRead=()=>{version++;readController?.abort();readController=null;polling=false};
+ const abortWrites=()=>{writeGeneration++;writeController?.abort();writeController=null;chain=Promise.resolve()};
  const read=async()=>{
-  if(disposed||suspended||polling||!visible())return;
+  if(disposed||suspended||unloading||polling||!visible())return;
   polling=true;const controller=new AbortController();readController=controller;const ticket=++version,startedAt=Date.now();lastPoll=startedAt;
   try{accept(await typingRequest(path,{signal:controller.signal},api),ticket,startedAt)}catch{if(!disposed&&!controller.signal.aborted&&ticket===version)setSnapshot([])}finally{if(readController===controller){readController=null;polling=false}}
  };
  const write=typing=>{
-  const ticket=++version;
+  if(disposed||suspended||unloading)return;
+  const ticket=++version,generation=writeGeneration;
   chain=chain.catch(()=>{}).then(async()=>{
-   // An input that ended while an earlier request was pending is never replayed.
-   if(typing&&(!sources.size||disposed))return;
-   const startedAt=Date.now();
-   try{accept(await typingRequest(path,{method:'POST',body:JSON.stringify({typing}),keepalive:!typing},api),ticket,startedAt)}catch{if(!disposed&&ticket===version)setSnapshot([])}
+   // Invalidate both start and stop writes queued by a previous page lifecycle.
+   if(disposed||suspended||unloading||generation!==writeGeneration||(typing&&!sources.size))return;
+   const controller=new AbortController();writeController=controller;const startedAt=Date.now();
+   try{accept(await typingRequest(path,{method:'POST',body:JSON.stringify({typing}),keepalive:!typing,signal:controller.signal},api),ticket,startedAt)}catch{if(!disposed&&!controller.signal.aborted&&ticket===version)setSnapshot([])}finally{if(writeController===controller)writeController=null}
   });
  };
  const endPresence=()=>{if(signaled){signaled=false;lastSent=0;write(false)}};
@@ -49,17 +51,27 @@ function channelFor(key,path,selfId){
  };
  const stop=source=>{sources.delete(source);expireSources()};
  const stopAll=()=>{sources.clear();clearTimeout(idleTimer);endPresence()};
- const onVisibility=()=>{if(!visible()){abortRead();stopAll();setSnapshot([])}else read()};
- const onPageHide=()=>{suspended=true;abortRead();stopAll();setSnapshot([])};
- const onPageShow=()=>{suspended=false;read()};
+ const pause=()=>{
+  // Teardown must not start a final fetch. The server TTL expires our presence.
+  abortRead();abortWrites();sources.clear();clearTimeout(idleTimer);signaled=false;lastSent=0;setSnapshot([]);
+ };
+ const resume=()=>{if(disposed||suspended||!visible())return;unloading=false;read()};
+ const onVisibility=()=>{if(!visible()){abortRead();stopAll();setSnapshot([])}else resume()};
+ const onBeforeUnload=()=>{unloading=true;pause()};
+ const onPageHide=()=>{suspended=true;pause()};
+ const onPageShow=()=>{suspended=false;resume()};
+ // Cancelled beforeunload has no dedicated browser event. Fresh focus or input
+ // recovers the still-live document; pagehide remains paused until pageshow.
+ const onFocus=()=>{if(unloading)resume()};
  entry={
   subscribe(listener){
    subscribers.add(listener);listener(snapshot);
-   if(subscribers.size===1){read();pollTimer=setInterval(read,POLL_MS);expiryTimer=setInterval(expire,250);document.addEventListener('visibilitychange',onVisibility);window.addEventListener('beforeunload',abortRead);window.addEventListener('pagehide',onPageHide);window.addEventListener('pageshow',onPageShow);window.addEventListener('blur',stopAll)}
-   return()=>{subscribers.delete(listener);if(!subscribers.size){disposed=true;abortRead();stopAll();clearInterval(pollTimer);clearInterval(expiryTimer);clearTimeout(idleTimer);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('beforeunload',abortRead);window.removeEventListener('pagehide',onPageHide);window.removeEventListener('pageshow',onPageShow);window.removeEventListener('blur',stopAll);channels.delete(key)}};
+   if(subscribers.size===1){read();pollTimer=setInterval(read,POLL_MS);expiryTimer=setInterval(expire,250);document.addEventListener('visibilitychange',onVisibility);window.addEventListener('beforeunload',onBeforeUnload);window.addEventListener('pagehide',onPageHide);window.addEventListener('pageshow',onPageShow);window.addEventListener('blur',stopAll);window.addEventListener('focus',onFocus)}
+   return()=>{subscribers.delete(listener);if(!subscribers.size){disposed=true;pause();clearInterval(pollTimer);clearInterval(expiryTimer);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('beforeunload',onBeforeUnload);window.removeEventListener('pagehide',onPageHide);window.removeEventListener('pageshow',onPageShow);window.removeEventListener('blur',stopAll);window.removeEventListener('focus',onFocus);channels.delete(key)}};
   },
   signal(source){
    if(disposed||suspended||!visible())return;
+   if(unloading)resume();
    const now=Date.now();sources.set(source,now);expireSources();
    // Renewal happens only inside this input callback, never on a heartbeat timer.
    if(!signaled||now-lastSent>=HEARTBEAT_MS){signaled=true;lastSent=now;write(true)}

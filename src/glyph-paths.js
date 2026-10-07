@@ -15,4 +15,8 @@ paths.history='M3 11a9 9 0 1 1 2.6 7M3 5v6h6M12 7v5l4 2';
 paths.lock='M5 10h14v11H5ZM8 10V7a4 4 0 0 1 8 0v3M12 14v3';
 paths.edit='m14 5 5 5M4 20l5-1L21 7l-4-4L5 15ZM4 20h7';
 paths.mail='M3 5h18v14H3ZM3 6l9 7 9-7';
+paths.focus='M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5';
+paths.share='M12 16V3m-4 4 4-4 4 4M5 12v9h14v-9';
+paths.copy='M9 9h12v12H9ZM15 5V3H3v12h2';
+paths.flag='M5 21V3m0 1c5-4 9 4 15 0v10c-6 4-10-4-15 0';
 export default paths;

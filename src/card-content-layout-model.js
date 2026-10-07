@@ -68,3 +68,12 @@ export function updateCardLayout(content,page,id,change){
 // Older saved image-level alignment remains readable until explicitly changed.
 export function cardColumnVertical(layout,column){return layout.vertical?.[column]||layout[column]?.find(item=>item.vertical)?.vertical||'center';}
 export function alignCardColumn(layout,column,vertical){if(!CARD_COLUMNS.includes(column)||!['top','center','bottom'].includes(vertical))return layout;return {...layout,vertical:{...layout.vertical,[column]:vertical}};}
+
+// Apply one image editor draft without moving the item to the end merely
+// because its size, alignment or shape changed in the same column.
+export function applyCardImageSettings(layout,id,settings){
+ const column=CARD_COLUMNS.find(key=>layout[key].some(item=>item.id===id));
+ if(!column||!CARD_COLUMNS.includes(settings.column))return layout;
+ const placed=settings.column===column?layout:moveCardSlot(layout,id,{column:settings.column});
+ return sizeCardImage(alignCardSlot(placed,id,settings.align),id,{...(settings.width?{width:settings.width}:{}),...(settings.aspect?{aspect:settings.aspect}:{})});
+}
