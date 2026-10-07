@@ -375,7 +375,7 @@ async function inlineEditorFits(page, panel) {
     try {
       await expect(control).toBeInViewport({ratio: 1});
     } catch (error) {
-      console.error('Inline editor control geometry', await control.evaluate(element => {
+      console.error('Inline editor control geometry', JSON.stringify(await control.evaluate(element => {
         const ancestors = [];
         for (let node = element; node && ancestors.length < 8; node = node.parentElement) {
           const style = getComputedStyle(node);
@@ -383,7 +383,7 @@ async function inlineEditorFits(page, panel) {
             overflowX: style.overflowX, overflowY: style.overflowY, scrollTop: node.scrollTop, scrollLeft: node.scrollLeft});
         }
         return {label: element.getAttribute('aria-label') || element.textContent, viewport: {width: innerWidth, height: innerHeight}, ancestors};
-      }));
+      })));
       throw error;
     }
   }

@@ -89,7 +89,9 @@ html[data-theme][data-platform] .page-save-button.button:disabled>.liquid-glass-
 .page-media-modes>button:not([aria-pressed=true]):hover{background:var(--raised)}
 .page-media-files{list-style:none;display:grid;gap:14px;padding:0;margin:0;max-height:310px;overflow:auto;overscroll-behavior:contain}
 .page-media-files>li{display:grid;grid-template-columns:70px minmax(0,1fr);gap:10px;align-items:start}
-.page-media-file-preview{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden}
+/* Clip the image without creating a hidden scroll container that can crop the
+   overlaid Remove control when the inline editor scrolls into view. */
+.page-media-file-preview{position:relative;aspect-ratio:1;border-radius:8px;overflow:clip}
 .page-media-file-preview :is(img,video){width:100%;height:100%;object-fit:cover}
 .page-media-file-preview button{position:absolute;top:0;right:0;width:36px;height:36px;display:grid;place-items:center;background:#171914d9;color:#fffdf7;border-radius:0 0 0 8px}
 .page-media-file-details{min-width:0}
