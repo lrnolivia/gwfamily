@@ -58,7 +58,7 @@ test('full shared reunion component defaults full and Plan explicitly opts into 
  const jsx=source('src/reunion-plans.jsx');assert.match(jsx,/YourReunionPanel\(\{compact=false\}\)/);assert.match(jsx,/<YourReunionPanel compact\/>/);assert.match(source('src/planning-checklist.jsx'),/!compact&&next&&/);
 });
 test('single-line controls share metrics while multiline fields remain resizable',()=>{
- const css=source('src/visual-system.css');assert.match(css,/height:var\(--field-height\);min-height:var\(--field-height\)/);assert.match(css,/textarea\{[^}]*resize:vertical/);assert.match(css,/textarea\{min-height:6.5em;height:auto/);assert.doesNotMatch(css,/overflow-x:hidden|overflow:clip/);
+ const css=source('src/visual-system.css');assert.match(css,/height:var\(--field-height\);min-height:var\(--field-height\)/);assert.match(css,/textarea:not\(\.page-copy-input\)\{[^}]*resize:vertical/);assert.match(css,/textarea:not\(\.page-copy-input\)\{min-height:6.5em;height:auto/);assert.doesNotMatch(css,/overflow-x:hidden|overflow:clip/);
 });
 test('shared People filter component is used in normal and leader directories without removing review gates',()=>{
  assert.match(source('src/features.jsx'),/<PeopleFilters state=\{state\}/);assert.match(source('src/manage-family.jsx'),/<PeopleFilters state=\{state\}/);assert.match(source('src/manage-family.jsx'),/state.capabilities\?\.manageMembers/);assert.match(source('src/manage-family.jsx'),/member.id===state.selfId\?/);

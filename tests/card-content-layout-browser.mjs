@@ -13,9 +13,9 @@ await page.addInitScript(()=>{localStorage.setItem('gw-platform','android');loca
 const output='docs/card-content-qa',hero=()=>page.locator('[data-panel-page="home"] [data-panel-id="hero"]'),card=()=>hero().locator('[data-card-layout="hero"]'),toolbar=()=>page.locator('.page-edit-toolbar');
 const read=async()=>{const response=await page.request.get(base+'/api/page-content/home');assert.equal(response.status(),200);return response.json()};
 const order=async(column,root=card())=>root.locator(`[data-card-column="${column}"] > [data-card-slot]`).evaluateAll(nodes=>nodes.map(node=>node.dataset.cardSlot));
-const begin=async()=>{await toolbar().getByRole('button',{name:/^(Edit page|Resume page edits)$/}).click();if(await hero().getAttribute('data-panel-locked')==='true')await hero().getByRole('button',{name:'Unlock Primary hero',exact:true}).click()};
+const begin=async()=>{await toolbar().getByRole('button',{name:/^(Edit page|Resume page edits)$/}).click();await page.locator('.page-edit-toolbar').getByRole('button',{name:'Arrange page',exact:true}).click();if(await hero().getAttribute('data-panel-locked')==='true')await hero().getByRole('button',{name:'Unlock Primary hero',exact:true}).click()};
 const arrange=async()=>card().getByRole('button',{name:'Arrange card content',exact:true}).click();
-const save=async()=>{await toolbar().getByRole('button',{name:'Save changes',exact:true}).click();await expect(toolbar()).toContainText('Saved for the family')};
+const save=async()=>{await expect(toolbar().locator('.page-edit-mode-label').getByRole('status')).toHaveText(/^(Saved for the family|Changes save automatically)$/)};
 const check=async(name,fn)=>{await fn();results.push({check:name,status:'passed'});console.log('CARD CONTENT PASS:',name)};
 async function touchDrop(handle,target,{cancel=false}={}){
  const box=await target.boundingBox();assert.ok(box);
@@ -33,7 +33,7 @@ try{
  });
  await check('lock guard, keyboard reordering, alignment and arrangement cancel',async()=>{
   await toolbar().getByRole('button',{name:'Edit page',exact:true}).click();await expect(card().getByRole('button',{name:'Arrange card content',exact:true})).toHaveCount(0);
-  await hero().getByRole('button',{name:'Unlock Primary hero',exact:true}).click();await arrange();
+  await toolbar().getByRole('button',{name:'Arrange page',exact:true}).click();await hero().getByRole('button',{name:'Unlock Primary hero',exact:true}).click();await arrange();
   const handle=card().getByRole('button',{name:'Move Heading',exact:true});await handle.focus();await page.keyboard.press('ArrowRight');await expect(card().locator('[data-card-column="right"] [data-card-slot="title"]')).toBeVisible();await handle.focus();await page.keyboard.press('ArrowUp');assert.deepEqual(await order('right'),['title','media']);
   await card().getByLabel('Heading alignment',{exact:true}).selectOption('center');await expect(card().locator('[data-card-slot="title"]')).toHaveAttribute('data-card-align','center');
   await card().getByRole('button',{name:'Cancel arrangement',exact:true}).click();assert.deepEqual(await order('left'),['eyebrow','title','body','action']);assert.deepEqual((await read()).content.cardLayouts,{});
@@ -48,25 +48,25 @@ try{
  let saved;
  await check('independent text, photo, action placement saves and reloads durably',async()=>{
   await arrange();await card().getByLabel('Heading column',{exact:true}).selectOption('right');await card().getByRole('button',{name:'Move Heading earlier',exact:true}).click();await card().getByLabel('Heading alignment',{exact:true}).selectOption('center');await card().getByLabel('Reunion details button alignment',{exact:true}).selectOption('end');
-  await card().getByRole('button',{name:'Keep in page draft',exact:true}).click();await save();saved=await read();assert.deepEqual(saved.content.cardLayouts.hero.right.map(item=>item.id),['title','media']);assert.equal(saved.content.cardLayouts.hero.left.at(-1).align,'end');
+  await card().getByRole('button',{name:'Finish arranging',exact:true}).click();await save();saved=await read();assert.deepEqual(saved.content.cardLayouts.hero.right.map(item=>item.id),['title','media']);assert.equal(saved.content.cardLayouts.hero.left.at(-1).align,'end');
   await page.reload();await expect(card().locator('[data-card-slot="title"]')).toHaveAttribute('data-card-align','center');assert.deepEqual(await order('right'),['title','media']);assert.deepEqual((await read()).content.cardLayouts,saved.content.cardLayouts);
   await page.screenshot({path:`${output}/${engine}-desktop-arranged.png`,fullPage:true});
  });
  await check('mobile stacks left then right, supports touch/selects, preserves save through reload',async()=>{
   await page.setViewportSize({width:390,height:844});await expect(page.locator('[data-panel-page="home"]')).toHaveClass(/is-mobile/);await expect(card().locator('[data-card-column="left"]')).toBeVisible();await expect(card().locator('[data-card-column="right"]')).toBeVisible();const left=await card().locator('[data-card-column="left"]').boundingBox(),right=await card().locator('[data-card-column="right"]').boundingBox();assert.ok(right.y>=left.y+left.height&&Math.abs(right.x-left.x)<=1);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth)<=1);
   await begin();await arrange();const handle=card().getByRole('button',{name:'Move Reunion date',exact:true}),target=card().locator('[data-card-column="right"] .card-column-drop-end');await target.scrollIntoViewIfNeeded();await touchDrop(handle,target);assert.ok((await order('right')).includes('body'));
-  await card().getByLabel('Reunion date alignment',{exact:true}).selectOption('end');await card().getByRole('button',{name:'Keep in page draft',exact:true}).click();await save();saved=await read();await page.reload();assert.deepEqual((await read()).content.cardLayouts,saved.content.cardLayouts);await expect(card().locator('[data-card-slot="body"]')).toHaveAttribute('data-card-align','end');
+  await card().getByLabel('Reunion date alignment',{exact:true}).selectOption('end');await card().getByRole('button',{name:'Finish arranging',exact:true}).click();await save();saved=await read();await page.reload();assert.deepEqual((await read()).content.cardLayouts,saved.content.cardLayouts);await expect(card().locator('[data-card-slot="body"]')).toHaveAttribute('data-card-align','end');
   await page.screenshot({path:`${output}/${engine}-mobile-arranged.png`,fullPage:true});
   for(const width of [320,768,1024]){await page.setViewportSize({width,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth)<=1,`No overflow at ${width}`);}
  });
  await check('custom CMS content gets the same independent slot editor',async()=>{
   await page.setViewportSize({width:1440,height:1000});await begin();await page.getByRole('button',{name:'Add Panel',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Add Panel',exact:true});await dialog.getByLabel('Two columns',{exact:true}).check();await dialog.getByRole('button',{name:'Add main panel',exact:true}).click();
-  const custom=page.locator('[data-panel-page="home"] .page-custom-panel').last(),id=await custom.getAttribute('data-panel-id'),layout=custom.locator('[data-card-layout]');await custom.getByLabel('Panel heading',{exact:true}).fill('Synthetic card layout story');await layout.getByRole('button',{name:'Arrange card content',exact:true}).click();await layout.getByLabel('Second text column',{exact:true}).selectOption('left');await layout.getByLabel('Second text alignment',{exact:true}).selectOption('center');await layout.getByRole('button',{name:'Keep in page draft',exact:true}).click();await save();await page.reload();
+  const custom=page.locator('[data-panel-page="home"] .page-custom-panel').last(),id=await custom.getAttribute('data-panel-id'),layout=custom.locator('[data-card-layout]');await custom.getByRole('button',{name:'Edit Panel heading',exact:true}).click();await custom.getByLabel('Panel heading',{exact:true}).fill('Synthetic card layout story');await layout.getByRole('button',{name:'Arrange card content',exact:true}).click();await layout.getByLabel('Second text column',{exact:true}).selectOption('left');await layout.getByLabel('Second text alignment',{exact:true}).selectOption('center');await layout.getByRole('button',{name:'Finish arranging',exact:true}).click();await save();await page.reload();
   const record=await read();assert.deepEqual(record.content.cardLayouts[id].right,[]);assert.equal(record.content.cardLayouts[id].left.at(-1).align,'center');
  });
  await check('reset restores one coherent source-owned arrangement and alignment through reload',async()=>{
   await page.setViewportSize({width:1280,height:900});await expect(page.locator('[data-panel-page="home"]')).toHaveClass(/is-wide/);await begin();await arrange();
-  await card().getByRole('button',{name:'Reset arrangement',exact:true}).click();await card().getByRole('button',{name:'Keep in page draft',exact:true}).click();await save();await page.reload();
+  await card().getByRole('button',{name:'Reset arrangement',exact:true}).click();await card().getByRole('button',{name:'Finish arranging',exact:true}).click();await save();await page.reload();
   await expect(card().locator('[data-card-slot="media"] img')).toBeVisible();
   await expect.poll(()=>order('left')).toEqual(['eyebrow','title','body','action']);await expect.poll(()=>order('right')).toEqual(['media']);
   for(const slot of ['eyebrow','title','body'])await expect(card().locator('[data-card-slot="'+slot+'"]')).toHaveAttribute('data-card-align','start');

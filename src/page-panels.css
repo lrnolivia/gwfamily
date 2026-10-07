@@ -37,3 +37,10 @@
 .page-panel-drag:focus-visible{outline:2px solid var(--control);outline-offset:2px}
 
 .page-mobile-drag-label{touch-action:none;cursor:grab}.page-mobile-drag-label:active{cursor:grabbing}
+
+.page-panel-live-copy{margin:0;min-width:0;max-width:100%}
+.page-panel-copy-target{display:block;cursor:text;min-height:44px;outline-offset:3px;overflow-wrap:anywhere}
+.page-panel-copy-target:hover{outline:1px dashed var(--line)}
+.page-panel-copy-target:focus-visible{outline:2px solid var(--control)}
+.page-panel-text-edit{display:block;position:relative;font:inherit}
+.page-panel-text-edit>input.page-copy-input{width:100%;min-height:48px;margin:0;padding:8px 52px 8px 8px;font:inherit;line-height:inherit;color:var(--text);background:var(--raised);border:1px solid var(--control);border-radius:8px}

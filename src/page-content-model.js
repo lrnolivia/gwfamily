@@ -13,6 +13,17 @@ export const initialRecord=page=>({page,revision:0,content:sharedPageDefaults(pa
 export function pageContentPayload(content){return {text:{...content.text},bodyFormats:{...content.bodyFormats},cardLayouts:cardLayoutsPayload(content.cardLayouts),hero:{mode:content.hero.mode,...photoFramePayload(content.hero.frame),media:content.hero.media.map(({id,alt='',frame})=>({id,alt,...photoFramePayload(frame)}))},...(content.panelLayout?{panelLayout:panelPayload(content.panelLayout)}:{})}}
 export function pageContentFingerprint(content){return JSON.stringify(pageContentPayload(content))}
 export function pageContentDirty(record){return !!record?.draft&&pageContentFingerprint(record.draft)!==pageContentFingerprint(record.content)}
+
+// A completed save must never replace keystrokes entered while it was pending.
+export function reconcilePageSave(page,saved,current,submittedFingerprint,savedNotice){
+ const newer=!!current?.draft&&pageContentFingerprint(current.draft)!==submittedFingerprint;
+ return {...initialRecord(page),...saved,status:'ready',savedNotice,
+  draft:newer?clone(current.draft):null,base:newer?clone(saved.content):null};
+}
+
+export function pageCanAutosave(record){
+ return !!record?.canEdit&&pageContentDirty(record)&&record.status==='ready'&&!record.error&&!record.latest&&!record.conflicted;
+}
 export function pageDraftKey(account){return DRAFT_PREFIX+encodeURIComponent(account)}
 export function safePageMediaUrl(value,preview=false){
  if(typeof value!=='string')return '';

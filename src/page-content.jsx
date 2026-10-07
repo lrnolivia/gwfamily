@@ -13,17 +13,18 @@ import {SHARED_PAGE_SCHEMA,SHARED_CONTENT_LIMITS,SHARED_IMAGE_TYPES,SHARED_VIDEO
 
 const PageContentContext=createContext(null);
 export const PagePanelLockContext=createContext(false);
-import {PREVIEW_KEY,clone,knownPage,initialRecord,pageContentPayload,pageContentFingerprint,pageContentDirty,pageDraftKey,safePageMediaUrl,mergePageDraft,pageContentRequest,pageBrowserStorage,resetPageContentPreview,readStored,writeStored,validRestoredDraft,withOutputMedia,reconcilePageRecord,collectPageDrafts} from './page-content-model.js';
-export {pageContentPayload,pageContentFingerprint,pageContentDirty,pageDraftKey,safePageMediaUrl,mergePageDraft,pageContentRequest,pageBrowserStorage,resetPageContentPreview,reconcilePageRecord,collectPageDrafts} from './page-content-model.js';
+import {PREVIEW_KEY,clone,knownPage,initialRecord,pageContentPayload,pageContentFingerprint,pageContentDirty,pageDraftKey,safePageMediaUrl,mergePageDraft,pageContentRequest,pageBrowserStorage,resetPageContentPreview,readStored,writeStored,validRestoredDraft,withOutputMedia,reconcilePageRecord,collectPageDrafts,reconcilePageSave,pageCanAutosave} from './page-content-model.js';
+export {pageContentPayload,pageContentFingerprint,pageContentDirty,pageDraftKey,safePageMediaUrl,mergePageDraft,pageContentRequest,pageBrowserStorage,resetPageContentPreview,reconcilePageRecord,collectPageDrafts,reconcilePageSave,pageCanAutosave} from './page-content-model.js';
 const plainChildren=children=>React.Children.toArray(children).map(child=>typeof child==='string'||typeof child==='number'?String(child):React.isValidElement(child)?child.type==='br'?'\n':plainChildren(child.props.children):'').join('');
 
 export function PageContentProvider({children,enabled=true}){
  const app=useApp(),state=app?.state||{},preview=state.mode==='preview';
  const allowed=enabled&&state.onboarding==='done'&&(preview||(state.mode==='live'&&app?.data?.session?.status==='active'));
  const account=allowed?(preview?'preview:':'live:')+state.selfId:null;
- const [records,setRecords]=useState({}),[editingPage,setEditingPage]=useState(null),[editingPages,setEditingPages]=useState([]),[activeEditor,setActiveEditor]=useState(null),[workCount,setWorkCount]=useState(0),[storageError,setStorageError]=useState('');
+ const [records,setRecords]=useState({}),[editingPage,setEditingPage]=useState(null),[editingPages,setEditingPages]=useState([]),[arrangingPage,setArrangingPage]=useState(false),[activeEditor,setActiveEditor]=useState(null),[workCount,setWorkCount]=useState(0),[autosaveHolds,setAutosaveHolds]=useState(0),[storageError,setStorageError]=useState('');
+ const pauseAutosave=useCallback(()=>{setAutosaveHolds(count=>count+1);let released=false;return()=>{if(!released){released=true;setAutosaveHolds(count=>Math.max(0,count-1))}}},[]);
  const ref=useRef({}),epoch=useRef(0),identity=useRef(account),loading=useRef(new Map()),pageUsers=useRef({}),previewStore=useRef({}),draftStore=useRef({}),routeAtEdit=useRef(null),activeSurface=useRef(null),workRef=useRef(0),reloadAllowed=useRef(false),mounted=useRef(true);
- const routeKey=app?.route?.type+':'+(app?.route?.id||'')+':'+(app?.route?.section||'')+':'+(app?.route?.tab||'');
+ const routeKey=app?.route?.type+':'+(app?.route?.id||'')+':'+(app?.route?.section||'');
  const install=useCallback((page,value)=>{const next=shareUnchangedSnapshot(ref.current[page],value);if(next!==ref.current[page]){ref.current={...ref.current,[page]:next};if(mounted.current)setRecords(ref.current)}return next},[]);
  const persistDrafts=useCallback(()=>{
   if(!account)return true;
@@ -39,6 +40,7 @@ export function PageContentProvider({children,enabled=true}){
   previewStore.current=preview?readStored(pageBrowserStorage('localStorage'),PREVIEW_KEY,{}):{};
  },[account,preview]);
  useEffect(()=>{if(editingPage&&routeAtEdit.current!==routeKey)setEditingPage(null)},[routeKey,editingPage]);
+ useEffect(()=>{if(!editingPage)setArrangingPage(false)},[editingPage]);
  useEffect(()=>{
   const root=document.documentElement;
   if(allowed&&editingPage)root.dataset.pageEditMode='true';else delete root.dataset.pageEditMode;
@@ -94,7 +96,7 @@ export function PageContentProvider({children,enabled=true}){
   observer.observe(main,{childList:true,subtree:true});return()=>observer.disconnect();
  },[editingPage,activateSurface]);
  const update=useCallback((page,change)=>{
-  const before=ref.current[page];if(!allowed||!before?.canEdit||before.status==='saving')return false;
+  const before=ref.current[page];if(!allowed||!before?.canEdit)return false;
   const draft=change(clone(before.draft||before.content));
   install(page,{...before,draft,base:before.base||clone(before.content),request:null,error:'',latest:before.latest});persistDrafts();return true;
  },[allowed,install,persistDrafts]);
@@ -116,9 +118,16 @@ export function PageContentProvider({children,enabled=true}){
     previewStore.current=store;
    }else saved=await pageContentRequest('/api/page-content/'+encodeURIComponent(page),{method:'PATCH',body:JSON.stringify({requestId:request.id,expectedRevision:before.revision,content})});
    if(generation!==epoch.current)return false;
-   install(page,{...initialRecord(page),...saved,status:'ready',savedNotice:preview?'Saved on this device':'Saved for the family'});persistDrafts();return true;
+   install(page,reconcilePageSave(page,saved,ref.current[page],pageContentFingerprint(before.draft),preview?'Saved on this device':'Saved for the family'));persistDrafts();return true;
   }catch(error){if(generation===epoch.current){install(page,{...ref.current[page],status:'ready',error:error.status===409?'Another leader saved this page. Your draft is kept. Review the latest version before saving.':error.message,latest:error.current||null,conflicted:error.status===409});persistDrafts()}return false}finally{finishWork()}
  },[allowed,preview,install,persistDrafts,beginWork]);
+ useEffect(()=>{
+  if(!allowed||!editingPage||workCount||autosaveHolds)return;
+  const page=editingPages.find(key=>pageCanAutosave(records[key]));
+  if(!page)return;
+  const timer=setTimeout(()=>{if(identity.current===account&&pageCanAutosave(ref.current[page]))void save(page)},900);
+  return()=>clearTimeout(timer);
+ },[allowed,account,editingPage,editingPages,records,workCount,autosaveHolds,save]);
  const discard=useCallback(page=>{const before=ref.current[page];if(!before||before.status==='saving')return;const latest=before.latest||before;install(page,{...before,...latest,draft:null,base:null,request:null,error:'',latest:null,conflicted:false,status:'ready'});persistDrafts()},[install,persistDrafts]);
  const reviewLatest=useCallback(async page=>{
   const before=ref.current[page];if(!before?.draft)return null;
@@ -146,7 +155,7 @@ export function PageContentProvider({children,enabled=true}){
  const accountReady=allowed&&identity.current===account;
  const current=accountReady?records:{};
  const hasUnsavedDrafts=accountReady&&Object.keys(collectPageDrafts(current,draftStore.current)).length>0,pending=workCount>0||Object.values(current).some(row=>row.status==='saving'),storageSafe=!storageError;
- const value=useMemo(()=>({records:current,allowed:accountReady,preview,editingPage:accountReady?editingPage:null,editingPages,activeEditor,storageError,hasUnsavedDrafts,pending,storageSafe,prepareReload,load,retainPage,begin,beginWork,activateSurface,update,save,discard,reviewLatest,rebase,history,restore,finish:()=>setEditingPage(null)}),[current,accountReady,preview,editingPage,editingPages,activeEditor,storageError,hasUnsavedDrafts,pending,storageSafe,prepareReload,load,retainPage,begin,beginWork,activateSurface,update,save,discard,reviewLatest,rebase,history,restore]);
+ const value=useMemo(()=>({records:current,allowed:accountReady,preview,editingPage:accountReady?editingPage:null,editingPages,arrangingPage,setArrangingPage,pauseAutosave,activeEditor,storageError,hasUnsavedDrafts,pending,storageSafe,prepareReload,load,retainPage,begin,beginWork,activateSurface,update,save,discard,reviewLatest,rebase,history,restore,finish:()=>setEditingPage(null)}),[current,accountReady,preview,editingPage,editingPages,arrangingPage,setArrangingPage,pauseAutosave,activeEditor,storageError,hasUnsavedDrafts,pending,storageSafe,prepareReload,load,retainPage,begin,beginWork,activateSurface,update,save,discard,reviewLatest,rebase,history,restore]);
  return <PageContentContext.Provider value={value}>{children}</PageContentContext.Provider>;
 }
 
@@ -164,7 +173,7 @@ export function usePageContent(page){
 export function EditableText({page,field,as:Tag='span',children,className='',...props}){
  const panelLocked=useContext(PagePanelLockContext),editor=usePageContent(page),definition=knownPage(page)?SHARED_PAGE_SCHEMA[page].fields[field]:null;
  const [active,setActive]=useState(false),[bounds,setBounds]=useState(null),original=useRef(''),input=useRef(null),trigger=useRef(null),id=useId();
- const stored=editor.content?.text?.[field],hasOriginal=children!==undefined,originalValue=hasOriginal&&(!editor.record?.draft&&editor.record?.revision===0||stored===definition?.default),text=originalValue?plainChildren(children):typeof stored==='string'?stored:plainChildren(children),busy=editor.record?.status==='saving';
+ const stored=editor.content?.text?.[field],hasOriginal=children!==undefined,originalValue=hasOriginal&&(!editor.record?.draft&&editor.record?.revision===0||stored===definition?.default),text=originalValue?plainChildren(children):typeof stored==='string'?stored:plainChildren(children),busy=false;
  useEffect(()=>{if(!editor.editing||active&&editor.activeEditor!==id)setActive(false)},[editor.editing,editor.activeEditor,active,id]);
  useEffect(()=>{if(active){input.current?.focus();input.current?.setSelectionRange?.(0,input.current.value.length)}},[active]);
  const start=()=>{if(!editor.editing||busy)return;original.current=text;const rect=trigger.current.parentElement.getBoundingClientRect(),edge=Math.min(window.visualViewport?(window.visualViewport.offsetLeft+window.visualViewport.width):window.innerWidth,trigger.current.closest('.card,section')?.getBoundingClientRect().right||Infinity);setBounds({width:rect.width,height:rect.height,inputWidth:Math.max(rect.width,Math.min(240,edge-rect.left-12))});editor.activateSurface(trigger.current,id);setActive(true)};
@@ -178,13 +187,13 @@ export function EditableText({page,field,as:Tag='span',children,className='',...
  return <Tag className={'page-editable-copy '+className} {...props} data-page-field={page+'.'+field}>
   <span className={'page-copy-frame '+(active?'is-active':'')} style={active&&bounds?{width:bounds.width,height:bounds.height,'--page-input-width':bounds.inputWidth+'px'}:undefined}>
    <span ref={trigger} className="page-copy-target" role={!active?'button':undefined} tabIndex={!active?0:undefined} aria-label={!active?'Edit '+definition.label:undefined} aria-hidden={active||undefined} onClick={start} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();start()}}}>{shown||<span className="page-empty-copy">{definition.label}</span>}</span>
-   {active&&<span className="page-copy-input-wrap"><Input ref={input} id={id} className="page-copy-input" aria-label={definition.label} maxLength={definition.maxLength} rows={definition.type==='multiline'?2:undefined} value={text} disabled={busy} onChange={e=>change(e.target.value)} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();change(original.current);finish()}else if(e.key==='Enter'&&(definition.type!=='multiline'||e.metaKey||e.ctrlKey)){e.preventDefault();finish()}}}/><Control type="button" className="page-field-done" disabled={busy} aria-label={'Done editing '+definition.label} onClick={finish}><Glyph name="check"/><span>Done</span></Control></span>}
+   {active&&<span className="page-copy-input-wrap"><Input ref={input} id={id} className="page-copy-input" aria-label={definition.label} maxLength={definition.maxLength} rows={definition.type==='multiline'?2:undefined} value={text} disabled={busy} onChange={e=>change(e.target.value)} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();change(original.current);finish()}else if(e.key==='Enter'&&(definition.type!=='multiline'||e.metaKey||e.ctrlKey)){e.preventDefault();finish()}}}/><Control type="button" className="page-field-done" disabled={busy} aria-label={'Finish editing '+definition.label} onClick={finish}><Glyph name="check"/></Control></span>}
   </span>
  </Tag>;
 }
 function EditableBodyText({page,field,as:Tag='div',children,className='',...props}){
  const editor=usePageContent(page),locked=useContext(PagePanelLockContext),definition=SHARED_PAGE_SCHEMA[page].fields[field],stored=editor.content.text[field],format=editor.content.bodyFormats?.[field],id=useId(),trigger=useRef(null),original=useRef(null),[active,setActive]=useState(false),[initialSource,setInitialSource]=useState('');
- const originalValue=children!==undefined&&(!editor.record.draft&&editor.record.revision===0||stored===definition.default),text=originalValue?plainChildren(children):stored,busy=editor.pending||editor.record.status==='saving',Block=['p','span'].includes(Tag)?'div':Tag;
+ const originalValue=children!==undefined&&(!editor.record.draft&&editor.record.revision===0||stored===definition.default),text=originalValue?plainChildren(children):stored,busy=false,Block=['p','span'].includes(Tag)?'div':Tag;
  useEffect(()=>{if(!editor.editing||locked||active&&editor.activeEditor!==id)setActive(false)},[editor.editing,locked,active,editor.activeEditor,id]);
  const finish=()=>{setActive(false);requestAnimationFrame(()=>trigger.current?.focus())};
  const start=()=>{if(busy||locked)return;original.current={text:stored,format};setInitialSource(format==='markdown'?text:plainTextToMarkdown(text));editor.activateSurface(trigger.current,id);setActive(true)};
@@ -233,6 +242,7 @@ export function EditableMedia({page,field='hero',children,className='',poster,em
 }
 function PageMediaPanel({page,onClose,originalSrc}){
  const editor=usePageContent(page),hero=editor.content.hero,[framing,setFraming]=useState(null),[mode,setMode]=useState(hero.mode==='default'?'image':hero.mode),[uploading,setUploading]=useState(false),[progress,setProgress]=useState(''),[error,setError]=useState(''),picker=useRef(null),panel=useRef(null),alive=useRef(true),uploadLock=useRef(false);
+ useEffect(()=>editor.pauseAutosave(),[editor.pauseAutosave]);
  useEffect(()=>{editor.activateSurface(panel.current)},[]);
  useEffect(()=>()=>{alive.current=false},[]);
  const setHero=value=>editor.update(page,draft=>({...draft,hero:value}));
@@ -245,7 +255,7 @@ function PageMediaPanel({page,onClose,originalSrc}){
    const file=files[i];if(alive.current)setProgress('Uploading '+(i+1)+' of '+files.length+'…');
    try{if(!accepted.includes(file.type))throw Error(mode==='video'?'Choose an MP4 or WebM video.':'Choose a JPEG, PNG, WebP or GIF photo.');if(!file.size||file.size>limit)throw Error('Choose a file under '+(limit/1024/1024)+' MB.');const output=await readPreviewFile(file,editor.preview?'preview':'live');added.push({...output,id:output.id||'preview-'+crypto.randomUUID(),alt:''});setHero({mode,media:[...added]})}catch(error){failures.push(file.name+': '+error.message)}
   }
-  uploadLock.current=false;finishWork();if(alive.current){setUploading(false);setProgress(added.length?(editor.preview?'Ready in this preview.':'Uploaded privately.')+' Save the page to use '+(added.length===1?'it.':'these files.'):'');setError(failures.join(' ')+(selected.length>max?' Choose up to '+max+' files at a time.':''))}
+  uploadLock.current=false;finishWork();if(alive.current){setUploading(false);setProgress(added.length?(editor.preview?'Ready in this preview.':'Uploaded privately.')+' Finish choosing media to use '+(added.length===1?'it.':'these files.'):'');setError(failures.join(' ')+(selected.length>max?' Choose up to '+max+' files at a time.':''))}
  }
  return <section className="page-inline-editor" aria-label="Page media" aria-busy={uploading}><h3>Page media</h3>
   <div ref={panel} className="page-media-panel"><div className="page-media-modes" role="group" aria-label="Page media layout">{[['image','Photo'],['gallery','Gallery'],['video','Video']].map(([value,label])=><Control key={value} type="button" aria-pressed={mode===value} disabled={uploading} onClick={()=>{setMode(value);setError('');if(hero.mode!==value&&hero.mode!=='default'){const matching=hero.media.filter(file=>value==='video'?file.type?.startsWith('video/'):file.type?.startsWith('image/')).slice(0,value==='gallery'?SHARED_CONTENT_LIMITS.maxGalleryItems:1);setHero(matching.length?{mode:value,media:matching}:{mode:'default',media:[]})}}}>{label}</Control>)}</div>
@@ -283,18 +293,18 @@ export function PageEditToolbar({page,relatedPages=[],className=''}){
  if(!editor.valid||page==='global'||!editor.allowed)return null;
  const pages=[...new Set([page,...relatedPages,...(global.valid?['global']:[])])].filter(knownPage),rows=pages.map(key=>editor.records[key]).filter(Boolean),dirty=rows.some(pageContentDirty),busy=working||editor.pending||rows.some(row=>row.status==='saving'),errors=rows.filter(row=>row.error),conflicts=rows.filter(row=>row.latest||row.conflicted);
  if(!record?.canEdit){return record?.status==='error'?<div className="page-content-load-error" role="status"><span>Page updates couldn’t load. Showing the original content.</span><Control type="button" className="text-button" onClick={()=>editor.load(page,{force:true})}>Try again</Control></div>:null}
- async function save(){if(busy)return;setWorking(true);try{for(const key of pages){if(pageContentDirty(editor.records[key])&&!await editor.save(key))return}}finally{setWorking(false)}}
- const done=()=>{if(dirty){setDiscarding(true);return}editor.finish()};
+ async function save(){if(busy||conflicts.length)return false;setWorking(true);try{for(const key of pages){if(pageContentDirty(editor.records[key])&&!await editor.save(key))return false}return true}finally{setWorking(false)}}
+ const done=async()=>{if(busy)return;if(dirty&&!await save())return;editor.finish()};
  const discard=()=>{for(const key of pages)editor.discard(key);setDiscarding(false);editor.finish()};
  return <div className={'page-edit-toolbar '+className+(editor.editing?' is-editing':'')}>
   {!editor.editing?<div className="page-edit-entry"><Control type="button" className="page-edit-entry-button" onClick={()=>editor.begin(page,relatedPages)}><EditGlyph/>{dirty?'Resume page edits':'Edit page'}</Control>{dirty&&<span>Draft kept</span>}</div>:<>
-   <div className="page-edit-modebar"><div className="page-edit-mode-label"><EditGlyph/><strong>Editing page</strong><span role="status" aria-live="polite">{busy?'Saving…':dirty?'Unsaved changes':record.savedNotice||'Choose a panel or edit text'}</span></div><div className="page-editor-actions"><Control type="button" className="page-history-button" disabled={busy} aria-label="View page history" onClick={()=>setHistory(true)}><Glyph name="clock"/><span>History</span></Control><Button className="page-save-button" disabled={busy||!dirty||conflicts.length>0} onClick={save}>{busy?'Saving…':'Save changes'}</Button><Control type="button" className="page-mode-done" disabled={busy} onClick={done}><Glyph name="check"/>Done</Control></div></div>
-   <PagePanelActions page={page}/>
-   {editor.preview&&<p className="page-editor-help">Preview changes stay on this device. Use History to restore the original content.</p>}
+   <div className="page-edit-modebar"><div className="page-edit-mode-label"><EditGlyph/><strong>Editing {SHARED_PAGE_SCHEMA[page].label}</strong><span role="status" aria-live="polite">{errors.length||conflicts.length?'Couldn’t save · your changes are kept':working||rows.some(row=>row.status==='saving')?'Saving…':busy?'Preparing media…':dirty?'Changes waiting to save':record.savedNotice||'Changes save automatically'}</span></div><div className="page-editor-actions"><Control type="button" className="page-arrange-toggle" disabled={busy} aria-pressed={editor.arrangingPage} onClick={()=>editor.setArrangingPage(value=>!value)}><Glyph name="settings"/>{editor.arrangingPage?'Finish arranging':'Arrange page'}</Control><Control type="button" className="page-mode-done" disabled={busy} onClick={done}>View page<Glyph name="arrow"/></Control><details className="page-edit-tools"><summary>Page tools</summary><div><Control type="button" className="page-history-button" disabled={busy} aria-label="View page history" onClick={()=>setHistory(true)}><Glyph name="clock"/><span>History</span></Control><Control type="button" disabled={busy||!dirty} onClick={()=>setDiscarding(true)}>Discard unsaved changes</Control></div></details></div></div>
+   <p className="page-editor-guide">{editor.arrangingPage?'Choose a section to move, resize or arrange.':'Tap text or a photo to edit it. Changes save automatically.'}{editor.preview?' This is sample content; changes stay on this device.':''}</p>
+   {editor.arrangingPage&&<PagePanelActions page={page}/>}
    {editor.storageError&&<p className="page-editor-error" role="alert">{editor.storageError}</p>}
    {errors.map(row=><div key={row.page} className="page-editor-error" role="alert"><span>{SHARED_PAGE_SCHEMA[row.page].label}: {row.error}</span>{!row.latest&&!row.conflicted&&<Control type="button" disabled={busy} onClick={()=>editor.save(row.page)}>Try saving again</Control>}</div>)}
    {conflicts.map(row=><section className="page-conflict-review" key={row.page}><strong>{SHARED_PAGE_SCHEMA[row.page].label} has a newer version</strong>{!row.merge?<Control type="button" className="text-button" onClick={()=>editor.reviewLatest(row.page)}>Review latest changes</Control>:<><p>{row.merge.conflicts.length?'Choose which values to keep for the changes below. Other changes will be combined.':'Your edits and the latest changes affect different fields. You can safely combine them.'}</p>{row.merge.conflicts.map(item=><div key={item.field} className="page-conflict-values"><strong>{item.field==='hero'?'Page media':item.field==='panelLayout'?'Panel layout and content':item.field.startsWith('cardLayout:')?'Card content arrangement':SHARED_PAGE_SCHEMA[row.page].fields[item.field].label}</strong><p>Yours: {item.mine}</p><p>Latest: {item.theirs}</p></div>)}<div className="page-editor-actions"><Button secondary onClick={()=>editor.rebase(row.page,true)}>{row.merge.conflicts.length?'Keep my edits':'Combine changes'}</Button>{!!row.merge.conflicts.length&&<Button secondary onClick={()=>editor.rebase(row.page,false)}>Use latest values</Button>}</div></>}</section>)}
-   {discarding&&<div className="page-discard-prompt" role="alert"><span>Your page changes aren’t saved yet.</span><div className="page-editor-actions"><Button secondary disabled={busy} onClick={()=>setDiscarding(false)}>Keep editing</Button><Control type="button" className="text-button" disabled={busy} onClick={discard}>Discard draft and finish</Control></div></div>}
+   {discarding&&<div className="page-discard-prompt" role="alert"><span>Discard the changes that haven’t saved yet? Already saved changes stay in History.</span><div className="page-editor-actions"><Button secondary disabled={busy} onClick={()=>setDiscarding(false)}>Keep editing</Button><Control type="button" className="text-button" disabled={busy} onClick={discard}>Discard unsaved changes and view page</Control></div></div>}
   </>}
   {history&&<PageHistory page={page} pages={pages} onClose={()=>setHistory(false)}/>}
  </div>;

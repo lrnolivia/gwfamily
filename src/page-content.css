@@ -57,9 +57,9 @@ html[data-theme][data-platform] .page-save-button.button:disabled>.liquid-glass-
 .page-copy-frame.is-active{isolation:isolate}
 .page-copy-frame.is-active .page-copy-target{visibility:hidden;pointer-events:none}
 .page-copy-input-wrap{position:absolute;inset:-4px;width:calc(var(--page-input-width, 100%) + 8px);min-height:48px;z-index:3;background:var(--raised);border-radius:3px;box-shadow:var(--page-edit-shadow)}
-.page-copy-input-wrap .page-copy-input{position:absolute;inset:0;width:100%;height:100%;min-height:48px;min-width:0;margin:0;padding:4px 77px 4px 4px;resize:none;border:1px solid var(--control);border-radius:3px;background:var(--raised);color:var(--text);font:inherit;letter-spacing:inherit;line-height:inherit;caret-color:var(--text);box-shadow:none;text-transform:none}
+.page-copy-input-wrap .page-copy-input{position:absolute;inset:0;width:100%;height:100%;min-height:48px;min-width:0;margin:0;padding:4px 52px 4px 4px;resize:none;border:1px solid var(--control);border-radius:3px;background:var(--raised);color:var(--text);font:inherit;letter-spacing:inherit;line-height:inherit;caret-color:var(--text);box-shadow:none;text-transform:none}
 .page-copy-input-wrap .page-copy-input:focus{outline:2px solid var(--control);outline-offset:1px}
-.page-field-done{position:absolute;top:2px;right:2px;bottom:2px;min-width:69px;min-height:44px;max-height:48px;display:flex;gap:4px;align-items:center;justify-content:center;padding:5px;border-radius:2px;background:var(--control);color:var(--control-text);font:650 .75rem/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:normal;text-transform:none;z-index:1}
+.page-field-done{position:absolute;top:2px;right:2px;bottom:2px;width:44px;min-width:44px;min-height:44px;max-height:48px;display:flex;align-items:center;justify-content:center;padding:5px;border-radius:4px;background:var(--control);color:var(--control-text);font:650 .75rem/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:normal;text-transform:none;z-index:1}
 .page-field-done .glyph{width:16px;height:16px}
 .page-field-done:focus-visible{outline-color:var(--text);outline-offset:2px}
 .page-empty-copy{color:var(--muted);font:400 .8125rem/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;text-transform:none;letter-spacing:normal}
@@ -131,3 +131,16 @@ body,.app,.card,section,.intro,footer,.bottom,.muted,.page-edit-modebar,dialog,.
 @media(prefers-contrast:more){.page-copy-frame::after,.page-editable-media.is-editable::after{border-style:solid;border-width:2px}.page-media-edit>span{outline:2px solid var(--text)}}
 
 .page-body-edit-target{min-height:44px;border:1px dashed var(--line);border-radius:3px;padding:6px;cursor:text;overflow-wrap:anywhere}.page-body-edit-target:focus-visible{outline:2px solid var(--control);outline-offset:3px}.page-body-edit-target:hover{border-color:var(--text)}.page-body-editor-wrap{position:relative;min-width:0;max-width:100%;margin:4px 0}.page-editable-body{max-width:100%}
+
+/* Keep page tools secondary to the content being edited. */
+.page-arrange-toggle{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:8px 10px;border-radius:9px;font:650 .8125rem/1.4 system-ui,sans-serif}
+.page-arrange-toggle[aria-pressed=true]{background:var(--surface)}
+.page-mode-done{background:var(--control);color:var(--control-text)}
+.page-editor-guide{margin:10px 0 14px;font:.8125rem/1.5 system-ui,sans-serif;color:var(--muted);max-width:65ch}
+.page-edit-tools{position:relative;font:.8125rem/1.4 system-ui,sans-serif}
+.page-edit-tools>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;padding:8px 10px;border-radius:9px;list-style:none}
+.page-edit-tools>summary::-webkit-details-marker{display:none}
+.page-edit-tools[open]>div{position:absolute;top:100%;right:0;z-index:35;min-width:220px;display:grid;padding:8px;background:var(--raised);border:1px solid var(--line);border-radius:12px}
+.page-edit-tools[open]>div>button{min-height:44px;text-align:left;padding:10px;font:inherit}
+.page-edit-tools :focus-visible,.page-arrange-toggle:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+@media(max-width:650px){.page-edit-modebar>.page-editor-actions{justify-content:flex-start}.page-edit-tools{margin-left:auto}.page-mode-done{margin-left:auto}}
