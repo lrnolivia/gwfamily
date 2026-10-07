@@ -16,14 +16,14 @@ export function PageNavigationHeader({previous,compact}){
  useLayoutEffect(()=>{
   const header=document.querySelector('.app>.app-header'),app=header?.parentElement;
   if(!header||!app)return;
-  const measure=()=>{const height=Math.ceil(header.getBoundingClientRect().height)+'px';app.style.setProperty('--gw-app-header-offset',height);document.documentElement.style.setProperty('--gw-app-header-offset',height)};
-  measure();const observer=new ResizeObserver(measure);observer.observe(header);
-  return()=>{observer.disconnect();app.style.removeProperty('--gw-app-header-offset');document.documentElement.style.removeProperty('--gw-app-header-offset')};
+  const title=document.querySelector('.page-navigation-header');const measure=()=>{const height=Math.ceil(header.getBoundingClientRect().height)+'px',titleHeight=Math.ceil(title?.getBoundingClientRect().height||0)+'px';app.style.setProperty('--gw-app-header-offset',height);document.documentElement.style.setProperty('--gw-app-header-offset',height);app.style.setProperty('--gw-page-title-height',titleHeight)};
+  measure();const observer=new ResizeObserver(measure);observer.observe(header);if(title)observer.observe(title);
+  return()=>{observer.disconnect();app.style.removeProperty('--gw-page-title-height');app.style.removeProperty('--gw-app-header-offset');document.documentElement.style.removeProperty('--gw-app-header-offset')};
  },[]);
  const {route,state,messaging,goBack}=useApp(),page=usePageContent(route.type),main=mainPages.has(route.type),showBack=!main,[heading,setHeading]=useState(null),headerRef=useRef(null),[position,setPosition]=useState(null);
  useLayoutEffect(()=>{
   const root=document.getElementById('main');if(!root){setHeading(null);return;}
-  const update=()=>{const next=root.querySelector('h1');setHeading(current=>current===next?current:next)};
+  const update=()=>{const next=root.querySelector('h1')||root.querySelector(':scope > section > h2,:scope > div > h2');setHeading(current=>current===next?current:next)};
   update();const observer=new MutationObserver(update);observer.observe(root,{childList:true,subtree:true});return()=>observer.disconnect();
  },[route.type,route.id,showBack]);
  useLayoutEffect(()=>{

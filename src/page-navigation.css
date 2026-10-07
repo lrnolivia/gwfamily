@@ -27,7 +27,7 @@ html[data-platform=android] .page-back{background:var(--raised);backdrop-filter:
 /* Keep the source-owned editable H1; Back joins it without another title. */
 .page-navigation-header.has-inline-title{min-height:0;height:0;margin:0;pointer-events:none}
 .page-navigation-header.has-inline-title>.page-compact-title{display:none}
-#main h1[data-page-back-anchor=true]{position:relative;padding-inline-start:64px;min-height:48px;align-content:center}
+#main :is(h1,h2)[data-page-back-anchor=true]{position:relative;padding-inline-start:64px;min-height:48px;align-content:center}
 .page-navigation-header.has-inline-title>.page-title-back{position:absolute;left:var(--gw-inline-back-left,0px);top:var(--gw-inline-back-top,0px);pointer-events:auto;transform:none;width:48px;height:48px;min-width:48px;padding:12px;border-radius:50%;font-family:var(--sans-font,system-ui);font-size:1rem;line-height:1}
 .page-back.page-back .glyph{width:24px;height:24px;transform:none}
 html[dir=rtl] .page-back.page-back .glyph{transform:scaleX(-1)}
@@ -45,7 +45,7 @@ html[data-page-edit-mode=true] .page-navigation-header.is-main-page{display:none
 
 /* Page names fit beside Back without competing with the content below. */
 html[data-platform] #main h1{font-size:clamp(1.5rem,3vw,2.25rem);line-height:1.2;text-wrap:pretty;letter-spacing:-.02em}
-#main h1[data-page-back-anchor=true]{padding-inline-start:56px;min-height:44px}
+#main :is(h1,h2)[data-page-back-anchor=true]{padding-inline-start:56px;min-height:44px}
 .page-navigation-header.has-inline-title>.page-title-back{width:44px;height:44px;min-width:44px;min-height:44px;padding:10px}
 
 html{scroll-padding-block-start:calc(var(--gw-app-header-offset,96px) + 60px);scroll-padding-block-end:120px}
@@ -55,9 +55,13 @@ html{scroll-padding-block-start:calc(var(--gw-app-header-offset,96px) + 60px);sc
 .page-route-glyph{display:inline-flex;align-items:center;justify-content:center;flex:0 0 44px;width:44px;height:44px;color:var(--text);background:none;border:0;box-shadow:none;pointer-events:none}
 .page-route-glyph>.glyph{width:24px;height:24px}
 .page-navigation-header.has-inline-title>.page-title-glyph{position:absolute;left:var(--gw-inline-back-left,0px);top:var(--gw-inline-back-top,0px)}
-/* One backdrop spans the compact brand and page-title rows. Independent blur
-   layers show a seam when content crosses their shared edge, especially Safari. */
-html[data-platform=ios] .app[data-compact=true]>.app-header::before{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
-html[data-platform=ios] .app[data-compact=true]>.page-navigation-header::before{top:calc(-1 * var(--gw-app-header-offset,var(--gw-app-header-height)));bottom:0;background:color-mix(in srgb,var(--bg) 90%,transparent);border-radius:0;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+/* One backdrop belongs to the upper header and spans both sticky rows.
+   The title row paints above it, avoiding two independently clipped filters. */
+html[data-platform=ios] .app>.app-header::before{inset:0 -16px calc(-1 * var(--gw-page-title-height,0px));background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+html[data-platform=ios] .page-navigation-header{z-index:31;background:transparent}
+html[data-platform=ios] .page-navigation-header::before,html[data-platform=ios] .page-navigation-header::after{display:none!important}
+html[data-platform=ios]:not([data-page-edit-mode=true]) .app>.app-header::after{display:block;top:calc(100% + var(--gw-page-title-height,0px))}
 
 #main :is(button,a,input,select,textarea){scroll-margin-block-start:calc(var(--gw-app-header-offset,96px) + 76px);scroll-margin-block-end:calc(var(--gw-nav-height,72px) + 48px)}
+
+.page-navigation-header:not(.has-inline-title) .page-compact-title{opacity:1}

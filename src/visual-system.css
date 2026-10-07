@@ -69,10 +69,6 @@ html[data-theme][data-platform] :is(.choice-chip>input:checked+.choice-chip-face
 html[data-theme][data-platform] .view-switcher.view-switcher>button[aria-selected=true]{color:var(--control-text)!important}
 
 /* Preserve the established wordmark; strengthen only its light-mode lettering. */
-html[data-theme=light][data-platform] .wordmark-green{color:#795438!important}
-html[data-theme=light][data-platform] :is(.wordmark-amp,.wordmark-white){color:#603b26!important}
-html[data-theme=light][data-platform] .wordmark-bottom{color:#603b26!important}
-html[data-theme=light][data-platform] :is(.wordmark-green,.wordmark-amp,.wordmark-white){-webkit-text-stroke:0;paint-order:normal;text-shadow:none}
 
 /* Appearance slide-over: Custom gets its own quiet horizontal row. */
 .profile-menu[data-menu-page=appearance] .profile-colors{container-type:inline-size;container-name:appearance-accent}
@@ -100,7 +96,6 @@ html[data-theme][data-platform] :is(.choice-chip>input:checked+.choice-chip-face
 /* Post identity needs enough visual weight beside the name and audience badge. */
 .post-head :is(.member-link,.identity-avatar) .avatar{width:36px;height:36px;min-width:36px;flex:0 0 36px;align-self:center}
 
-html[data-theme=light][data-platform] .wordmark-amp{color:#947852!important}
 
 /* The Custom accent has the same compact circular paint in every picker. */
 .profile-colors .profile-color-options>.profile-custom-color{grid-column:1/-1;display:flex!important;flex-direction:row-reverse;align-items:center;justify-content:space-between;justify-self:stretch;width:100%;max-width:none;min-height:64px;margin-top:4px;padding:10px 14px;border:0;border-radius:16px;background:var(--raised);color:var(--text);font-size:.875rem;font-weight:500}
@@ -201,3 +196,27 @@ html[data-theme][data-platform] .card-content-layout .card-layout-choices button
 html[data-theme=dark][data-platform]{--control-separation:inset 0 0 0 1px #3c7e54}
 html[data-theme=light][data-platform]{--control-separation:inset 0 0 0 0 transparent}
 html[data-theme][data-platform] .button[data-button-level=primary]:not(.danger):not(.destructive):not(.sign-out):not(.membership-remove):not(:disabled){box-shadow:var(--control-separation,inset 0 0 0 0 transparent),var(--gw-action-shadow)!important}
+
+@media(max-width:600px){.messages-heading{align-items:stretch}.messages-heading>div:first-child{width:100%;text-align:start}}
+
+/* Brand lettering follows the chosen palette without outlines or text effects. */
+html[data-theme=dark]{--wordmark-green:#f6edcf;--wordmark-amp:#f8efdc;--wordmark-white:#83c695;--wordmark-family:#cfaa7d;--text:#f5eedc;--muted:#c8bea9}
+html[data-theme=light]{--wordmark-green:#295b3a;--wordmark-amp:#354d30;--wordmark-white:#2e603f;--wordmark-family:#795438;--text:#4b382b;--muted:#715b49}
+html[data-platform] .wordmark-green{color:var(--wordmark-green)!important}
+html[data-platform] .wordmark-amp{color:var(--wordmark-amp)!important}
+html[data-platform] .wordmark-white{color:var(--wordmark-white)!important}
+html[data-platform] .wordmark-bottom{color:var(--wordmark-family)!important}
+html[data-platform] :is(.wordmark-green,.wordmark-amp,.wordmark-white,.wordmark-bottom){-webkit-text-stroke:0;text-shadow:none;filter:none}
+
+.received-reactions{display:flex;flex-wrap:wrap;gap:4px;margin-block:8px 0}
+.received-reactions:empty{display:none}
+.received-reactions .reaction-pill{min-width:44px;min-height:44px;padding:10px 8px;font-size:.75rem;gap:4px;background:transparent;box-shadow:none}
+.received-reactions .reaction-pill small{font-size:.7rem}
+.received-reactions .reaction-pill[aria-pressed=true]{color:var(--text);font-weight:700}
+.post-card .post-actions{display:flex;flex-wrap:nowrap;gap:clamp(4px,1.5vw,12px);align-items:center}
+.post-card .post-actions>button{min-width:44px;padding-inline:6px;white-space:nowrap}
+.post-card .post-actions>.reaction-bar{flex:0 0 auto}
+.post-options{min-width:180px}
+
+/* Keep focus rings inside scroll-clipped modal fields. */
+#sheet-body :is(input,textarea,select):focus-visible{outline:2px solid var(--control,var(--accent));outline-offset:-2px}

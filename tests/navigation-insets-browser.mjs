@@ -179,8 +179,9 @@ try {
         assert.equal(await page.locator('#main').evaluate(node=>getComputedStyle(node).outlineStyle),'none',`${label}: pointer navigation has no page glow`);
         await page.keyboard.press('Tab');await page.evaluate(()=>document.getElementById('main').focus());
         assert.equal(await page.locator('#main').evaluate(node=>getComputedStyle(node).outlineStyle),'solid',`${label}: keyboard page focus remains visible`);
-        const backGlyph=page.locator('.page-back .glyph').first();await expect(backGlyph).toBeVisible();
-        assert.equal(await backGlyph.evaluate(node=>getComputedStyle(node).transform),'none',`${label}: Back glyph is not reversed by material wrappers`);
+        await expect(page.locator('.page-navigation-header .page-back')).toHaveCount(0);
+        const backGlyph=page.locator('.page-route-glyph .glyph').first();await expect(backGlyph).toBeVisible();
+        assert.equal(await backGlyph.evaluate(node=>getComputedStyle(node).transform),'none',`${label}: Main destination glyph is not reversed by material wrappers`);
         if(material==='android'){
           const selected=page.getByRole('navigation',{name:'Main navigation'}).locator('button[aria-current=page]');
           const paint=await selected.evaluate(node=>({fill:getComputedStyle(node).backgroundColor,glyph:getComputedStyle(node.querySelector('.glyph')).color}));
@@ -189,8 +190,8 @@ try {
         }
         await page.evaluate(()=>window.scrollTo(0,300));
         await expect(page.locator('.page-navigation-header')).toHaveAttribute('data-compact','true');
-        const back=page.getByRole('button',{name:/^Back to /});await expect(back).toBeVisible();
-        const backBox=await back.boundingBox();assert.ok(backBox.y>=0&&backBox.y+backBox.height<=device.height,`${label}: Back stays reachable after scroll`);
+        const back=page.locator('.page-route-glyph');await expect(back).toBeVisible();await expect(page.locator('.page-navigation-header .page-back')).toHaveCount(0);
+        const backBox=await back.boundingBox();assert.ok(backBox.y>=0&&backBox.y+backBox.height<=device.height,`${label}: Main destination glyph stays visible after scroll`);
         await page.evaluate(()=>window.scrollTo(0,0));
         for (const safe of [0, 21, 34]) {
           await navigationStage(page, trace, `safe-area geometry ${safe}px`);
@@ -290,3 +291,4 @@ try {
   await writeFile(`${output}/results.json`, JSON.stringify({results, errors}, null, 2));
   await browser.close();
 }
+

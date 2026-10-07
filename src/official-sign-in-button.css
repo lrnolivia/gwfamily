@@ -2,11 +2,11 @@
    These selectors style the interaction frame, never the provider-owned pixels. */
 .sign-in-form .provider-buttons{display:grid;grid-template-columns:minmax(0,1fr);justify-items:center;gap:12px}
 .gw-provider-item{display:grid;justify-items:center;gap:4px;inline-size:min(100%,252px);min-inline-size:0}
-.gw-provider-button{appearance:none;box-sizing:border-box;display:grid;place-items:center;inline-size:100%;min-inline-size:44px;min-block-size:56px;margin:0;padding:0;border:0;border-radius:4px;background:transparent;color:inherit;box-shadow:none;font:inherit;cursor:pointer;touch-action:manipulation;filter:none;opacity:1;transform:none;isolation:isolate}
+.gw-provider-button{appearance:none;box-sizing:border-box;display:grid;place-items:center;inline-size:100%;min-inline-size:44px;min-block-size:44px;margin:0;padding:0;border:0;border-radius:4px;background:transparent;color:inherit;box-shadow:none;font:inherit;cursor:pointer;touch-action:manipulation;filter:none;opacity:1;transform:none;isolation:isolate}
 .gw-provider-button:hover,.gw-provider-button:active,.gw-provider-button:disabled{background:transparent;filter:none;opacity:1;transform:none;box-shadow:none}
 .gw-provider-button:focus-visible{outline:3px solid var(--text,#171717);outline-offset:4px}
 .gw-provider-button:disabled{cursor:wait}
-.gw-provider-art{display:block;grid-area:1/1;inline-size:100%;block-size:auto;max-inline-size:100%;aspect-ratio:auto;object-fit:contain;pointer-events:none;user-select:none;filter:none;opacity:1;border-radius:0}
+.gw-provider-art{display:block;grid-area:1/1;inline-size:auto;block-size:44px;max-inline-size:100%;aspect-ratio:auto;object-fit:contain;pointer-events:none;user-select:none;filter:none;opacity:1;border-radius:0}
 .gw-provider-art--dark{display:none}
 html[data-theme=dark] .gw-provider-art--light{display:none}
 html[data-theme=dark] .gw-provider-art--dark{display:block}

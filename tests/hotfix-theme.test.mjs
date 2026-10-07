@@ -25,14 +25,11 @@ test('custom color stays outside scrolling palette on narrow screens',()=>{
  assert.match(css,/\.profile-color-options>\.profile-custom-color\{[^}]*flex:0 0 58px/);
 });
 
-test('light wordmark uses solid warm-brown lettering without outlines',()=>{
+test('wordmark follows the accent with readable solid lettering and preserves original green-dark',()=>{
  const source=fs.readFileSync(new URL('../src/visual-system.css',import.meta.url),'utf8');
- for(const color of ['#795438','#947852','#603b26'])assert.ok(source.includes('color:'+color+'!important'));
- assert.match(source,/-webkit-text-stroke:0;paint-order:normal/);
- for(const accent of ['#4f996c','#c7a64a','#bc7060','#6b91b0','#936b91','#8a8178','#000000','#ffffff']){
-  const palette=profilePalette(accent,'light');
-  for(const background of ['--bg','--surface'])assert.ok(contrast('#603b26',palette[background])>=4.5,'wordmark edge on '+accent+' '+background);
- }
+ assert.match(source,/color:var\(--wordmark-green\)!important/);assert.match(source,/-webkit-text-stroke:0;text-shadow:none;filter:none/);
+ for(const theme of ['light','dark'])for(const accent of ['#4f996c','#c7a64a','#bc7060','#6b91b0','#936b91','#8a8178','#000000','#ffffff']){const palette=profilePalette(accent,theme);for(const key of ['--wordmark-green','--wordmark-amp','--wordmark-white','--wordmark-family'])assert.ok(contrast(palette[key],palette['--bg'])>=4.5,key+accent+theme);}
+ const original=profilePalette('#387b51','dark');assert.equal(original['--wordmark-green'],'#f6edcf');assert.equal(original['--wordmark-amp'],'#f8efdc');assert.equal(original['--wordmark-white'],'#83c695');assert.equal(original['--wordmark-family'],'#cfaa7d');
 });
 
 test('approved yellow preserves its exact fill and white lettering with a warm glow',()=>{
