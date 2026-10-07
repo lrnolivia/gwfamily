@@ -4,8 +4,9 @@ import {mkdir,writeFile} from 'node:fs/promises';
 import {initialState,PREVIEW_KEY} from '../src/data-adapter.js';
 const browser=await (process.env.GW_BROWSER==='webkit'?webkit:chromium).launch({headless:true}),results=[],errors=[];
 await mkdir('docs/recovery-qa',{recursive:true});
-async function pageFor(width,theme,platform){
+async function pageFor(width,theme,platform,mode='browser'){
  const page=await browser.newPage({viewport:{width,height:900},reducedMotion:'reduce'});page.setDefaultTimeout(12000);page.on('pageerror',e=>errors.push(e.message));
+ await page.addInitScript(mode=>{Object.defineProperty(navigator,'standalone',{get:()=>mode==='standalone'});const original=window.matchMedia.bind(window);window.matchMedia=query=>{const media=original(query);if(query==='(display-mode: standalone)')Object.defineProperty(media,'matches',{get:()=>mode==='standalone'});return media}},mode);
  await page.goto('http://127.0.0.1:4173');await page.waitForFunction(()=>!!document.documentElement.dataset.platform);
  const state=initialState();state.onboarding='done';state.members.find(m=>m.id===state.selfId).profileColor='#c9aa52';
  await page.evaluate(({state,key,theme,platform})=>{localStorage.setItem(key,JSON.stringify({schema:2,mode:'preview',state}));
@@ -25,10 +26,10 @@ try{
   await p.screenshot({path:`docs/recovery-qa/hotfix-profile-${width}-${theme}-${platform}.png`,fullPage:true});
   results.push({width,theme,platform,status:'passed'});await p.close();
  }
- // Exercise standalone CSS rules in the browser; this is a simulation, not a physical-device install check.
+ // Exercise the real display-mode listener and CSS; this is a simulation, not a physical-device install check.
  for(const width of [390,768]){
-  const p=await pageFor(width,'dark','ios');
-  const applied=await p.evaluate(()=>{let count=0;function visit(rules){for(const rule of rules){if(rule.media?.mediaText.includes('display-mode: standalone')||rule.media?.mediaText.includes('display-mode:standalone')){rule.media.mediaText='all';count++}if(rule.cssRules)visit(rule.cssRules)}}for(const sheet of document.styleSheets){try{visit(sheet.cssRules)}catch{}}return count});assert.ok(applied>0,'standalone CSS rules exercised');
+  const p=await pageFor(width,'dark','ios','standalone');
+  assert.equal(await p.locator('html').getAttribute('data-display-mode'),'standalone','Real navigation listener observes simulated installed mode');
   const nav=await p.locator('.bottom').boundingBox();assert.ok(nav.y+nav.height<=900&&900-nav.y-nav.height<=8,'standalone nav close to bottom');
   await p.screenshot({path:`docs/recovery-qa/hotfix-standalone-simulation-${width}.png`});results.push({width,check:'standalone CSS simulation',status:'passed'});await p.close();
  }

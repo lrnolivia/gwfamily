@@ -25,9 +25,13 @@ try{
  const dialog=page.getByRole('dialog',{name:'Reorder for mobile'}),row=dialog.locator('[data-panel-id="native-reunion"]');
  const ids=()=>dialog.locator('li[data-panel-id]').evaluateAll(elements=>elements.map(node=>node.dataset.panelId));
  const initial=await ids();await row.getByRole('button',{name:'Move Your reunion earlier on mobile',exact:true}).click();const moved=await ids();assert.notDeepEqual(moved,initial);await row.locator('.page-panel-drag').focus();await page.keyboard.press('ArrowDown');assert.deepEqual(await ids(),initial);
- // Real pointer events exercise the same touch-capable PointerEvent handlers.
- const handle=await row.locator('.page-panel-drag').boundingBox(),target=await dialog.locator('li[data-panel-id="native-feed"]').boundingBox();assert.ok(handle&&target);
- await page.mouse.move(handle.x+handle.width/2,handle.y+handle.height/2);await page.mouse.down();await page.mouse.move(target.x+20,target.y+8,{steps:12});await page.mouse.up();await dialog.getByRole('button',{name:'Done',exact:true}).click();await save();
+ // Playwright scrolls both targets into view before the real mouse gesture.
+ // Mobile modal rows may begin below the viewport; stale offscreen coordinates
+ // cannot establish whether the application's drop handlers work.
+ const target=dialog.locator('li[data-panel-id="native-feed"]');
+ await row.locator('.page-panel-drag').dragTo(target,{targetPosition:{x:20,y:8}});
+ await expect.poll(ids).not.toEqual(initial);
+ await dialog.getByRole('button',{name:'Done',exact:true}).click();await save();
  const mobile=(await getRecord('home')).content.panelLayout;assert.deepEqual(mobile.desktopOrder,desktop.desktopOrder);assert.notDeepEqual(mobile.mobileOrder,desktop.mobileOrder);await page.reload();assert.deepEqual((await getRecord('home')).content.panelLayout.mobileOrder,mobile.mobileOrder);
  // Save/cancel/reset framing on the original image, then reload to prove durability.
  await page.locator('.page-edit-toolbar').getByRole('button',{name:/^(Edit page|Resume page edits)$/}).click();await panel('hero').getByRole('button',{name:'Edit Home page media',exact:true}).click();

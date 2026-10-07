@@ -110,7 +110,7 @@ async function openSettings(page){
 }
 async function returnFromSettings(page,previous){
  await expectSettingsPage(page);
- await page.locator('#main .page-back-row').getByRole('button',{name:'Back',exact:true}).click();
+ await page.locator('.page-navigation-header').getByRole('button',{name:/^Back to /}).click();
  await expect(page).toHaveURL(previous);
  await expect(page.getByRole('region',{name:'Notification choices',exact:true})).toHaveCount(0);
 }

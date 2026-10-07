@@ -418,8 +418,13 @@ try {
   await check('authenticated family can read; anonymous and pending accounts cannot read shared content or history', async () => {
     for (const [page, id] of [[alice, 'alice'], [bob, 'bob'], [owner, 'owner']]) assert.equal((await ok(page, '/api/state')).selfId, id);
     for (const key of Object.keys(SHARED_PAGE_SCHEMA)) {
-      const value = await record(alice, key);
-      assert.equal(value.canEdit, false, key);
+      const privateToLeaders = key === 'leader-calendar';
+      if (privateToLeaders) for (const member of [alice, bob]) {
+        assert.equal((await api(member, '/api/page-content/' + key)).status, 403);
+        assert.equal((await api(member, '/api/page-content/' + key + '/revisions')).status, 403);
+      }
+      const value = await record(privateToLeaders ? owner : alice, key);
+      assert.equal(value.canEdit, privateToLeaders, key);
       assert.deepEqual(value.content, sharedPageDefaults(key));
       assert.equal((await api(owner, '/api/page-content/' + key)).headers['cache-control'], 'no-store');
       for (const [page, status] of [[anonymous, 401], [pending, 403]]) {

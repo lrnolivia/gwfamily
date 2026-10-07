@@ -636,10 +636,46 @@ try {
     await expect.poll(async () => (await ok(bob, `/api/posts/${commentPostId}/comments`)).comments.filter(comment => comment.body === text).length).toBe(1);
   });
 
-  await check('text-only mobile composer fits reduced-height keyboard simulation and respects reduced motion', async () => {
+  await check('private attachment upload, removal, send and download retain participant boundaries', async () => {
+    await navigate(alice, 'chat', directId);
+    const picker = alice.getByLabel('Choose private attachments', {exact: true});
+    const file = {name: 'synthetic-private.png', mimeType: 'image/png', buffer: createTestPng()};
+    await picker.setInputFiles(file);
+    const draftFiles = alice.getByRole('list', {name: 'Uploaded attachments', exact: true});
+    await expect(draftFiles).toContainText(file.name);
+    await draftFiles.getByRole('button', {name: 'Remove ' + file.name, exact: true}).click();
+    await expect(draftFiles).toHaveCount(0);
+    await picker.setInputFiles(file);
+    await expect(draftFiles).toContainText(file.name);
+    const body = 'Synthetic private attachment message';
+    await composer(alice).fill(body);
+    await sendButton(alice).click();
+    await expect(alice.locator('.message-outbox[aria-label="Unconfirmed message"]')).toHaveCount(0);
+    await expect(alice.locator('.private-message-files').getByRole('link', {name: /synthetic-private\.png/})).toBeVisible();
+    const sent = (await messages(alice, directId)).find(message => message.body === body);
+    assert.equal(sent.files.length, 1);
+    const path = sent.files[0].url;
+    assert.match(path, /^\/api\/conversations\/[^/]+\/attachments\/[^/]+$/);
+    for (const [page, account] of [[alice, 'alice'], [bob, 'bob']]) {
+      const response = await page.request.get(base + path + '?account=' + account);
+      assert.equal(response.status(), 200);
+      assert.equal(response.headers()['cache-control'], 'private, no-store');
+      assert.deepEqual(await response.body(), file.buffer);
+    }
+    await denied(owner, path + '?account=owner');
+    const anonymous = await browser.newContext();
+    try { assert.equal((await anonymous.request.get(base + path + '?account=alice')).status(), 401); }
+    finally { await anonymous.close(); }
+    assert.equal((await alice.request.get(base + path + '?account=bob')).status(), 409);
+  });
+
+  await check('attachment-capable mobile composer fits reduced-height keyboard simulation and respects reduced motion', async () => {
     await navigate(alice, 'chat', directId);
     await expect(composer(alice)).toBeVisible();
-    assert.equal(await alice.locator('main input[type="file"]').count(), 0, 'Private messaging is text-only.');
+    const picker = alice.getByLabel('Choose private attachments', {exact: true});
+    await expect(picker).toHaveCount(1);
+    await expect(picker).toBeEnabled();
+    await expect(alice.getByRole('button', {name: 'Attach a private file', exact: true})).toBeEnabled();
     for (const material of ['ios', 'android']) {
       await alice.evaluate(material => localStorage.setItem('gw-platform', material), material);
       await navigate(alice, 'chat', directId);

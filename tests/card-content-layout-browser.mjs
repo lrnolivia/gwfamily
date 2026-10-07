@@ -53,7 +53,7 @@ try{
   await page.screenshot({path:`${output}/${engine}-desktop-arranged.png`,fullPage:true});
  });
  await check('mobile stacks left then right, supports touch/selects, preserves save through reload',async()=>{
-  await page.setViewportSize({width:390,height:844});await expect(card()).toBeVisible();const left=await card().locator('[data-card-column="left"]').boundingBox(),right=await card().locator('[data-card-column="right"]').boundingBox();assert.ok(right.y>=left.y+left.height&&Math.abs(right.x-left.x)<=1);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth)<=1);
+  await page.setViewportSize({width:390,height:844});await expect(page.locator('[data-panel-page="home"]')).toHaveClass(/is-mobile/);await expect(card().locator('[data-card-column="left"]')).toBeVisible();await expect(card().locator('[data-card-column="right"]')).toBeVisible();const left=await card().locator('[data-card-column="left"]').boundingBox(),right=await card().locator('[data-card-column="right"]').boundingBox();assert.ok(right.y>=left.y+left.height&&Math.abs(right.x-left.x)<=1);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth)<=1);
   await begin();await arrange();const handle=card().getByRole('button',{name:'Move Reunion date',exact:true}),target=card().locator('[data-card-column="right"] .card-column-drop-end');await target.scrollIntoViewIfNeeded();await touchDrop(handle,target);assert.ok((await order('right')).includes('body'));
   await card().getByLabel('Reunion date alignment',{exact:true}).selectOption('end');await card().getByRole('button',{name:'Keep in page draft',exact:true}).click();await save();saved=await read();await page.reload();assert.deepEqual((await read()).content.cardLayouts,saved.content.cardLayouts);await expect(card().locator('[data-card-slot="body"]')).toHaveAttribute('data-card-align','end');
   await page.screenshot({path:`${output}/${engine}-mobile-arranged.png`,fullPage:true});
@@ -63,6 +63,19 @@ try{
   await page.setViewportSize({width:1440,height:1000});await begin();await page.getByRole('button',{name:'Add Panel',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Add Panel',exact:true});await dialog.getByLabel('Two columns',{exact:true}).check();await dialog.getByRole('button',{name:'Add main panel',exact:true}).click();
   const custom=page.locator('[data-panel-page="home"] .page-custom-panel').last(),id=await custom.getAttribute('data-panel-id'),layout=custom.locator('[data-card-layout]');await custom.getByLabel('Panel heading',{exact:true}).fill('Synthetic card layout story');await layout.getByRole('button',{name:'Arrange card content',exact:true}).click();await layout.getByLabel('Second text column',{exact:true}).selectOption('left');await layout.getByLabel('Second text alignment',{exact:true}).selectOption('center');await layout.getByRole('button',{name:'Keep in page draft',exact:true}).click();await save();await page.reload();
   const record=await read();assert.deepEqual(record.content.cardLayouts[id].right,[]);assert.equal(record.content.cardLayouts[id].left.at(-1).align,'center');
+ });
+ await check('reset restores one coherent source-owned arrangement and alignment through reload',async()=>{
+  await page.setViewportSize({width:1280,height:900});await expect(page.locator('[data-panel-page="home"]')).toHaveClass(/is-wide/);await begin();await arrange();
+  await card().getByRole('button',{name:'Reset arrangement',exact:true}).click();await card().getByRole('button',{name:'Keep in page draft',exact:true}).click();await save();await page.reload();
+  assert.deepEqual(await order('left'),['eyebrow','title','body','action']);assert.deepEqual(await order('right'),['media']);
+  for(const slot of ['eyebrow','title','body'])await expect(card().locator('[data-card-slot="'+slot+'"]')).toHaveAttribute('data-card-align','start');
+  await expect(card().locator('[data-card-slot="action"]')).toHaveAttribute('data-card-align','stretch');
+  for(const width of [390,768,1280]){
+   await page.setViewportSize({width,height:900});await expect(page.locator('[data-panel-page="home"]')).toHaveClass(width<700?/is-mobile/:/is-wide/);
+   await expect(card().locator('[data-card-column="left"]')).toBeVisible();await expect(card().locator('[data-card-column="right"]')).toBeVisible();
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth)<=1);
+   await page.screenshot({path:`${output}/${engine}-reset-${width}.png`,fullPage:true});
+  }
  });
  await check('authenticated member can view but cannot edit; metadata cannot bypass public/private boundaries',async()=>{
   const member=await browser.newContext({viewport:{width:1280,height:900}}),view=await member.newPage();try{await view.goto(base+'/__test/signin?user=bob');await expect(view.locator('[data-panel-page="home"] [data-card-layout="hero"]')).toBeVisible();await expect(view.getByRole('button',{name:'Arrange card content',exact:true})).toHaveCount(0);const denied=await member.request.patch(base+'/api/page-content/home',{data:{requestId:'denied-card-write',expectedRevision:(await read()).revision,content:pageContentPayload((await read()).content)},headers:{Origin:base}});assert.equal(denied.status(),403)}finally{await member.close()}
