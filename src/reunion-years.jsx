@@ -4,7 +4,7 @@ import {reunionLabel,selectedReunion,reunionArchived} from './reunion-model.js';
 import './reunion-years.css';
 export function ReunionSelector(){
  const {state,dispatch,data}=useApp(),selected=selectedReunion(state);
- if(!state.reunions?.length)return null;
+ if((state.reunions?.length||0)<2)return null;
  return <div className="reunion-selector"><label>Reunion year<select value={state.selectedReunionId} disabled={data.pending} onChange={e=>dispatch({type:'SELECT_REUNION',id:e.target.value})}>{state.reunions.map(r=><option value={r.id} key={r.id}>{reunionLabel(r)} · {r.status==='active'?'Active':r.status==='archived'?'Archived':'Planning'}</option>)}</select></label><p className="small muted">{selected?.status==='active'?'This is the active family reunion.':selected?.status==='archived'?'Archived records are preserved. Restore this reunion to make changes.':'Planning ahead. This reunion has its own RSVP, orders, fees and calendar.'}</p></div>;
 }
 export function ReunionYearManager(){

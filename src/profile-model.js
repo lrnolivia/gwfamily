@@ -13,7 +13,7 @@ export function sendControlPalette(surface,color='#4f996c',dark=true){
 export function profilePalette(color='#4f996c',theme='dark'){
  if(!/^#[0-9a-f]{6}$/i.test(color))color='#4f996c';
  const dark=theme==='dark',base=dark?'#111111':'#fffdf8',surface=mix(color,base,dark?.94:.96),raised=mix(color,base,dark?.88:.90),accent=mix(color,dark?'#ffffff':'#000000',.12);
- return {...controlPalette(surface,color,dark),...sendControlPalette(surface,color,dark),'--bg':mix(color,base,.98),'--surface':surface,'--nav':surface,'--raised':raised,'--soft':raised,'--text':textOn(surface),'--muted':textOn(surface),'--accent':accent,'--ink':textOn(accent),'--line':mix(surface,textOn(surface),.4),'--profile-color':color};
+ return {...controlPalette(surface,color,dark),...sendControlPalette(surface,color,dark),'--bg':mix(color,base,.98),'--surface':surface,'--nav':surface,'--raised':raised,'--soft':raised,'--text':textOn(surface),'--muted':textOn(surface),'--accent':accent,'--ink':textOn(accent),'--line-raw':mix(surface,textOn(surface),.4),'--profile-color':color};
 }
 export function safeWebUrl(value){try{const u=new URL(value);if(u.protocol!=='https:'||u.username||u.password||u.port)return null;return u}catch{return null}}
 export function themeSongInfo(value){const u=safeWebUrl(value);if(!u)return null;

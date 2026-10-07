@@ -1,4 +1,4 @@
-.reunion-selector{display:grid;grid-template-columns:minmax(12rem,20rem) minmax(0,1fr);align-items:end;gap:1rem;padding-block:1rem;border-bottom:1px solid var(--line)}
+.reunion-selector{display:grid;grid-template-columns:minmax(12rem,20rem) minmax(0,1fr);align-items:end;gap:1rem;padding-block:1rem}
 .reunion-selector label,.reunion-year-manager label{min-width:0}
 .reunion-selector select,.reunion-year-manager select,.reunion-year-manager input:not([type=checkbox]){width:100%;min-width:0;box-sizing:border-box;font:inherit}
 .reunion-selector p{margin:0;max-width:55ch}
