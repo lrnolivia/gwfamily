@@ -69,8 +69,8 @@ test('UI source supplies labelled keyboard/touch alternatives and no arbitrary r
 });
 
 test('image size and vertical alignment survive validated storage while text rejects image fields',()=>{
- const base=unlocked(),draft=updateCardLayout(base,'home','hero',layout=>sizeCardImage(layout,'media',{width:65,vertical:'bottom'}));
- const saved=validateSharedPageContent('home',pageContentPayload(draft));assert.equal(saved.cardLayouts.hero.right[0].width,65);assert.equal(saved.cardLayouts.hero.right[0].vertical,'bottom');
+ const base=unlocked(),draft=updateCardLayout(base,'home','hero',layout=>sizeCardImage(layout,'media',{width:65,vertical:'bottom',aspect:'portrait'}));
+ const saved=validateSharedPageContent('home',pageContentPayload(draft));assert.equal(saved.cardLayouts.hero.right[0].width,65);assert.equal(saved.cardLayouts.hero.right[0].vertical,'bottom');assert.equal(saved.cardLayouts.hero.right[0].aspect,'portrait');
  assert.throws(()=>updateCardLayout(base,'home','hero',layout=>sizeCardImage(layout,'title',{width:65})),/Only images/);
  assert.throws(()=>updateCardLayout(base,'home','hero',layout=>sizeCardImage(layout,'media',{width:101})),/image width/);
  assert.throws(()=>updateCardLayout(base,'home','hero',layout=>sizeCardImage(layout,'media',{vertical:'outside'})),/vertical alignment/);

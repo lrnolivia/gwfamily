@@ -56,3 +56,10 @@
 .card-content-column[data-card-vertical=bottom]{justify-content:flex-end}
 .card-content-slot[data-card-role=image] .card-slot-content>*{width:var(--card-image-width,100%)!important;max-width:100%}
 .card-slot-controls input[type=range]{width:120px;min-height:44px;accent-color:var(--control)}
+
+.card-content-slot[data-card-image-aspect=original]{--card-image-ratio:auto}
+.card-content-slot[data-card-image-aspect=landscape]{--card-image-ratio:16/9}
+.card-content-slot[data-card-image-aspect=portrait]{--card-image-ratio:3/4}
+.card-content-slot[data-card-image-aspect=square]{--card-image-ratio:1}
+.card-content-slot[data-card-image-aspect] .card-slot-content :is(.photo,.page-hero-asset,.page-panel-photo-crop){aspect-ratio:var(--card-image-ratio)!important;height:auto!important;max-height:none!important;min-height:0!important;width:100%;object-fit:cover}
+.card-content-slot[data-card-image-aspect] .page-panel-photo-crop>img{height:100%;width:100%;object-fit:cover}
