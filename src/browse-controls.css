@@ -5,7 +5,8 @@
 .browse-controls.work-view-controls{--work-control-search:color-mix(in srgb,var(--raised) 84%,var(--text))}
 [data-theme=light] .browse-controls.work-view-controls{--work-control-search:var(--surface)}
 .browse-controls .work-search-compact input{background:var(--work-control-search)}
-.browse-controls .work-search-compact input::placeholder{color:var(--work-control-muted);opacity:1}
+.browse-controls .work-search-compact input::placeholder{color:var(--work-control-muted);-webkit-text-fill-color:var(--work-control-muted);opacity:1}
+.browse-controls .work-search-compact input::-webkit-input-placeholder{color:var(--work-control-muted);-webkit-text-fill-color:var(--work-control-muted);opacity:1}
 .browse-controls .memory-filters{display:grid;grid-template-columns:minmax(0,1fr);overflow:visible;gap:14px}
 .browse-controls .memory-filters>.button{width:auto;justify-self:start}
 .browse-controls :is(input,button,select):focus-visible{outline:3px solid var(--accent);outline-offset:3px}

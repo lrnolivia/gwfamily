@@ -355,3 +355,9 @@ test('delayed-open regression keeps normal Main navigation clicks and restores e
   assert.doesNotMatch(delayed, /force:|dispatchEvent|\.evaluate\(/);
   assert.match(browserSource, /result\.bellGeometry=await bounded\(page\.evaluate\(notificationBellGeometry\)\)/);
 });
+
+test('a vertical Material rail does not truncate notification height like a bottom bar', () => {
+ const options={layoutWidth:1280,layoutHeight:900,anchor:{left:1080,right:1124,top:24,bottom:68},width:300,height:600};
+ const plain=notificationPopoverGeometry(options),rail=notificationPopoverGeometry({...options,bottomNavigationRect:{left:0,right:96,top:44,bottom:900}});
+ assert.deepEqual(rail,plain);assert.equal(rail.height,600);
+});

@@ -69,10 +69,10 @@ html[data-theme][data-platform] :is(.choice-chip>input:checked+.choice-chip-face
 html[data-theme][data-platform] .view-switcher.view-switcher>button[aria-selected=true]{color:var(--control-text)!important}
 
 /* Preserve the established wordmark; strengthen only its light-mode lettering. */
-html[data-theme=light][data-platform] .wordmark-green{color:#c9b68d!important}
-html[data-theme=light][data-platform] :is(.wordmark-amp,.wordmark-white){color:#fffaf0!important}
+html[data-theme=light][data-platform] .wordmark-green{color:#795438!important}
+html[data-theme=light][data-platform] :is(.wordmark-amp,.wordmark-white){color:#603b26!important}
 html[data-theme=light][data-platform] .wordmark-bottom{color:#603b26!important}
-html[data-theme=light][data-platform] :is(.wordmark-green,.wordmark-amp,.wordmark-white){-webkit-text-stroke:1px #603b26;paint-order:stroke fill;text-shadow:none}
+html[data-theme=light][data-platform] :is(.wordmark-green,.wordmark-amp,.wordmark-white){-webkit-text-stroke:0;paint-order:normal;text-shadow:none}
 
 /* Appearance slide-over: Custom gets its own quiet horizontal row. */
 .profile-menu[data-menu-page=appearance] .profile-colors{container-type:inline-size;container-name:appearance-accent}
@@ -96,3 +96,8 @@ html[data-theme=light][data-platform] :is(.wordmark-green,.wordmark-amp,.wordmar
 /* Approved yellow uses a soft warm halo; other colors retain crisp labels. */
 html[data-theme][data-platform] :is(.button:not(.secondary),.choice-chip>input:checked+.choice-chip-face,.choice-option[aria-selected=true],.heading-font-option[aria-pressed=true],.view-switcher>button[aria-selected=true],.bottom button[aria-current=page],.material-fab,.fab-glass .fab){text-shadow:var(--accent-label-glow,none)}
 html[data-theme][data-platform] :is(.choice-chip>input:checked+.choice-chip-face,.choice-option[aria-selected=true],.heading-font-option[aria-pressed=true],.view-switcher>button[aria-selected=true],.bottom button[aria-current=page],.material-fab,.fab-glass .fab) .glyph{filter:drop-shadow(0 0 1px var(--accent-label-glow-core,transparent))}
+
+/* Post identity needs enough visual weight beside the name and audience badge. */
+.post-head .member-link .avatar{width:48px;height:48px;min-width:48px;flex:0 0 48px;align-self:center}
+
+html[data-theme=light][data-platform] .wordmark-amp{color:#947852!important}

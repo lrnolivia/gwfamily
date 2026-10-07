@@ -25,10 +25,10 @@ test('custom color stays outside scrolling palette on narrow screens',()=>{
  assert.match(css,/\.profile-color-options>\.profile-custom-color\{[^}]*flex:0 0 58px/);
 });
 
-test('light wordmark uses beige, warm white and a readable brown edge across personal surfaces',()=>{
+test('light wordmark uses solid warm-brown lettering without outlines',()=>{
  const source=fs.readFileSync(new URL('../src/visual-system.css',import.meta.url),'utf8');
- for(const color of ['#c9b68d','#fffaf0','#603b26'])assert.ok(source.includes('color:'+color+'!important'));
- assert.match(source,/-webkit-text-stroke:1px #603b26;paint-order:stroke fill/);
+ for(const color of ['#795438','#947852','#603b26'])assert.ok(source.includes('color:'+color+'!important'));
+ assert.match(source,/-webkit-text-stroke:0;paint-order:normal/);
  for(const accent of ['#4f996c','#c7a64a','#bc7060','#6b91b0','#936b91','#8a8178','#000000','#ffffff']){
   const palette=profilePalette(accent,'light');
   for(const background of ['--bg','--surface'])assert.ok(contrast('#603b26',palette[background])>=4.5,'wordmark edge on '+accent+' '+background);
