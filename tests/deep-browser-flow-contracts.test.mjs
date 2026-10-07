@@ -53,3 +53,27 @@ test('Appearance is selected within the actual profile menu for either material'
  assert.match(browser,/themePage\.locator\('\.profile-menu'\)\.getByRole\('button',\{name:\/\^Appearance\/\}\)\.click\(\)/);
  assert.doesNotMatch(browser,/(?:page|themePage)\.getByRole\('button',\{name:\/\^Appearance\/\}\)\.click\(\)/);
 });
+
+
+test('Delivered search matches the actual fulfillment label without committing a typed query', () => {
+  const choice = read('src/choice-control.jsx'), manager = read('src/merchandise-manager.jsx');
+  const pure = choice.slice(choice.indexOf('// Values stay strings'), choice.indexOf('function ChoiceMark'));
+  assert.ok(pure.includes('export function filterChoices'), 'Inspect the actual pure filter implementation');
+  const {filterChoices} = new Function(pure.replaceAll('export ', '') + ';return {filterChoices};')();
+  const expression = manager.match(/const fulfillment=(.+);\n/)[1];
+  const options = new Function('return (' + expression + ');')();
+  assert.deepEqual(filterChoices(options, 'Delivered').map(({value,label})=>({value,label})), [{value:'delivered',label:'Delivered / picked up'}]);
+  assert.equal(filterChoices(options, 'Not a fulfillment choice').length, 0);
+  assert.match(choice, /onChange=\{event=>\{setQuery\(event.target.value\);setActive\(-1\);setOpen\(true\)\}\}/, 'Typing changes the query, not the stored fulfillment');
+  assert.match(choice, /close\(\);onChange\?\.\(option.value\)/, 'Only deliberate selection commits the stored value');
+});
+
+test('below-fold fulfillment opens through a real visible pointer choice before persisted same-ID assertions', () => {
+  const choice = read('src/choice-control.jsx'), browser = read('tests/recovery-browser.mjs');
+  assert.match(choice, /if\(!anchor.isConnected\|\|rect.bottom<top\|\|rect.top>top\+height\)\{close\(\);return\}/, 'Offscreen anchors do not leave stray popovers visible');
+  assert.match(browser, /fulfillment\.scrollIntoViewIfNeeded\(\);await fulfillment\.click\(\);await expect\(fulfillment\)\.toHaveAttribute\('aria-expanded','true'\)/);
+  assert.match(browser, /fulfillment\.fill\('Delivered'\);const fulfillmentChoices=expanded.getByRole\('listbox',\{name:'Fulfillment for order '\+orderId.slice\(0,8\),exact:true\}\)/);
+  assert.match(browser, /expect\(deliveredChoice\)\.toHaveCount\(1\);await expect\(deliveredChoice\)\.toBeVisible\(\);await deliveredChoice\.click\(\)/);
+  assert.match(browser, /toEqual\(\{claimId:orderId,claimStatus:'delivered',orderId,orderStatus:'delivered'\}\)/);
+  assert.doesNotMatch(browser, /(?:selectOption\(|\.click\(\{force:|evaluate\([^;]*\.value\s*=)/);
+});

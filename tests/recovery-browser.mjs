@@ -72,7 +72,14 @@ try{
  assert.match(orderId,/^preview-order-\d+$/);assert.equal(createdOrder.items.length,1);assert.equal(createdOrder.items[0].name,'Preview tote');
  await expanded.getByRole('button',{name:'Done',exact:true}).click();await enav.getByRole('button',{name:'You',exact:true}).click();await expanded.getByRole('button',{name:/^Merchandise/}).click();const orderRow=expanded.locator('.merchandise-order').filter({hasText:'Preview tote'});await expect(orderRow).toHaveCount(1);
  const fulfillment=orderRow.getByRole('combobox',{name:'Fulfillment for order '+orderId.slice(0,8),exact:true});await expect(fulfillment).toHaveValue('New order');
- await fulfillment.fill('Delivered');await expanded.getByRole('option',{name:'Delivered / picked up',exact:true}).click();
+ // The real pointer interaction scrolls the below-fold order into view before
+ // opening its anchored choices. fill alone can focus an offscreen input;
+ // ChoiceControl correctly closes a popup whose anchor is outside the viewport.
+ try{await fulfillment.scrollIntoViewIfNeeded();await fulfillment.click();await expect(fulfillment).toHaveAttribute('aria-expanded','true');
+ await fulfillment.fill('Delivered');const fulfillmentChoices=expanded.getByRole('listbox',{name:'Fulfillment for order '+orderId.slice(0,8),exact:true});await expect(fulfillmentChoices).toBeVisible();const deliveredChoice=fulfillmentChoices.getByRole('option',{name:'Delivered / picked up',exact:true});await expect(deliveredChoice).toHaveCount(1);await expect(deliveredChoice).toBeVisible();await deliveredChoice.click();}catch(error){
+  const choiceState=await fulfillment.evaluate(element=>{const rect=element.getBoundingClientRect(),root=element.closest('.choice-control'),popup=root?.querySelector('.choice-popover');return {input:{value:element.value,expanded:element.getAttribute('aria-expanded'),disabled:element.disabled,bounds:{top:rect.top,bottom:rect.bottom,left:rect.left,right:rect.right}},viewport:{width:innerWidth,height:innerHeight},popup:{open:popup?.matches(':popover-open')||false,declaredOpen:popup?.dataset.open,options:[...root?.querySelectorAll('[role=option]')||[]].map(option=>({label:option.textContent?.trim(),disabled:option.getAttribute('aria-disabled')}))}}}).catch(()=>({unavailable:true}));
+  console.error('FULFILLMENT CHOICE FAILURE',JSON.stringify(choiceState));throw error;
+ }
  await expect.poll(()=>expanded.evaluate(({key,id})=>{const state=JSON.parse(localStorage.getItem(key)).state,claim=(state.previewOrders||[]).find(order=>order.id===id);return {claimId:claim?.id,claimStatus:claim?.status,orderId:state.order?.id,orderStatus:state.order?.status}},{key:PREVIEW_KEY,id:orderId}),{message:'Fulfillment persists delivered on the exact created claim and personal order.'}).toEqual({claimId:orderId,claimStatus:'delivered',orderId,orderStatus:'delivered'});
  await expanded.getByText('No orders waiting for fulfillment.',{exact:true}).waitFor();await expect(orderRow).toHaveCount(0);assert.equal(await expanded.locator('dialog').count(),0);await expanded.close();results.push({flow:'household consent simulation and merchandise option/order/fulfillment preview',passed:true});
 
