@@ -186,7 +186,7 @@ try {
           const selected=page.getByRole('navigation',{name:'Main navigation'}).locator('button[aria-current=page]');
           const paint=await selected.evaluate(node=>({fill:getComputedStyle(node).backgroundColor,glyph:getComputedStyle(node.querySelector('.glyph')).color}));
           assert.equal(paint.fill,'rgba(0, 0, 0, 0)',`${label}: selected destination has no rectangular fill`);
-          assert.equal(paint.glyph,'rgb(255, 255, 255)',`${label}: selected accent capsule has white glyph`);
+          assert.equal(paint.glyph,'rgb(255, 250, 240)',`${label}: selected accent capsule has warm off-white glyph`);
         }
         await page.evaluate(()=>window.scrollTo(0,300));
         await expect(page.locator('.page-navigation-header')).toHaveAttribute('data-compact','true');

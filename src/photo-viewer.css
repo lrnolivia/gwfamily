@@ -1,0 +1,10 @@
+.photo-viewer-content{display:grid;gap:20px;min-width:0}
+.photo-viewer-image{display:block;width:100%;height:auto;max-height:70dvh;object-fit:contain;border-radius:12px;background:var(--surface)}
+.photo-viewer-details{display:grid;gap:14px;min-width:0}
+.photo-viewer-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px;justify-content:space-between}
+.photo-viewer-content .conversation-composer{position:static;inset:auto;width:100%;transform:none;margin-top:16px}
+.photo-viewer-content .comments-view{min-width:0;padding-bottom:0}
+.photo-viewer-content .chat-thread{padding-bottom:0}
+.photo-viewer-content .member-link{justify-self:start}
+
+.photo-open{display:block;width:100%;min-width:0;padding:0;border:0;background:transparent;text-align:inherit}.photo-open img{display:block;width:100%}.profile-photo-open{display:block;flex:none;padding:0;border:0;border-radius:50%;background:transparent}.photo-save-link{display:inline-flex;align-items:center;min-height:44px;font-size:.8125rem;color:var(--text)}

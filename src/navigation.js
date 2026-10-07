@@ -1,6 +1,6 @@
 import {useEffect,useState,useRef} from 'react';
 export const mainPages=new Set(['home','reunion','family','you']);
-const pages=new Set([...mainPages,'all-family','profile','post','memory','group','shop','planner','leader-tools','household','household-children','household-manage','household-invite','family-invite','edit-profile','contact','birthdays','inbox','chat','chat-new','chat-settings','notification-settings','tutorial','family-checklist','planning-history','appearance','preview-help','install','rsvp']);
+const pages=new Set([...mainPages,'all-family','profile','post','photo','memory','group','shop','planner','leader-tools','household','household-children','household-manage','household-invite','family-invite','edit-profile','contact','birthdays','inbox','chat','chat-new','chat-settings','notification-settings','tutorial','family-checklist','planning-history','appearance','preview-help','install','rsvp']);
 export function owningDestination(route){
  const type=route?.type;
  if(['reunion','shop','rsvp','birthdays'].includes(type))return 'reunion';

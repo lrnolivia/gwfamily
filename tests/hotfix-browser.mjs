@@ -67,7 +67,7 @@ try{
   }
   await p.getByRole('button',{name:'Profile and appearance'}).click();
   const signOut=p.getByRole('button',{name:'Sign out',exact:true});await expect(signOut).toBeVisible();
-  const exitPaint=await signOut.evaluate(e=>({background:getComputedStyle(e).backgroundColor,color:getComputedStyle(e).color,tint:e.querySelector('.liquid-glass-tint')?getComputedStyle(e.querySelector('.liquid-glass-tint')).backgroundColor:null}));assert.equal(exitPaint.background,theme==='light'?'rgb(217, 58, 69)':'rgb(217, 55, 66)','Sign out uses the Red accent for this theme');assert.equal(exitPaint.color,'rgb(255, 255, 255)');if(exitPaint.tint)assert.equal(exitPaint.tint,exitPaint.background,'Glass tint preserves destructive red');
+  const exitPaint=await signOut.evaluate(e=>({background:getComputedStyle(e).backgroundColor,color:getComputedStyle(e).color,tint:e.querySelector('.liquid-glass-tint')?getComputedStyle(e.querySelector('.liquid-glass-tint')).backgroundColor:null}));assert.equal(exitPaint.background,theme==='light'?'rgb(212, 57, 67)':'rgb(212, 53, 65)','Sign out uses the Red accent for this theme');assert.equal(exitPaint.color,'rgb(255, 250, 240)');if(exitPaint.tint)assert.equal(exitPaint.tint,exitPaint.background,'Glass tint preserves destructive red');
   const rows=await p.locator('.profile-menu .list-row').evaluateAll(rows=>rows.map(e=>{const s=getComputedStyle(e);return {top:s.paddingTop,bottom:s.paddingBottom,align:s.alignItems}}));assert.ok(rows.length);assert.ok(rows.every(r=>r.top===r.bottom&&r.align==='center'));
   await p.screenshot({path:`docs/recovery-qa/hotfix-menu-${width}-${theme}-${platform}.png`});
   await p.getByRole('button',{name:/^Appearance Style/}).click();const appearanceBack=p.getByRole('button',{name:'Back to profile menu',exact:true});await expect(appearanceBack).toBeVisible();
@@ -133,3 +133,4 @@ try{
  results.push({check:'new build notice preserves unsaved composer',status:'passed'});await draft.close();
  assert.deepEqual(errors,[]);console.log(JSON.stringify({results,errors}));
 }catch(error){console.error(error);console.log('::error title=GW hotfix browser::'+String(error.stack||error.message).replaceAll('%','%25').replaceAll('\n','%0A').replaceAll('\r','%0D'));throw error}finally{await writeFile('docs/recovery-qa/hotfix-results.json',JSON.stringify({results,errors},null,2));await browser.close()}
+

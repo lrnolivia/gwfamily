@@ -260,24 +260,19 @@ try {
     } finally { await anonymous.close(); }
   });
 
-  await check('empty Messages panels align and supporting actions stay distinct at each size', async () => {
+  await check('Messages has one clear action row without a redundant options panel', async () => {
     await bob.goto(base + '/#/inbox');
-    const empty = bob.locator('.messages-empty'), options = bob.getByRole('complementary', {name: 'Messaging options'});
-    await expect(empty).toBeVisible(); await expect(options).toBeVisible();
+    const empty=bob.locator('.messages-empty');await expect(empty).toBeVisible();
+    await expect(bob.getByRole('complementary',{name:'Messaging options'})).toHaveCount(0);
     await expect(bob.locator('[data-panel-id="native-invitations"]')).toHaveCount(0);
-    for (const width of [390, 768, 1280]) {
-      await bob.setViewportSize({width, height: 950});
-      await expect(bob.locator('[data-panel-page="inbox"]')).toHaveClass(width < 700 ? /is-mobile/ : /is-wide/);
-      const a = await empty.boundingBox(), b = await options.boundingBox();
-      assert.ok(a && b);
-      if (width >= 700) assert.ok(Math.abs(a.y - b.y) <= 2, 'Messages panel tops align');
-      else assert.ok(b.y >= a.y + a.height, 'Mobile options follow the inbox');
-      const primary = options.getByRole('button', {name: 'Message someone', exact: true});
-      const supporting = options.getByRole('button', {name: 'Start a group', exact: true});
-      await expect(primary).toHaveAttribute('data-button-level', 'primary');
-      await expect(supporting).toHaveAttribute('data-button-level', 'supporting');
-      assert.notEqual(await primary.evaluate(e => getComputedStyle(e).backgroundColor), await supporting.evaluate(e => getComputedStyle(e).backgroundColor));
-      assert.ok(await bob.evaluate(() => document.documentElement.scrollWidth - innerWidth) <= 1);
+    for(const width of [390,768,1280]){
+      await bob.setViewportSize({width,height:950});
+      await expect(bob.locator('[data-panel-page="inbox"]')).toHaveClass(width<700?/is-mobile/:/is-wide/);
+      const heading=bob.locator('.messages-heading'),primary=heading.getByRole('button',{name:'New message',exact:true}),secondary=heading.getByRole('button',{name:'New group',exact:true});
+      await expect(primary).toBeVisible();await expect(secondary).toBeVisible();await expect(primary).toHaveAttribute('data-button-level','primary');await expect(secondary).toHaveAttribute('data-button-level','secondary');
+      assert.notEqual(await primary.evaluate(e=>getComputedStyle(e).backgroundColor),await secondary.evaluate(e=>getComputedStyle(e).backgroundColor));
+      const a=await empty.boundingBox(),h=await heading.boundingBox();assert.ok(a&&h&&a.y>=h.y+h.height,'Inbox follows its heading and actions');
+      assert.ok(await bob.evaluate(()=>document.documentElement.scrollWidth-innerWidth)<=1);
     }
     await bob.setViewportSize({width:1280,height:950});
   });
@@ -852,6 +847,33 @@ try {
     await expect(alice.getByLabel('Custom profile color', {exact: true})).toHaveValue(initialProfile.profileColor || '#4f996c');
     assert.deepEqual((await ok(alice, '/api/state')).members.find(member => member.id === 'alice'), initialProfile,
       'Choosing and removing a draft photo does not silently save appearance or birthday privacy.');
+  });
+
+  await check('profile contacts and photo discussions preserve audience, export consent and cross-account saves',async()=>{
+    await navigate(alice,'edit-profile');
+    const picker=alice.getByRole('region',{name:'Profile appearance',exact:true}).locator('input[type="file"]');
+    await picker.setInputFiles({name:'photo-discussion.png',mimeType:'image/png',buffer:createTestPng()});
+    await expect(alice.getByRole('img',{name:'Alice profile photo',exact:true})).toHaveAttribute('src',/^\/api\/media\//);
+    await alice.getByRole('button',{name:'Save profile',exact:true}).click();
+    await navigate(bob,'profile','alice');
+    await bob.getByRole('button',{name:'View Alice profile photo',exact:true}).click();
+    await expect(bob.locator('.photo-viewer-image')).toBeVisible();
+    const comment=bob.getByRole('textbox',{name:'Write a comment…',exact:true});
+    await comment.fill('A synthetic comment on this profile photo');await bob.getByRole('button',{name:'Send',exact:true}).click();
+    await expect(bob.locator('.chat-bubble').filter({hasText:'A synthetic comment on this profile photo'})).toHaveCount(1);await expect(comment).toHaveValue('');
+    await bob.locator('.photo-viewer-actions').getByRole('button',{name:'Add reaction',exact:true}).click();await bob.getByRole('button',{name:'React ❤️',exact:true}).click();
+    await expect(bob.getByRole('button',{name:'Remove your ❤️ reaction',exact:true})).toBeVisible();
+    await navigate(alice,'photo','alice');await expect(alice.locator('.chat-bubble').filter({hasText:'A synthetic comment on this profile photo'})).toHaveCount(1);
+    const photo=await ok(alice,'/api/photo-discussions/profile/alice');assert.equal(photo.comments.length,1);assert.equal(photo.reactions.length,1);
+    const bytes=await alice.request.get(base+'/api/photo-discussions/profile/alice/download');assert.equal(bytes.status(),200);assert.match(bytes.headers()['content-disposition'],/^attachment;/);assert.deepEqual(await bytes.body(),createTestPng());
+    await navigate(alice,'edit-profile');await alice.getByRole('checkbox',{name:'Let family save my profile photo',exact:true}).uncheck();await alice.getByRole('button',{name:'Save profile',exact:true}).click();
+    await navigate(bob,'photo','alice');await expect(bob.getByRole('button',{name:'Save photo',exact:true})).toHaveCount(0);await expect(bob.getByText('Photo saving is turned off for this profile.',{exact:true})).toBeVisible();assert.equal((await bob.request.get(base+'/api/photo-discussions/profile/alice/download')).status(),403);
+    await ok(alice,'/api/commands',{method:'POST',data:{type:'SAVE_CONTACT',requestId:randomUUID(),contact:{name:'Alice',phone:'+1 555 0100',email:'alice@example.test',address:'1 Example Lane',website:'https://example.test',optIn:true,visibility:'Selected family members',selectedIds:['bob'],useProfile:true}}});
+    await navigate(bob,'profile','alice');await expect(bob.getByRole('link',{name:'Phone: +1 555 0100',exact:true})).toBeVisible();await expect(bob.getByRole('link',{name:'Email: alice@example.test',exact:true})).toHaveAttribute('href','mailto:alice%40example.test');
+    await bob.getByRole('button',{name:'Add to Contacts',exact:true}).click();const guide=bob.getByRole('dialog',{name:'Add to your contacts',exact:true});await expect(guide).toBeVisible();
+    const downloading=bob.waitForEvent('download');await guide.getByRole('button',{name:'Download contact card',exact:true}).click();const downloaded=await downloading,stream=await downloaded.createReadStream();assert.ok(stream);const chunks=[];for await(const chunk of stream)chunks.push(chunk);const card=Buffer.concat(chunks).toString('utf8');assert.match(card,/BEGIN:VCARD/);assert.match(card,/FN:Alice/);assert.match(card,/TEL;TYPE=CELL:\+1 555 0100/);assert.doesNotMatch(card,/PHOTO;/,'Photo optout applies to contact export too');
+    await guide.getByRole('button',{name:/^Close/}).click();await navigate(owner,'profile','alice');await expect(owner.getByRole('link',{name:'Phone: +1 555 0100',exact:true})).toHaveCount(0);await expect(owner.getByText('Contact details are private or haven’t been shared.',{exact:true})).toBeVisible();
+    await bob.screenshot({path:`${output}/profile-contact-${engineName}.png`});await alice.screenshot({path:`${output}/profile-photo-permission-${engineName}.png`});
   });
 
   for (const {page} of sessions) await settleBrowserReads(page);
