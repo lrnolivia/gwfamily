@@ -67,7 +67,8 @@ try{
  await check('reset restores one coherent source-owned arrangement and alignment through reload',async()=>{
   await page.setViewportSize({width:1280,height:900});await expect(page.locator('[data-panel-page="home"]')).toHaveClass(/is-wide/);await begin();await arrange();
   await card().getByRole('button',{name:'Reset arrangement',exact:true}).click();await card().getByRole('button',{name:'Keep in page draft',exact:true}).click();await save();await page.reload();
-  assert.deepEqual(await order('left'),['eyebrow','title','body','action']);assert.deepEqual(await order('right'),['media']);
+  await expect(card().locator('[data-card-slot="media"] img')).toBeVisible();
+  await expect.poll(()=>order('left')).toEqual(['eyebrow','title','body','action']);await expect.poll(()=>order('right')).toEqual(['media']);
   for(const slot of ['eyebrow','title','body'])await expect(card().locator('[data-card-slot="'+slot+'"]')).toHaveAttribute('data-card-align','start');
   await expect(card().locator('[data-card-slot="action"]')).toHaveAttribute('data-card-align','stretch');
   for(const width of [390,768,1280]){

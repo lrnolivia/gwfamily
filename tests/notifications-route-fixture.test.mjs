@@ -18,7 +18,7 @@ test('full-page settings helpers assert the route, heading, choices, closed inbo
  assert.ok(start>=0&&end>start,'Shared full-page settings helpers must exist');
  for(const initial of ['https://fixture.test/#/home','https://fixture.test/#/you','https://fixture.test/#/post/older-authorized-post?section=comment%3Aolder-comment']){
   const calls=[],state={url:initial,settings:false,inbox:true},locator=(kind,detail)=>({kind,detail});
-  const page={url:()=>state.url,getByRole:(role,options)=>locator(role,options),locator:selector=>({getByRole:(role,options)=>({kind:role,detail:options,async click(){assert.equal(selector,'#main .page-back-row');assert.equal(options.name,'Back');state.settings=false;state.url=initial;calls.push('Back')}})})};
+  const page={url:()=>state.url,getByRole:(role,options)=>locator(role,options),locator:selector=>({getByRole:(role,options)=>({kind:role,detail:options,async click(){assert.equal(selector,'.page-navigation-header');assert.equal(role,'button');assert.equal(options.name.test('Back to Home'),true);assert.equal(options.name.test('Back'),false);state.settings=false;state.url=initial;calls.push('Back')}})})};
   const panel=()=>({kind:'panel',getByRole:(role,options)=>({async click(){assert.equal(role,'button');assert.equal(options.name,'Notification settings');state.url='https://fixture.test/#/notification-settings';state.settings=true;state.inbox=false;calls.push('settings')}})});
   const expect=target=>({
    async toHaveURL(value){assert.ok(typeof value?.test==='function'?value.test(state.url):value===state.url);calls.push('url')},
