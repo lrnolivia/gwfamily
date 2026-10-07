@@ -372,7 +372,20 @@ async function inlineEditorFits(page, panel) {
     // A minimal scroll can leave a fractional pixel clipped at the viewport
     // edge. Center the ordinary page scroll, then retain the full-fit assertion.
     await control.evaluate(element => element.scrollIntoView({block: 'center', inline: 'nearest', behavior: 'instant'}));
-    await expect(control).toBeInViewport({ratio: 1});
+    try {
+      await expect(control).toBeInViewport({ratio: 1});
+    } catch (error) {
+      console.error('Inline editor control geometry', await control.evaluate(element => {
+        const ancestors = [];
+        for (let node = element; node && ancestors.length < 8; node = node.parentElement) {
+          const style = getComputedStyle(node);
+          ancestors.push({tag: node.tagName, className: node.className, box: node.getBoundingClientRect().toJSON(),
+            overflowX: style.overflowX, overflowY: style.overflowY, scrollTop: node.scrollTop, scrollLeft: node.scrollLeft});
+        }
+        return {label: element.getAttribute('aria-label') || element.textContent, viewport: {width: innerWidth, height: innerHeight}, ancestors};
+      }));
+      throw error;
+    }
   }
   await noClip(page);
 }

@@ -25,8 +25,24 @@ export function useMessaging(state){
  useEffect(()=>{setIndex({accountKey:identity,conversations:[],invitations:[]});setLoading(true);refresh();if(!enabled)return;const tick=()=>{if(document.visibilityState==='visible')refresh()};const timer=setInterval(tick,5000);window.addEventListener('online',tick);document.addEventListener('visibilitychange',tick);window.addEventListener('gw-messages-preview',tick);return()=>{clearInterval(timer);window.removeEventListener('online',tick);document.removeEventListener('visibilitychange',tick);window.removeEventListener('gw-messages-preview',tick)}},[refresh]);
  useEffect(()=>{let alive=true;setEligibleIds([]);if(enabled){if(state.mode==='preview')setEligibleIds(state.members.filter(m=>!m.managedBy&&m.origin!=='dependent').map(m=>m.id));else chatApi('/api/conversations/recipients').then(v=>{if(alive)setEligibleIds(v.members.map(m=>m.id))}).catch(()=>{})}return()=>{alive=false}},[identity,enabled]);
  const update=()=>{setRevision(x=>x+1);refresh()};
+ // A confirmed read receipt updates the known inbox count without starting a
+ // second request as the user leaves the conversation. Polling reconciles newer
+ // messages and conversations outside this index page.
+ const acknowledgeRead=(id,sequence)=>{
+  if(!Number.isSafeInteger(sequence)||sequence<0)return;
+  setIndex(current=>{
+   if(current.accountKey!==identity)return current;
+   let cleared=0,changed=false;
+   const conversations=current.conversations.map(conversation=>{
+    if(conversation.id!==id||!Number.isSafeInteger(conversation.latestSequence)||conversation.latestSequence>sequence||(conversation.readSequence||0)>=sequence)return conversation;
+    changed=true;cleared=conversation.unreadCount||0;
+    return {...conversation,readSequence:sequence,unreadCount:0};
+   });
+   return changed?{...current,conversations,...(Number.isFinite(current.unreadCount)?{unreadCount:Math.max(0,current.unreadCount-cleared)}:{})}:current;
+  });
+ };
  const currentIndex=index.accountKey===identity?index:{conversations:[],invitations:[]};
- return {...currentIndex,eligibleIds,draftStorageOk,setDraftStorageOk,error,loading:loading||index.accountKey!==identity,refresh,update,revision,unread:currentIndex.unreadCount??currentIndex.conversations.reduce((n,c)=>n+(c.unreadCount||0),0),pendingInvites:currentIndex.invitationCount??currentIndex.invitations.length};
+ return {...currentIndex,eligibleIds,draftStorageOk,setDraftStorageOk,error,loading:loading||index.accountKey!==identity,refresh,update,acknowledgeRead,revision,unread:currentIndex.unreadCount??currentIndex.conversations.reduce((n,c)=>n+(c.unreadCount||0),0),pendingInvites:currentIndex.invitationCount??currentIndex.invitations.length};
 }
 export function MessagesButton(){const {messaging,go}=useApp();const total=messaging.unread+messaging.pendingInvites;return <Control className="icon-button messages-entry" aria-label={total?`Messages, ${total} unread`:'Messages'} onClick={()=>go({type:'inbox'})}><Glyph name="chat"/>{total>0&&<span className="messages-badge" aria-hidden="true">{total>99?'99+':total}</span>}</Control>}
 function PreviewNotice(){const {state,messaging}=useApp();return state.mode==='preview'?<div className="messages-preview-note"><p>Preview messages stay on this device. No invitations are sent.</p><Control className="text-button" onClick={()=>{previewSave({conversations:[],messages:{}});messaging.update()}}>Reset preview messages</Control></div>:null}
@@ -128,7 +144,7 @@ function ChatComposer({id,onMessage,disabled}){
 
 export function ChatThread({id}){
  const {state,go,messaging}=useApp(),thread=useConversation(id),{conversation:c,messages}=thread,bottom=useRef(null),readSent=useRef(0),[readError,setReadError]=useState(''),atEnd=useRef(true),[newCount,setNewCount]=useState(0),priorLast=useRef(null);
- useEffect(()=>{if(!c||!bottom.current)return;const el=bottom.current;const mark=async()=>{const sequence=messages.at(-1)?.sequence||0;if(!atEnd.current||document.visibilityState!=='visible'||sequence<=readSent.current||state.mode!=='live')return;try{await chatApi(`/api/conversations/${encodeURIComponent(id)}/read`,{method:'POST',body:JSON.stringify({sequence})});readSent.current=sequence;setReadError('');messaging.refresh()}catch{setReadError('Your read status couldn’t be saved yet.')}};let observer;const composer=document.querySelector('.message-compose-area'),observe=()=>{observer?.disconnect();const covered=Math.min(composer?.offsetHeight||160,Math.max(0,window.innerHeight-60));observer=new IntersectionObserver(entries=>{atEnd.current=entries[0].isIntersecting;if(atEnd.current){setNewCount(0);mark()}},{threshold:.1,rootMargin:`0px 0px -${covered+12}px 0px`});observer.observe(el)};observe();const resize=new ResizeObserver(observe);if(composer)resize.observe(composer);document.addEventListener('visibilitychange',mark);return()=>{observer?.disconnect();resize.disconnect();document.removeEventListener('visibilitychange',mark)}},[id,c,messages.at(-1)?.sequence]);
+ useEffect(()=>{if(!c||!bottom.current)return;const el=bottom.current;const mark=async()=>{const sequence=messages.at(-1)?.sequence||0;if(!atEnd.current||document.visibilityState!=='visible'||sequence<=readSent.current||state.mode!=='live')return;try{const receipt=await chatApi(`/api/conversations/${encodeURIComponent(id)}/read`,{method:'POST',body:JSON.stringify({sequence})});readSent.current=Math.max(readSent.current,receipt.readSequence);setReadError('');messaging.acknowledgeRead(id,receipt.readSequence)}catch{setReadError('Your read status couldn’t be saved yet.')}};let observer;const composer=document.querySelector('.message-compose-area'),observe=()=>{observer?.disconnect();const covered=Math.min(composer?.offsetHeight||160,Math.max(0,window.innerHeight-60));observer=new IntersectionObserver(entries=>{atEnd.current=entries[0].isIntersecting;if(atEnd.current){setNewCount(0);mark()}},{threshold:.1,rootMargin:`0px 0px -${covered+12}px 0px`});observer.observe(el)};observe();const resize=new ResizeObserver(observe);if(composer)resize.observe(composer);document.addEventListener('visibilitychange',mark);return()=>{observer?.disconnect();resize.disconnect();document.removeEventListener('visibilitychange',mark)}},[id,c,messages.at(-1)?.sequence]);
  useEffect(()=>{const last=messages.at(-1);if(!last)return;if(!priorLast.current||atEnd.current){bottom.current?.scrollIntoView({block:'end',behavior:'instant'});setNewCount(0)}else if(last.id!==priorLast.current)setNewCount(n=>n+1);priorLast.current=last.id},[messages.at(-1)?.id]);
  const onMessage=message=>{thread.merge([message]);messaging.update();atEnd.current=true;requestAnimationFrame(()=>bottom.current?.scrollIntoView({block:'end',behavior:'instant'}))};
  if(thread.loading)return <ActivityDots label="Loading conversation"/>;

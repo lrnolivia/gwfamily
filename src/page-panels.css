@@ -34,7 +34,10 @@
 .page-panel-zone-side .columns,.page-panel-zone-side .product-grid{grid-template-columns:minmax(0,1fr)}
 .page-panel-zone-side .profile,.page-panel-zone-side .planning-checklist{min-width:0;max-width:100%}
 .page-shared-panel .home-hero{margin-top:0;margin-bottom:0}.page-panel-layout .home-context{position:static;margin:0}
-.page-panel-layout .gw-carousel-photo,.page-media-file-preview{overflow:hidden}
+.page-panel-layout .gw-carousel-photo{overflow:hidden}
+/* A framed preview clips its image without becoming a hidden scroll container.
+   Scrolling the inline editor must not crop its overlaid Remove control. */
+.page-media-file-preview{overflow:clip}
 .page-panel-drag:focus-visible{outline:2px solid var(--control);outline-offset:2px}
 
 .page-mobile-drag-label{touch-action:none;cursor:grab}.page-mobile-drag-label:active{cursor:grabbing}

@@ -25,6 +25,18 @@ async function harness(name){
 test('actual inbox index suppresses previous-account messages before effect cleanup',async()=>{
  const h=await harness('useMessaging');try{h.render();h.requests.find(r=>r.path==='/api/conversations').resolve({conversations:[{id:'alice-private',unreadCount:1}],invitations:[]});h.requests.find(r=>r.path.endsWith('/recipients')).resolve({members:[]});await settle();assert.equal(h.render().conversations[0].id,'alice-private');h.app.state={...h.app.state,selfId:'bob'};const switched=h.render({flush:false});assert.deepEqual(switched.conversations,[]);assert.equal(switched.unread,0);assert.equal(switched.loading,true);h.flush()}finally{h.close()}
 });
+test('confirmed read updates known unread counts without another fetch and preserves newer messages',async()=>{
+ const h=await harness('useMessaging');try{
+  h.render();h.requests.find(r=>r.path==='/api/conversations').resolve({conversations:[{id:'room',latestSequence:4,readSequence:1,unreadCount:3},{id:'other',latestSequence:8,readSequence:7,unreadCount:1}],invitations:[],unreadCount:9});
+  h.requests.find(r=>r.path.endsWith('/recipients')).resolve({members:[]});await settle();
+  const ui=h.render(),requests=h.requests.length;
+  ui.acknowledgeRead('room',3);assert.equal(h.render().unread,9,'A receipt behind the latest known message cannot clear the conversation.');
+  ui.acknowledgeRead('room',4);let next=h.render();assert.equal(next.unread,6);assert.equal(next.conversations[0].unreadCount,0);assert.equal(next.conversations[0].readSequence,4);assert.equal(next.conversations[1].unreadCount,1);
+  ui.acknowledgeRead('room',4);assert.equal(h.render().unread,6,'Repeated receipts cannot subtract twice.');assert.equal(h.requests.length,requests,'Receipt completion does not start an unload-time fetch.');
+  h.app.state={...h.app.state,selfId:'bob'};h.render();h.requests.at(-2).resolve({conversations:[{id:'room',latestSequence:4,readSequence:0,unreadCount:4}],invitations:[],unreadCount:4});h.requests.at(-1).resolve({members:[]});await settle();
+  ui.acknowledgeRead('room',4);assert.equal(h.render().unread,4,'A late receipt from Alice cannot clear Bob’s unread count.');
+ }finally{h.close()}
+});
 test('actual conversation suppresses previous-account messages and rejects late older-page results',async()=>{
  const h=await harness('useConversation');try{h.render();h.requests.find(r=>r.path==='/api/conversations/room').resolve({conversation:{id:'room',name:'Alice private'}});h.requests.find(r=>r.path.endsWith('/messages')).resolve({messages:[{id:'alice-current',sequence:2}],hasMore:true,nextBefore:2});await settle();const ui=h.render();assert.equal(ui.messages[0].id,'alice-current');const old=ui.loadOlder(),request=h.requests.find(r=>r.path.includes('?before='));h.app.state={...h.app.state,selfId:'bob'};let switched=h.render({flush:false});assert.deepEqual(switched.messages,[]);assert.equal(switched.conversation,null);assert.equal(switched.loading,true);request.resolve({messages:[{id:'alice-older',sequence:1}],hasMore:false});await old;switched=h.render({flush:false});assert.deepEqual(switched.messages,[]);h.flush();await settle();assert.equal(h.render().messages.some(m=>m.id==='alice-older'),false)}finally{h.close()}
 });
