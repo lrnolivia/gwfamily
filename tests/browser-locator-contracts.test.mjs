@@ -5,9 +5,10 @@ const read=name=>fs.readFileSync(new URL(name,import.meta.url),'utf8');
 test('custom choice tests operate through real combobox selection rather than native select APIs',()=>{
  for(const name of ['choice-control-browser.mjs','communications-browser.mjs','recovery-browser.mjs','live-browser.mjs'])assert.doesNotMatch(read(name),/\.selectOption\(/,name);
  const cms=read('page-content-browser.mjs');
- assert.equal((cms.match(/\.selectOption\(/g)||[]).length,3,'Native History and panel location selects use selectOption; custom ChoiceControl never does');
+ assert.equal((cms.match(/\.selectOption\(/g)||[]).length,5,'Native History, Reunion tab and panel location selects use selectOption; custom ChoiceControl never does');
  assert.match(cms,/history\.selectOption\(key\)/);assert.match(cms,/getByRole\('combobox', \{name: 'History for', exact: true\}\)/);assert.match(cms,/expect\(history\)\.toHaveValue\(key\)/);
  assert.match(cms,/panel.getByRole\('combobox',\{name:\/\^Location for \/\}\).selectOption\('side'\)/);
+ const panels=read('../src/page-panels.jsx');assert.match(panels,/<select[^>]*aria-label="Reunion tab to reorder"/);assert.match(cms,/getByRole\('combobox',\{name:'Reunion tab to reorder',exact:true\}\)/);
  const page=fs.readFileSync(new URL('../src/page-content.jsx',import.meta.url),'utf8');assert.match(page,/<select[^>]*aria-label="History for"/);
 });
 test('empty-choice status and conversation identity locators disambiguate their targets',()=>{

@@ -26,12 +26,23 @@ export const NATIVE_PANEL_DEFINITIONS=Object.freeze({
  memories:[['gallery','Shared memories','main',['listTitle','emptyBody']]],
  tree:[['founders','Family founders','side',[]],['memorials','Held in our hearts','main',['memorialsTitle']],['connections','Family connections','side',['connectionsTitle','connectionsBody']]],
  birthdays:[['calendar','Family birthdays','main',['monthTitle','emptyBody','privacyNote']]],
- shop:[['products','Merchandise','main',['emptyBody']],['order','Your order','side',[]]],
+ shop:[['products','Merchandise','main',['heading','emptyBody']],['order','Your order','side',[]]],
  inbox:[['invitations','Conversation invitations','side',['invitationsTitle']],['conversations','Conversations','main',['emptyTitle','emptyBody','caughtUpTitle','caughtUpBody']]],
  you:[['profile','Your profile','side',[]],['family','Your family','main',[]],['plans','Reunion plans','main',[]],['preferences','Preferences','main',[]],['help','Help','main',[]],['leader-tools','Leader tools','side',['toolsTitle']]]
 });
 export const nativePanelDefinition=(page,id)=>(NATIVE_PANEL_DEFINITIONS[page]||[]).find(([key])=>'native-'+key===id);
-export const sharedPanelTitle=(page,panel)=>panel.kind==='hero'?'Primary hero':panel.kind==='native'?(nativePanelDefinition(page,panel.id)?.[1]||'Page panel'):panel.title||'Untitled panel';
+export function sharedPanelTitle(page,panel,content,records={}){
+ if(panel.kind==='hero')return content?.text?.heroTitle||'Page photo or video';
+ if(panel.kind!=='native')return panel.title||'Untitled panel';
+ const sharedHeading=page==='reunion-calendar'&&panel.id==='native-birthdays'?records.birthdays:page==='reunion'&&panel.id==='native-plans'?records.home:null;
+ if(sharedHeading){const value=(sharedHeading.draft||sharedHeading.content)?.text?.[page==='reunion'?'reunionTitle':'monthTitle'];if(typeof value==='string'&&value.trim())return value;}
+ const definition=nativePanelDefinition(page,panel.id),field=definition?.[3]?.find(key=>/Title$|^heading$|^monthTitle$/.test(key)),heading=field&&content?.text?.[field];
+ return typeof heading==='string'&&heading.trim()?heading:definition?.[1]||'Page panel';
+}
+export const REUNION_PANEL_PAGES=Object.freeze(['reunion','reunion-plans','reunion-calendar']);
+export function activePanelPage(page,tab){
+ return page==='family'?(tab||'people'):page==='reunion'?tab==='plans'?'reunion-plans':tab==='weekend'?'reunion-calendar':'reunion':page;
+}
 const nativeDefaults=page=>(NATIVE_PANEL_DEFINITIONS[page]||[]).map(([id,,zone])=>({id:'native-'+id,kind:'native',zone,locked:false,removed:false}));
 export function defaultPanelLayout(page){const panels=PANEL_PAGES.includes(page)?[{id:'hero',kind:'hero',zone:'main',locked:true,removed:false},...nativeDefaults(page)]:[];return {version:2,panels,desktopOrder:panels.map(p=>p.id),mobileOrder:panels.map(p=>p.id)};}
 export function migratePanelLayout(page,layout){

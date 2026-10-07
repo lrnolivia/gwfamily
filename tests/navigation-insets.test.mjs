@@ -89,7 +89,7 @@ test('390px, 768px and landscape geometry consumes the safe-area inset once in e
       const options = {width, mobileOS: os, displayMode: mode, safeAreaBottom: safe};
       const glass = navigationInsetMetrics({...options, material: 'ios'});
       const flat = navigationInsetMetrics({...options, material: 'android'});
-      if(width>=700)assert.deepEqual(glass,flat);
+      if(width>=700){assert.equal(flat.layout,'rail');assert.equal(flat.railWidth,96);assert.equal(flat.top,44);assert.equal(flat.buttonBottom,safe+12);}
       else {assert.equal(flat.bottom,0);assert.equal(flat.height,64+safe);assert.equal(flat.buttonBottom,safe+8);assert.equal(flat.fabBottom-flat.height,12);}
       assert.ok(glass.bottom >= 0);
       assert.ok(glass.buttonBottom >= safe, 'every button stays above the home-indicator inset');

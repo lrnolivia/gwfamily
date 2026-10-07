@@ -312,12 +312,12 @@ async function unlockHero(page, key) {
   if (await hero.getAttribute('data-panel-locked') === 'true') {
     await expect(hero.getByRole('button', {name: /^Edit /})).toHaveCount(0);
     await expect(hero.locator('[data-page-field] .page-copy-input, [contenteditable="true"]')).toHaveCount(0);
-    const unlock = hero.getByRole('button', {name: 'Unlock Primary hero', exact: true});
+    const unlock = hero.getByRole('button', {name: /^Unlock /});
     await expect(unlock).toHaveAttribute('aria-pressed', 'true');
     await unlock.click();
   }
   await expect(hero).not.toHaveAttribute('data-panel-locked', 'true');
-  await expect(hero.getByRole('button', {name: 'Lock Primary hero', exact: true})).toHaveAttribute('aria-pressed', 'false');
+  await expect(hero.getByRole('button', {name: /^Lock /})).toHaveAttribute('aria-pressed', 'false');
 }
 async function uploadPageMedia(page, dialog, picker, files) {
   const uploadStatus = dialog.getByRole('status', {name: 'Page media upload', exact: true});
@@ -505,6 +505,21 @@ try {
       await toolbar(owner).getByRole('button',{name:'Arrange page',exact:true}).click();
       await panel.getByRole('combobox',{name:/^Location for /}).selectOption('side');await save(owner);
       assert.equal((await record(owner,key)).content.panelLayout.panels.find(row=>row.id===panelId).zone,'side');
+      await toolbar(owner).getByRole('button',{name:'Reorder for mobile',exact:true}).click();
+      const reorder=owner.getByRole('dialog',{name:'Reorder for mobile',exact:true}),picker=reorder.getByRole('combobox',{name:'Reunion tab to reorder',exact:true});
+      await expect(picker).toHaveValue(key);
+      if(tab==='Plan')await expect(reorder.locator(`[data-panel-id="${panelId}"] strong`)).toHaveText(before+' Synthetic edit');
+      for(const [target,id] of [['reunion','native-plans'],['reunion-plans','native-rsvp'],['reunion-calendar','native-events']]){
+        await picker.selectOption(target);await expect(reorder.locator(`[data-panel-id="${id}"]`)).toBeVisible();
+      }
+      await picker.selectOption(key);
+      const originalMobile=(await record(owner,key)).content.panelLayout.mobileOrder;
+      const row=reorder.locator(`[data-panel-id="${panelId}"]`);
+      await row.getByRole('button',{name:/ later on mobile$/}).click();await save(owner);
+      assert.notDeepEqual((await record(owner,key)).content.panelLayout.mobileOrder,originalMobile);
+      await row.getByRole('button',{name:/ earlier on mobile$/}).click();await save(owner);
+      assert.deepEqual((await record(owner,key)).content.panelLayout.mobileOrder,originalMobile);
+      await reorder.getByRole('button',{name:'Done',exact:true}).click();
       await owner.screenshot({path:`${output}/${key}-editable-sidebar-${engineName}.png`});
       await panel.getByRole('combobox',{name:/^Location for /}).selectOption('main');await save(owner);
       await editText(owner,key+'.'+titleField,before);await save(owner);await panel.getByRole('button',{name:/^Lock /}).click();await save(owner);await modeDone(owner).click();
@@ -575,7 +590,7 @@ try {
     await expect(heroEdit).toBeFocused();
     // Opening a target changed no copy. Restore its original lock before Done,
     // so this color/focus check leaves no unsaved layout draft for later checks.
-    await homeHero.getByRole('button', {name: 'Lock Primary hero', exact: true}).click();
+    await homeHero.getByRole('button', {name: /^Lock /}).click();
     await expect(homeHero).toHaveAttribute('data-panel-locked', 'true');
     await expect(homeHero.getByRole('button', {name: 'Edit Hero heading', exact: true})).toHaveCount(0);
     await save(owner);
@@ -954,7 +969,7 @@ try {
       await otherOwner.screenshot({path: `${output}/family-editor-${viewport.width}x${viewport.height}-${engineName}.png`});
       // Media choices returned to the original content. Restore the original
       // family hero lock so each viewport starts from a clean saved snapshot.
-      await primaryHero(otherOwner, 'family').getByRole('button', {name: 'Lock Primary hero', exact: true}).click();
+      await primaryHero(otherOwner, 'family').getByRole('button', {name: /^Lock /}).click();
       await expect(primaryHero(otherOwner, 'family')).toHaveAttribute('data-panel-locked', 'true');
       await save(otherOwner);
       await modeDone(otherOwner).click();

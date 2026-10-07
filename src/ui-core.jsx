@@ -18,6 +18,7 @@ export const useApp=()=>useContext(AppContext);
 // material layers. Keep the native button as the host so existing layout and
 // keyboard semantics survive; Android returns only the native button.
 export const Control=React.forwardRef(function Control({className='',children,glassLens,...props},forwardedRef){
+  if(/^Close\b/.test(props['aria-label']||''))className+=' quiet-close';
   const floating=useContext(FloatingSurfaceContext),app=useApp(),platform=app?.platform||'ios',ref=useRef(null),glass=!floating&&platform==='ios'&&/\b(button|send-button|icon-button|filter-trigger)\b/.test(className)&&!/\b(list-row|brand|avatar)\b/.test(className);
   const lens=glass&&(glassLens??/\b(button|send-button|icon-button|fab)\b/.test(className));
   const radius=/\b(icon-button|send-button|fab|avatar)\b/.test(className)?28:/\bbutton\b/.test(className)?25:40;

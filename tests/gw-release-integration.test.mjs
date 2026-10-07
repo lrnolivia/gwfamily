@@ -15,7 +15,7 @@ test('semantic guide/help/edit glyphs are defined and never fall back to arrow',
 test('active-accent Send palette keeps text and shape contrast across light/dark colors',()=>{
  for(const theme of ['light','dark'])for(const color of ['#4f996c','#c8ac52','#b5648a','#002955','#ffffff','#000000']){
  const palette=profilePalette(color,theme);assert.ok(contrast(palette['--send-text'],palette['--send-active'])>=4.5,theme+color);
- assert.ok(luminance(palette['--send-text'])<.05,theme+color+' dark glyph');
- assert.ok(contrast(palette['--send-edge'],palette['--send-active'])>=3,theme+color+' dark stroke against bright fill');
+ assert.equal(palette['--send-text'],'#ffffff',theme+color+' white glyph');
+ assert.ok(contrast(palette['--send-edge'],palette['--send-active'])>=3,theme+color+' white stroke against accent fill');
  }
 });

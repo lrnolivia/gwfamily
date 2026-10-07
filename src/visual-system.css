@@ -48,3 +48,28 @@
 
 .profile-overview>.profile-cover{border-start-start-radius:inherit;border-start-end-radius:inherit}
 .planner-section>h2{margin:0 0 16px}
+
+/* Menus and mode surfaces use their material rather than decorative outlines. */
+html[data-theme][data-platform] :is(.gw-material-menu,.gw-glass-menu)[popover]{border:0!important}
+html[data-theme][data-platform] .gw-glass-menu>.liquid-glass-shine{border:0!important;box-shadow:none!important;background:none!important}
+html[data-theme][data-platform] :is(.view-switcher,.page-edit-modebar,.page-media-modes,.heading-font-option,.page-mode-done,.page-edit-tools>summary){border:0!important}
+html[data-theme][data-platform] :is(.page-media-modes,.view-switcher)>button{border:0!important;box-shadow:none!important}
+
+/* Every preset stays visible; wrapping replaces horizontal swatch scrolling. */
+.profile-colors .profile-color-options{display:grid;grid-template-columns:repeat(4,minmax(44px,1fr));align-items:start;gap:12px 8px;overflow:visible;padding:4px 0}
+.profile-color-options>.profile-swatches-scroll{display:contents;overflow:visible}
+.profile-swatches-scroll>.profile-color-swatch{justify-self:center;min-width:44px;width:44px;height:44px;margin:0}
+.profile-color-options>.profile-custom-color{justify-self:center;display:grid!important;width:44px;max-width:44px;min-width:0;gap:4px!important;padding:0;font-size:.6875rem}
+.profile-custom-color input[type=color]{width:44px!important;min-width:44px!important;max-width:44px!important;height:44px;min-height:44px}
+@media(min-width:700px){.profile-colors .profile-color-options{grid-template-columns:repeat(7,minmax(44px,1fr))}}
+
+/* Default and personal accents share white foregrounds in both materials. */
+html[data-theme][data-platform]{--control:#387b51;--control-text:#ffffff;--control-edge:#387b51;--accent:#387b51;--ink:#ffffff;--send-active:var(--control);--send-text:#ffffff;--send-edge:#ffffff}
+html[data-theme][data-platform] :is(.choice-chip>input:checked+.choice-chip-face,.choice-option[aria-selected=true],.heading-font-option[aria-pressed=true]){color:var(--control-text)!important}
+html[data-theme][data-platform] .view-switcher.view-switcher>button[aria-selected=true]{color:var(--control-text)!important}
+
+/* Preserve the established wordmark; strengthen only its light-mode lettering. */
+html[data-theme=light][data-platform] .wordmark-green{color:#c9b68d!important}
+html[data-theme=light][data-platform] :is(.wordmark-amp,.wordmark-white){color:#fffaf0!important}
+html[data-theme=light][data-platform] .wordmark-bottom{color:#603b26!important}
+html[data-theme=light][data-platform] :is(.wordmark-green,.wordmark-amp,.wordmark-white){-webkit-text-stroke:1px #603b26;paint-order:stroke fill;text-shadow:none}

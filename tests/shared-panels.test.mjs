@@ -16,3 +16,37 @@ test('Markdown source preserves exact unsupported syntax and whitespace and refu
 test('only Add Panel and Reorder for mobile use modal sheets in the page editor',()=>{const panels=fs.readFileSync(new URL('../src/page-panels.jsx',import.meta.url),'utf8'),editor=fs.readFileSync(new URL('../src/page-content.jsx',import.meta.url),'utf8');assert.deepEqual([...panels.matchAll(/<Sheet title="([^"]+)"/g)].map(x=>x[1]),['Add Panel','Reorder for mobile']);assert.doesNotMatch(editor,/<Sheet/);assert.match(editor,/aria-label="Page history"/);assert.match(editor,/aria-label="Page media"/);assert.match(panels,/onPointerMove/);assert.match(panels,/onPointerCancel/);assert.match(panels,/Move .* earlier on mobile/);assert.match(panels,/aria-label=\{'Location for '/);});
 test('shared panels do not register member, private, menu or system components',()=>{const source=fs.readFileSync(new URL('../src/shared-panels.js',import.meta.url),'utf8');assert.doesNotMatch(source,/eval\(|new Function\(|dangerouslySetInnerHTML|component:/);for(const page of ['profile','post','chat','leader-tools','planner','notification-settings'])assert.equal(PANEL_PAGES.includes(page),false);});
 test('recovery draft model keeps desktop/mobile, locked state, Markdown and media descriptions in fingerprints',async()=>{const {pageContentFingerprint,mergePageDraft,reconcilePageRecord}=await import('../src/page-content-model.js');const base=sharedPageDefaults('home'),mine=clone(base),latest=clone(base);mine.panelLayout=sample();latest.text.heading='New heading';let merged=mergePageDraft(base,mine,latest);assert.equal(merged.content.text.heading,'New heading');assert.deepEqual(merged.content.panelLayout,mine.panelLayout);assert.equal(merged.conflicts.length,0);latest.panelLayout=addSharedPanel(latest.panelLayout,createSharedPanel('panel-remote','main','text'));merged=mergePageDraft(base,mine,latest);assert.equal(merged.conflicts[0].field,'panelLayout');const old={...base};delete old.panelLayout;delete old.bodyFormats;const next=reconcilePageRecord('home',{content:base,revision:1,canEdit:true},null,{draft:old,base:old,revision:1});assert.deepEqual(next.draft.panelLayout,base.panelLayout);assert.equal(pageContentFingerprint(next.draft),pageContentFingerprint(base));});
+
+test('Reunion arrangement targets all three independent tab layouts',async()=>{
+ const {activePanelPage,REUNION_PANEL_PAGES}=await import('../src/shared-panels.js');
+ assert.deepEqual(['details','plans','weekend'].map(tab=>activePanelPage('reunion',tab)),REUNION_PANEL_PAGES);
+ const layouts=REUNION_PANEL_PAGES.map(defaultPanelLayout),original=clone(layouts);
+ const moved=stepSharedPanel(layouts[1],'native-merchandise',-1,true);
+ assert.notDeepEqual(moved.mobileOrder,original[1].mobileOrder);
+ assert.deepEqual(moved.desktopOrder,original[1].desktopOrder);
+ assert.deepEqual(layouts[0],original[0]);assert.deepEqual(layouts[2],original[2]);
+ assert.equal(activePanelPage('reunion-plans','weekend'),'reunion-plans');
+});
+test('arrangement section names follow current edited headings with safe fallbacks',async()=>{
+ const {sharedPanelTitle}=await import('../src/shared-panels.js');
+ const content=sharedPageDefaults('reunion-plans'),panel=content.panelLayout.panels.find(p=>p.id==='native-fees');
+ content.text.feesTitle='Family contributions';assert.equal(sharedPanelTitle('reunion-plans',panel,content),'Family contributions');
+ content.text.feesTitle='Updated contributions';assert.equal(sharedPanelTitle('reunion-plans',panel,content),'Updated contributions');
+ content.text.feesTitle='';assert.equal(sharedPanelTitle('reunion-plans',panel,content),'Reunion fees');
+ assert.equal(sharedPanelTitle('reunion-plans',{kind:'content',title:'Custom heading'},content),'Custom heading');
+});
+
+test('all native sections use edited heading fields rather than body copy and heroes use their heading',async()=>{
+ const {sharedPanelTitle}=await import('../src/shared-panels.js');
+ for(const [page,definitions] of Object.entries(NATIVE_PANEL_DEFINITIONS)){
+  const content=sharedPageDefaults(page);
+  for(const [id,fallback,,fields] of definitions){
+   const panel=content.panelLayout.panels.find(p=>p.id==='native-'+id),field=fields.find(key=>/Title$|^heading$|^monthTitle$/.test(key));
+   if(field&&Object.hasOwn(content.text,field)){content.text[field]='Edited '+page+' '+id;assert.equal(sharedPanelTitle(page,panel,content),content.text[field]);}
+   else assert.equal(sharedPanelTitle(page,panel,content),fallback);
+  }
+  if(Object.hasOwn(content.text,'heroTitle')){content.text.heroTitle='Edited hero heading';assert.equal(sharedPanelTitle(page,content.panelLayout.panels.find(p=>p.kind==='hero'),content),'Edited hero heading');}
+ }
+ const records={birthdays:{draft:{text:{monthTitle:'Celebrating in'}}}};
+ assert.equal(sharedPanelTitle('reunion-calendar',{id:'native-birthdays',kind:'native'},sharedPageDefaults('reunion-calendar'),records),'Celebrating in');
+});
