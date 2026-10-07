@@ -9,7 +9,7 @@ import {routeFromHash,routeHash,mainPages} from '../src/navigation.js';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const read=path=>fs.readFileSync(root+path,'utf8');
 const source=read('src/react-app.jsx'),checklistSource=read('src/planning-checklist.jsx'),reunionSource=read('src/reunion-plans.jsx'),plannerSource=read('src/planner.jsx');
-const css=read('src/planning-checklist.css'),badges=read('dist/ui-pass.css');
+const css=read('src/planning-checklist.css'),badges=read('src/member-badges.css');
 
 // Render the production components with real React. Bundling belongs to the
 // canonical CI dependency environment, not the dependency-free recovery runner.
@@ -66,8 +66,8 @@ test('Home, Reunion and dedicated pages share the same planning model and route 
  assert.equal(count(source,/<YourReunionPanel\s*\/>/g),2);
  assert.doesNotMatch(source,/<PlanningChecklist\b/);
  assert.equal(count(source,/<PlanningLinks\s*\/>/g),1);
- assert.match(reunionSource,/export function YourReunionPanel\(\)\{return <PlanningChecklist compact title="Your reunion" heading=/);
- assert.match(reunionSource,/<PlanningChecklist\s*\/>/);
+ assert.match(reunionSource,/export function YourReunionPanel\(\{compact=false\}\)\{return <PlanningChecklist compact=\{compact\} title="Your reunion" heading=/);
+ assert.match(reunionSource,/<YourReunionPanel compact\s*\/>/);
  assert.match(checklistSource,/export function FamilyPlanningPage\(\)\{return <section className="stack"><h1>Family member checklist<\/h1><PlanningChecklist showMembers\/>/);
  assert.match(checklistSource,/export function PlanningHistoryPage\(\)\{return <section className="stack"><h1>Saved planning records<\/h1><SavedPlanningHistory expanded\/>/);
  assert.match(source,/route\.type==='family-checklist'\?<FamilyPlanningPage\/>/);
@@ -92,7 +92,7 @@ test('screen readers get explicit completed, pending and not-needed status text'
 });
 
 test('compact shared panel navigates to the fullpage per-person checklist',()=>{
- const compact=render(state,'reunion-panel'),fullpage=render(state,'family-planning');
+ const compact=render(state,'reunion-panel',{compact:true}),fullpage=render(state,'family-planning');
  assert.match(compact,/class="card planning-checklist planning-checklist-compact" aria-label="Your reunion"/);
  assert.ok(elements(compact).some(node=>node.tag==='button'&&node.inner.includes('Family member checklist')));
  assert.doesNotMatch(compact,/class="planning-member-list"|<details\b/);
@@ -178,7 +178,7 @@ test('RSVP success feedback is gated by persistence and keeps fullpage routes op
  const rsvpSource=plannerSource.slice(plannerSource.indexOf('export function Rsvp('));
  // Both the fullpage toast and sheet dismissal must be inside the same awaited
  // truthy dispatch branch. A failed save cannot announce success or close it.
- assert.match(rsvpSource,/onSubmit=\{async e=>\{e\.preventDefault\(\);if\(saving\)return;setSaving\(true\);try\{if\(await dispatch\(\{type:'RSVP',value:\{count,status\}\}\)\)\{if\(route\?\.type==='rsvp'\|\|route\?\.type==='reunion'\)setToast\('RSVP saved'\);else openSheet\(null\)\}\}finally\{setSaving\(false\)\}\}\}/);
+ assert.match(rsvpSource,/onSubmit=\{async e=>\{e\.preventDefault\(\);if\(saving\)return;setSaving\(true\);try\{if\(await dispatch\(\{type:'RSVP',reunionId:state\.selectedReunionId,value:\{count,status\}\}\)\)\{if\(route\?\.type==='rsvp'\|\|route\?\.type==='reunion'\)setToast\('RSVP saved'\);else openSheet\(null\)\}\}finally\{setSaving\(false\)\}\}\}/);
  assert.equal(count(rsvpSource,/openSheet\(null\)/g),1);
  assert.equal(count(rsvpSource,/setToast\('RSVP saved'\)/g),1);
  assert.match(rsvpSource,/aria-busy=\{saving\}/);
@@ -189,16 +189,15 @@ test('RSVP success feedback is gated by persistence and keeps fullpage routes op
  assertNoNestedControls(html);
 });
 
-test('global household badges remove every underline state and retain focus/tap affordance',()=>{
- assert.doesNotMatch(badges,/button\.membership-chip\{[^}]*text-decoration:underline/);
- assert.match(badges,/membership-group:focus-visible[^}]*text-decoration:none/);
- assert.match(badges,/membership-group:focus-visible\{outline:3px/);
- assert.match(badges,/membership-group:active\{box-shadow:inset 0 0 0 2px/);
- assert.match(badges,/button\.membership-chip\{min-height:34px;text-decoration:none;cursor:pointer\}/);
+test('global household badge face retains separate accessible target and no underline',()=>{
+ assert.match(badges,/membership-chip-control\{[^}]*min-height:44px[^}]*text-decoration:none/);
+ assert.match(badges,/membership-chip-control:focus-visible\{outline:3px/);
+ assert.match(badges,/membership-chip-control:active>.membership-chip\{box-shadow:inset 0 0 0 2px/);
+ assert.match(badges,/membership-chip\.membership-chip\{[^}]*min-height:25px/);
 });
 
-test('status text uses theme foreground, not low-contrast accent alone',()=>{
- assert.match(css,/\.planning-status.is-complete\{color:var\(--text\)\}/);
+test('status text uses semantic foreground/background pairs and labels',()=>{
+ assert.match(css,/\.planning-status.is-complete\{background:var\(--plan-complete-bg\);color:var\(--plan-complete-text\)\}/);
  assert.match(css,/@media\(forced-colors:active\)/);
  assert.match(css,/grid-template-columns:minmax\(0,1fr\) auto/);
 });

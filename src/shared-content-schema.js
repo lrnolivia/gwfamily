@@ -1,3 +1,5 @@
+import {validateCardLayouts} from './card-content-layout-model.js';
+import {photoFramePayload} from './photo-framing-model.js';
 import {defaultPanelLayout,validatePanelLayout} from './shared-panels.js';
 // Shared copy only. Navigation, accounts, profiles, posts and private records are
 // deliberately absent. Defaults remain source-controlled; the API stores overrides.
@@ -8,6 +10,7 @@ export const SHARED_CONTENT_LIMITS=Object.freeze({maxGalleryItems:10,maxMediaByt
 export const SHARED_IMAGE_TYPES=Object.freeze(['image/jpeg','image/png','image/webp','image/gif']);
 export const SHARED_VIDEO_TYPES=Object.freeze(['video/mp4','video/webm']);
 export const SHARED_PAGE_SCHEMA=Object.freeze({
+ 'leader-calendar':Object.freeze({label:'Calendar & Events',hero:false,fields:Object.freeze({})}),
  global:Object.freeze({label:'Shared footer',hero:false,fields:Object.freeze({footerTagline:text('Family tagline','Green & White. Same roots. New memories.',240)})}),
  home:page('Home',{
   heading:text('Page heading','Hey, family!'),heroEyebrow:text('Hero eyebrow','The next reunion',80),heroTitle:body('Hero heading','More time\nwith our people.',240),heroBodyFallback:body('Reunion date placeholder','Dates and location are on the way.'),feedTitle:text('Feed heading','Family feed'),reunionTitle:text('Reunion card heading','Your reunion'),
@@ -30,7 +33,7 @@ export const SHARED_PAGE_SCHEMA=Object.freeze({
 export function sharedPageDefaults(pageId){
  const schema=Object.hasOwn(SHARED_PAGE_SCHEMA,pageId)&&SHARED_PAGE_SCHEMA[pageId];
  if(!schema)throw new Error('Unknown shared page');
- return {text:Object.fromEntries(Object.entries(schema.fields).map(([key,field])=>[key,field.default])),hero:{mode:'default',media:[]},bodyFormats:{},panelLayout:defaultPanelLayout(pageId)};
+ return {text:Object.fromEntries(Object.entries(schema.fields).map(([key,field])=>[key,field.default])),hero:{mode:'default',media:[]},bodyFormats:{},panelLayout:defaultPanelLayout(pageId),cardLayouts:{}};
 }
 const record=value=>value!==null&&typeof value==='object'&&!Array.isArray(value)&&(Object.getPrototypeOf(value)===Object.prototype||Object.getPrototypeOf(value)===null);
 function keys(value,allowed){if(!record(value)||Object.keys(value).some(key=>!allowed.includes(key)))throw new Error('Unsupported shared content fields');}
@@ -44,18 +47,19 @@ export function sharedMarkdownSource(value,maxLength=1500){if(typeof value!=='st
 // Media transport metadata (URLs/types/names) is output-only, never accepted here.
 export function validateSharedPageContent(pageId,value){
  const defaults=sharedPageDefaults(pageId),schema=SHARED_PAGE_SCHEMA[pageId];
- keys(value,['text','hero','panelLayout','bodyFormats']);const inputText=value.text===undefined?{}:value.text;keys(inputText,Object.keys(schema.fields));
+ keys(value,['text','hero','panelLayout','bodyFormats','cardLayouts']);const inputText=value.text===undefined?{}:value.text;keys(inputText,Object.keys(schema.fields));
  const copy={...defaults.text},bodyFormats=value.bodyFormats??{};keys(bodyFormats,Object.keys(schema.fields).filter(key=>schema.fields[key].format==='markdown'));if(Object.values(bodyFormats).some(format=>format!=='markdown'))throw Error('Use a supported body text format');
  for(const [key,input]of Object.entries(inputText)){const field=schema.fields[key];copy[key]=bodyFormats[key]==='markdown'?sharedMarkdownSource(input,field.maxLength):sharedPlainText(input,field.maxLength,field.type==='multiline');}
- const hero=value.hero===undefined?defaults.hero:value.hero;keys(hero,['mode','media']);
+ const hero=value.hero===undefined?defaults.hero:value.hero;keys(hero,['mode','media','frame']);
  if(!['default','image','gallery','video'].includes(hero.mode)||!Array.isArray(hero.media)||!schema.hero&&hero.mode!=='default')throw new Error('Choose a supported hero layout');
  const count=hero.media.length;
  if(hero.mode==='default'?count!==0:hero.mode==='gallery'?count<1||count>SHARED_CONTENT_LIMITS.maxGalleryItems:count!==1)throw new Error('Choose the right number of hero files');
  const seen=new Set(),media=hero.media.map(file=>{
-  keys(file,['id','alt']);if(typeof file.id!=='string'||!/^[A-Za-z0-9_-]{1,100}$/.test(file.id)||seen.has(file.id))throw new Error('Choose distinct uploaded hero files');seen.add(file.id);
-  return {id:file.id,alt:sharedPlainText(file.alt??'',SHARED_CONTENT_LIMITS.maxAltLength)};
+  keys(file,['id','alt','frame']);if(typeof file.id!=='string'||!/^[A-Za-z0-9_-]{1,100}$/.test(file.id)||seen.has(file.id))throw new Error('Choose distinct uploaded hero files');seen.add(file.id);
+  return {id:file.id,alt:sharedPlainText(file.alt??'',SHARED_CONTENT_LIMITS.maxAltLength),...photoFramePayload(file.frame)};
  });
- const content={text:copy,hero:{mode:hero.mode,media},bodyFormats:{...bodyFormats},panelLayout:validatePanelLayout(pageId,value.panelLayout,(input,max,multiline)=>multiline?sharedMarkdownSource(input,max):sharedPlainText(input,max))};
+ const panelLayout=validatePanelLayout(pageId,value.panelLayout,(input,max,multiline)=>multiline?sharedMarkdownSource(input,max):sharedPlainText(input,max));
+ const content={text:copy,hero:{mode:hero.mode,media,...photoFramePayload(hero.frame)},bodyFormats:{...bodyFormats},panelLayout,cardLayouts:validateCardLayouts(pageId,panelLayout,value.cardLayouts)};
  if(new TextEncoder().encode(JSON.stringify(content)).byteLength>SHARED_CONTENT_LIMITS.maxContentBytes)throw new Error('Shared page content is too large');
  return content;
 }

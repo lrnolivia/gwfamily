@@ -1,4 +1,6 @@
-import React,{createContext,useContext,useEffect,useId,useMemo,useRef,useState} from 'react';
+import {photoFrameStyle} from './photo-framing-model.js';
+import './photo-framing.css';
+import React,{createContext,useContext,useCallback,useEffect,useId,useMemo,useRef,useState} from 'react';
 import {LiquidGlass,LiquidGlassFilter} from '@sohumsuthar/liquid-glass';
 import {buildDisplacementLUT,renderDisplacementMap} from '@sohumsuthar/liquid-glass/optics';
 import {useLiquidGlassEffects} from '@sohumsuthar/liquid-glass/hooks';
@@ -20,7 +22,7 @@ export const Control=React.forwardRef(function Control({className='',children,gl
   const radius=/\b(icon-button|send-button|fab|avatar)\b/.test(className)?28:/\bbutton\b/.test(className)?25:40;
   const lensState=useLiquidLens(lens?ref:{current:null},{bezel:6,refraction:.9,dispersion:0,radius});
   if(app?.data?.pending&&/\b(button|send-button)\b/.test(className))props.disabled=true;
-  const setRef=node=>{ref.current=node;if(typeof forwardedRef==='function')forwardedRef(node);else if(forwardedRef)forwardedRef.current=node};
+  const setRef=useCallback(node=>{ref.current=node;if(typeof forwardedRef==='function')forwardedRef(node);else if(forwardedRef)forwardedRef.current=node},[forwardedRef]);
   if(!glass)return React.createElement('button',{...props,ref:setRef,className:[className,floating?'on-floating-surface':''].filter(Boolean).join(' ')},children);
   return React.createElement('button',{...props,ref:setRef,
     className:['liquid-glass','lg-interactive','gw-optic-control',className].filter(Boolean).join(' '),
@@ -33,7 +35,7 @@ export const Control=React.forwardRef(function Control({className='',children,gl
     React.createElement('span',{key:'content',className:'liquid-glass-content gw-optic-content'},children));
 });
 export function Glyph({name,className=''}){return <svg className={'glyph '+className} viewBox="0 0 24 24" aria-hidden="true"><path d={paths[name]||paths.arrow}/></svg>}
-export function Avatar({member,size}){return member?.photo?<img className={'avatar '+(size||'')} src={member.photo} alt=""/>:
+export function Avatar({member,size}){return member?.photo?<span className={'avatar avatar-photo '+(size||'')}><img src={member.photo} style={photoFrameStyle(member.photoFrame)} alt=""/></span>:
   <span className={'avatar '+(size||'')}>{member?.name?.slice(0,1)||'?'}</span>}
 export function MemberBadges({member,interactive=false,passive=false,id}){
   const {state,go}=useApp();
@@ -45,7 +47,7 @@ export function MemberBadges({member,interactive=false,passive=false,id}){
   const canOpen=interactive&&!passive,circleName=person.circle==='loved'?'Loved Ones':'Family';
   return <span id={id} className="membership-chips">
     {person.circle&&<span className="membership-chip" title={circleName}><Glyph name={person.circle==='loved'?'heart':'people'}/><span className="membership-label">{circleName}</span></span>}
-    {destination&&(canOpen?<Control type="button" className="membership-chip membership-group" aria-label={groupLabel} title={groupName} onClick={event=>{event.stopPropagation();go(destination)}}><Glyph name="home"/><span className="membership-label">{groupName}</span></Control>:<span className="membership-chip membership-group" title={groupLabel}><Glyph name="home"/><span className="membership-label">{groupName}</span></span>)}
+    {destination&&(canOpen?<Control type="button" className="membership-chip-control" aria-label={groupLabel} title={groupName} onClick={event=>{event.stopPropagation();go(destination)}}><span className="membership-chip membership-group"><Glyph name="home"/><span className="membership-label">{groupName}</span></span></Control>:<span className="membership-chip membership-group" title={groupLabel}><Glyph name="home"/><span className="membership-label">{groupName}</span></span>)}
     {person.leader&&<span className="membership-chip membership-shield" role="img" aria-label="Family leader" title="Family leader"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 6v5c0 5-3 8-7 10-4-2-7-5-7-10V6zM8.5 11.8l2.3 2.3 4.7-4.7"/></svg></span>}
   </span>
 }
@@ -93,15 +95,27 @@ export function Popover({open,onClose,anchor,children,kind='menu',className='',s
     <div id={id} style={style} popover="auto" className={'gw-material-menu '+surfaceClass} onToggle={onToggle}><FloatingSurfaceContext.Provider value={true}>{children}</FloatingSurfaceContext.Provider></div>;
 }
 export function InlineFilters({label,children}){const [open,setOpen]=useState(false),id=useId();return <div className={'inline-filters '+(open?'is-open':'')}><Control className="filter-trigger" aria-label={label} aria-expanded={open} aria-controls={id} onClick={()=>setOpen(v=>!v)}><Glyph name="settings"/></Control><div id={id} className="inline-filter-reveal" inert={!open}><div className="inline-filter-bar">{children}</div></div></div>}
-export function Sheet({title,kind='normal',onClose,children,style,suppressGlobalPending=false,busy=false}) {
-  const app=useApp(),glass=app?.platform!=='android',close=()=>{if(!busy)onClose?.()};
-  const ref=useRef(null);
-  useEffect(()=>{const el=ref.current;if(el&&!el.open)el.showModal();return ()=>{if(el?.open)el.close()}},[]);
-  const className=kind==='profile'?'profile-sheet':kind==='comments'?'comments-surface':kind==='post'?'focus-surface':kind==='composer'?'composer-surface':kind==='filter'?'filter-surface':kind==='viewer'?'focus-surface memory-sheet':'';
-  const content=<FloatingSurfaceContext.Provider value={true}><div className="sheet-head"><h2 id="sheet-title">{title}</h2><Control type="button" id="close" className="icon-button" aria-label="Close dialog" disabled={busy} onClick={close}><Glyph name="close"/></Control></div>
-    <div id="sheet-body">{app?.data?.error&&<p className="note" role="alert">{app.data.error}</p>}{app?.data?.pending&&!suppressGlobalPending&&<p role="status" className="small muted">Saving…</p>}{children}</div></FloatingSurfaceContext.Provider>;
-  return <dialog id="sheet" ref={ref} className={className} style={style} aria-labelledby="sheet-title"
-    onCancel={e=>{e.preventDefault();close()}} onClick={e=>{if(e.target===ref.current)close()}}>
-    {glass?<LiquidGlass lens lensOptions={{bezel:14,refraction:1.05,dispersion:2,radius:32}} className="sheet-glass"><span className="glass-shadow" aria-hidden="true"/>{content}</LiquidGlass>:content}
-  </dialog>;
+const SheetFormContext=createContext(null);
+export function useSheetForm({label=null,busy=false,disabled=false,dirty=false}={}){
+ const register=useContext(SheetFormContext),id=useId().replace(/:/g,'')+'-sheet-form';
+ useEffect(()=>{if(!register)return;return register({id,label,busy,disabled,dirty})},[register,id,label,busy,disabled,dirty]);
+ return id;
+}
+export function Sheet({title,kind='normal',onClose,children,style,suppressGlobalPending=false,busy=false,completion=null}) {
+ const app=useApp(),glass=app?.platform!=='android',ref=useRef(null),titleId=useId().replace(/:/g,'')+'-title';
+ const [form,setForm]=useState(null),[confirmDiscard,setConfirmDiscard]=useState(false);
+ const register=useCallback(value=>{setForm(value);return()=>setForm(current=>current?.id===value.id?null:current)},[]);
+ const locked=busy||Boolean(form?.busy)||Boolean(app?.data?.pending&&!suppressGlobalPending);
+ const close=()=>{if(locked)return;if(form?.dirty){setConfirmDiscard(true);return}onClose?.()};
+ useEffect(()=>{const el=ref.current;if(el&&!el.open)el.showModal();return()=>{if(el?.open)el.close()}},[]);
+ const className=kind==='profile'?'profile-sheet':kind==='comments'?'comments-surface':kind==='post'?'focus-surface':kind==='composer'?'composer-surface':kind==='filter'?'filter-surface':kind==='viewer'?'focus-surface memory-sheet':'';
+ const action=completion||form?.label&&{label:form.label,formId:form.id,disabled:form.disabled};
+ const content=<FloatingSurfaceContext.Provider value={true}><SheetFormContext.Provider value={register}>
+  <div className="sheet-head"><Control type="button" id="close" className="icon-button sheet-close" aria-label="Close dialog" disabled={locked} onClick={close}><Glyph name="close"/></Control><h2 id={titleId}>{title}</h2>{action?<Control type={action.formId?'submit':'button'} form={action.formId} className="icon-button sheet-complete" aria-label={action.label} disabled={locked||action.disabled} onClick={action.onClick}><Glyph name="check"/></Control>:<span className="sheet-action-placeholder" aria-hidden="true"/>}</div>
+  <div id="sheet-body">{confirmDiscard?<section className="sheet-discard-confirm" role="alert"><h3>Discard unsaved changes?</h3><p>Your saved details will stay unchanged.</p><div className="row"><Button secondary onClick={()=>setConfirmDiscard(false)}>Keep editing</Button><Button onClick={()=>{setConfirmDiscard(false);onClose?.()}}>Discard changes</Button></div></section>:null}{app?.data?.error&&<p className="note" role="alert">{app.data.error}</p>}{locked&&!suppressGlobalPending&&<p role="status" className="small muted">Saving…</p>}<div inert={confirmDiscard||undefined}>{children}</div></div>
+ </SheetFormContext.Provider></FloatingSurfaceContext.Provider>;
+ return <dialog id="sheet" ref={ref} className={className} style={style} aria-labelledby={titleId}
+  onCancel={e=>{e.preventDefault();close()}} onClick={e=>{if(e.target===ref.current)close()}}>
+  {glass?<LiquidGlass lens lensOptions={{bezel:14,refraction:1.05,dispersion:2,radius:32}} className="sheet-glass"><span className="glass-shadow" aria-hidden="true"/>{content}</LiquidGlass>:content}
+ </dialog>;
 }

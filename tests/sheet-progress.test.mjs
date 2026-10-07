@@ -4,13 +4,13 @@ import fs from 'node:fs';
 const sheet=fs.readFileSync(new URL('../src/ui-core.jsx',import.meta.url),'utf8'),cms=fs.readFileSync(new URL('../src/page-content.jsx',import.meta.url),'utf8');
 test('sheets retain generic pending feedback unless an explicitly scoped child owns it',()=>{
  assert.match(sheet,/suppressGlobalPending=false,busy=false/);
- assert.match(sheet,/app\?\.data\?\.pending&&!suppressGlobalPending&&<p role="status"/);
+ assert.match(sheet,/locked&&!suppressGlobalPending&&<p role="status"/);
  assert.match(cms,/<section className="page-inline-editor" aria-label="Page media" aria-busy=\{uploading\}/);
  assert.match(cms,/role="status" aria-label="Page media upload"/);
 });
 test('busy panels disable close and preserve keyboard/backdrop dismissal locks',()=>{
- assert.match(sheet,/close=\(\)=>\{if\(!busy\)onClose\?\.\(\)\}/);
- assert.match(sheet,/aria-label="Close dialog" disabled=\{busy\} onClick=\{close\}/);
+ assert.match(sheet,/close=\(\)=>\{if\(locked\)return;if\(form\?\.dirty\)/);
+ assert.match(sheet,/aria-label="Close dialog" disabled=\{locked\} onClick=\{close\}/);
  assert.match(sheet,/onCancel=\{e=>\{e.preventDefault\(\);close\(\)\}\}/);
  assert.match(sheet,/if\(e.target===ref.current\)close\(\)/);
 });

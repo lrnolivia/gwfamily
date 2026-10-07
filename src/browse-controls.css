@@ -1,0 +1,7 @@
+/* Product tokens and domain content; geometry belongs to version-pinned shared UI. */
+.browse-controls.work-view-controls{--work-control-surface:var(--raised);--work-control-choice:var(--surface);--work-control-text:var(--text);--work-control-muted:var(--muted);--work-control-accent:color-mix(in srgb,var(--control,var(--accent)) 35%,#10271f);--work-control-on-accent:#fff;--work-control-done:#f5f3e8;--work-control-on-done:#172b20;font:inherit}
+.browse-controls .work-controls-footer{flex-wrap:wrap}
+.browse-controls .memory-filters{display:grid;grid-template-columns:minmax(0,1fr);overflow:visible;gap:14px}
+.browse-controls .memory-filters>.button{width:auto;justify-self:start}
+.browse-controls :is(input,button,select):focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+@media(max-width:699.98px){.browse-controls .work-control-summary{flex-wrap:wrap}.browse-controls .work-search-compact{flex:1 1 100%}.browse-controls .work-view-switch{justify-content:space-between;flex:1 1 100%}.browse-controls .work-view-switch button{flex:1}}

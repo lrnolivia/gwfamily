@@ -23,7 +23,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22.23.3'
           cache: npm
       - run: npm ci --ignore-scripts
       - run: node tests/prepare-assets.mjs
@@ -35,6 +35,10 @@ jobs:
       - id: backend_build
         run: node ../scripts/ci-test-summary.mjs backend && node ../scripts/ci-test-summary.mjs backend-build --build
         working-directory: backend
+      - name: Build year-safe recovery artifact
+        if: ${{ !cancelled() && steps.backend_build.outcome == 'success' }}
+        working-directory: backend
+        run: node scripts/build-year-safe-rollback.mjs
       - id: browser_install
         run: npx playwright install --with-deps chromium ${{ matrix.browser }}
       - name: Full recovery browser checks
@@ -79,6 +83,30 @@ jobs:
           node backend/tests/page-content-fixture-server.mjs > /tmp/gw-page-content-fixture.log 2>&1 &
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4176/api/config && break; sleep 1; done
           CI=true node scripts/ci-test-summary.mjs page-content-browser --browser tests/page-content-browser.mjs
+      - name: Panel movement and photo framing browser checks
+        if: ${{ !cancelled() && steps.frontend_build.outcome == 'success' && steps.backend_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 10
+        run: |
+          if ! curl -fsS http://127.0.0.1:4176/api/config; then
+            node backend/tests/page-content-fixture-server.mjs > /tmp/gw-page-content-fixture.log 2>&1 &
+            for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4176/api/config && break; sleep 1; done
+          fi
+          curl -fsS http://127.0.0.1:4176/api/config
+          CI=true node scripts/ci-test-summary.mjs granular-panel-framing-browser --browser tests/granular-panel-framing-browser.mjs
+      - name: Card content arrangement browser checks
+        if: ${{ !cancelled() && steps.frontend_build.outcome == 'success' && steps.backend_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 10
+        run: |
+          curl -fsS http://127.0.0.1:4176/api/config
+          CI=true node scripts/ci-test-summary.mjs card-content-layout-browser --browser tests/card-content-layout-browser.mjs
+      - name: Invitation and provisional access browser checks
+        if: ${{ !cancelled() && steps.frontend_build.outcome == 'success' && steps.backend_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          node backend/tests/family-invitations-fixture-server.mjs > /tmp/gw-invitation-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4177/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4177/api/config
+          CI=true node scripts/ci-test-summary.mjs family-invitations-browser --browser tests/family-invitations-browser.mjs
       - name: Choice and Send keyboard checks
         if: always() && steps.frontend_build.outcome == 'success'
         timeout-minutes: 6
@@ -119,9 +147,13 @@ jobs:
             docs/communications-qa
             docs/navigation-qa
             docs/page-content-qa
+            docs/card-content-qa
+            docs/invitation-qa
             docs/choice-control-qa
             docs/help-qa
             docs/notifications-qa
             backend/build/worker.mjs
             backend/build/worker-provenance.json
+            backend/build/year-safe-rollback.mjs
+            backend/build/year-safe-rollback-provenance.json
           retention-days: 7

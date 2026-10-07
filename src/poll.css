@@ -1,0 +1,18 @@
+.poll,.poll-options{display:grid;gap:10px;min-width:0}
+.poll .poll-choice{position:relative;isolation:isolate;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;justify-content:stretch;width:100%;min-width:0;min-height:54px;height:auto;padding:12px 14px;border:1px solid var(--line);border-radius:15px;background:var(--raised);color:var(--text);font:inherit;font-weight:650;text-align:start;transition:border-color .18s,transform .18s}
+.poll .poll-choice:hover,.poll .poll-choice.is-selected{border-color:var(--control,var(--accent))}
+.poll .poll-choice:active{transform:scale(.99)}
+.poll .poll-choice:focus-visible{outline:3px solid var(--control,var(--accent));outline-offset:3px}
+.poll .poll-choice>.poll-fill{position:absolute;z-index:0;inset:0 auto 0 0;width:0;height:100%;background:color-mix(in srgb,var(--accent) 26%,transparent);pointer-events:none;transition:width .3s ease}
+.poll.has-vote .poll-choice>.poll-fill{width:var(--poll-fill)}
+.poll .poll-choice>.poll-label{position:relative;z-index:1;grid-column:1;min-width:0;width:auto;text-align:start;white-space:normal;overflow-wrap:anywhere;line-height:1.4}
+.poll .poll-choice>.poll-result{position:relative;z-index:1;grid-column:2;font-size:.8125rem;font-variant-numeric:tabular-nums;color:var(--text);white-space:nowrap;text-align:end}
+.poll .poll-choice>.poll-indicator{position:relative;z-index:1;grid-column:3;width:24px;height:24px;margin:0;align-self:center;display:grid;place-items:center;border:1.5px solid var(--control,var(--accent));border-radius:50%;background:var(--surface)}
+.poll .poll-choice[role=checkbox]>.poll-indicator{border-radius:6px}
+.poll .poll-choice>.poll-indicator.selected{background:var(--control,var(--accent));color:var(--control-text,var(--ink))}
+.poll .poll-indicator>.glyph{width:16px;height:16px}
+.poll .poll-total{margin:0;color:var(--muted);text-align:end;font-size:.8125rem;overflow-wrap:anywhere}
+.poll .poll-feedback{margin:0;font-size:.8125rem;overflow-wrap:anywhere}
+.poll .poll-choice:disabled{cursor:wait}
+@media(prefers-reduced-motion:reduce){.poll .poll-choice,.poll .poll-fill{transition:none}}
+@media(forced-colors:active){.poll .poll-choice>.poll-fill{background:Highlight;opacity:.2}.poll .poll-choice.is-selected{border-color:Highlight}.poll .poll-choice>.poll-indicator.selected{background:Highlight;color:HighlightText}}

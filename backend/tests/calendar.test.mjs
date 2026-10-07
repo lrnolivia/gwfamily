@@ -55,7 +55,7 @@ test('legacy reunion and payment writes preserve events and advance relevant rev
 test('transaction rechecks Leader permission and full record compare-and-swap',async()=>{
  for(const mutation of ['permission','calendar','payment']){
   const {DB,sqlite,current}=setup(),actor={id:'alice',status:'active',group:'family',isLeader:true},input={type:'SAVE_EVENT',event,expectedRevision:0,requestId:crypto.randomUUID(),expectedAccountId:'alice'};
-  const wrapped={...DB,batch:async statements=>{if(mutation==='permission')sqlite.exec("UPDATE members SET is_leader=0 WHERE id='alice'");else sqlite.prepare("INSERT INTO reunion_settings(id,data_json,updated_by) VALUES('current',?,'owner')").run(JSON.stringify(mutation==='calendar'?{calendar:{revision:1,events:[]}}:{payment:{amount:'Concurrent payment'}}));return DB.batch(statements)}};
+  const wrapped={...DB,batch:async statements=>{if(mutation==='permission')sqlite.exec("UPDATE members SET is_leader=0 WHERE id='alice'");else sqlite.prepare("INSERT INTO reunion_settings(id,data_json,updated_by) VALUES('current',?,'owner') ON CONFLICT(id) DO UPDATE SET data_json=excluded.data_json").run(JSON.stringify(mutation==='calendar'?{calendar:{revision:1,events:[]}}:{payment:{amount:'Concurrent payment'}}));return DB.batch(statements)}};
   await assert.rejects(()=>calendarCommand(wrapped,actor,input,awaitHash),e=>e.status===(mutation==='permission'?403:409));
   assert.equal(current().calendar?.events?.length||0,0);assert.equal(sqlite.prepare('SELECT count(*) n FROM command_receipts').get().n,0);if(mutation==='payment')assert.equal(current().payment.amount,'Concurrent payment');
  }

@@ -1,3 +1,6 @@
+import {previewMembershipCommand} from './membership-model.js';
+import {normalizePayment} from './payment-model.js';
+import {ensurePreviewReunions,previewReunionCommand,REUNION_SCOPED_COMMANDS,REUNION_LIFECYCLE_COMMANDS,reunionArchived} from './reunion-model.js';
 import {applyCalendarCommand} from './calendar-model.js';
 import {normalizeNotificationSettings,previewNotificationSeed,previewVisibleNotifications} from './notification-model.js';
 import {householdPreview} from './household-model.js';
@@ -8,16 +11,16 @@ import {previewSeed} from './family-data.js';
 export const PREVIEW_KEY='gwfamily:preview:v2';
 export const previewCapabilities=Object.freeze({mode:'preview',networkWrites:false,sendInvitations:false,sendNotifications:false,payments:false,authenticate:false});
 export function initialState(){
-  return {mode:'preview',schema:2,onboarding:'welcome',selfId:'lauren',...previewSeed(),
+  return ensurePreviewReunions({mode:'preview',schema:2,onboarding:'welcome',selfId:'lauren',...previewSeed(),
     drafts:{post:'',comments:{},replies:{},files:{}},compose:{},favorites:[],feedFilter:'all',peopleFilter:'all',memoryFilters:{},notificationScope:'leaders',selectedNotificationIds:[],readNotices:[],
     notifications:previewNotificationSeed(),notificationSettings:normalizeNotificationSettings(),
     bag:[],order:null,payment:{paypal:'',cashApp:'',amount:''},fees:'unpaid',rsvp:null,details:{date:'',location:'',schedule:''},
-    households:[],householdRequests:[],householdId:null,reports:[],inviteDrafts:[],pollSelections:{},profilePhoto:null,contact:{},lastId:0};
+    households:[],householdRequests:[],householdId:null,reports:[],inviteDrafts:[],pollSelections:{},profilePhoto:null,contact:{},lastId:0});
 }
 export function loadLocalState(storage=globalThis.localStorage){
   try{
     const saved=JSON.parse(storage.getItem(PREVIEW_KEY));
-    if(saved?.schema===2&&saved?.mode==='preview'&&saved.state?.mode==='preview'&&Array.isArray(saved.state.members)&&Array.isArray(saved.state.posts)&&saved.state.members.some(m=>m.id===saved.state.selfId))return {...initialState(),...saved.state,notificationSettings:normalizeNotificationSettings(saved.state.notificationSettings||{},saved.state)};
+    if(saved?.schema===2&&saved?.mode==='preview'&&saved.state?.mode==='preview'&&Array.isArray(saved.state.members)&&Array.isArray(saved.state.posts)&&saved.state.members.some(m=>m.id===saved.state.selfId))return ensurePreviewReunions({...initialState(),...saved.state,reunions:saved.state.reunions,selectedReunionId:saved.state.selectedReunionId,notificationSettings:normalizeNotificationSettings(saved.state.notificationSettings||{},saved.state)});
   }catch{}
   return initialState();
 }
@@ -47,6 +50,16 @@ export function memberMatches(member,filter){
     filter==='family'&&member.circle==='family'||filter==='loved'&&member.circle==='loved';
 }
 export function reducer(state,action){
+ if(state.mode!=='preview')return state;
+ state=ensurePreviewReunions(state);
+ if(action.type==='SELECT_REUNION'||REUNION_LIFECYCLE_COMMANDS.has(action.type))return previewReunionCommand(state,action);
+ if(REUNION_SCOPED_COMMANDS.has(action.type)||['BAG_ADD','BAG_REMOVE'].includes(action.type)){
+  if(action.reunionId&&action.reunionId!==state.selectedReunionId)throw Error('The selected reunion changed. Reopen this form.');
+  if(reunionArchived(state))throw Error('This reunion is archived. Restore it before making changes.');
+ }
+ return reduceState(state,action);
+}
+function reduceState(state,action){
   if(state.mode!=='preview')return state;
   switch(action.type){
     case 'RESET_PREVIEW':return initialState();
@@ -118,10 +131,10 @@ export function reducer(state,action){
     case 'CLAIM_ORDER':{const order={memberId:state.selfId,id:'preview-order-'+Date.now(),status:'claimed',claimedAt:Date.now(),items:state.bag};return {...state,order,previewOrders:[order,...(state.previewOrders||[])],bag:[]}}
     case 'SAVE_PRODUCT':{const p={...action.product,id:action.product.id||'preview-item-'+Date.now()};return {...state,products:[...(state.products||[]).filter(x=>x.id!==p.id),p]}}
     case 'UPDATE_CLAIM':return {...state,order:state.order?.id===action.id?{...state.order,status:action.status}:state.order,previewOrders:(state.previewOrders||[]).map(o=>o.id===action.id?{...o,status:action.status}:o)};
-    case 'APPROVE_MEMBER':return {...state,members:state.members.map(m=>m.id===action.id?{...m,previewStatus:action.status,previewRoles:action.roles,canPost:action.canPost}:m)};
+    case 'APPROVE_MEMBER':case 'REMOVE_MEMBER':case 'RESTORE_MEMBER':return previewMembershipCommand(state,action);
     case 'CONFIRM_FEE':return {...state,fees:action.status,previewFeeReports:(state.previewFeeReports||[]).map(f=>f.id===action.id?{...f,status:action.status}:f)};
     case 'ORDER_RECEIVED':return {...state,order:state.order?{...state.order,status:'received',receivedAt:Date.now()}:null};
-    case 'SET_PAYMENT':return {...state,payment:action.value};
+    case 'SET_PAYMENT':return {...state,payment:normalizePayment(action.value)};
     case 'SET_FEES':return {...state,fees:'reported',previewFeeReports:[{memberId:state.selfId,id:'preview-fee-'+Date.now(),status:'reported'},...(state.previewFeeReports||[])]};
     case 'RSVP':return {...state,rsvp:action.value};
     case 'DETAILS':return {...state,details:{...state.details,...action.value,calendar:{...state.details?.calendar,revision:(state.details?.calendar?.revision||0)+1}}};
@@ -131,7 +144,8 @@ export function reducer(state,action){
     case 'MODERATE':return {...state,reports:state.reports.map(r=>r.id===action.id?{...r,status:action.status}:r),
       posts:action.status==='removed'?state.posts.filter(p=>p.id!==action.targetId):state.posts,
       memories:action.status==='removed'?state.memories.filter(m=>m.id!==action.targetId):state.memories};
-    case 'SAVE_INVITE_DRAFT':return {...state,inviteDrafts:[...state.inviteDrafts,{id:'invite-'+(state.lastId+1),
+    case 'RESET_INVITE_DRAFTS': return {...state,inviteDrafts:[]};
+ case 'SAVE_INVITE_DRAFT':return {...state,inviteDrafts:[...state.inviteDrafts,{id:'invite-'+(state.lastId+1),
       recipient:action.recipient,groupId:action.groupId,createdAt:Date.now()}],lastId:state.lastId+1};
     default:return householdPreview(state,action)||state;
   }

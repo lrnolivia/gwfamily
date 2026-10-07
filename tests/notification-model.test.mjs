@@ -120,7 +120,7 @@ test('Notifications settings has full-page entry from You and Notification Cente
  assert.match(app,/title="Notifications"[^\n]*onClick=\{\(\)=>go\(\{type:'notification-settings'\}\)\}/);
  assert.match(ui,/aria-label="Notification settings" onClick=\{\(\)=>go\(\{type:'notification-settings'\}\)\}/);
  assert.doesNotMatch(app,/case'notification-settings':return/);
- assert.match(app,/onClick=\{\(\)=>navigation.back\(\)\}/);
+ assert.match(app,/<PageNavigationHeader previous=\{navigation.previous\}/);assert.match(source('page-navigation.jsx'),/onClick=\{goBack\}/);assert.match(app,/goBack:\(\)=>\{if\(data.defer/);
  assert.match(ui,/aria-labelledby="notification-settings-heading"/);assert.match(ui,/<h1 id="notification-settings-heading"/);
  assert.match(css,/notification-settings-page/);assert.match(css,/max-width:520px/);
 });

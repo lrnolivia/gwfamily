@@ -20,7 +20,7 @@ test('the live wrapper preserves enrollment before optional upload and refreshes
  assert.match(enrollment,/onSave=\{saveProfile\}/);assert.ok(enrollment.indexOf("api('/api/enroll'")<enrollment.indexOf("api('/api/onboarding/photo'"));
  assert.match(enrollment,/if\(values\.file\)/);assert.match(enrollment,/await \(refreshEntry\|\|data\.refresh\)\(\)/);
  assert.doesNotMatch(enrollment,/canRehearseFirstLoad|rehearsal|roles|BOOTSTRAP_OWNER_EMAIL/);
- assert.match(signIn,/email,otp:code,name:email\.split\('@'\)\[0\]\}\)\}\);await \(refreshEntry\|\|data\.refresh\)\(\)/);
+ assert.match(signIn,/email,otp:code\}\)\}\);await \(refreshEntry\|\|data\.refresh\)\(\)/);
 });
 test('loading is outside Onboarding and the App sandbox neither resets data nor changes the real route',()=>{
  const app=read('src/react-app.jsx'),onboarding=app.slice(app.indexOf('function Onboarding(){'),app.indexOf('function Home(){'));
@@ -34,7 +34,7 @@ test('loading is outside Onboarding and the App sandbox neither resets data nor 
 });
 test('session capability uses verified server session and leaves the enrollment authority gate unchanged',()=>{
  const routes=read('backend/src/routes.mjs'),session=routes.slice(routes.indexOf("app.get('/api/session'"),routes.indexOf("app.post('/api/enroll'"));
- assert.match(session,/canRehearseFirstLoad:canRehearseFirstLoad\(e,session,member\)/);assert.match(session,/SELECT status FROM members WHERE id=\?/);assert.doesNotMatch(session,/batch\(|INSERT|UPDATE|DELETE|roles|is_leader/);
+ assert.match(session,/canRehearseFirstLoad:canRehearseFirstLoad\(e,session,member\)/);assert.match(session,/SELECT status,removed_at FROM members WHERE id=\?/);assert.doesNotMatch(session,/batch\(|INSERT|UPDATE|DELETE|roles|is_leader/);
  assert.equal((session.match(/canRehearseFirstLoad:false/g)||[]).length,3);
  assert.match(routes,/const owner=Boolean\(e\.BOOTSTRAP_OWNER_EMAIL\)&&e\.BOOTSTRAP_OWNER_EMAIL\.toLowerCase\(\)===session\.user\.email\.toLowerCase\(\)/);
  for(const path of ['src/first-load.jsx','src/first-load-model.js','src/enrollment-form.jsx'])assert.doesNotMatch(read(path),/lrnwhite|icloud\.com|BOOTSTRAP_OWNER_EMAIL/);
@@ -49,5 +49,5 @@ test('unverified state names email verification without changing status refresh,
  const signIn=read('src/sign-in.jsx'),waiting=signIn.slice(signIn.indexOf('export function WaitingForApproval(){'));
  assert.match(waiting,/unverified=data\.session\?\.status==='unverified'\|\|data\.session\?\.verified===false/);
  assert.match(waiting,/Email verification is pending\./);assert.match(waiting,/Your email is still awaiting verification/);
- assert.match(waiting,/await data\.refresh\(\)/);assert.match(waiting,/data\.signOut\(\)/);assert.doesNotMatch(waiting,/api\(|resend|send-verification|provider/);
+ assert.match(waiting,/await data\.refresh\(\)/);assert.match(waiting,/<SignOutControl\/>/);assert.match(read('src/account-actions.jsx'),/await data\.signOut\(\)/);assert.doesNotMatch(waiting,/api\(|resend|send-verification|provider/);
 });

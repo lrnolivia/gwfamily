@@ -1,0 +1,38 @@
+/* Final shared geometry, loaded after the legacy surface styles. This file owns
+   form metrics/containment; it does not alter profile palettes or semantic rings. */
+:root{--field-height:max(48px,calc(1.4em + 1.5rem + 2px));--field-pad-block:.75rem;--field-pad-inline:.875rem;--decorative-line:color-mix(in srgb,var(--line) 30%,transparent)}
+:is(.app,#sheet-body,.gw-glass-menu) :is(input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]):not([type=range]):not([type=hidden]),select){box-sizing:border-box;min-width:0;min-inline-size:0;max-width:100%;max-inline-size:100%;height:var(--field-height);min-height:var(--field-height);margin-block:0;padding:var(--field-pad-block) var(--field-pad-inline);font-family:inherit;font-size:max(1rem,16px);line-height:1.4;vertical-align:middle;border-radius:14px}
+:is(.app,#sheet-body,.gw-glass-menu) input:is([type=date],[type=time],[type=datetime-local]){appearance:none;-webkit-appearance:none;width:100%;max-width:100%}
+:is(.app,#sheet-body,.gw-glass-menu) input::-webkit-date-and-time-value{text-align:start;min-height:1.4em}
+:is(.app,#sheet-body,.gw-glass-menu) .choice-search-field>input[role=combobox]{padding-inline-end:82px}
+:is(.app,#sheet-body,.gw-glass-menu) select{padding-inline-end:2rem}
+:is(.app,#sheet-body,.gw-glass-menu) textarea{box-sizing:border-box;min-width:0;max-width:100%;min-inline-size:0;max-inline-size:100%;font-family:inherit;font-size:max(1rem,16px);line-height:1.5;resize:vertical}
+:is(.app,#sheet-body,.gw-glass-menu) :is(.gw-form,.form-section,.details-form,.page-panel-field) textarea{min-height:6.5em;height:auto;line-height:1.5;padding:var(--field-pad-block) var(--field-pad-inline)}
+:is(.app,#sheet-body,.gw-glass-menu) :is(form,fieldset,label){min-width:0;max-width:100%;overflow-wrap:anywhere}
+:is(.app,#sheet-body,.gw-glass-menu) :is(.form-short-row,.form-image-fields,.field-row){align-items:start}
+:is(.app,#sheet-body,.gw-glass-menu) .field-row>label{min-width:min(100%,10rem)}
+:is(.app,#sheet-body,.gw-glass-menu) :is(.section-head,.reunion-plan-heading,.card-actions,.form-actions){flex-wrap:wrap;min-width:0;gap:12px}
+:is(.app,#sheet-body,.gw-glass-menu) :is(.section-head,.reunion-plan-heading)>:is(h1,h2,h3,p){min-width:0;overflow-wrap:anywhere}
+:is(.app,#sheet-body,.gw-glass-menu) :is(.stack,.card,.page-shared-panel,.page-panel-zone,.list-row,.person-identity,.person-identity-copy,.profile-overview-head>div,.planning-link-copy){min-width:0;max-width:100%;box-sizing:border-box}
+:is(.app,#sheet-body,.gw-glass-menu) :is(h1,h2,h3,p,dd,.list-row>span,.button>span,.gw-optic-content,.contact-entry,a){overflow-wrap:anywhere}
+:is(.app,#sheet-body,.gw-glass-menu) .button{white-space:normal;min-width:0;max-width:100%;height:auto}
+:is(.app,#sheet-body,.gw-glass-menu) .button :is(.glyph,svg){flex-shrink:0}
+:is(.app,#sheet-body,.gw-glass-menu) .card{overflow:visible}
+/* 30% of existing decorative stroke opacity only. Controls, focus, selected,
+   error, editor drop targets, and checkbox boundaries retain their contrast. */
+:is(.app,#sheet-body) .card{border-color:color-mix(in srgb,var(--line) 15%,transparent)}
+:is(.app,#sheet-body) :is(.manage-member-row,.planning-member+.planning-member,.planning-people,.post-actions,.leader-summary-row,.leader-deadlines>div,.profile-counts,.page-panel-inline-controls,.page-inline-editor,.reunion-plans-page .payment-inline){border-color:var(--decorative-line)}
+.leader-page.stack{gap:24px}
+.leader-page>.leader-page-heading{gap:16px;align-items:center;margin:0;padding:0}
+.leader-page-heading h1{margin:0 0 8px}
+.leader-page-heading>.button{margin:0}
+.leader-page>.leader-tabs{margin:0;padding:4px;gap:8px}
+.leader-page>.note{margin:0}
+.leader-overview :is(h2,p){margin-top:0}
+@media(max-width:700px){.leader-overview,.leader-details-layout{grid-template-columns:minmax(0,1fr)}.leader-page.stack{gap:20px}}
+
+/* A profile is content-sized even beside a much longer stack of You panels. */
+.profile.profile-overview{display:flex;flex-direction:column;height:auto;min-height:0;align-self:start;align-content:start;justify-items:stretch}
+.page-panel-zone>.page-shared-panel{align-self:start;min-height:0}
+.you-columns.you-columns{align-items:start}
+@media(max-width:700px){.you-columns.you-columns{grid-template-columns:minmax(0,1fr)}.profile.profile-overview{width:100%}}

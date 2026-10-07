@@ -39,6 +39,7 @@ html[data-mobile-os] .app:has(>.bottom)::after {
   }
 }
 @media (min-width: 700px) {
+  html[data-display-mode=browser]{--gw-nav-edge-gap:18px}
   :root { --gw-nav-fab-bottom: calc(var(--gw-nav-bottom) + 8px); }
 }
 /* Leave composer/popup visualViewport positioning untouched. A confirmed

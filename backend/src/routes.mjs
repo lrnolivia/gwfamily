@@ -1,3 +1,7 @@
+import {invitationsEnabled,provisionalAllowed,registerInvitationEntry,registerFamilyInvitations} from './family-invitations.mjs';
+import {storedPhotoFrame} from './photo-framing.mjs';
+import {resolveReunion as resolveReunionRecord} from './reunions.mjs';
+const resolveReunion=(...args)=>resolveReunionRecord(...args).catch(e=>{if(e.status)throw new UserError(e.message,e.status);throw e});
 import {canRehearseFirstLoad} from './first-load-policy.mjs';
 import {registerPushRoutes} from './push-routes.mjs';
 import {readCalendar} from './calendar.mjs';
@@ -8,20 +12,23 @@ import {registerHouseholdInvites} from './household-invites.mjs';
 import {adultOn} from './birthdays.mjs';
 import {UserError,command,familyState,json,readPost,validDate} from './family-service.mjs';
 import {authEnvironment,authReady,createRateStorage} from './auth.mjs';
+import {publicAuthConfig} from './auth-providers.mjs';
 import {can} from './policy.mjs';
 export function registerPublic(app,authFactory){
- app.get('/api/config',c=>{const e=authEnvironment(c.env);return c.json({configured:authReady(e),email:authReady(e)&&e.AUTH_EMAIL_ENABLED==='true'&&Boolean(e.EMAIL),providers:[e.AUTH_GOOGLE_ACCESS_AUD||e.GOOGLE_CLIENT_ID&&e.GOOGLE_CLIENT_SECRET?'google':null,e.APPLE_CLIENT_ID&&e.APPLE_CLIENT_SECRET?'apple':null,e.MICROSOFT_CLIENT_ID&&e.MICROSOFT_CLIENT_SECRET?'microsoft':null].filter(Boolean),googleMode:e.AUTH_GOOGLE_ACCESS_AUD?'access':'native',origin:e.AUTH_ORIGIN})});
+ registerInvitationEntry(app,authFactory);
+ app.get('/api/config',c=>{const e=authEnvironment(c.env);return c.json({...publicAuthConfig(e,authReady(e)),familyInvitations:invitationsEnabled(e),familyInvitationEmail:invitationsEnabled(e)&&Boolean(e.EMAIL)})});
  app.get('/api/session',async c=>{
   const e=authEnvironment(c.env);if(!authReady(e))return c.json({signedIn:false,configured:false,canRehearseFirstLoad:false});
   const session=await authFactory(e).api.getSession({headers:c.req.raw.headers});if(!session)return c.json({signedIn:false,configured:true,canRehearseFirstLoad:false});
   if(!session.user.emailVerified)return c.json({signedIn:true,verified:false,status:'unverified',canRehearseFirstLoad:false});
-  const member=await e.DB.prepare('SELECT status FROM members WHERE id=?').bind(session.user.id).first();
-  return c.json({signedIn:true,verified:true,user:{id:session.user.id,name:session.user.name,email:session.user.email},status:member?.status||'new',canRehearseFirstLoad:canRehearseFirstLoad(e,session,member)});
+  const member=await e.DB.prepare('SELECT status,removed_at FROM members WHERE id=?').bind(session.user.id).first();
+  return c.json({signedIn:true,verified:true,user:{id:session.user.id,name:session.user.name,email:session.user.email},status:member?.status||'new',membershipRemoved:Boolean(member?.removed_at),provisionalAccess:await provisionalAllowed(e,session.user,member),canRehearseFirstLoad:canRehearseFirstLoad(e,session,member)});
  });
  app.post('/api/enroll',async c=>{
   const e=authEnvironment(c.env);if(!authReady(e))throw new UserError('Sign-in is not configured',503);
   if(c.req.header('Origin')!==e.AUTH_ORIGIN)throw new UserError('Invalid request origin',403);
   const session=await authFactory(e).api.getSession({headers:c.req.raw.headers});if(!session?.user.emailVerified)throw new UserError('Verify your email before joining',401);
+  const existing=await e.DB.prepare('SELECT removed_at FROM members WHERE id=?').bind(session.user.id).first();if(existing?.removed_at)throw new UserError('An admin must restore your removed membership for review.',403);
   const value=await c.req.json();if(typeof value.name!=='string'||!value.name.trim()||value.name.length>80||!validDate(value.birthday)||value.privacyAccepted!==true)throw new UserError('Enter your name and birthday, then confirm the privacy notice');
   if(value.birthdayCelebration===true&&!adultOn(value.birthday))throw new UserError('Public birthday celebrations are available for adult profiles only');
   const profileColor=/^#[0-9a-f]{6}$/i.test(value.profileColor||'')?value.profileColor:'#4f996c';
@@ -31,7 +38,7 @@ export function registerPublic(app,authFactory){
    e.DB.prepare('UPDATE user SET name=?,updatedAt=? WHERE id=?').bind(value.name.trim(),Date.now(),session.user.id),
    e.DB.prepare('INSERT INTO profiles(member_id,birthday,completed,birthday_celebration,profile_color) VALUES(?,?,1,?,?) ON CONFLICT(member_id) DO UPDATE SET birthday=excluded.birthday,completed=1,birthday_celebration=excluded.birthday_celebration,profile_color=excluded.profile_color,updated_at=CURRENT_TIMESTAMP').bind(session.user.id,value.birthday,value.birthdayCelebration===true?1:0,profileColor)
   ]);
-  const member=await e.DB.prepare('SELECT status FROM members WHERE id=?').bind(session.user.id).first();return c.json({status:member.status});
+  const member=await e.DB.prepare('SELECT status,removed_at FROM members WHERE id=?').bind(session.user.id).first();return c.json({status:member.status});
  });
 
 
@@ -39,7 +46,7 @@ export function registerPublic(app,authFactory){
   const e=authEnvironment(c.env);if(!authReady(e)||!e.R2)throw new UserError('Photo storage is not configured',503);
   if(c.req.header('Origin')!==e.AUTH_ORIGIN)throw new UserError('Invalid request origin',403);
   const session=await authFactory(e).api.getSession({headers:c.req.raw.headers});if(!session?.user.emailVerified)throw new UserError('Sign in before adding a photo',401);
-  const member=await e.DB.prepare('SELECT status FROM members WHERE id=?').bind(session.user.id).first();if(!member||!['active','pending'].includes(member.status))throw new UserError('Complete your details before adding a photo',403);
+  const member=await e.DB.prepare('SELECT status,removed_at FROM members WHERE id=?').bind(session.user.id).first();if(!member||!['active','pending'].includes(member.status))throw new UserError('Complete your details before adding a photo',403);
   const rate=await createRateStorage(e.DB).consume('onboarding-photo:'+session.user.id,{window:3600,max:6});if(!rate.allowed)throw new UserError('Photo upload limit reached. Try again later.',429);
   const form=await c.req.formData(),file=form.get('file');if(!file||typeof file.arrayBuffer!=='function'||!file.size||file.size>10*1024*1024||!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type))throw new UserError('Choose a JPEG, PNG, WebP or GIF under 10 MB');
   const bytes=await file.arrayBuffer(),head=new Uint8Array(bytes,0,Math.min(16,bytes.byteLength)),sig=String.fromCharCode(...head);
@@ -48,21 +55,22 @@ export function registerPublic(app,authFactory){
   try{await e.DB.batch([e.DB.prepare('INSERT INTO media(id,owner_id,object_key,name,mime_type,size_bytes) VALUES(?,?,?,?,?,?)').bind(id,session.user.id,key,'Profile photo',file.type,file.size),e.DB.prepare('UPDATE user SET image=?,updatedAt=? WHERE id=?').bind(url,Date.now(),session.user.id)])}catch(error){await e.R2.delete(key);throw error}return c.json({url},201);
  });
 }
-export function registerFamily(app){registerPushRoutes(app);registerNotifications(app);registerHouseholdInvites(app);registerMessaging(app);registerPageContent(app);
- app.get('/api/calendar',async c=>{try{return c.json(await readCalendar(c.env.DB,c.get('actor')))}catch(error){if(error.status)throw new UserError(error.message,error.status);throw error}});
- app.get('/api/state',async c=>c.json(await familyState(c.env.DB,c.get('actor'))));
+export function registerFamily(app){registerPushRoutes(app);registerNotifications(app);registerHouseholdInvites(app);registerFamilyInvitations(app);registerMessaging(app);registerPageContent(app);
+ app.get('/api/calendar',async c=>{try{return c.json(await readCalendar(c.env.DB,c.get('actor'),c.req.query('reunionId')))}catch(error){if(error.status)throw new UserError(error.message,error.status);throw error}});
+ app.get('/api/state',async c=>c.json(await familyState(c.env.DB,c.get('actor'),c.req.query('reunionId'))));
  app.post('/api/commands',async c=>c.json(await command(c.env.DB,c.get('actor'),await c.req.json())));
  app.get('/api/directory',async c=>{
-  const actor=c.get('actor'),rows=(await c.env.DB.prepare(`SELECT m.id,u.name,u.image,p.contact_json FROM members m JOIN user u ON u.id=m.id JOIN profiles p ON p.member_id=m.id WHERE m.status='active'`).bind().all()).results||[];
-  const cards=rows.flatMap(m=>{const v=json(m.contact_json);if(!v.name)return [];const self=m.id===actor.id,allowed=self||(v.optIn===true&&(v.visibility==='All approved family members'||v.visibility==='Family leaders'&&actor.isLeader||v.visibility==='Selected family members'&&v.selectedIds?.includes(actor.id)));if(!allowed)return [];const {selectedIds,visibility,optIn,...card}=v;return [{memberId:m.id,...card,photo:v.useProfile?m.image:v.photo,name:card.name||m.name}]});return c.json({cards});
+  const actor=c.get('actor'),rows=(await c.env.DB.prepare(`SELECT m.id,u.name,u.image,p.contact_json,p.photo_frame_json FROM members m JOIN user u ON u.id=m.id JOIN profiles p ON p.member_id=m.id WHERE m.status='active'`).bind().all()).results||[];
+  const cards=rows.flatMap(m=>{const v=json(m.contact_json);if(!v.name)return [];const self=m.id===actor.id,allowed=self||(v.optIn===true&&(v.visibility==='All approved family members'||v.visibility==='Family leaders'&&actor.isLeader||v.visibility==='Selected family members'&&v.selectedIds?.includes(actor.id)));if(!allowed)return [];const {selectedIds,visibility,optIn,...card}=v;return [{memberId:m.id,...card,photo:v.useProfile?m.image:v.photo,photoFrame:v.useProfile?storedPhotoFrame(m.photo_frame_json):storedPhotoFrame(v.photoFrame),name:card.name||m.name}]});return c.json({cards});
  });
  app.get('/api/manage',async c=>{
   const actor=c.get('actor');if(!can(actor,'manage_reunion')&&!can(actor,'manage_members')&&!can(actor,'confirm_fees'))throw new UserError('Planner permission required',403);
-  const members=can(actor,'manage_members')?(await c.env.DB.prepare('SELECT m.id,m.status,m.roles_json,m.can_post,u.name,u.email FROM members m JOIN user u ON u.id=m.id ORDER BY m.created_at').bind().all()).results:[];
-  const rsvps=can(actor,'manage_reunion')?(await c.env.DB.prepare('SELECT r.*,u.name FROM rsvps r JOIN user u ON u.id=r.member_id').bind().all()).results:[];
-  const claims=can(actor,'manage_reunion')?(await c.env.DB.prepare('SELECT c.*,u.name FROM shirt_claims c JOIN user u ON u.id=c.member_id ORDER BY c.created_at DESC').bind().all()).results:[];
-  const fees=can(actor,'confirm_fees')?(await c.env.DB.prepare('SELECT f.*,u.name FROM fee_reports f JOIN user u ON u.id=f.member_id ORDER BY f.created_at DESC').bind().all()).results:[];
-  const products=can(actor,'manage_reunion')?(await c.env.DB.prepare('SELECT * FROM products WHERE deleted_at IS NULL ORDER BY name').bind().all()).results.map(p=>({...json(p.data_json),id:p.id,name:p.name,description:p.description,active:!!p.active})):[];return c.json({members,rsvps,claims,fees,products});
+  const reunion=await resolveReunion(c.env.DB,c.req.query('reunionId'));
+  const members=can(actor,'manage_members')?(await c.env.DB.prepare('SELECT m.id,m.status,m.roles_json,m.can_post,m.removed_at,m.membership_revision,u.name,u.email,(SELECT inviter.name FROM family_invitations i JOIN user inviter ON inviter.id=i.sender_id WHERE i.accepted_by=m.id ORDER BY i.accepted_at ASC LIMIT 1) AS invited_by_name FROM members m JOIN user u ON u.id=m.id ORDER BY m.created_at').bind().all()).results:[];
+  const rsvps=can(actor,'manage_reunion')?(await c.env.DB.prepare('SELECT r.*,u.name FROM reunion_rsvps r JOIN user u ON u.id=r.member_id WHERE r.reunion_id=?').bind(reunion.id).all()).results:[];
+  const claims=can(actor,'manage_reunion')?(await c.env.DB.prepare('SELECT c.*,u.name FROM shirt_claims c JOIN user u ON u.id=c.member_id WHERE c.reunion_id=? ORDER BY c.created_at DESC').bind(reunion.id).all()).results:[];
+  const fees=can(actor,'confirm_fees')?(await c.env.DB.prepare('SELECT f.*,u.name FROM fee_reports f JOIN user u ON u.id=f.member_id WHERE f.reunion_id=? ORDER BY f.created_at DESC').bind(reunion.id).all()).results:[];
+  const products=can(actor,'manage_reunion')?(await c.env.DB.prepare('SELECT * FROM products WHERE reunion_id=? AND deleted_at IS NULL ORDER BY name').bind(reunion.id).all()).results.map(p=>({...json(p.data_json),id:p.id,name:p.name,description:p.description,active:!!p.active})):[];return c.json({reunionId:reunion.id,members,rsvps,claims,fees,products});
  });
  app.post('/api/media',async c=>{
   const actor=c.get('actor'),db=c.env.DB,bucket=c.env.R2;if(!bucket)throw new UserError('Media storage is not configured',503);

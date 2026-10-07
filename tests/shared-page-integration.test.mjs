@@ -34,3 +34,11 @@ test('update reload includes shared-page writes, drafts and safe recovery checks
  assert.match(files['react-app.jsx'],/pageContent.storageSafe!==false/);
  assert.match(files['react-app.jsx'],/resetPreview\(\);resetPageContentPreview\(\)/);
 });
+
+
+test('birthday page renders its registered native calendar slot',async()=>{
+ const {NATIVE_PANEL_DEFINITIONS}=await import('../src/shared-panels.js');
+ const section=files['react-app.jsx'].split("route.type==='birthdays'?")[1]?.split("route.type==='contact'?")[0];
+ assert.ok(section,'Birthday route exists');
+ for(const [id] of NATIVE_PANEL_DEFINITIONS.birthdays)assert.ok(section.includes("'native-"+id+"':<Birthdays/>"),'Registered birthday panel is rendered');
+});

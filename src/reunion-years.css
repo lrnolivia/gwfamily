@@ -1,0 +1,9 @@
+.reunion-selector{display:grid;grid-template-columns:minmax(12rem,20rem) minmax(0,1fr);align-items:end;gap:1rem;padding-block:1rem;border-bottom:1px solid var(--line)}
+.reunion-selector label,.reunion-year-manager label{min-width:0}
+.reunion-selector select,.reunion-year-manager select,.reunion-year-manager input:not([type=checkbox]){width:100%;min-width:0;box-sizing:border-box;font:inherit}
+.reunion-selector p{margin:0;max-width:55ch}
+.reunion-add-year{display:flex;align-items:end;gap:1rem;flex-wrap:wrap}
+.reunion-add-year label{flex:1 1 10rem}
+.reunion-lifecycle{border-top:1px solid var(--line);padding-top:1rem}
+.reunion-selector :is(select,input):focus-visible,.reunion-year-manager :is(select,input):focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media(max-width:540px){.reunion-selector{grid-template-columns:minmax(0,1fr)}}

@@ -25,3 +25,15 @@
 
 .page-panel-layout>.page-primary-hero{margin-bottom:24px}.page-shared-panel{container-type:inline-size}@container(max-width:520px){.page-shared-panel .home-hero,.page-shared-panel .memories-hero,.page-panel-preset-feature{grid-template-columns:1fr}}
 .page-panel-copy h2{overflow-wrap:anywhere;text-wrap:balance}
+
+/* Every built-in section is an independent layout slot, including single-section pages. */
+.page-native-panel>.card,.page-native-panel>aside>.card{margin:0}.page-native-panel{align-self:start}
+.page-panel-photo-crop{aspect-ratio:3/2;overflow:hidden;border-radius:12px}.page-panel-photo-crop>img{display:block;width:100%;height:100%;object-fit:cover}
+.page-panel-layout.is-wide>.page-panel-columns{align-items:start}.page-panel-zone{align-self:start}
+.page-panel-zone-side .columns,.page-panel-zone-side .product-grid{grid-template-columns:minmax(0,1fr)}
+.page-panel-zone-side .profile,.page-panel-zone-side .planning-checklist{min-width:0;max-width:100%}
+.page-shared-panel .home-hero{margin-top:0;margin-bottom:0}.page-panel-layout .home-context{position:static;margin:0}
+.page-panel-layout .gw-carousel-photo,.page-media-file-preview{overflow:hidden}
+.page-panel-drag:focus-visible{outline:2px solid var(--control);outline-offset:2px}
+
+.page-mobile-drag-label{touch-action:none;cursor:grab}.page-mobile-drag-label:active{cursor:grabbing}

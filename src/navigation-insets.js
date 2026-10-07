@@ -43,7 +43,7 @@ export function keyboardIsOpen({mobileOS: os = 'none', editable = false, layoutH
 export function navigationInsetMetrics({mobileOS: os = 'none', displayMode: mode = 'browser',
   safeAreaBottom = 0, width = 390} = {}) {
   const safe = Math.max(0, Number(safeAreaBottom) || 0);
-  const gap = os === 'none' ? 4 : os === 'ios' && mode === 'browser' ? 2 : 0;
+  const gap = mode === 'browser' && width >= 700 ? 18 : os === 'none' ? 4 : os === 'ios' && mode === 'browser' ? 2 : 0;
   const bottom = Math.max(gap, safe - 7);
   return {bottom, buttonBottom: bottom + 7, height: 72,
     fabBottom: bottom + (width >= 700 ? 8 : 84), fabHeight: 56};

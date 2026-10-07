@@ -1,3 +1,4 @@
+import {normalizePhotoFrame} from './photo-framing-model.js';
 import {directoryPeople} from './member-directory.js';
 import {heritageRoles} from './household-heritage.js';
 export function householdAccent(h){
@@ -6,7 +7,7 @@ export function householdAccent(h){
 }
 export function householdPreview(state,action){const hs=state.households||[],rs=state.householdRequests||[],id=action.householdId,own=state.selfId;switch(action.type){
 case'CREATE_HOUSEHOLD':{const id='preview-household-'+(state.lastId+1);return {...state,lastId:state.lastId+1,householdId:id,households:[...hs,{id,name:action.name,color:null,colorMode:'inherit',photo:null,founderId:own,memberIds:[own],headIds:[own],canManage:true,heritage:[]}]}}
-case'SAVE_HOUSEHOLD':return {...state,households:hs.map(h=>h.id===id?{...h,name:action.name,color:action.colorMode==='inherit'?null:action.color,colorMode:action.colorMode||'custom',photo:action.photo}:h)};
+case'SAVE_HOUSEHOLD':return {...state,households:hs.map(h=>h.id===id?{...h,name:action.name,color:action.colorMode==='inherit'?null:action.color,colorMode:action.colorMode||'custom',photo:action.photo,photoFrame:normalizePhotoFrame(action.photoFrame??(action.photo===h.photo?h.photoFrame:undefined))}:h)};
 case'SAVE_HOUSEHOLD_HERITAGE':{
  const h=hs.find(h=>h.id===id),entry=action.entry||{},role=Object.hasOwn(heritageRoles,entry.role)?heritageRoles[entry.role]:null;
  if(!h?.headIds.includes(own)||!role||!role.titles.includes(entry.title)||!directoryPeople(state,{purpose:entry.role==='ancestral-head'?'ancestral-head':'member'}).some(m=>m.id===entry.personId))return state;

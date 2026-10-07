@@ -1,12 +1,15 @@
-.membership-chips{display:flex;min-width:0;max-width:100%;flex-wrap:wrap;gap:6px;align-items:center}
-.membership-chip.membership-chip{display:inline-flex;align-items:center;min-width:0;max-width:100%;font-size:clamp(.8125rem,.775rem + .2vw,.9375rem);line-height:1.3;white-space:nowrap;text-decoration:none}
-.membership-chip .membership-label{display:block;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.membership-chip .glyph,.membership-chip svg{flex:none}
-.membership-chip.membership-group{text-decoration:none!important}
-.membership-chips button.membership-chip{min-height:44px;min-width:44px;padding-inline:10px;cursor:pointer}
-.membership-chips button.membership-chip:hover{box-shadow:inset 0 0 0 1px currentColor}
-.membership-chips button.membership-chip:active{box-shadow:inset 0 0 0 2px currentColor}
-.membership-chip.membership-shield{flex:none;overflow:visible}
-.membership-chip:focus-visible{outline:3px solid var(--control,var(--accent));outline-offset:3px}
+/* One badge face everywhere. Interactive badges keep a 44px target around the
+   approved compact face rather than inflating the colored household pill. */
+.membership-chips.membership-chips{display:flex;min-width:0;max-width:100%;flex-wrap:wrap;gap:6px;align-items:center;margin-top:0}
+.membership-chips .membership-chip.membership-chip{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-width:0;max-width:100%;min-height:25px;padding:3px 9px;border-radius:999px;background:var(--soft);color:var(--text);font-size:.8125rem;font-weight:650;line-height:1.3;white-space:normal;text-decoration:none;box-sizing:border-box}
+.membership-chips .membership-chip .membership-label{display:block;min-width:0;overflow:visible;white-space:normal;overflow-wrap:anywhere;text-overflow:clip}
+.membership-chips .membership-chip :is(.glyph,svg){flex:none;width:13px;height:13px;margin:0;fill:none;stroke:currentColor;stroke-width:1.8}
+.membership-chips .membership-chip.membership-group{background:#c0aa77;color:#172b20;text-decoration:none}
+html[data-theme=light] .membership-chips .membership-chip.membership-group{background:#ead8a8;color:#283c2a}
+.membership-chips .membership-chip-control{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;max-width:100%;padding:0;background:transparent;border:0;border-radius:999px;text-decoration:none;cursor:pointer}
+.membership-chips .membership-chip-control:hover>.membership-chip{box-shadow:inset 0 0 0 1px currentColor}
+.membership-chips .membership-chip-control:active>.membership-chip{box-shadow:inset 0 0 0 2px currentColor}
+.membership-chips .membership-chip.membership-shield{flex:none;overflow:visible;min-width:25px;padding:4px;background:var(--accent);color:var(--ink)}
+.membership-chip-control:focus-visible{outline:3px solid var(--control,var(--accent));outline-offset:3px}
 .person-identity .membership-chips,.directory-person-badges .membership-chips{max-width:100%}
-@media(forced-colors:active){.membership-chip:focus-visible{outline-color:Highlight}}
+@media(forced-colors:active){.membership-chip-control:focus-visible{outline-color:Highlight}.membership-chips .membership-chip.membership-chip{background:Canvas;color:CanvasText;border:1px solid CanvasText}}

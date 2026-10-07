@@ -1,5 +1,8 @@
 import {signInCodeEmail,signInLinkEmail} from './email-template.mjs';
 import {googleAccess} from './google-access.mjs';
+import {accessProvider} from './access-providers.mjs';
+import {microsoftAccess} from './microsoft-access.mjs';
+import {accessProviderConfig,configuredAuthProviders,accessProviderRateRules} from './auth-providers.mjs';
 import { betterAuth } from 'better-auth';
 import { emailOTP, magicLink } from 'better-auth/plugins';
 import {authDiagnosticLogger} from './error-diagnostics.mjs';
@@ -29,7 +32,7 @@ export function createAuth(rawEnv) {
   const providers = {};
   if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) providers.google = {clientId:env.GOOGLE_CLIENT_ID,clientSecret:env.GOOGLE_CLIENT_SECRET};
   if (env.APPLE_CLIENT_ID && env.APPLE_CLIENT_SECRET) providers.apple = {clientId:env.APPLE_CLIENT_ID,clientSecret:env.APPLE_CLIENT_SECRET};
-  if (env.MICROSOFT_CLIENT_ID && env.MICROSOFT_CLIENT_SECRET) providers.microsoft = {clientId:env.MICROSOFT_CLIENT_ID,clientSecret:env.MICROSOFT_CLIENT_SECRET};
+  if (configuredAuthProviders(env).some(p=>p.id==='microsoft'&&p.mode==='native')) providers.microsoft = {clientId:env.MICROSOFT_CLIENT_ID,clientSecret:env.MICROSOFT_CLIENT_SECRET,tenantId:env.MICROSOFT_TENANT_ID,requireEmailVerification:true};
   const send = async (email,subject,text,html) => {
     if (!env.EMAIL || env.AUTH_EMAIL_ENABLED !== 'true') throw new Error('Email sign-in is not enabled');
     await env.EMAIL.send({from:{email:'family@greenwhitefamily.com',name:'Green & White Family'},to:email,subject,text,html});
@@ -42,9 +45,11 @@ export function createAuth(rawEnv) {
     session:{expiresIn:60*60*24*7,updateAge:60*60*24,cookieCache:{enabled:false}},
     advanced:{useSecureCookies:true,ipAddress:{ipAddressHeaders:['cf-connecting-ip']}},
     rateLimit:{enabled:true,window:60,max:30,customStorage:createRateStorage(env.DB),customRules:{
-      '/sign-in/cloudflare-google':{window:300,max:6},'/callback/cloudflare-google':{window:300,max:12},'/sign-in/magic-link':{window:300,max:3},'/email-otp/send-verification-otp':{window:300,max:3},'/sign-in/email-otp':{window:300,max:8}
+      ...accessProviderRateRules(env),'/microsoft-proof/send-code':{window:300,max:6},'/microsoft-proof/complete':{window:300,max:10},'/microsoft-proof/cancel':{window:300,max:10},'/sign-in/magic-link':{window:300,max:3},'/email-otp/send-verification-otp':{window:300,max:3},'/sign-in/email-otp':{window:300,max:8}
     }},
-    plugins:[...(env.AUTH_GOOGLE_ACCESS_AUD?[googleAccess(env)]:[]),
+    plugins:[...(accessProviderConfig(env,'google')?[googleAccess(env)]:[]),
+      ...(accessProviderConfig(env,'microsoft')?[microsoftAccess(env,{consumeRate:(key,rule)=>createRateStorage(env.DB).consume(key,rule)})]:[]),
+      ...(accessProviderConfig(env,'yahoo')?[accessProvider(env,'yahoo')]:[]),
       emailOTP({expiresIn:600,otpLength:6,allowedAttempts:3,storeOTP:'hashed',sendVerificationOTP:async({email,otp})=>
         send(email,'Your Green & White sign-in code',`Your code is ${otp}. It expires in 10 minutes. If you did not request this, ignore this email.`,
           signInCodeEmail(otp))}),

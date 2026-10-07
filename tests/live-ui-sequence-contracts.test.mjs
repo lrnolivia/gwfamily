@@ -71,8 +71,8 @@ test('Live approval follows the actual shared focused review and awaits active r
   assert.match(manage, /onSave\(\{type:'APPROVE_MEMBER',id:m\.id,status,roles,canPost:post\}\)/);
   assert.match(app, /'leader-member-review':'Review membership'/);
   assert.match(app, /case'leader-member-review':return <MemberReview[^;]*onSaved=\{\(\)=>openSheet\(null\)\}/);
-  assert.match(sheet, /<dialog[^>]*aria-labelledby="sheet-title"/);
-  assert.match(sheet, /<h2 id="sheet-title">\{title\}<\/h2>/);
+  assert.match(sheet, /<dialog[^>]*aria-labelledby=\{titleId\}/);
+  assert.match(sheet, /<h2 id=\{titleId\}>\{title\}<\/h2>/);
   assert.match(source, /await approvePendingMembership\(owner, 'pending@example\.test'\)/);
 });
 
@@ -117,7 +117,7 @@ test('Live memory retry targets the current photo in its named editor and still 
   const sequence = source.slice(source.indexOf("currentCheck='memory upload"), source.indexOf("currentCheck='featured photo approval'"));
   assert.match(app, /'memory-edit':'Memory details'/);
   assert.match(memories, /<ImageUploadControl label="Memory photo" src=\{m\.image\|\|''\} alt=\{m\.title\|\|'Current memory photo'\}/);
-  assert.match(imageControl, /hasImage\?<img src=\{src\} alt=\{alt\} onError=\{previewError\}/);
+  assert.match(imageControl, /hasImage\?<img src=\{src\} alt=\{alt\} style=\{photoFrameStyle\(frame\)\} onError=\{previewError\}/);
   assert.match(sequence, /alice\.getByRole\('dialog',\{name:'Memory details',exact:true\}\)/);
   assert.match(sequence, /memoryDetails\.getByRole\('img',\{name:'Current memory photo',exact:true\}\)/);
   assert.match(sequence, /expect\.poll\(\(\)=>memoryPhoto\.evaluate\(img=>img\.complete&&img\.naturalWidth>0\)/);

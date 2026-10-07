@@ -37,6 +37,7 @@ const copy=(heading,hero={mode:'default',media:[]})=>({text:{heading},hero,...(h
 test('source defaults are returned to active family without database seeds; public and pending users cannot read',async()=>{
  const {get,call,sqlite}=setup();
  for(const page of Object.keys(SHARED_PAGE_SCHEMA)){
+  if(page==='leader-calendar'){assert.equal((await get(page)).status,403);const leaderResult=await get(page,'alice');assert.equal(leaderResult.status,200);assert.deepEqual(leaderResult.data.content,sharedPageDefaults(page));continue}
   const result=await get(page);assert.equal(result.status,200,page);assert.equal(result.data.revision,0);assert.deepEqual(result.data.content,sharedPageDefaults(page));assert.equal(result.data.canEdit,false);assert.equal(result.headers.get('Cache-Control'),'no-store');
  }
  assert.equal(sqlite.prepare('SELECT count(*) n FROM page_content').get().n,0);
@@ -71,6 +72,7 @@ test('writes sanitize bounded allowlisted plain text and store only default over
 test('all schema pages edit independently while global refuses hero media',async()=>{
  const {get,write,upload}=setup();
  for(const [page,schema]of Object.entries(SHARED_PAGE_SCHEMA)){
+  if(page==='leader-calendar'){const content=sharedPageDefaults(page);content.panelLayout.panels.find(panel=>panel.id==='native-calendar-settings').zone='main';const result=await write(content,0,'alice',page);assert.equal(result.status,200);assert.equal((await get(page,'alice')).data.content.panelLayout.panels.find(panel=>panel.id==='native-calendar-settings').zone,'main');continue}
   const key=Object.keys(schema.fields)[0],result=await write({text:{[key]:'Updated '+page},...(HERO_FIELDS[page]?.includes(key)?{panelLayout:unlocked(page)}:{})},0,'alice',page);assert.equal(result.status,200,page);assert.equal((await get(page)).data.content.text[key],'Updated '+page);
  }
  const file=upload('global-image');assert.equal((await write({text:{footerTagline:'Family'},hero:{mode:'image',media:[file]}},1,'alice','global')).status,400);

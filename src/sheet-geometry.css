@@ -35,3 +35,10 @@ html[data-platform] #sheet.comments-surface[open] #sheet-body{overflow:hidden;fl
 /* A transform animation would override the two-axis centering. Fade only. */
 @keyframes gw-centered-sheet-enter{from{opacity:0}to{opacity:1}}
 @media(prefers-reduced-motion:reduce){html[data-platform] #sheet[open]{animation:none!important}}
+
+/* Left close and right true-completion are consistent across every Sheet. */
+html[data-platform] #sheet[open] .sheet-head{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:12px;align-items:center}
+html[data-platform] #sheet[open] .sheet-head h2{min-width:0;overflow-wrap:anywhere;text-align:center;font-size:clamp(1.1rem,4vw,1.5rem)}
+.sheet-action-placeholder{width:44px;height:44px}
+.sheet-discard-confirm{display:grid;gap:12px;padding:16px;margin-bottom:16px;border:1px solid var(--accent);border-radius:16px;background:var(--raised)}
+.sheet-discard-confirm .row{flex-wrap:wrap}

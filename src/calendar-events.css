@@ -32,3 +32,8 @@
 .calendar-manager button:disabled{cursor:wait}
 .calendar-manager .button{min-height:44px}
 @media(max-width:540px){.calendar-settings .field-row,.calendar-event-editor .field-row{grid-template-columns:minmax(0,1fr)}.calendar-heading>.button{flex:0 1 auto}.calendar-manager{gap:1rem}}
+
+.calendar-settings-sidebar,.calendar-event-list{min-width:0}
+.calendar-settings.card{max-width:none;padding:1.25rem}
+.calendar-settings .field-row{grid-template-columns:minmax(0,1fr)}
+.calendar-event-list.card{padding:1.25rem}

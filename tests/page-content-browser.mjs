@@ -1,3 +1,5 @@
+import {pageContentPayload} from '../src/page-content-model.js';
+import {validatePhotoFrame} from '../src/photo-framing-model.js';
 // Hosted-only shared-page editor checks. Start the isolated port-4176 fixture.
 // All accounts, copy, posts and uploaded media below are synthetic test data.
 // Authoring or syntax-checking this file is not evidence of a browser pass.
@@ -33,10 +35,7 @@ const saveButton = page => toolbar(page).getByRole('button', {name: 'Save change
 const modeDone = page => toolbar(page).locator('.page-mode-done');
 // API probes preserve the complete normalized snapshot, including lock state,
 // layout order and Markdown source formats. Output URLs never become authority.
-const contentPayload = value => ({text: {...value.text}, bodyFormats: {...value.bodyFormats},
-  hero: {mode: value.hero.mode, media: value.hero.media.map(({id, alt = ''}) => ({id, alt}))},
-  panelLayout: {...value.panelLayout, panels: value.panelLayout.panels.map(panel => panel.kind === 'hero' ? {...panel} :
-    {...panel, media: panel.media.map(({id, alt = ''}) => ({id, alt}))})}});
+const contentPayload = pageContentPayload;
 const primaryHero = (page, key) => page.locator(`[data-panel-page="${key}"] [data-panel-id="hero"]`);
 
 async function check(name, run) {
@@ -900,19 +899,20 @@ try {
         assert.equal(SHARED_PAGE_SCHEMA[key].fields[field]?.format, 'markdown');
         assert.equal(format, 'markdown');
       }
-      assert.deepEqual(Object.keys(write.body.content.hero).sort(), ['media', 'mode']);
-      for (const file of write.body.content.hero.media) assert.deepEqual(Object.keys(file).sort(), ['alt', 'id'], 'Client URLs and file metadata never become write authority.');
+      assert.deepEqual(Object.keys(write.body.content.hero).sort(), write.body.content.hero.frame?['frame','media','mode']:['media','mode']);
+      if(write.body.content.hero.frame)validatePhotoFrame(write.body.content.hero.frame);
+      for (const file of write.body.content.hero.media) assert.deepEqual(Object.keys(file).sort(), file.frame?['alt','frame','id']:['alt','id'], 'Client URLs and file metadata never become write authority.');
       const layout = write.body.content.panelLayout;
       assert.deepEqual(Object.keys(layout).sort(), ['desktopOrder', 'mobileOrder', 'panels', 'version']);
-      assert.equal(layout.version, 1);
+      assert.equal(layout.version, 2);
       const visible = layout.panels.filter(panel => !panel.removed).map(panel => panel.id).sort();
       assert.deepEqual([...layout.desktopOrder].sort(), visible); assert.deepEqual([...layout.mobileOrder].sort(), visible);
       for (const panel of layout.panels) {
-        assert.deepEqual(Object.keys(panel).sort(), panel.kind === 'hero' ? ['id', 'kind', 'locked', 'removed', 'zone'] :
+        assert.deepEqual(Object.keys(panel).sort(), panel.kind !== 'content' ? ['id', 'kind', 'locked', 'removed', 'zone'] :
           ['body', 'id', 'kind', 'layout', 'locked', 'media', 'removed', 'secondary', 'title', 'zone']);
         assert.equal(typeof panel.locked, 'boolean'); assert.equal(typeof panel.removed, 'boolean');
         assert.ok(['main', 'side'].includes(panel.zone));
-        for (const file of panel.media || []) assert.deepEqual(Object.keys(file).sort(), ['alt', 'id'], 'Panel media also carries only bounded IDs and descriptions.');
+        for (const file of panel.media || []) assert.deepEqual(Object.keys(file).sort(), file.frame?['alt','frame','id']:['alt','id'], 'Panel media also carries only bounded IDs and descriptions.');
       }
     }
     for (const {id, page} of sessions) if (id !== 'anonymous' && id !== 'pending') await settleBrowserReads(page);

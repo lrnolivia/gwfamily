@@ -1,0 +1,17 @@
+:root{--gw-app-header-height:92px}
+.app>.app-header{position:sticky;top:0;z-index:30;min-height:var(--gw-app-header-height);height:var(--gw-app-header-height);padding-block:18px;isolation:isolate}
+.app>.app-header::before{content:'';position:absolute;inset:0 -16px -10px;z-index:-1;pointer-events:none;background:linear-gradient(var(--bg) 58%,color-mix(in srgb,var(--bg) 80%,transparent) 82%,transparent);backdrop-filter:blur(9px);mask-image:linear-gradient(#000 65%,transparent)}
+.app[data-compact=true]>.app-header .brand{transform:scale(.86);transform-origin:left center}
+.app>.app-header .brand{transition:transform 160ms ease-out}
+.page-navigation-header{position:sticky;top:var(--gw-app-header-height);z-index:25;display:flex;align-items:center;gap:14px;min-height:52px;min-width:0;margin-bottom:18px;background:var(--bg)}
+.page-navigation-header .page-back{position:relative;flex:0 0 auto;min-height:44px;min-width:44px;padding:10px 14px;border-radius:999px;gap:8px;background:var(--raised);color:var(--text)}
+.page-back .glyph{transform:rotate(180deg)}
+.page-back-unread{min-width:20px;padding:2px 5px;border-radius:999px;background:var(--accent);color:var(--ink);font-size:.7rem;font-weight:700}
+.page-compact-title{font-size:1.05rem;font-weight:650;line-height:1.2;overflow-wrap:anywhere;min-width:0;opacity:0;transition:opacity 120ms ease-out}
+.page-navigation-header[data-compact=true] .page-compact-title{opacity:1}
+.page-navigation-header.is-main-page{position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--gw-app-header-height) - 4px);width:min(calc(100% - 56px),984px);min-height:38px;margin:0;visibility:hidden;pointer-events:none;border-radius:0 0 12px 12px}
+.page-navigation-header.is-main-page[data-compact=true]{visibility:visible}
+html[data-platform=ios] .page-back{background:color-mix(in srgb,var(--raised) 70%,transparent);backdrop-filter:blur(14px)}
+html[data-platform=android] .page-back{background:var(--raised);backdrop-filter:none;box-shadow:none}
+@media(max-width:699.98px){:root{--gw-app-header-height:78px}.app>.app-header{padding-block:10px}.page-navigation-header.is-main-page{width:calc(100% - 32px)}.page-back-label{display:none}.page-navigation-header .page-back{padding:10px}}
+@media(prefers-reduced-motion:reduce){.app>.app-header .brand,.page-compact-title{transition:none}}

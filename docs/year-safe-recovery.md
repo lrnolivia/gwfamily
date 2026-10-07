@@ -1,0 +1,15 @@
+# Year-safe recovery
+
+Before the candidate is deployed, the retained production version can be restored using the existing deployment receipt. After migration 0017 and new-year writes, an unscoped pre-year backend is unsafe: it can mix products, claims and fees from different years.
+
+The separately built `backend/src/year-safe-rollback.mjs` keeps the candidate's migration-aware backend and serves a preserved UI built from source `150d178b2e72d6e71245b962dc568bee61d11770`. Every API read selects the legacy reunion. All family mutations, sign-in callbacks and scheduled work are blocked; existing users can still sign out. Invitation and provisional flags are forced off. The normal deployment entry remains `site-worker.mjs`. Recovery is temporary and read-only.
+
+Build the recovery artifact with the recorded Node 22 toolchain, installed backend lock and `GW_SOURCE_SHA=<exact candidate commit> node scripts/build-year-safe-rollback.mjs` from backend. Its output and provenance belong with the preserved prior UI and the release checkpoint. This command creates an artifact; it does not deploy it. Hosted validation and Cloudflare runtime validation remain release gates.
+
+Before migration or deployment, close writes, verify the exact target D1 database and R2 bucket, and capture a complete recoverable database export through the supported D1 mechanism. Record the database identity, observation time, retained bytes, SHA-256, schema, migration ledger, per-year counts and notification/receipt/audit counts. Import the export into an isolated authorized target and compare it before calling the production backup verified. Preserve required media objects and their ownership/key manifest; a database export alone does not preserve R2 bytes.
+
+Apply only the approved exact migrations 0015–0019, once, and compare legacy profile, RSVP, product, claim, fee and notification counts before opening writes. Deploy matching backend and frontend together. Check server permissions and user-visible behavior on the exact deployed candidate.
+
+For runtime recovery after new-year writes, retain all additive schema and data and deploy the recovery artifact paired with the preserved UI. Do not drop tables or columns. Before any database restoration, close writes and export the current all-year database, including post-migration receipts and audit records, plus the corresponding media manifest. A pre-migration export does not contain later user records. Reimport and reconciliation of those later records must be tested in isolation before restoring production.
+
+The guarded SQLite rehearsal verifies that a restored pre-year snapshot retains its original RSVP and that a separate all-year recovery snapshot retains legacy and newer-year RSVPs. The recovery wrapper test verifies legacy reads after another year becomes active, rejects family mutations, preserves newer-year records, forces new flags off and suppresses scheduled work. These synthetic checks are not a production D1 restore exercise.
