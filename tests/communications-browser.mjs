@@ -673,6 +673,33 @@ try {
     assert.equal((await alice.request.get(base + path + '?account=bob')).status(), 409);
   });
 
+  await check('app and conversation headers share a connected themed background in Glass and Flat',async()=>{
+    for(const material of ['ios','android']) for(const theme of ['light','dark']) for(const width of [390,768]){
+      await alice.setViewportSize({width,height:844});
+      await alice.evaluate(({material,theme})=>{localStorage.setItem('gw-platform',material);localStorage.setItem('gw-theme',theme)},{material,theme});
+      await navigate(alice,'chat',directId);await expect(composer(alice)).toBeVisible();
+      await expect(alice.locator('html')).toHaveAttribute('data-platform',material);await expect(alice.locator('html')).toHaveAttribute('data-theme',theme);
+      await composer(alice).scrollIntoViewIfNeeded();
+      await expect.poll(()=>alice.evaluate(()=>{
+        const header=document.querySelector('.app>.app-header'),nav=document.querySelector('.page-navigation-header');
+        return Math.abs(nav.getBoundingClientRect().top-header.getBoundingClientRect().bottom);
+      })).toBeLessThanOrEqual(1);
+      const surfaces=await alice.evaluate(()=>{
+        const h=document.querySelector('.app>.app-header'),n=document.querySelector('.page-navigation-header');
+        const a=getComputedStyle(h,'::before'),b=getComputedStyle(n,'::before'),fade=getComputedStyle(n,'::after');
+        return {header:{background:a.backgroundColor,image:a.backgroundImage,blur:a.backdropFilter||a.webkitBackdropFilter,bottom:a.bottom,left:a.left,right:a.right},page:{background:b.backgroundColor,image:b.backgroundImage,blur:b.backdropFilter||b.webkitBackdropFilter,top:b.top,left:b.left,right:b.right},pageBackground:getComputedStyle(n).backgroundColor,fade:{height:fade.height,image:fade.backgroundImage,blur:fade.backdropFilter||fade.webkitBackdropFilter},clip:b.clipPath,bottom:b.bottom};
+      });
+      assert.equal(surfaces.header.bottom,'-1px');assert.equal(surfaces.page.top,'-1px');
+      assert.equal(surfaces.header.left,surfaces.page.left);assert.equal(surfaces.header.right,surfaces.page.right);
+      if(material==='ios'){
+        assert.match(surfaces.header.blur,/blur\(18px\)/);assert.match(surfaces.page.blur,/blur\(18px\)/);
+        assert.equal(surfaces.page.image,'none');assert.equal(surfaces.pageBackground,'rgba(0, 0, 0, 0)');assert.equal(surfaces.bottom,'0px');assert.equal(surfaces.clip,'inset(0px)');assert.equal(surfaces.fade.height,'24px');assert.match(surfaces.fade.image,/linear-gradient/);assert.equal(surfaces.fade.blur,'none');
+      }else{assert.equal(surfaces.header.background,surfaces.page.background);assert.equal(surfaces.page.image,'none');assert.equal(surfaces.page.blur,'none');}
+      await noClip(alice);await alice.screenshot({path:`${output}/connected-header-${width}-${theme}-${material}-${engineName}.png`});
+    }
+    await alice.evaluate(()=>{localStorage.setItem('gw-platform','ios');localStorage.setItem('gw-theme','dark')});await navigate(alice,'chat',directId);
+  });
+
   await check('attachment-capable mobile composer fits reduced-height keyboard simulation and respects reduced motion', async () => {
     await navigate(alice, 'chat', directId);
     await expect(composer(alice)).toBeVisible();

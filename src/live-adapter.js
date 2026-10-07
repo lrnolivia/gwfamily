@@ -27,6 +27,7 @@ export const notificationApi=Object.freeze({
  saveSettings:(patch,revision,expectedAccountId)=>notificationRequest('/api/me/notifications',{method:'PUT',body:JSON.stringify({...patch,revision,expectedAccountId})}),
  read:(id,expectedAccountId)=>notificationRequest('/api/notifications/'+encodeURIComponent(id)+'/read',{method:'POST',body:JSON.stringify({expectedAccountId})}),
  readAll:(cutoff,expectedAccountId)=>notificationRequest('/api/notifications/read-all',{method:'POST',body:JSON.stringify({cutoff,expectedAccountId})}),
+ dismissAll:(cutoff,expectedAccountId)=>notificationRequest('/api/notifications/dismiss-all',{method:'POST',body:JSON.stringify({cutoff,expectedAccountId})}),
  dismiss:(id,expectedAccountId)=>notificationRequest('/api/notifications/'+encodeURIComponent(id)+'/dismiss',{method:'POST',body:JSON.stringify({expectedAccountId})}),
  open:(id,expectedAccountId)=>notificationRequest('/api/notifications/'+encodeURIComponent(id)+'/open'+(expectedAccountId?'?expectedAccountId='+encodeURIComponent(expectedAccountId):''))
 });

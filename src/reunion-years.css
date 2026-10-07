@@ -1,4 +1,4 @@
-.reunion-selector{display:grid;grid-template-columns:minmax(12rem,20rem) minmax(0,1fr);align-items:end;gap:1rem;padding-block:1rem;border-bottom:1px solid var(--line)}
+.reunion-selector{width:min(100%,20rem);min-width:0;margin-block:16px}
 .reunion-selector label,.reunion-year-manager label{min-width:0}
 .reunion-selector select,.reunion-year-manager select,.reunion-year-manager input:not([type=checkbox]){width:100%;min-width:0;box-sizing:border-box;font:inherit}
 .reunion-selector p{margin:0;max-width:55ch}
@@ -6,4 +6,6 @@
 .reunion-add-year label{flex:1 1 10rem}
 .reunion-lifecycle{border-top:1px solid var(--line);padding-top:1rem}
 .reunion-selector :is(select,input):focus-visible,.reunion-year-manager :is(select,input):focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-@media(max-width:540px){.reunion-selector{grid-template-columns:minmax(0,1fr)}}
+
+.reunion-intro{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}.reunion-intro-copy{flex:1 1 20rem;min-width:0}.reunion-intro>.reunion-selector{flex:0 1 18rem;margin:0}.reunion-selector .choice-control>label{font-size:.8125rem;margin-bottom:8px}.reunion-selector .choice-help{font-size:.75rem;line-height:1.5}
+@media(max-width:699.98px){.reunion-intro{gap:16px}.reunion-intro>.reunion-selector{flex-basis:100%;width:100%}}
