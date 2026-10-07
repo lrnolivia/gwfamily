@@ -37,3 +37,6 @@
 .calendar-settings.card{max-width:none;padding:1.25rem}
 .calendar-settings .field-row{grid-template-columns:minmax(0,1fr)}
 .calendar-event-list.card{padding:1.25rem}
+
+.calendar-heading{min-width:0;max-width:100%}
+.calendar-heading>.button{width:auto!important;max-width:100%;flex:0 1 auto;margin:0;white-space:normal}

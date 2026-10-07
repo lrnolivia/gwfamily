@@ -1,7 +1,7 @@
 /* The rectangular field and the existing neutral edit tokens are the visual
    authority. This toolbar is deliberately flat; it is part of the input. */
-.page-markdown-editor{display:block;min-width:0;width:100%;border:1px solid var(--line);border-radius:3px;background:var(--raised);color:var(--text);font:400 1rem/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:normal;text-transform:none;overflow:visible}
-.page-markdown-editor:focus-within{border-color:var(--control);outline:2px solid var(--control);outline-offset:2px}
+.page-markdown-editor{display:block;min-width:0;width:100%;border:1px solid var(--line);border-radius:8px;background:var(--raised);color:var(--text);font:400 1rem/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:normal;text-transform:none;overflow:visible}
+.page-markdown-editor:focus-within{border-color:var(--control);outline:0}
 .page-markdown-toolbar{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:3px 5px;border-bottom:1px solid var(--line);background:var(--surface)}
 .page-markdown-tools,.page-markdown-mode-tools{display:flex;align-items:center;gap:1px;min-width:0}
 .page-markdown-tools{flex:1 1 auto;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;scrollbar-color:var(--line) var(--surface)}
@@ -53,3 +53,13 @@
 @media(pointer:coarse){.page-markdown-tool,.page-markdown-source-toggle,.page-markdown-done,.page-markdown-footer summary{min-height:44px;min-width:44px}}
 @media(max-width:380px){.page-markdown-toolbar{padding-inline:3px}.page-markdown-source-toggle>span:last-child{display:none}.page-markdown-visual,.page-markdown-source{padding:10px}}
 @media(forced-colors:active){.page-markdown-tool[aria-pressed=true],.page-markdown-source-toggle[aria-pressed=true]{outline:2px solid Highlight}.page-markdown-editor:focus-within{outline-color:Highlight}}
+
+/* In-place WYSIWYG content keeps the authored typography and flow. */
+.page-markdown-editor.is-inline{border:0;background:transparent;font:inherit;color:inherit;border-radius:0}
+.page-markdown-editor.is-inline{border-radius:6px}
+.page-markdown-editor.is-inline:focus-within{outline:1px solid var(--control);outline-offset:4px}
+.page-markdown-editor.is-inline .page-markdown-visual{min-height:0;max-height:none;padding:0;background:transparent;font:inherit;color:inherit;overflow:visible}
+.page-object-tools .page-markdown-toolbar{flex-wrap:wrap;padding:0;border:0;background:transparent}
+.page-object-tools .page-markdown-tools{flex-wrap:wrap;overflow:visible}
+.page-object-tools .page-markdown-footer{padding:0;border:0}
+.page-object-tools .page-markdown-tool,.page-object-tools .page-markdown-source-toggle{min-width:44px;min-height:44px}

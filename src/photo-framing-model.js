@@ -27,3 +27,9 @@ export function movePhotoFrame(frame,dx,dy,{width,height,imageWidth=width,imageH
 }
 export function keyboardPhotoFrame(frame,key,step=2){const current=normalizePhotoFrame(frame),delta={ArrowLeft:[-step,0],ArrowRight:[step,0],ArrowUp:[0,-step],ArrowDown:[0,step]}[key];if(key==='Home')return {...DEFAULT_PHOTO_FRAME};if(!delta)return null;return validatePhotoFrame({...current,x:clamp(current.x+delta[0],0,100),y:clamp(current.y+delta[1],0,100)});}
 export function photoFramePayload(value){return value===undefined?{}:{frame:validatePhotoFrame(value)}}
+// Whether a nudge can produce a visible movement in the effective crop.
+export function photoPanAxes(frame,{width,height,imageWidth=width,imageHeight=height}={}){
+ if(!(width>0&&height>0&&imageWidth>0&&imageHeight>0))return {x:false,y:false};
+ const {zoom}=normalizePhotoFrame(frame),scale=Math.max(width/imageWidth,height/imageHeight);
+ return {x:imageWidth*scale*zoom-width>.5,y:imageHeight*scale*zoom-height>.5};
+}

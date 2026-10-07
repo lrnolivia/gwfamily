@@ -12,7 +12,7 @@ import {bindViewportBounds} from './viewport-bounds.js';
 import {bindNotificationPopoverPlacement} from './notification-popover-geometry.js';
 
 export const AppContext=createContext(null);
-const FloatingSurfaceContext=createContext(false);
+export const FloatingSurfaceContext=createContext(false);
 export const useApp=()=>useContext(AppContext);
 // The loew.fi Send control uses the same package lens, interactive gel and four
 // material layers. Keep the native button as the host so existing layout and

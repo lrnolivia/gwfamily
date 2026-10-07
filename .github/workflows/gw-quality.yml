@@ -98,6 +98,14 @@ jobs:
           fi
           curl -fsS http://127.0.0.1:4176/api/config
           CI=true node scripts/ci-test-summary.mjs granular-panel-framing-browser --browser tests/granular-panel-framing-browser.mjs
+      - name: Contextual editor geometry and command checks
+        if: ${{ !cancelled() && steps.frontend_build.outcome == 'success' && steps.backend_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          GW_FIXTURE_PORT=4188 node backend/tests/fixture-server.mjs > /tmp/gw-editor-geometry-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4188/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4188/api/config
+          CI=true node scripts/ci-test-summary.mjs editor-geometry-browser --browser tests/editor-geometry-browser.mjs
       - name: Card content arrangement browser checks
         if: ${{ !cancelled() && steps.frontend_build.outcome == 'success' && steps.backend_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 10
@@ -157,6 +165,7 @@ jobs:
             docs/choice-control-qa
             docs/help-qa
             docs/notifications-qa
+            docs/editor-geometry-qa
             backend/build/worker.mjs
             backend/build/worker-provenance.json
             backend/build/site-worker.mjs

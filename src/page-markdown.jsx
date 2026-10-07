@@ -6,6 +6,7 @@ import {Slice} from '@tiptap/pm/model';
 import StarterKit from '@tiptap/starter-kit';
 import {Markdown,MarkdownManager} from '@tiptap/markdown';
 import {Control,Glyph} from './ui-core.jsx';
+import {PageObjectTools} from './page-object-tools.jsx';
 import {analyzePageMarkdown,checkMarkdownTransaction,literalMarkdownDocument,PAGE_MARKDOWN_HELP,safeMarkdownLink} from './page-markdown-model.js';
 import './page-markdown.css';
 
@@ -46,7 +47,7 @@ function ToolIcon({name}){
  return <svg className="glyph" viewBox="0 0 24 24" aria-hidden="true"><path d={paths[name]}/></svg>;
 }
 
-export function PageMarkdownEditor({value='',onChange,maxLength=12000,disabled=false,onDone,ariaLabel='Page text',autoFocus=false,className='',placeholder='Write something for the family…'}){
+export function PageMarkdownEditor({value='',onChange,maxLength=12000,disabled=false,onDone,ariaLabel='Page text',autoFocus=false,className='',inline=false,placeholder='Write something for the family…'}){
  const [initial]=useState(()=>analyzePageMarkdown(value,displayManager)),[source,setSource]=useState(value),[mode,setMode]=useState(initial.editable?'visual':'source'),[error,setError]=useState(''),[linkOpen,setLinkOpen]=useState(false),[linkValue,setLinkValue]=useState(''),[composing,setComposing]=useState(false),[,refresh]=useState(0);
  const id=useId(),textarea=useRef(null),linkInput=useRef(null),sourceRef=useRef(value),syncing=useRef(false),composition=useRef(false),visualSource=useRef(initial.editable?value:null),selection=useRef(null),sourceSelection=useRef({start:0,end:0}),latest=useRef({onChange,maxLength,disabled}),alive=useRef(true);
  latest.current={onChange,maxLength,disabled};
@@ -112,12 +113,7 @@ export function PageMarkdownEditor({value='',onChange,maxLength=12000,disabled=f
   ['bold','Bold','bold',chain=>chain.toggleBold()],['italic','Italic','italic',chain=>chain.toggleItalic()],['heading','Heading','heading',chain=>chain.toggleHeading({level:2})],
   ['bullet','Bulleted list','bulletList',chain=>chain.toggleBulletList()],['ordered','Numbered list','orderedList',chain=>chain.toggleOrderedList()],['quote','Quote','blockquote',chain=>chain.toggleBlockquote()],['code','Inline code','code',chain=>chain.toggleCode()],
  ];
- return <div className={'page-markdown-editor '+className} data-mode={mode} aria-busy={!editor} onKeyDown={event=>{
-  if(event.nativeEvent.isComposing||composition.current||event.keyCode===229)return;
-  if(event.key==='Escape'&&linkOpen){event.preventDefault();event.stopPropagation();setLinkOpen(false);editor?.commands.focus()}
-  else if(event.key==='Enter'&&(event.metaKey||event.ctrlKey)&&!disabled){event.preventDefault();onDone?.()}
-  else if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'&&!inSource){event.preventDefault();showLink()}
- }}>
+ const toolbar=<>
   <div className="page-markdown-toolbar" role="group" aria-label={ariaLabel+' formatting'}>
    <div className="page-markdown-tools" role="group" aria-label="Text style">
     {tools.map(([icon,label,mark,command])=><Control key={icon} type="button" className="page-markdown-tool" title={label} aria-label={label} aria-pressed={!!editor?.isActive(mark)} disabled={locked} onMouseDown={event=>event.preventDefault()} onClick={()=>run(command)}><ToolIcon name={icon}/></Control>)}
@@ -130,10 +126,21 @@ export function PageMarkdownEditor({value='',onChange,maxLength=12000,disabled=f
    </div>
   </div>
   {linkOpen&&<div className="page-markdown-link" id={id+'-link'}><label htmlFor={id+'-url'}>Link address</label><div><input ref={linkInput} id={id+'-url'} type="url" inputMode="url" autoComplete="off" value={linkValue} placeholder="https://…" disabled={disabled} onChange={event=>setLinkValue(event.target.value)} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();event.stopPropagation();applyLink()}}}/><Control type="button" disabled={disabled} onClick={()=>applyLink()}>Apply</Control>{editor?.isActive('link')&&<Control type="button" disabled={disabled} onClick={()=>applyLink(true)}>Remove</Control>}<Control type="button" disabled={disabled} onClick={()=>{setLinkOpen(false);editor?.commands.focus()}}>Cancel</Control></div></div>}
-  <div hidden={inSource} className={'page-markdown-visual-wrap'+(editor?.isEmpty?' is-empty':'')}><EditorContent editor={editor}/></div>
-  <textarea ref={textarea} hidden={!inSource} className="page-markdown-source" aria-label={ariaLabel+' Markdown source'} aria-describedby={id+'-help'} defaultValue={value} disabled={disabled} maxLength={maxLength} rows={5} spellCheck={false} placeholder={placeholder} onCompositionStart={()=>{composition.current=true;setComposing(true)}} onCompositionEnd={event=>{composition.current=false;setComposing(false);publish(event.currentTarget.value)}} onChange={event=>publish(event.target.value)} onSelect={event=>{sourceSelection.current={start:event.currentTarget.selectionStart,end:event.currentTarget.selectionEnd}}}/>
+ </>;
+ const feedback=<>
   {!analysis.editable&&<p className="page-markdown-notice" role="status">{analysis.reason}</p>}
   {error&&<p className="page-markdown-error" role="alert">{error}</p>}
   <div className="page-markdown-footer"><details id={id+'-help'}><summary>Formatting help</summary><p>{PAGE_MARKDOWN_HELP} Source spelling is preserved when switching modes. Pasted text keeps its words; use the toolbar to format it.</p></details>{onDone&&<Control type="button" className="page-markdown-done" disabled={disabled||composing} onClick={onDone}><Glyph name="check"/>Done</Control>}</div>
+ </>;
+ return <div className={'page-markdown-editor '+(inline?'is-inline ':'')+className} data-mode={mode} aria-busy={!editor} onKeyDown={event=>{
+  if(event.nativeEvent.isComposing||composition.current||event.keyCode===229)return;
+  if(event.key==='Escape'&&linkOpen){event.preventDefault();event.stopPropagation();setLinkOpen(false);editor?.commands.focus()}
+  else if(event.key==='Enter'&&(event.metaKey||event.ctrlKey)&&!disabled){event.preventDefault();onDone?.()}
+  else if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'&&!inSource){event.preventDefault();showLink()}
+ }}>
+  {inline?<PageObjectTools title={'Text · '+ariaLabel} modalOnCompact={false} onClose={onDone}>{toolbar}{feedback}</PageObjectTools>:toolbar}
+  <div hidden={inSource} className={'page-markdown-visual-wrap'+(editor?.isEmpty?' is-empty':'')}><EditorContent editor={editor}/></div>
+  <textarea ref={textarea} hidden={!inSource} className="page-markdown-source" aria-label={ariaLabel+' Markdown source'} aria-describedby={id+'-help'} defaultValue={value} disabled={disabled} maxLength={maxLength} rows={5} spellCheck={false} placeholder={placeholder} onCompositionStart={()=>{composition.current=true;setComposing(true)}} onCompositionEnd={event=>{composition.current=false;setComposing(false);publish(event.currentTarget.value)}} onChange={event=>publish(event.target.value)} onSelect={event=>{sourceSelection.current={start:event.currentTarget.selectionStart,end:event.currentTarget.selectionEnd}}}/>
+  {!inline&&feedback}
  </div>;
 }

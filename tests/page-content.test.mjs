@@ -68,12 +68,12 @@ test('declared edit scope excludes public entry, profiles, personal posts and pr
 test('text stays plain, preserves source defaults, and keeps Done inside its rectangular input',()=>{
  assert.doesNotMatch(source,/dangerouslySetInnerHTML|contentEditable|execCommand/);assert.match(source,/originalValue\?children/);assert.match(source,/page-copy-input-wrap.*<Input[\s\S]*page-field-done[\s\S]*Finish editing/);assert.match(source,/e\.key==='Escape'/);assert.match(source,/e\.metaKey\|\|e\.ctrlKey/);assert.match(source,/getBoundingClientRect\(\)/);assert.match(css,/page-copy-input-wrap\{[^}]*position:absolute/);assert.match(css,/page-copy-input[^}]+border-radius:3px/);
 });
-test('edit mode uses neutral theme tokens with graceful fade and never filters photos',()=>{
- assert.match(css,/html\[data-page-edit-mode=true\]/);assert.match(css,/--bg:var\(--page-edit-bg\)!important/);assert.match(css,/background-color 360ms/);assert.doesNotMatch(css,/grayscale\s*\(|saturate\s*\(|filter\s*:/);assert.match(source,/delete root\.dataset\.pageEditMode/);
+test('edit mode keeps the authored theme and never filters photos',()=>{
+ assert.doesNotMatch(css,/--bg:var\(--page-edit-bg\)!important/);assert.match(css,/background-color 360ms/);assert.doesNotMatch(css,/grayscale\s*\(|saturate\s*\(|filter\s*:/);assert.match(source,/delete root\.dataset\.pageEditMode/);
 });
-test('only the active surface pulses, with no wiggle and a steady reduced-motion fallback',()=>{
- assert.doesNotMatch(source+css,/wiggle|rumble/i);assert.match(source,/classList\.remove\('page-active-edit-card'\)/);assert.match(source,/classList\.add\('page-active-edit-card'\)/);assert.match(css,/\.page-active-edit-card[^}]*animation:page-active-glow/);assert.match(css,/@keyframes page-active-glow\{[^\n]+box-shadow/);assert.match(css,/@media\(prefers-reduced-motion:reduce\)[\s\S]*animation:none!important/);
- const animation=css.match(/@keyframes page-active-glow\{[^\n]+/)[0];assert.doesNotMatch(animation,/transform|translate|rotate/);
+test('active selection uses a stable outline with no animation',()=>{
+ assert.doesNotMatch(source+css,/wiggle|rumble/i);assert.match(source,/classList\.remove\('page-active-edit-card'\)/);assert.match(source,/classList\.add\('page-active-edit-card'\)/);assert.match(css,/\.page-active-edit-card\{outline:2px solid var\(--control\)/);assert.doesNotMatch(css,/@keyframes page-active-glow/);assert.match(css,/@media\(prefers-reduced-motion:reduce\)[\s\S]*animation:none!important/);
+ assert.doesNotMatch(css,/page-active-edit-card[^}]*transform/);
 });
 test('media has bounded typed uploads, manual gallery controls and paused reduced-motion video',()=>{
  assert.match(source,/SHARED_CONTENT_LIMITS\.maxGalleryItems/);assert.match(source,/SHARED_VIDEO_TYPES:SHARED_IMAGE_TYPES/);assert.match(source,/file\.size>limit/);assert.match(source,/Previous page photo/);assert.match(source,/Next page photo/);assert.match(source,/Pause page photos/);assert.match(source,/muted autoPlay=\{!reduced&&!editing\} loop playsInline controls/);assert.match(source,/poster=\{poster\|\|imageInChildren\(children\)\|\|'tree-artwork.png'\}/);assert.match(source,/video\.current\?\.pause\(\)/);
@@ -118,7 +118,7 @@ test('media upload owns a named progress status without suppressing pending-work
  assert.match(panel,/Finish choosing media to use /);
  assert.match(panel,/useEffect\(\(\)=>editor\.pauseAutosave\(\)/);
  assert.doesNotMatch(panel,/<Sheet/);
- assert.match(panel,/<Button icon="check" disabled=\{uploading\} onClick=\{onClose\}>Done<\/Button>/);
+ assert.match(panel,/<Button icon="check" disabled=\{uploading\} onClick=\{onClose\}>Apply media<\/Button>/);
 });
 
 
