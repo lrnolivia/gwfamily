@@ -41,7 +41,13 @@ try{
  await media.getByRole('button',{name:'Adjust original photo framing',exact:true}).click();frame=media.getByRole('region',{name:'Photo framing',exact:true});await range(frame.getByLabel('Horizontal focus',{exact:true}),'25');await range(frame.getByLabel('Vertical focus',{exact:true}),'75');await range(frame.getByLabel('Zoom',{exact:true}),'1.5');await touch(frame.getByRole('group',{name:'Photo framing preview',exact:true}),{dx:18,dy:-12,cancel:true});await expect(frame.getByLabel('Horizontal focus',{exact:true})).toHaveValue('25');
  const crop=await frame.getByRole('group',{name:'Photo framing preview',exact:true}).boundingBox();await page.mouse.move(crop.x+crop.width/2,crop.y+crop.height/2);await page.mouse.down();await page.mouse.move(crop.x+crop.width/2+20,crop.y+crop.height/2-15,{steps:6});await page.mouse.up();
  await frame.getByRole('button',{name:'Reset framing',exact:true}).click();await expect(frame.getByLabel('Horizontal focus',{exact:true})).toHaveValue('50');await expect(frame.getByLabel('Zoom',{exact:true})).toHaveValue('1');
- await range(frame.getByLabel('Zoom',{exact:true}),1.5);await touch(frame.getByRole('group',{name:'Photo framing preview',exact:true}),{dx:18,dy:-12});assert.notEqual(await frame.getByLabel('Horizontal focus',{exact:true}).inputValue(),'50');
+ await range(frame.getByLabel('Zoom',{exact:true}),1.5);
+ const framingPreview=frame.getByRole('group',{name:'Photo framing preview',exact:true});
+ // Wait for the rendered zoom and decoded photo before dispatching the gesture.
+ // React's range update and synthetic pointer events run in separate batches.
+ await expect(framingPreview.locator('img')).toHaveCSS('transform','matrix(1.5, 0, 0, 1.5, 0, 0)');
+ await expect.poll(()=>framingPreview.locator('img').evaluate(image=>image.complete&&image.naturalWidth>0)).toBe(true);
+ await touch(framingPreview,{dx:18,dy:-12});await expect(frame.getByLabel('Horizontal focus',{exact:true})).not.toHaveValue('50');
  await range(frame.getByLabel('Horizontal focus',{exact:true}),25);await range(frame.getByLabel('Vertical focus',{exact:true}),75);await frame.getByRole('button',{name:'Save framing',exact:true}).click();await media.getByRole('button',{name:'Done',exact:true}).click();await save();await page.reload();assert.deepEqual((await getRecord('home')).content.hero.frame,{x:25,y:75,zoom:1.5});
  await expect(panel('hero').locator('.page-media-content img').first()).toHaveCSS('object-position','25% 75%');
  // Intrinsic-height regression: You profile stays at its content height beside taller groups.

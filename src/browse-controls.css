@@ -1,5 +1,5 @@
 /* Product tokens and domain content; geometry belongs to version-pinned shared UI. */
-.browse-controls.work-view-controls{--work-control-surface:var(--raised);--work-control-choice:var(--surface);--work-control-text:var(--text);--work-control-muted:var(--muted);--work-control-accent:color-mix(in srgb,var(--control,var(--accent)) 35%,#10271f);--work-control-on-accent:#fff;--work-control-done:#f5f3e8;--work-control-on-done:#172b20;font:inherit}
+.browse-controls.work-view-controls{--work-control-surface:color-mix(in srgb,var(--raised) 94%,var(--text));--work-control-choice:var(--raised);--work-control-canvas:var(--bg);--work-control-text:var(--text);--work-control-muted:var(--muted);--work-control-accent:var(--control,var(--accent));--work-control-on-accent:var(--control-text,var(--ink));--work-control-done:var(--control,var(--accent));--work-control-on-done:var(--control-text,var(--ink));border:1px solid var(--decorative-line,var(--line));font:inherit}
 .browse-controls .work-controls-footer{flex-wrap:wrap}
 .browse-controls .memory-filters{display:grid;grid-template-columns:minmax(0,1fr);overflow:visible;gap:14px}
 .browse-controls .memory-filters>.button{width:auto;justify-self:start}

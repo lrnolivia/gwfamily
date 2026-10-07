@@ -1,6 +1,6 @@
 /* Exact shared geometry lives in shared-controls/work-controls.css.
    GW adapts theme tokens and its own directory layout/data only. */
-.people-filters.work-view-controls{--work-control-surface:var(--raised);--work-control-choice:var(--surface);--work-control-text:var(--text);--work-control-muted:var(--muted);--work-control-accent:color-mix(in srgb,var(--control,var(--accent)) 35%,#10271f);--work-control-on-accent:#fff;--work-control-done:#f5f3e8;--work-control-on-done:#172b20;display:grid;gap:10px;min-width:0;container:people-filters / inline-size;font:inherit}
+.people-filters{min-width:0;container:people-filters / inline-size;font:inherit}
 .people-filters label{display:grid;align-content:start;gap:8px;min-width:0;margin:0;font-size:.875rem;font-weight:500;line-height:1.4}
 .people-filter-toggle{display:flex;align-items:center;gap:10px;min-height:48px;width:100%;padding:12px 14px;text-align:start;border-radius:12px;background:var(--raised);color:var(--text);font-size:.875rem}
 .people-filter-toggle>span:not(.filter-shared-glyph){flex:1;min-width:0;overflow-wrap:anywhere}

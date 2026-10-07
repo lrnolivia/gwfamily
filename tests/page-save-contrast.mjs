@@ -2,13 +2,13 @@
 // The tint paints above the button's background; checking the host alone misses it.
 export function readPageSavePaint(button) {
   const tint = button.querySelector(':scope > .liquid-glass-tint');
-  const label = button.querySelector(':scope > .gw-optic-content > span:last-child') || button.querySelector(':scope > span:not([aria-hidden])');
-  if (!label) throw new Error('Save changes must have a visible text label.');
+  const label = button.querySelector(':scope > .gw-optic-content > span:last-child') || button.querySelector(':scope > span:not([aria-hidden])') || button;
+  if (!label.textContent.trim()) throw new Error('The editor control must have a visible text label.');
   const hostStyle = getComputedStyle(button), labelStyle = getComputedStyle(label);
   let labelOpacity = 1;
   for (let node = label; node && node !== button; node = node.parentElement) labelOpacity *= Number(getComputedStyle(node).opacity);
   const toolbar = button.closest('.page-edit-modebar');
-  if (!toolbar) throw new Error('Save changes must be inside the edit toolbar.');
+  if (!toolbar) throw new Error('The editor control must be inside the edit toolbar.');
   const ancestors = [];
   for (let node = button.parentElement; node; node = node.parentElement) ancestors.push(Number(getComputedStyle(node).opacity));
   return {

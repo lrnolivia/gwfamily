@@ -19,7 +19,7 @@ test('Recovery bootstrap records real preview intent before loading its saved sa
  assert.doesNotMatch(source.slice(start,end),/configured\s*:\s*false|notificationApi|\.dispatch\(/);
 });
 test('Hotfix owns the same explicit preview intent and independent fictional state',async()=>{
- const source=read('./hotfix-browser.mjs'),start=source.indexOf('async function pageFor('),end=source.indexOf('\ntry{',start),h=previewHost();
+ const source=read('./hotfix-browser.mjs'),start=source.indexOf('async function pageFor('),end=source.indexOf('\nasync function verifyFilterPlatter(',start),h=previewHost();
  assert.ok(start>=0&&end>start);const helper=vm.runInNewContext('('+source.slice(start,end)+')',h.context);
  await helper(768,'light','android');assert.deepEqual(h.events,['goto','reload']);assert.equal(h.sessionStorage.getItem('gw-active-mode'),'preview');assert.equal(JSON.parse(h.localStorage.getItem('fixture-preview')).state.members[0].profileColor,'#c9aa52');
  assert.doesNotMatch(source.slice(start,end),/configured\s*:\s*false|notificationApi|\.dispatch\(/);

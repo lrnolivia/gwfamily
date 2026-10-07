@@ -7,6 +7,7 @@ import {useLiquidGlassEffects} from '@sohumsuthar/liquid-glass/hooks';
 import {useLiquidLens} from '@sohumsuthar/liquid-glass/hooks/useLiquidLens';
 import paths from './glyph-paths.js';
 import './member-badges.css';
+import './filter-platter.css';
 import {bindViewportBounds} from './viewport-bounds.js';
 import {bindNotificationPopoverPlacement} from './notification-popover-geometry.js';
 
@@ -94,7 +95,7 @@ export function Popover({open,onClose,anchor,children,kind='menu',className='',s
     onToggle={onToggle}><FloatingSurfaceContext.Provider value={true}>{children}</FloatingSurfaceContext.Provider></LiquidGlass>:
     <div id={id} style={style} popover="auto" className={'gw-material-menu '+surfaceClass} onToggle={onToggle}><FloatingSurfaceContext.Provider value={true}>{children}</FloatingSurfaceContext.Provider></div>;
 }
-export function InlineFilters({label,children}){const [open,setOpen]=useState(false),id=useId();return <div className={'inline-filters '+(open?'is-open':'')}><Control className="filter-trigger" aria-label={label} aria-expanded={open} aria-controls={id} onClick={()=>setOpen(v=>!v)}><Glyph name="settings"/></Control><div id={id} className="inline-filter-reveal" inert={!open}><div className="inline-filter-bar">{children}</div></div></div>}
+export function InlineFilters({label,children}){const [open,setOpen]=useState(false),id=useId(),trigger=useRef(null);return <div className={'inline-filters filter-platter '+(open?'is-open':'')} onKeyDown={event=>{if(open&&event.key==='Escape'){event.preventDefault();setOpen(false);trigger.current?.focus()}}}><Control ref={trigger} className="feed-filter-toggle" aria-label={label} aria-expanded={open} aria-controls={id} onClick={()=>setOpen(v=>!v)}><Glyph name="settings"/><span>Filter updates</span><Glyph name="arrow"/></Control><div id={id} className="inline-filter-reveal" inert={!open}><div className="inline-filter-bar">{children}</div></div></div>}
 const SheetFormContext=createContext(null);
 export function useSheetForm({label=null,busy=false,disabled=false,dirty=false}={}){
  const register=useContext(SheetFormContext),id=useId().replace(/:/g,'')+'-sheet-form';

@@ -69,7 +69,7 @@ test('approved filter interaction uses the shared shell and distinct Done contro
  assert.match(jsx,/<BrowseControls label="Family directory"/);assert.match(adapter,/<SharedBrowseControls/);
  assert.match(shell,/filterTitle='Filter & sort'/);assert.match(shell,/Your list updates as you choose/);assert.match(shell,/doneLabel='Done'/);assert.match(shell,/className="work-controls-done"[\s\S]*?>\{doneLabel\}/);
  assert.match(shell,/aria-expanded=\{open.has\(name\)\}/);assert.match(shell,/hidden=\{!open.has\(name\)\}/);
- assert.match(css,/--work-control-done:#f5f3e8;--work-control-on-done:#172b20/);assert.match(adapter,/shared-controls\/work-controls.css/);assert.match(shell,/workControlGlyph/);assert.match(source('src/shared-controls/work-controls-shell.css'),/browse-control-panel\[hidden\]\{display:none\}/);
+ assert.match(css,/--work-control-done:var\(--control,var\(--accent\)\);--work-control-on-done:var\(--control-text,var\(--ink\)\)/);assert.match(adapter,/shared-controls\/work-controls.css/);assert.match(shell,/workControlGlyph/);assert.match(source('src/shared-controls/work-controls-shell.css'),/browse-control-panel\[hidden\]\{display:none\}/);
 });
 test('directory sorting is shared and reversible',()=>{assert.deepEqual(filterDirectoryMembers(state,publicDirectoryMembers(state),{sort:'name-desc'}).map(m=>m.id),['b','a']);assert.deepEqual(filterDirectoryMembers(state,publicDirectoryMembers(state),{}).map(m=>m.id),['a','b'])});
 
