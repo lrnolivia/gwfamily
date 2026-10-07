@@ -1,5 +1,6 @@
 // Node-only event and source contracts. These do not launch a browser or claim
 // that the hosted Chromium/WebKit communications suites have passed.
+import './offline-test-guard.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
@@ -24,7 +25,9 @@ function observed() {
   const page = new Page(), context = new EventEmitter(), errors = [];
   let check = 'synthetic setup';
   const trace = observeCommunicationsPage({page, context, label: 'bob', base, errors, getCheck: () => check});
-  return {page, context, trace, errors, check: value => {check = value;}};
+  const lifecycle = (event, timeOrigin = 100) => page.emit('console', {text: () => COMMUNICATIONS_LIFECYCLE_PREFIX + JSON.stringify({event, url: base + '/', timeOrigin, documentMs: 0, readyState: 'loading'})});
+  lifecycle('new-document');
+  return {page, context, trace, errors, lifecycle, check: value => {check = value;}};
 }
 function request(page, path, {method = 'GET', failure, resource = 'fetch', navigation = false, frame = page.mainFrame()} = {}) {
   return {url: () => base + path, method: () => method, resourceType: () => resource, isNavigationRequest: () => navigation, frame: () => frame,
@@ -56,7 +59,9 @@ test('communications trace correlates request start, response, completed body an
   assert.equal(events[0].mainFrame, true);
   assert.equal(events[0].check, 'synthetic message loading');
   assert.equal(events[2].status, 200);
-  assert.equal(events[2].startedDocument, 0);
+  assert.equal(events[2].startedDocument, 1);
+  assert.equal(events[2].documentEpoch, 1);
+  assert.equal(events[2].documentTimeOrigin, 100);
   assert.ok(events[2].finishedMs >= events[2].startedMs);
 });
 
@@ -65,26 +70,35 @@ test('required route reads reject 401, 403, 503 and transport cancellation witho
     const {page, trace} = observed(), req = request(page, '/api/conversations/synthetic');
     page.emit('request', req); response(page, req, status); page.emit('requestfinished', req);
     assert.equal(trace.requiredReadFailures({required: ['/api/conversations/synthetic']})[0].status, status);
+    assert.deepEqual(trace.readiness({required: ['/api/conversations/synthetic']}), {missing: ['/api/conversations/synthetic'], pending: []}, 'A completed HTTP failure cannot establish successful readiness.');
     assert.deepEqual(trace.requiredReadFailures(), [], 'No invented success contract for deliberate denied/failed scenarios.');
     assert.equal(trace.events.at(-1).status, status, 'Permission failures remain fully visible.');
   }
   const {page, trace} = observed(), req = request(page, '/api/conversations/synthetic', {failure: 'cancelled'});
   page.emit('request', req); page.emit('requestfailed', req);
-  assert.deepEqual(trace.readiness({required: ['/api/conversations/synthetic']}), {missing: [], pending: []});
+  assert.deepEqual(trace.readiness({required: ['/api/conversations/synthetic']}), {missing: ['/api/conversations/synthetic'], pending: []});
   assert.equal(trace.requiredReadFailures({required: ['/api/conversations/synthetic']})[0].failure, 'cancelled');
 });
 
 test('completed old-document reads cannot satisfy a new hard-navigation readiness contract', () => {
-  const {page, trace} = observed(), old = request(page, '/api/state');
+  const {page, trace, lifecycle} = observed(), old = request(page, '/api/state');
   page.emit('request', old); response(page, old); page.emit('requestfinished', old);
   const since = trace.sequence;
+  trace.log('route-reads-settled', {through: since, pending: []});
+  trace.beginTransition('navigation', base + '/#/post/synthetic');
+  lifecycle('beforeunload', 100);
   page.frame.path = '/#/post/synthetic'; page.emit('framenavigated', page.frame);
-  assert.equal(trace.document, 1);
+  assert.equal(trace.document, 1, 'A frame commit alone never invents JavaScript document identity.');
+  lifecycle('new-document', 200);
+  assert.equal(trace.document, 2);
+  assert.equal(trace.documentTimeOrigin, 200);
+  assert.deepEqual(trace.readiness({since: 0, required: ['/api/state']}).missing, ['/api/state'], 'Even without a sequence watermark, a completed old-document read cannot satisfy the new document.');
   assert.deepEqual(trace.readiness({since, required: ['/api/state']}).missing, ['/api/state']);
   const next = request(page, '/api/state');
   page.emit('request', next); response(page, next); page.emit('requestfinished', next);
   assert.deepEqual(trace.readiness({since, required: ['/api/state']}), {missing: [], pending: []});
-  assert.equal(trace.events.at(-1).startedDocument, 1);
+  assert.equal(trace.events.at(-1).startedDocument, 2);
+  assert.equal(trace.events.at(-1).documentTimeOrigin, 200);
 });
 
 test('frame detach, page closure and context closure retain in-flight request identity', () => {
@@ -134,8 +148,9 @@ test('request histories and event rings are bounded without losing pending reque
 });
 
 test('document lifecycle observes errors and rejected promises without consuming browser events', () => {
-  const listeners = new Map(), records = [];
+  const listeners = new Map(), records = [], window = {}; window.top = window;
   vm.runInNewContext('(' + installCommunicationsLifecycle.toString() + ')()', {
+    window, location: {origin: base, pathname: '/'},
     performance: {timeOrigin: 123, now: () => 4}, document: {readyState: 'loading'},
     console: {log: value => records.push(JSON.parse(value.slice(COMMUNICATIONS_LIFECYCLE_PREFIX.length)))},
     addEventListener: (event, callback) => listeners.set(event, callback),
