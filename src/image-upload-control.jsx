@@ -23,10 +23,10 @@ export function ImageUploadControl({src='',alt='',label='Photo',shape='panel',ac
  const hasImage=!!src&&!failed,action=actionLabel||(hasImage?'Edit':'Choose image'),description=[progress?id+'-progress':null,error?id+'-error':null].filter(Boolean).join(' ')||undefined;
  return <div className={'image-upload-control image-upload-'+(['avatar','profile'].includes(shape)?shape:'panel')+' '+className} aria-busy={busy}>
   <span className="image-upload-label" id={id+'-label'}>{label}</span>
-  <div className="image-upload-preview">
+  {!framing&&<div className="image-upload-preview">
    {hasImage?<img src={src} alt={alt} style={photoFrameStyle(frame)} onError={previewError}/>:<div className="image-upload-placeholder"><Glyph name="image"/><span>{failed?'Current photo unavailable':emptyLabel}</span></div>}
    <Control type="button" className="image-upload-choose" disabled={disabled||busy} aria-label={(hasImage?'Edit ':'Choose ')+label.toLowerCase()} aria-describedby={description} onClick={()=>picker.current?.click()}><span className="image-upload-action"><EditImageGlyph/>{busy?'Uploading…':action}</span></Control>
-  </div>
+  </div>}
   {hasImage&&onFrameChange&&!framing&&<Control ref={frameButton} type="button" className="image-upload-frame-button" disabled={disabled||busy} onClick={()=>setFraming(true)}>Adjust framing</Control>}
   {hasImage&&onFrameChange&&framing&&<PhotoFramingEditor src={src} alt={alt} frame={frame} aspect={['avatar','profile'].includes(shape)?1:1.5} disabled={disabled||busy} onCancel={closeFraming} onSave={next=>{onFrameChange(next);closeFraming()}}/>}
   <input ref={picker} id={id+'-file'} className="sr-only" type="file" tabIndex={-1} aria-label={label+' file picker'} accept={accept} multiple={multiple} disabled={disabled||busy} onChange={event=>{const files=[...event.currentTarget.files];event.currentTarget.value='';if(files.length)onFiles?.(files)}}/>

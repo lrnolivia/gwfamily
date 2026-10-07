@@ -52,3 +52,20 @@
 :is(.page-panel-inline-controls,.card-slot-controls) .glyph{width:20px;height:20px;flex:none}
 
 .page-optional-media{margin-block:12px}.page-optional-media>summary{display:flex;align-items:center;min-height:44px;padding:8px 12px;border-radius:12px;background:var(--raised);cursor:pointer;font-size:.875rem}.page-optional-media[open]>.page-shared-panel{margin-top:12px}
+
+/* Quiet section tools keep the authored page visually primary. */
+.page-panel-inline-controls{padding:0 0 8px;border-radius:0;background:transparent;border-bottom:1px solid var(--line);gap:6px}
+.page-panel-inline-controls .page-panel-name{font-size:.8125rem;line-height:1.4}
+.page-panel-inline-controls button{background:transparent;border:0;box-shadow:none;padding:8px;border-radius:8px}
+.page-panel-inline-controls button:hover{background:var(--raised)}
+.page-panel-inline-controls button:focus-visible{outline:2px solid var(--control);outline-offset:2px}
+.page-panel-inline-controls .glyph{width:18px;height:18px}
+.page-panel-zone-label select{background:var(--surface);border:1px solid var(--line);font-size:.8125rem}
+.page-mobile-reorder>label{margin:0 0 16px;font-size:.875rem}
+.page-mobile-reorder>label select{margin-top:8px}
+.page-mobile-reorder li{grid-template-columns:44px minmax(0,1fr) 88px;gap:8px;padding:12px 0}
+.page-mobile-reorder li>div{grid-column:auto;gap:0}
+.page-mobile-reorder li button{width:44px;height:44px;padding:12px;border:0;background:transparent;box-shadow:none;text-decoration:none;border-radius:8px}
+.page-mobile-reorder li button:hover{background:var(--raised)}
+.page-mobile-reorder li .glyph{width:18px;height:18px}
+.page-mobile-reorder li .page-mobile-drag-label{font-size:.875rem;line-height:1.4}

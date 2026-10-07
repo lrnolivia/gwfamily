@@ -6,7 +6,7 @@
 .page-navigation-header{position:sticky;top:var(--gw-app-header-offset,var(--gw-app-header-height));z-index:25;display:flex;align-items:center;gap:14px;min-height:52px;min-width:0;margin-bottom:18px;background:var(--bg);isolation:isolate}
 .page-navigation-header::before{content:'';position:absolute;inset:-1px -16px 0;z-index:-1;pointer-events:none;background:var(--bg)}
 .page-navigation-header .page-back{position:relative;flex:0 0 auto;min-height:44px;min-width:44px;padding:10px 14px;border-radius:999px;gap:8px;background:var(--raised);color:var(--text)}
-.page-back .glyph{transform:rotate(180deg)}
+.page-back .glyph{transform:none}
 .page-back-unread{min-width:20px;padding:2px 5px;border-radius:999px;background:var(--accent);color:var(--ink);font-size:.7rem;font-weight:700}
 .page-compact-title{font-size:1.05rem;font-weight:650;line-height:1.2;overflow-wrap:anywhere;min-width:0;opacity:0;transition:opacity 120ms ease-out}
 .page-navigation-header[data-compact=true] .page-compact-title{opacity:1}
@@ -27,10 +27,10 @@ html[data-platform=android] .page-back{background:var(--raised);backdrop-filter:
 /* Keep the source-owned editable H1; Back joins it without another title. */
 .page-navigation-header.has-inline-title{min-height:0;height:0;margin:0;pointer-events:none}
 .page-navigation-header.has-inline-title>.page-compact-title{display:none}
-#main h1:has(>.page-title-back){position:relative;padding-inline-start:64px;min-height:48px;align-content:center}
-#main h1>.page-title-back{position:absolute;inset-inline-start:0;top:50%;transform:translateY(-50%);width:48px;height:48px;min-width:48px;padding:12px;border-radius:50%;font-family:var(--sans-font,system-ui);font-size:1rem;line-height:1}
-.page-back.page-back>.glyph{width:24px;height:24px;transform:none}
-html[dir=rtl] .page-back.page-back>.glyph{transform:scaleX(-1)}
+#main h1[data-page-back-anchor=true]{position:relative;padding-inline-start:64px;min-height:48px;align-content:center}
+.page-navigation-header.has-inline-title>.page-title-back{position:absolute;left:var(--gw-inline-back-left,0px);top:var(--gw-inline-back-top,0px);pointer-events:auto;transform:none;width:48px;height:48px;min-width:48px;padding:12px;border-radius:50%;font-family:var(--sans-font,system-ui);font-size:1rem;line-height:1}
+.page-back.page-back .glyph{width:24px;height:24px;transform:none}
+html[dir=rtl] .page-back.page-back .glyph{transform:scaleX(-1)}
 html[data-platform=android] .page-back.page-back{background:transparent!important;box-shadow:none;border:0;color:var(--text)}
 html[data-platform=android] .page-back.page-back:is(:hover,:active){background:var(--raised)!important}
 html[data-platform=ios] .page-back.page-back{background:color-mix(in srgb,var(--raised) 90%,transparent);color:var(--text);border:1px solid var(--decorative-line,var(--line));backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
@@ -40,3 +40,10 @@ html[data-platform=ios] .page-back.page-back{background:color-mix(in srgb,var(--
 
 html[data-page-edit-mode=true] .app>.app-header::after,html[data-page-edit-mode=true] .page-navigation-header::after{display:none}
 html[data-page-edit-mode=true] .page-navigation-header.is-main-page{display:none}
+
+.page-navigation-header.has-inline-title::before,.page-navigation-header.has-inline-title::after{display:none!important}
+
+/* Page names fit beside Back without competing with the content below. */
+html[data-platform] #main h1{font-size:clamp(1.5rem,3vw,2.25rem);line-height:1.2;text-wrap:pretty;letter-spacing:-.02em}
+#main h1[data-page-back-anchor=true]{padding-inline-start:56px;min-height:44px}
+.page-navigation-header.has-inline-title>.page-title-back{width:44px;height:44px;min-width:44px;min-height:44px;padding:10px}

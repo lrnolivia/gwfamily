@@ -7,4 +7,4 @@ export const GW_HEADING_FONTS=Object.freeze([
  Object.freeze({value:'serif',label:'DM Serif Text',sample:'gw',className:'serif-sample'}),
  Object.freeze({value:'sans',label:'Momo Trust Display',sample:'gw',className:'sans-sample'})
 ]);
-export const validHeadingFont=value=>GW_HEADING_FONTS.some(font=>font.value===value)?value:'serif';
+export const validHeadingFont=value=>GW_HEADING_FONTS.some(font=>font.value===value)?value:'sans';
