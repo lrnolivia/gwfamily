@@ -197,6 +197,7 @@ try{
   }
   for(let index=0;index<contextualTourSteps.length;index++){
    await expectStep(page,contextualTourSteps[index],material,expect);
+   if(contextualTourSteps[index].id==='family')await assertStableFamilySelector(page);
    await expect(page.locator('.tour-progress')).toHaveText('Step '+(index+1)+' of 7');
    if(index===2){await page.getByRole('button',{name:'Back',exact:true}).click();await expectStep(page,contextualTourSteps[1],material,expect);await page.getByRole('button',{name:'Next',exact:true}).click();await expectStep(page,contextualTourSteps[2],material,expect)}
    if(index===1){await page.evaluate(()=>window.fixture.pending(true));await expect(page.locator('.tour-next')).toBeDisabled();await expect(page.locator('.tour-back')).toBeDisabled();await page.evaluate(()=>window.fixture.pending(false));await expect(page.locator('.tour-next')).toBeEnabled()}
@@ -307,5 +308,17 @@ async function expectStep(page,step,material,expect){
  await assertNoOverflow(page,'tour '+step.id);
 }
 async function assertProgress(page,account,expected){const value=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)),tourProgressKey('live:'+account));assert.deepEqual(value,expected);assert.deepEqual(Object.keys(value),['version','step','status'],'Progress never stores draft or content')}
+async function assertStableFamilySelector(page){
+ const samples=await page.evaluate(async()=>{
+  const selector=document.querySelector('[aria-label="Family views"]'),target=selector.querySelector('[data-gw-tour="family-people"]'),samples=[];
+  for(let frame=0;frame<24;frame++){
+   await new Promise(resolve=>requestAnimationFrame(resolve));
+   const rect=target.getBoundingClientRect();samples.push({compact:selector.classList.contains('is-compact'),left:rect.left,top:rect.top,width:rect.width,height:rect.height,ready:document.querySelector('.contextual-tour').dataset.tourGeometry,nextDisabled:document.querySelector('.tour-next').disabled});
+  }
+  return samples;
+ });
+ const initial=samples[0];
+ assert.ok(samples.every(sample=>sample.compact===initial.compact&&['left','top','width','height'].every(key=>Math.abs(sample[key]-initial[key])<=.25)&&sample.ready==='ready'&&!sample.nextDisabled),'Family selector and ready tour remain stable across 24 frames: '+JSON.stringify(samples));
+}
 async function assertNoOverflow(page,label){assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'No horizontal overflow: '+label)}
 async function bounded(promise,ms){let timer;try{return await Promise.race([promise,new Promise(resolve=>{timer=setTimeout(()=>resolve({error:'Diagnostic timed out'}),ms)})])}finally{clearTimeout(timer)}}
