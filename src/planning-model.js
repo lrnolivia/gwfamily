@@ -30,7 +30,7 @@ export function deriveAccountPlan({memberId,rsvp=null,order=null,orders,feeStatu
  return {memberId,attendance,tasks,byId:Object.fromEntries(tasks.map(t=>[t.id,t])),nextTask,summary,completed,required:required.length,quantity,hasConfirmedFee:confirmed,hasReportedFee:reported};
 }
 export function derivePlanning(state={}){
- const records=state.planningRecords?.accountId===state.selfId?state.planningRecords:null;
+ const records=state.planningRecords?.accountId===state.selfId&&(!state.selectedReunionId||state.planningRecords.reunionId===state.selectedReunionId)?state.planningRecords:null;
  const account=deriveAccountPlan({memberId:state.selfId,rsvp:state.rsvp,order:state.order,
   orders:records?.orders||(state.mode==='preview'&&state.previewOrders?.length?state.previewOrders:undefined),feeStatus:state.fees,
   feeReports:records?.feeReports||(state.mode==='preview'&&state.previewFeeReports?.length?state.previewFeeReports:undefined)});

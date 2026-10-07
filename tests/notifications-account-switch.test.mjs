@@ -15,7 +15,7 @@ const scenario=scenarioFrom(source);
 
 async function fixture(text=source){
  const context=vm.createContext({URL,structuredClone,initialState,DEFAULT_NOTIFICATION_CATEGORIES,sharedPageDefaults,
-  assert:{equal:assert.equal,ok:assert.ok,deepEqual:(actual,expected,message)=>assert.deepEqual(plain(actual),plain(expected),message)}});
+  assert:{equal:assert.equal,notEqual:assert.notEqual,ok:assert.ok,deepEqual:(actual,expected,message)=>assert.deepEqual(plain(actual),plain(expected),message)}});
  const routes=text.slice(text.indexOf('const oldPost='),text.indexOf('async function pageFor('));
  vm.runInContext(`const base='https://fixture.test',requests=[];${routes};`+
   'globalThis.fixture={accounts,requests,attachRoutes,setArrival(value){holdSettingsArrival=value},getArrival(){return holdSettingsArrival}};',context);
@@ -27,7 +27,7 @@ async function fixture(text=source){
 }
 
 async function runScenario(text=source,{preClickRefreshes=0}={}){
- const f=await fixture(text),before=plain(f.accounts);let pending,clicks=0,viewId='alice',settings=plain(f.accounts.alice.settings),inbox=[];
+ const f=await fixture(text),before=plain(f.accounts);let pending,clicks=0,viewId='alice',settings=plain(f.accounts.alice.settings),inbox=[],backRoute;
  const control={checked:true,defaultChecked:true,disabled:false};
  const install=async()=>{const result=await f.request('/api/notifications');viewId=result.body.accountId;settings=result.body.settings;control.checked=settings.categories.reactions;inbox=result.body.notifications;};
  const settle=async()=>{if(pending){const waiting=pending;pending=null;await waiting;await install();control.disabled=false;}};
@@ -40,6 +40,7 @@ async function runScenario(text=source,{preClickRefreshes=0}={}){
   pending=f.request('/api/me/notifications',{method:'PUT',payload});
  }};
  const expect=target=>({
+  async toBeVisible(){assert.equal(target,'back-home');assert.equal(viewId,'bob');},
   async toBeChecked(){assert.equal(target,reactions);assert.equal(control.checked,true,'The DOM checked property must match authoritative choices');},
   async toBeEnabled(){if(pending)await settle();assert.equal(control.disabled,false);},
   async toBeDisabled(){assert.equal(control.disabled,true);},
@@ -48,11 +49,11 @@ async function runScenario(text=source,{preClickRefreshes=0}={}){
   async toHaveCount(count){assert.equal(inbox.filter(item=>item.id.startsWith(target)).length,count);},
  });
  expect.poll=read=>({async toBe(value){assert.equal(read(),value);}});
- Object.assign(f.context,{viewer:f.viewer,alice:{getByRole:()=>({getByRole:()=>reactions})},expect,check:async(name,run)=>run(),
+ Object.assign(f.context,{viewer:f.viewer,alice:{url:()=> 'https://fixture.test/#/notification-settings',getByRole:()=>({getByRole:()=>reactions}),locator:selector=>{assert.equal(selector,'.page-navigation-header');return {getByRole(role,options){assert.equal(role,'button');assert.equal(options.name,'Back to Home');assert.equal(options.exact,true);return 'back-home'}}}},expect,check:async(name,run)=>run(),
   settingsWrites:()=>f.requests.filter(request=>request.path==='/api/me/notifications'&&request.method==='PUT'),
-  openSettings:async()=>{await install();return 'https://fixture.test/#/home'},returnFromSettings:async()=>{await settle()},backgroundBell:()=> 'bell',bell:()=> 'bell',showInbox:install,
+  openSettings:async()=>{await install();return 'https://fixture.test/#/you'},returnFromSettings:async(page,previous)=>{await settle();assert.equal(previous,'https://fixture.test/#/home');backRoute=previous},backgroundBell:()=> 'bell',bell:()=> 'bell',showInbox:install,
   panel:()=>({locator:selector=>selector.includes('alice-')?'alice-':'bob-'})});
- try{await vm.runInContext(`(async()=>{${scenarioFrom(text)}})()`,f.context);return {f,before,control,clicks};}
+ try{await vm.runInContext(`(async()=>{${scenarioFrom(text)}})()`,f.context);return {f,before,control,clicks,backRoute};}
  catch(error){error.syntheticEvidence={writes:plain(f.requests.filter(request=>request.method==='PUT')),accounts:plain(f.accounts),control:{...control}};throw error;}
  finally{await settle();assert.equal(f.getArrival(),null,'The captured arrival must always be released and consumed');}
 }
@@ -73,7 +74,7 @@ test('the pre-click account switch can legitimately edit Bob after an ordinary r
 
 test('the exact hosted scenario captures Alice intent before the server switch across pre-click refresh interleavings',async()=>{
  for(const preClickRefreshes of [0,1,10]){
-  const {f,before,control,clicks}=await runScenario(source,{preClickRefreshes});assert.equal(clicks,1);
+  const {f,before,control,clicks,backRoute}=await runScenario(source,{preClickRefreshes});assert.equal(clicks,1);assert.equal(backRoute,'https://fixture.test/#/home','The new account does not return to the old account route');
   assert.deepEqual(plain(f.accounts),before,'Neither account settings nor notices may be changed');
   assert.deepEqual(plain(f.requests.filter(request=>request.method==='PUT')),[{viewer:'bob',path:'/api/me/notifications',method:'PUT',payload:{expectedAccountId:'alice',revision:0,categories:{reactions:false}}}]);
   assert.deepEqual(control,{checked:true,defaultChecked:true,disabled:false});

@@ -2,7 +2,7 @@
 // Private child records are deliberately absent from public selectors.
 const normalize=value=>String(value||'').normalize('NFKD').replace(/\p{Diacritic}/gu,'').toLocaleLowerCase().trim();
 export function directoryPeople(state,{purpose='member',query='',filter}={}){
- const members=(state.members||[]).filter(m=>!m.managedBy&&m.origin!=='dependent'&&(state.mode==='preview'||m.registered)).map(m=>({...m,personKind:'member'}));
+ const members=(state.members||[]).filter(m=>!m.managedBy&&!m.previewRemovedAt&&(!m.previewStatus||m.previewStatus==='active')&&m.origin!=='dependent'&&(state.mode==='preview'||m.registered)).map(m=>({...m,personKind:'member'}));
  const ancestors=(state.memorials||[]).map(m=>({...m,personKind:'ancestor'}));
  const source=purpose==='ancestral-head'?ancestors:purpose==='tag'?[...members,...ancestors]:members;
  const terms=normalize(query).split(/\s+/).filter(Boolean),seen=new Set();

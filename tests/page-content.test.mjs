@@ -1,12 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {build} from 'esbuild';
+import {pageContentPayload,pageContentFingerprint,pageContentDirty,pageDraftKey,safePageMediaUrl,mergePageDraft,pageContentRequest,resetPageContentPreview,pageBrowserStorage,reconcilePageRecord,collectPageDrafts} from '../src/page-content-model.js';
 import {SHARED_PAGE_SCHEMA,sharedPageDefaults,validateSharedPageContent} from '../src/shared-content-schema.js';
 const source=await readFile(new URL('../src/page-content.jsx',import.meta.url),'utf8')+'\n'+await readFile(new URL('../src/page-content-model.js',import.meta.url),'utf8');
 const css=await readFile(new URL('../src/page-content.css',import.meta.url),'utf8');
-const compiled=await build({stdin:{contents:"export {pageContentPayload,pageContentFingerprint,pageContentDirty,pageDraftKey,safePageMediaUrl,mergePageDraft,pageContentRequest,resetPageContentPreview,pageBrowserStorage,reconcilePageRecord,collectPageDrafts} from './src/page-content-model.js'",resolveDir:new URL('..',import.meta.url).pathname},bundle:true,write:false,format:'esm',platform:'node',loader:{'.css':'empty'},logLevel:'silent'});
-const {pageContentPayload,pageContentFingerprint,pageContentDirty,pageDraftKey,safePageMediaUrl,mergePageDraft,pageContentRequest,resetPageContentPreview,pageBrowserStorage,reconcilePageRecord,collectPageDrafts}=await import('data:text/javascript;base64,'+Buffer.from(compiled.outputFiles[0].text).toString('base64'));
 const clone=value=>JSON.parse(JSON.stringify(value));
 
 test('page payload strips all media output metadata before publication',()=>{
@@ -68,7 +66,7 @@ test('declared edit scope excludes public entry, profiles, personal posts and pr
  assert.equal(SHARED_PAGE_SCHEMA.global.hero,false);assert.match(source,/state\.onboarding==='done'/);assert.match(source,/session\?\.status==='active'/);assert.match(source,/relatedPages=\[\]/);assert.match(source,/context\.editingPages\.includes\(page\)/);
 });
 test('text stays plain, preserves source defaults, and keeps Done inside its rectangular input',()=>{
- assert.doesNotMatch(source,/dangerouslySetInnerHTML|contentEditable|execCommand/);assert.match(source,/originalValue\?children/);assert.match(source,/page-copy-input-wrap.*<Input[\s\S]*page-field-done[\s\S]*Done editing/);assert.match(source,/e\.key==='Escape'/);assert.match(source,/e\.metaKey\|\|e\.ctrlKey/);assert.match(source,/getBoundingClientRect\(\)/);assert.match(css,/page-copy-input-wrap\{position:absolute/);assert.match(css,/page-copy-input[^}]+border-radius:3px/);
+ assert.doesNotMatch(source,/dangerouslySetInnerHTML|contentEditable|execCommand/);assert.match(source,/originalValue\?children/);assert.match(source,/page-copy-input-wrap.*<Input[\s\S]*page-field-done[\s\S]*Finish editing/);assert.match(source,/e\.key==='Escape'/);assert.match(source,/e\.metaKey\|\|e\.ctrlKey/);assert.match(source,/getBoundingClientRect\(\)/);assert.match(css,/page-copy-input-wrap\{position:absolute/);assert.match(css,/page-copy-input[^}]+border-radius:3px/);
 });
 test('edit mode uses neutral theme tokens with graceful fade and never filters photos',()=>{
  assert.match(css,/html\[data-page-edit-mode=true\]/);assert.match(css,/--bg:var\(--page-edit-bg\)!important/);assert.match(css,/background-color 360ms/);assert.doesNotMatch(css,/grayscale\s*\(|saturate\s*\(|filter\s*:/);assert.match(source,/delete root\.dataset\.pageEditMode/);
@@ -106,7 +104,7 @@ test('active authenticated pages refresh every fifteen seconds only while visibl
 test('saving one visited page preserves recovered drafts on pages not yet revisited',()=>{const home=sharedPageDefaults('home'),family=sharedPageDefaults('family'),familyDraft=clone(family);familyDraft.text.heading='Unfinished family title';const saved={family:{draft:familyDraft,base:family,revision:2,request:null}};const collected=collectPageDrafts({home:{content:home,draft:null,revision:4}},saved);assert.equal(collected.family.draft.text.heading,'Unfinished family title');assert.equal(collected.home,undefined);const cleared=collectPageDrafts({family:{content:family,draft:null,revision:3}},saved);assert.deepEqual(cleared,{})});
 
 test('active-card glow is cleared when a family tab detaches it, without observing attributes',()=>{assert.match(source,/const main=document\.getElementById\('main'\)/);assert.match(source,/new MutationObserver\(\(\)=>\{if\(activeSurface\.current\?\.isConnected===false\)activateSurface\(null\)\}/);assert.match(source,/observer\.observe\(main,\{childList:true,subtree:true\}\)/);assert.match(source,/return\(\)=>observer\.disconnect\(\)/);assert.doesNotMatch(source,/observer\.observe\(main,[^\n]*attributes:/)});
-test('background loading keeps dirty focused fields enabled while preserving current keystrokes',()=>{assert.match(source,/busy=editor\.record\?\.status==='saving'/);assert.match(source,/disabled=\{busy\} onChange=\{e=>change\(e\.target\.value\)\}/);assert.match(source,/const freshest=ref\.current\[page\]\|\|before/);assert.match(source,/reconcilePageRecord\(page,result,keepDraft\?freshest:null,stored\)/)});
+test('background loading and autosaving keep focused text enabled while preserving current keystrokes',()=>{assert.match(source,/text=originalValue[^\n]+busy=false/);assert.match(source,/disabled=\{busy\} onChange=\{e=>change\(e\.target\.value\)\}/);assert.match(source,/const freshest=ref\.current\[page\]\|\|before/);assert.match(source,/reconcilePageRecord\(page,result,keepDraft\?freshest:null,stored\)/);assert.match(source,/reconcilePageSave\(page,saved,ref\.current\[page\]/)});
 
 
 test('media upload owns a named progress status without suppressing pending-work protection',()=>{
@@ -117,7 +115,8 @@ test('media upload owns a named progress status without suppressing pending-work
  assert.match(panel,/setProgress\('Uploading '/);
  assert.match(panel,/finishWork\(\);if\(alive\.current\)\{setUploading\(false\);setProgress/);
  assert.match(panel,/Uploaded privately\./);
- assert.match(panel,/Save the page to use /);
+ assert.match(panel,/Finish choosing media to use /);
+ assert.match(panel,/useEffect\(\(\)=>editor\.pauseAutosave\(\)/);
  assert.doesNotMatch(panel,/<Sheet/);
  assert.match(panel,/<Button icon="check" disabled=\{uploading\} onClick=\{onClose\}>Done<\/Button>/);
 });

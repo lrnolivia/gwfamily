@@ -1,0 +1,42 @@
+/* Exact shared geometry lives in shared-controls/work-controls.css.
+   GW adapts theme tokens and its own directory layout/data only. */
+.people-filters{min-width:0;container:people-filters / inline-size;font:inherit}
+.people-filters label{display:grid;align-content:start;gap:8px;min-width:0;margin:0;font-size:.875rem;font-weight:500;line-height:1.4}
+.people-filter-toggle{display:flex;align-items:center;gap:10px;min-height:48px;width:100%;padding:12px 14px;text-align:start;border-radius:12px;background:var(--raised);color:var(--text);font-size:.875rem}
+.people-filter-toggle>span:not(.filter-shared-glyph){flex:1;min-width:0;overflow-wrap:anywhere}
+.people-filter-toggle>.glyph:last-child{width:14px;height:14px;transform:rotate(90deg)}
+.people-filter-toggle>.glyph:last-child.is-open{transform:rotate(-90deg)}
+.people-filter-panel{display:grid;gap:24px}
+.people-filter-panel[hidden]{display:none}
+.people-filter-panel .people-filter-group{display:grid;gap:10px;min-width:0;max-width:100%;border:0;padding:0;margin:0;background:none}
+.people-filter-panel .people-filter-group>legend{padding:0;float:none}
+.people-filter-choices{min-width:0}
+.people-filters .people-filter-choice{min-width:0;max-width:100%;min-height:44px;font-size:.875rem;text-align:center}
+.people-filter-choice>span{min-width:0;overflow-wrap:anywhere}
+.people-filter-choice>.glyph{flex:none;width:16px;height:16px}
+.people-filter-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start}
+.people-filters .work-controls-footer{margin-top:0}
+.people-filter-summary{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;min-width:0}
+.people-filter-summary>p{margin:0}
+.people-filter-summary>.text-button{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:6px 0}
+.people-filter-summary .glyph{width:16px;height:16px;flex:none}
+.filter-shared-glyph{display:inline-flex;flex:none}
+.people-filters :is(button,input,select):focus-visible{outline:3px solid var(--control,var(--accent));outline-offset:3px}
+@container people-filters (max-width:30rem){.people-filter-columns{grid-template-columns:minmax(0,1fr)}}
+@media(forced-colors:active){.people-filters .work-filter-bar button[aria-pressed=true]{background:Highlight;color:HighlightText;border:1px solid Highlight}.people-filters .work-controls-done{background:ButtonFace;color:ButtonText;border:1px solid ButtonText}}
+.family-household-directory{display:grid;gap:24px;min-width:0}
+.family-household-group{display:grid;gap:8px;min-width:0;border-top:1px solid var(--decorative-line,var(--line));padding-top:20px}
+.family-household-heading{display:flex;gap:12px;align-items:center;min-width:0;flex-wrap:wrap}
+.family-household-heading>div{flex:1 1 12rem;min-width:0}
+.family-household-heading h3,.family-household-heading p{margin:0;overflow-wrap:anywhere}
+.family-household-heading>.button{width:auto!important;max-width:100%;margin:0}
+.family-directory-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;min-width:0}
+.family-directory-heading h2{margin:0}
+.family-directory-heading>.button{width:auto!important;margin:0}
+.all-family-page>.card{min-width:0}
+.family-household-group>p{margin:0;line-height:1.5;overflow-wrap:anywhere}
+.family-household-unassigned{min-width:0;max-width:100%}
+.family-household-unassigned>summary{min-height:44px;padding-block:10px;cursor:pointer;font-size:.875rem;line-height:1.5;overflow-wrap:anywhere}
+.family-household-unassigned>summary:focus-visible{outline:3px solid var(--control,var(--accent));outline-offset:3px}
+
+.people-filter-fields{display:grid;gap:24px;min-width:0}.people-filter-fields .people-filter-group{border:0;padding:0;margin:0;min-width:0}.people-filter-fields .people-filter-group>legend{padding:0;font:inherit;margin-bottom:10px;color:var(--muted)}

@@ -1,3 +1,5 @@
+import {shareUnchangedSnapshot} from './refresh-stability.js';
+import {reunionQuery,REUNION_SCOPED_COMMANDS} from './reunion-model.js';
 import React,{useEffect,useRef,useState} from 'react';
 import {readWithRecovery} from './live-read-recovery.js';
 import {initialState,loadLocalState,saveLocalState,reducer} from './data-adapter.js';
@@ -47,10 +49,11 @@ const localTypes=new Set(['SET_DRAFT','SET_DRAFT_FILES','SET_COMPOSE','SET_FEED_
 const localFields=['drafts','compose','feedFilter','peopleFilter','memoryFilters','bag'];
 export function useFamilyData(){
  const [state,setState]=useState(loadLocalState),[session,setSession]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[actionError,setError]=useState(''),[loadError,setLoadError]=useState(''),[pending,setPending]=useState(false),[draftStorageStatus,setDraftStorageStatus]=useState({ok:true}),[preview,setPreview]=useState(()=>{try{return reviewOnly||sessionStorage.getItem(modeKey)==='preview'}catch{return false}});
- const refreshRun=useRef({sequence:0,controller:null});
+ const refreshRun=useRef({sequence:0,controller:null}),reunionBags=useRef({}),signOutLock=useRef(false);
  const linkedResource=useRef(null),epoch=useRef(0),ref=useRef(state),busy=useRef(false),workCount=useRef(0),after=useRef(null),alive=useRef(true),requestBook=useRef({accountId:null,requests:{},confirmed:new Set()});ref.current=state;
  const save=next=>{
-  ref.current=next;setState(next);
+  if(ref.current.mode==='live'&&(next.mode!=='live'||next.selfId!==ref.current.selfId))reunionBags.current={};
+  next=shareUnchangedSnapshot(ref.current,next);if(next!==ref.current){ref.current=next;setState(next)}
   if(next.mode==='preview'){const result=saveLocalState(next);setDraftStorageStatus(result);if(!result.ok)setError(result.error);return result}
   if(next.mode==='live'){
    const result=saveLiveDrafts(next.selfId,next),book=requestBook.current;
@@ -86,22 +89,23 @@ export function useFamilyData(){
   return()=>{if(finished)return;finished=true;workCount.current=Math.max(0,workCount.current-1);settlePending()};
  }
  function cancelRefresh(){const run=refreshRun.current;run.sequence++;run.controller?.abort();run.controller=null}
- async function refresh({previewMode=preview}={}){
+ async function refresh({previewMode=preview,reunionId}={}){
   if(reviewOnly){setConfig({configured:false,email:false,providers:[]});setSession(null);setLoading(false);return}
   cancelRefresh();const run=refreshRun.current,sequence=run.sequence,controller=new AbortController();run.controller=controller;
   const generation=epoch.current,current=()=>alive.current&&generation===epoch.current&&sequence===refreshRun.current.sequence;
   try{
-   const [cfg,sess]=await Promise.all([readApi('/api/config',controller.signal),readApi('/api/session',controller.signal)]);if(!current())return;setConfig(cfg);setSession(sess);
+   const [cfg,sess]=await Promise.all([readApi('/api/config',controller.signal),readApi('/api/session',controller.signal)]);if(!current())return;setConfig(previous=>shareUnchangedSnapshot(previous,cfg));setSession(previous=>shareUnchangedSnapshot(previous,sess));
    if(sess.status==='active'&&!previewMode){
     if(sess.user?.id&&ref.current.mode==='live'&&sess.user.id!==ref.current.selfId){
      linkedResource.current=null;clearChatDrafts(ref.current.selfId);retainDraftAccount(null);requestBook.current={accountId:null,requests:{},confirmed:new Set()};save(initialState());
     }
-    const next=await withLinkedResource(await readApi('/api/state',controller.signal));if(current()){
+    const next=await withLinkedResource(await readApi(reunionQuery('/api/state',reunionId||(ref.current.mode==='live'?ref.current.selectedReunionId:null)),controller.signal));if(current()){
      if(sess.user?.id&&next.selfId!==sess.user.id)throw Object.assign(new Error('Your signed-in account changed. Refresh to continue.'),{status:409});
      const sameAccount=ref.current.mode==='live'&&ref.current.selfId===next.selfId;
      if(ref.current.mode==='live'&&ref.current.selfId!==next.selfId){linkedResource.current=null;clearChatDrafts(ref.current.selfId)}
      retainDraftAccount(next.selfId);
      const local=sameAccount?Object.fromEntries(localFields.map(key=>[key,ref.current[key]])):readLiveDrafts(next.selfId);
+     if(sameAccount&&next.selectedReunionId!==ref.current.selectedReunionId){reunionBags.current[next.selfId+':'+ref.current.selectedReunionId]=ref.current.bag;local.bag=reunionBags.current[next.selfId+':'+next.selectedReunionId]||[]}
      if(requestBook.current.accountId!==next.selfId)requestBook.current={accountId:next.selfId,requests:readCommandRequests(next.selfId),confirmed:new Set()};
      save({...next,...local});
     }
@@ -116,10 +120,13 @@ export function useFamilyData(){
  useEffect(()=>{alive.current=true;refresh();return()=>{alive.current=false;cancelRefresh()}},[preview]);
  useEffect(()=>{if(preview||session?.status!=='active')return;const tick=()=>{if(document.visibilityState==='visible'&&!busy.current&&!workCount.current&&!refreshRun.current.controller)refresh()};const timer=setInterval(tick,15000);window.addEventListener('online',tick);document.addEventListener('visibilitychange',tick);return()=>{clearInterval(timer);window.removeEventListener('online',tick);document.removeEventListener('visibilitychange',tick)}},[preview,session?.status]);
  function dispatch(action){
-  if(ref.current.mode==='preview'){save(reducer(ref.current,action));return Promise.resolve(true)}
-  if(localTypes.has(action.type)){const next=reducer({...ref.current,mode:'preview'},action);save({...next,mode:'live'});return Promise.resolve(true)}
-  if(busy.current)return Promise.resolve(false);
+  if(ref.current.mode==='preview'){try{save(reducer(ref.current,action));setError('');return Promise.resolve(true)}catch(e){setError(e.message);return Promise.resolve(false)}}
+  if(action.type==='SELECT_REUNION')return selectReunion(action.id);
+  if(['BAG_ADD','BAG_REMOVE'].includes(action.type)&&(busy.current||workCount.current))return Promise.resolve(false);
+  if(localTypes.has(action.type)){try{const next=reducer({...ref.current,mode:'preview'},action);save({...next,mode:'live'});return Promise.resolve(true)}catch(e){setError(e.message);return Promise.resolve(false)}}
+  if(busy.current||workCount.current)return Promise.resolve(false);
   busy.current=true;cancelRefresh();setLoading(false);setPending(true);setError('');const before=ref.current,generation=epoch.current,payload={...action};
+  if(REUNION_SCOPED_COMMANDS.has(action.type))payload.reunionId=action.reunionId||before.selectedReunionId;
   if(action.type==='CLAIM_ORDER')payload.lines=before.bag.flatMap(p=>Object.entries(p.sizes).filter(([,quantity])=>quantity>0).map(([size,quantity])=>({productId:p.productId,size,quantity})));
   if(action.type==='ORDER_RECEIVED')payload.id=before.order?.id;
   return (async()=>{
@@ -133,7 +140,7 @@ export function useFamilyData(){
     if(!alive.current||generation!==epoch.current||ref.current.selfId!==before.selfId)return true;
     // Commit local draft cleanup immediately after the acknowledged write. A failed
     // read-back cannot turn a successful send into a second submission.
-    const updated=preserveNewerDrafts(ref.current,before,reducer({...ref.current,mode:'preview'},action),action);
+    const updated=preserveNewerDrafts(ref.current,before,['APPROVE_MEMBER','REMOVE_MEMBER','RESTORE_MEMBER'].includes(action.type)?ref.current:reducer({...ref.current,mode:'preview'},action),action);
     const local=Object.fromEntries(localFields.map(key=>[key,updated[key]]));if(action.type==='CLAIM_ORDER')local.bag=[];
     requestBook.current.confirmed.add(fingerprint);
     save({...ref.current,...local});
@@ -141,7 +148,7 @@ export function useFamilyData(){
     cancelRefresh();const run=refreshRun.current,sequence=run.sequence,controller=new AbortController();run.controller=controller;
     const currentRead=()=>alive.current&&generation===epoch.current&&sequence===refreshRun.current.sequence&&ref.current.selfId===before.selfId;
     try{
-     const server=await withLinkedResource(await readApi('/api/state',controller.signal));
+     const server=await withLinkedResource(await readApi(reunionQuery('/api/state',ref.current.mode==='live'?ref.current.selectedReunionId:null),controller.signal));
      if(currentRead()){if(server.selfId!==before.selfId){await refresh()}else{const latest=Object.fromEntries(localFields.map(key=>[key,ref.current[key]]));save({...server,...latest});setLoadError('')}}
     }catch{if(currentRead())setLoadError('Your change was saved. The latest view could not load; it will refresh when the connection returns.')}
     finally{if(sequence===refreshRun.current.sequence)run.controller=null}
@@ -153,14 +160,41 @@ export function useFamilyData(){
    }finally{busy.current=false;settlePending()}
   })();
  }
+ async function selectReunion(id){
+  if(busy.current||workCount.current||!ref.current.reunions?.some(r=>r.id===id))return false;
+  const before=ref.current;if(id===before.selectedReunionId)return true;
+  cancelRefresh();const run=refreshRun.current,sequence=run.sequence,controller=new AbortController();run.controller=controller;const generation=epoch.current,finish=beginPending();setError('');
+  try{
+   const next=await readApi(reunionQuery('/api/state',id),controller.signal);
+   if(!alive.current||generation!==epoch.current||sequence!==refreshRun.current.sequence||ref.current.selfId!==before.selfId)return false;
+   if(next.selfId!==before.selfId||next.selectedReunionId!==id)throw Error('Your account or reunion changed. Refresh before continuing.');
+   reunionBags.current[before.selfId+':'+before.selectedReunionId]=before.bag;
+   const local=Object.fromEntries(localFields.filter(k=>k!=='bag').map(k=>[k,ref.current[k]]));
+   save({...next,...local,bag:reunionBags.current[before.selfId+':'+id]||[]});setLoadError('');return true;
+  }catch(e){if(sequence===refreshRun.current.sequence)setError(e.message);return false}finally{if(sequence===refreshRun.current.sequence)run.controller=null;finish()}
+ }
  function defer(fn){if(busy.current||workCount.current){after.current=fn;return true}return false}
  function enterPreview(){if(busy.current||workCount.current)return;epoch.current++;cancelRefresh();linkedResource.current=null;setLoadError('');try{sessionStorage.setItem(modeKey,'preview')}catch{}save(loadLocalState());setPreview(true);setLoading(false);setError('')}
  function leavePreview(){if(busy.current||workCount.current)return;epoch.current++;cancelRefresh();linkedResource.current=null;setLoadError('');try{sessionStorage.removeItem(modeKey)}catch{}setPreview(false);setLoading(true);save(initialState());refresh({previewMode:false})}
  async function signOut(){
-  if(busy.current||workCount.current)return;const finish=beginPending();
-  try{try{const registration=await navigator.serviceWorker?.getRegistration();const subscription=await registration?.pushManager?.getSubscription();if(subscription)await subscription.unsubscribe();const displayed=await registration?.getNotifications?.();displayed?.forEach(n=>n.close())}catch{}await api('/api/auth/sign-out',{method:'POST',body:'{}'});epoch.current++;cancelRefresh();setLoadError('');linkedResource.current=null;clearLiveDrafts(ref.current.selfId);clearChatDrafts(ref.current.selfId);retainDraftAccount(null);requestBook.current={accountId:null,requests:{},confirmed:new Set()};setSession(null);save(initialState());setPreview(false);try{sessionStorage.removeItem(modeKey)}catch{}}
-  catch(e){setError(e.message)}finally{finish()}
+  if(signOutLock.current||busy.current||workCount.current)return false;
+  signOutLock.current=true;const finish=beginPending(),accountId=session?.user?.id||(ref.current.mode==='live'?ref.current.selfId:null);
+  try{
+   if(!reviewOnly&&(session?.signedIn===true||ref.current.mode==='live')){
+    // Stop delivery only for the connected account; preview itself has no server identity.
+    try{const registration=await navigator.serviceWorker?.getRegistration();const subscription=await registration?.pushManager?.getSubscription();if(subscription)await subscription.unsubscribe();const displayed=await registration?.getNotifications?.();displayed?.forEach(n=>n.close())}catch{}
+    await api('/api/auth/sign-out',{method:'POST',body:'{}'});
+   }
+   epoch.current++;cancelRefresh();setLoadError('');setError('');linkedResource.current=null;
+   if(accountId){clearLiveDrafts(accountId);clearChatDrafts(accountId)}retainDraftAccount(null);
+   requestBook.current={accountId:null,requests:{},confirmed:new Set()};setSession(null);
+   const signedOut={...initialState(),onboarding:'welcome'};ref.current=signedOut;setState(signedOut);
+   // Do not call save(): that would overwrite the separate retained preview.
+   setPreview(false);setLoading(false);try{sessionStorage.removeItem(modeKey)}catch{}
+   return true;
+  }catch(e){setError(e.message);return false}finally{signOutLock.current=false;finish()}
  }
+
  async function upload(file){if(ref.current.mode==='preview'){const {readPreviewFile}=await import('./uploads.js');return readPreviewFile(file)}const data=new FormData();data.append('file',file);const finish=beginPending();try{return await api('/api/media',{method:'POST',body:data})}finally{finish()}}
  return {state,getCurrentState:()=>ref.current,dispatch,session,config,loading,error:actionError||loadError,pending,preview,enterPreview,leavePreview,refresh,signOut,upload,defer,setError,beginPending,notificationApi,hydrateNotificationResource,releaseNotificationResource:route=>{const link=linkedResource.current;if(link){const expectedId=link.target.kind==='comment'?link.target.containerId:link.target.id,expectedType=link.target.kind==='memory'?'memory':'post';if(route?.id!==expectedId||route?.type!==expectedType)linkedResource.current=null}},draftStorageStatus,hasLocalDrafts:hasLocalDrafts(state)};
 }

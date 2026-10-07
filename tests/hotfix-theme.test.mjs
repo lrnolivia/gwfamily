@@ -9,9 +9,10 @@ test('hotfix action palette has readable text on opaque controls across personal
  }
  assert.match(css,/--gw-control-alpha:100%/);
 });
-test('sign out sienna stays readable independently of profile accents',()=>{
- assert.ok(contrast('#a84f32','#ffffff')>=4.5);
- assert.match(css,/\.sign-out\.sign-out\{background:#a84f32!important;color:#ffffff!important/);
+test('shared red sign out stays readable independently of profile accents',()=>{
+ const accountCss=fs.readFileSync(new URL('../src/account-actions.css',import.meta.url),'utf8');
+ assert.ok(contrast('#c9283d','#ffffff')>=4.5);
+ assert.match(accountCss,/\.sign-out\.sign-out\{background:#c9283d!important;color:#fff!important/);
 });
 test('menu endpoints share vertical padding and desktop action is beside navigation',()=>{
  assert.match(css,/\.list-row:first-child,\.list-row:last-child[^}]*align-items:center[^}]*padding:calc\(14px/);

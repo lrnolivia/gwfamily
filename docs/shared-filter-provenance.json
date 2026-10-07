@@ -1,0 +1,31 @@
+{
+  "package": "@relay/shared-ui",
+  "version": "1.1.0",
+  "source_repository": "lrnolivia/ctrl",
+  "source_branch": "ctrl/review-first-telemetry-20261003",
+  "base_commit": "c1fee04ceeded14f07efca02d603c68ed40e37f4",
+  "source_commit": null,
+  "stage": "reconstructed draft, not pushed or released",
+  "files": {
+    "packages/shared-ui/work-controls.js": "457b2bf91b1eb83052192f731be0e547110830ed83a4400b4751ea0183f8ed60",
+    "packages/shared-ui/work-controls.css": "9650678323664d1bf6019bc31bf4b360da139641333127588ff559bd61727e71",
+    "packages/shared-ui/work-controls-shell.css": "9305b8c0f3f1c89127987e349aab3f33dffa32806b60e0d3e5f3393ceebf0896",
+    "packages/shared-ui/work-controls-react.jsx": "cca9cb7392f5dc180fa70d793360ecac3e6f004e5113c3b3c37be8e986ad2731",
+    "packages/shared-ui/work-controls.d.ts": "4f2db93689a61e20755f193f89338660b3c081c58f2706824146d9b5a748afee",
+    "packages/shared-ui/package.json": "cb693b904f7dc836821e64394f0f655a580ed73d340e21319458194acf4ef98f",
+    "packages/shared-ui/README.md": "1171861e38d9d585e549409229c3defe3d9a892da2b3bdc7729647289fad2e3c",
+    "test/work-controls.test.mjs": "79f400f7a0f1301d0df33396d361dabdde83bdd888592c66c0456c80a7a5b1f9"
+  },
+  "verification": {
+    "node": "22.23.3",
+    "pure_tests_passed": 14,
+    "jsx_and_viewer_bundle": "passed esbuild with process/network guards",
+    "hosted_visual_keyboard_mobile": "not run"
+  },
+  "outer_shell": "CTRL canonical outer styles unchanged; portable adapter separate for other products",
+  "feature_icon_policy": "Feature identity must use the consuming product canonical asset registry. Control glyphs express UI actions, never product or feature identity.",
+  "source_library_file_id": "libfile_371196b0dbf481919f41f1f4100e309a",
+  "source_library_version": 1,
+  "consumer": "lrnolivia/gwfamily",
+  "consumer_stage": "candidate-only"
+}

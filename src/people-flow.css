@@ -12,3 +12,5 @@
 .member-picker-option .membership-chips,.member-picker-selected .membership-chips{margin-top:0}
 .member-picker-option>.glyph,.member-picker-selected .memory-person-tag>.glyph{flex:none}
 @media(min-width:760px){.family-people-tools{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}}
+
+.directory-empty>.contact-summary-avatar{width:72px;height:72px;margin-inline:auto;font-size:1.5rem;flex:none}

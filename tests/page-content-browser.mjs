@@ -1,3 +1,6 @@
+import {pageContentPayload} from '../src/page-content-model.js';
+import {validatePhotoFrame} from '../src/photo-framing-model.js';
+import {validateCardLayouts} from '../src/card-content-layout-model.js';
 // Hosted-only shared-page editor checks. Start the isolated port-4176 fixture.
 // All accounts, copy, posts and uploaded media below are synthetic test data.
 // Authoring or syntax-checking this file is not evidence of a browser pass.
@@ -29,14 +32,11 @@ const videoBytes = Buffer.from('AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAM2
 const uploadPhoto = (name, width = 32) => ({name, mimeType: 'image/png', buffer: createTestPng(width, 24)});
 const field = (page, key) => page.locator(`[data-page-field="${key}"]`);
 const toolbar = page => page.locator('.page-edit-toolbar');
-const saveButton = page => toolbar(page).getByRole('button', {name: 'Save changes', exact: true});
+const saveStatus = page => toolbar(page).locator('.page-edit-mode-label').getByRole('status');
 const modeDone = page => toolbar(page).locator('.page-mode-done');
 // API probes preserve the complete normalized snapshot, including lock state,
 // layout order and Markdown source formats. Output URLs never become authority.
-const contentPayload = value => ({text: {...value.text}, bodyFormats: {...value.bodyFormats},
-  hero: {mode: value.hero.mode, media: value.hero.media.map(({id, alt = ''}) => ({id, alt}))},
-  panelLayout: {...value.panelLayout, panels: value.panelLayout.panels.map(panel => panel.kind === 'hero' ? {...panel} :
-    {...panel, media: panel.media.map(({id, alt = ''}) => ({id, alt}))})}});
+const contentPayload = pageContentPayload;
 const primaryHero = (page, key) => page.locator(`[data-panel-page="${key}"] [data-panel-id="hero"]`);
 
 async function check(name, run) {
@@ -258,17 +258,17 @@ async function navigate(page, route, id) {
 async function edit(page) {
   await toolbar(page).getByRole('button', {name: /^(Edit page|Resume page edits)$/}).click();
   await expect(page.locator('html')).toHaveAttribute('data-page-edit-mode', 'true');
-  await expect(toolbar(page).getByText('Editing page', {exact: true})).toBeVisible();
+  await expect(toolbar(page).getByText(/^Editing /)).toBeVisible();
 }
 async function assertSavePaint(page, {theme, platform, disabled}) {
-  const button = saveButton(page);
+  const button = modeDone(page);
   if (disabled) await expect(button).toBeDisabled(); else await expect(button).toBeEnabled();
   await expect.poll(async () => pageSaveContrast(await button.evaluate(readPageSavePaint)), {message: 'Save label contrast uses the actual painted tint and composited opacity.'}).toBeGreaterThanOrEqual(4.5);
   const paint = await button.evaluate(readPageSavePaint);
   assert.equal(paint.theme, theme); assert.equal(paint.platform, platform); assert.equal(paint.disabled, disabled);
-  assert.equal(paint.text, 'Save changes'); assert.equal(paint.hostOpacity, 1);
+  assert.equal(paint.text.trim(), 'View page'); assert.equal(paint.hostOpacity, 1);
   assert.deepEqual(parsePaintColor(paint.foreground), parsePaintColor(paint.hostForeground), 'The innermost label inherits the state foreground.');
-  assert.equal(paint.tintBackground !== null, platform === 'ios', 'The material matrix exercises real glass descendants.');
+  assert.equal(paint.tintBackground, null, 'Editor actions use a solid native control in either material.');
   if (paint.tintBackground !== null) {
     assert.equal(paint.tintOpacity, 1);
     assert.deepEqual(parsePaintColor(paint.tintBackground), parsePaintColor(paint.hostBackground), 'The opaque tint and host paint the same state surface.');
@@ -281,14 +281,20 @@ async function editText(page, key, value, {finish = true} = {}) {
   const input = root.getByRole('textbox', {name: label, exact: true});
   if (!await input.count()) await root.getByRole('button', {name: 'Edit ' + label, exact: true}).click();
   await input.fill(value);
-  if (finish) await root.getByRole('button', {name: 'Done editing ' + label, exact: true}).click();
+  if (finish) await root.getByRole('button', {name: 'Finish editing ' + label, exact: true}).click();
   return input;
 }
 async function save(page) {
-  await saveButton(page).click();
-  await expect(saveButton(page)).toBeDisabled();
-  await expect(toolbar(page)).toContainText('Saved for the family');
+  const retry=toolbar(page).getByRole('button',{name:'Try saving again',exact:true});
+  if(await retry.isVisible())await retry.click();
+  await expect(saveStatus(page)).toHaveText(/^(Saved for the family|Changes save automatically)$/);
   await expect(toolbar(page).locator('.page-editor-error')).toHaveCount(0);
+}
+async function openHistory(page){
+ const tools=toolbar(page).locator('.page-edit-tools');
+ if(!await tools.getAttribute('open'))await tools.locator('summary').click();
+ await tools.getByRole('button',{name:'View page history',exact:true}).click();
+ await expect(tools).not.toHaveAttribute('open','');
 }
 async function mediaPanel(page, key = 'home') {
   await unlockHero(page, key);
@@ -327,7 +333,7 @@ async function uploadPageMedia(page, dialog, picker, files) {
     await expect(picker).toBeDisabled();
     await expect(dialog.getByRole('button', {name: 'Done', exact: true})).toBeDisabled();
     await expect(modeDone(page)).toBeDisabled();
-    await expect(toolbar(page).getByRole('button', {name: 'Saving…', exact: true})).toBeDisabled();
+    await expect(saveStatus(page)).toHaveText('Preparing media…');
     await expect(page.getByRole('dialog')).toHaveCount(0);
     for (const name of ['Photo', 'Gallery', 'Video']) await expect(dialog.getByRole('button', {name, exact: true})).toBeDisabled();
     await page.keyboard.press('Escape');
@@ -335,12 +341,12 @@ async function uploadPageMedia(page, dialog, picker, files) {
     await expect(uploadStatus).toHaveText('Uploading 1 of ' + selected.length + '…');
     release();
     await expect(uploadStatus).toContainText('Uploaded privately.');
-    await expect(uploadStatus).toContainText('Save the page to use ' + (selected.length === 1 ? 'it.' : 'these files.'));
+    await expect(uploadStatus).toContainText('Finish choosing media to use ' + (selected.length === 1 ? 'it.' : 'these files.'));
     await expect(dialog.getByRole('status')).toHaveCount(1);
     await expect(picker).toBeEnabled();
     await expect(dialog.getByRole('button', {name: 'Done', exact: true})).toBeEnabled();
     await expect(modeDone(page)).toBeEnabled();
-    await expect(saveButton(page)).toBeEnabled();
+    await expect(modeDone(page)).toBeEnabled();
   } finally {release(); await page.unroute('**/api/media', handler);}
 }
 async function closeEditorPanel(page, name) {
@@ -363,7 +369,23 @@ async function inlineEditorFits(page, panel) {
   for (let index = 0; index < await controls.count(); index++) {
     const control = controls.nth(index);
     await control.scrollIntoViewIfNeeded();
-    await expect(control).toBeInViewport({ratio: 1});
+    // A minimal scroll can leave a fractional pixel clipped at the viewport
+    // edge. Center the ordinary page scroll, then retain the full-fit assertion.
+    await control.evaluate(element => element.scrollIntoView({block: 'center', inline: 'nearest', behavior: 'instant'}));
+    try {
+      await expect(control).toBeInViewport({ratio: 1});
+    } catch (error) {
+      console.error('Inline editor control geometry', JSON.stringify(await control.evaluate(element => {
+        const ancestors = [];
+        for (let node = element; node && ancestors.length < 8; node = node.parentElement) {
+          const style = getComputedStyle(node);
+          ancestors.push({tag: node.tagName, className: node.className, box: node.getBoundingClientRect().toJSON(),
+            overflowX: style.overflowX, overflowY: style.overflowY, scrollTop: node.scrollTop, scrollLeft: node.scrollLeft});
+        }
+        return {label: element.getAttribute('aria-label') || element.textContent, viewport: {width: innerWidth, height: innerHeight}, ancestors};
+      })));
+      throw error;
+    }
   }
   await noClip(page);
 }
@@ -419,8 +441,13 @@ try {
   await check('authenticated family can read; anonymous and pending accounts cannot read shared content or history', async () => {
     for (const [page, id] of [[alice, 'alice'], [bob, 'bob'], [owner, 'owner']]) assert.equal((await ok(page, '/api/state')).selfId, id);
     for (const key of Object.keys(SHARED_PAGE_SCHEMA)) {
-      const value = await record(alice, key);
-      assert.equal(value.canEdit, false, key);
+      const privateToLeaders = key === 'leader-calendar';
+      if (privateToLeaders) for (const member of [alice, bob]) {
+        assert.equal((await api(member, '/api/page-content/' + key)).status, 403);
+        assert.equal((await api(member, '/api/page-content/' + key + '/revisions')).status, 403);
+      }
+      const value = await record(privateToLeaders ? owner : alice, key);
+      assert.equal(value.canEdit, privateToLeaders, key);
       assert.deepEqual(value.content, sharedPageDefaults(key));
       assert.equal((await api(owner, '/api/page-content/' + key)).headers['cache-control'], 'no-store');
       for (const [page, status] of [[anonymous, 401], [pending, 403]]) {
@@ -462,24 +489,21 @@ try {
     await expect(owner.locator('html')).not.toHaveAttribute('data-page-edit-mode', 'true');
   });
 
-  await check('Save stays readable through disabled and enabled states in both themes and materials, including the actual glass tint', async () => {
-    for (const theme of ['light', 'dark']) for (const platform of ['ios', 'android']) {
-      const page = await person('owner', {theme, platform, label: `save-contrast-${theme}-${platform}`});
-      await edit(page);
-      const original = (await record(page)).content.text.heading;
-      const paints = [];
-      for (const width of [390, 768]) {
-        await page.setViewportSize({width, height: 844});
-        paints.push({width, state: 'disabled', ...await assertSavePaint(page, {theme, platform, disabled: true})});
-        await toolbar(page).screenshot({path: `${output}/save-contrast-${theme}-${platform}-${width}-${engineName}.png`});
+  await check('automatic save status and View page stay readable in both themes and materials', async () => {
+    for (const theme of ['light','dark']) for (const platform of ['ios','android']) {
+      const page=await person('owner',{theme,platform,label:`save-contrast-${theme}-${platform}`});
+      await edit(page);const original=(await record(page)).content.text.heading,paints=[];
+      for(const width of [390,768]){
+        await page.setViewportSize({width,height:844});
+        paints.push({width,...await assertSavePaint(page,{theme,platform,disabled:false})});
+        await expect.poll(async()=>pageSaveContrast(await saveStatus(page).evaluate(readPageSavePaint))).toBeGreaterThanOrEqual(4.5);
+        await toolbar(page).screenshot({path:`${output}/save-contrast-${theme}-${platform}-${width}-${engineName}.png`});
       }
-      await editText(page, 'home.heading', original + ' Synthetic contrast draft');
-      paints.push({state: 'enabled', ...await assertSavePaint(page, {theme, platform, disabled: false})});
-      await editText(page, 'home.heading', original);
-      paints.push({state: 'restored-disabled', ...await assertSavePaint(page, {theme, platform, disabled: true})});
-      await writeFile(`${output}/save-contrast-${theme}-${platform}-${engineName}.json`, JSON.stringify(paints, null, 2));
+      await editText(page,'home.heading',original+' Synthetic automatic-save check');await save(page);
+      assert.equal((await record(page)).content.text.heading,original+' Synthetic automatic-save check');
+      await editText(page,'home.heading',original);await save(page);
+      await writeFile(`${output}/save-contrast-${theme}-${platform}-${engineName}.json`,JSON.stringify(paints,null,2));
       await modeDone(page).click();
-      await expect(page.locator('html')).not.toHaveAttribute('data-page-edit-mode', 'true');
     }
   });
 
@@ -505,7 +529,7 @@ try {
     assert.ok(active.keyframes.length && active.keyframes.every(frame => !frame.transform || frame.transform === 'none'), 'The active glow never translates, rotates or wiggles content.');
     const unwanted = await owner.locator('main').evaluate(root => root.getAnimations({subtree: true}).filter(animation => animation.effect?.getTiming().iterations === Infinity && animation.playState === 'running').map(animation => animation.animationName));
     assert.deepEqual(unwanted, ['page-active-glow']);
-    await field(owner, 'home.heading').getByRole('button', {name: 'Done editing Page heading', exact: true}).click();
+    await field(owner, 'home.heading').getByRole('button', {name: 'Finish editing Page heading', exact: true}).click();
     const homeHero = primaryHero(owner, 'home');
     await expect(homeHero).toHaveAttribute('data-panel-locked', 'true');
     await expect(homeHero.getByRole('heading', {name: 'More time with our people.', exact: true})).toBeVisible();
@@ -523,14 +547,14 @@ try {
     await expect(owner.locator('.page-active-edit-card')).toHaveCount(1);
     await expect(owner.locator('.home-hero')).toHaveClass(/page-active-edit-card/);
     await owner.screenshot({path: `${output}/active-copy-${engineName}.png`});
-    await field(owner, 'home.heroTitle').getByRole('button', {name: 'Done editing Hero heading', exact: true}).click();
+    await field(owner, 'home.heroTitle').getByRole('button', {name: 'Finish editing Hero heading', exact: true}).click();
     await expect(heroEdit).toBeFocused();
     // Opening a target changed no copy. Restore its original lock before Done,
     // so this color/focus check leaves no unsaved layout draft for later checks.
     await homeHero.getByRole('button', {name: 'Lock Primary hero', exact: true}).click();
     await expect(homeHero).toHaveAttribute('data-panel-locked', 'true');
     await expect(homeHero.getByRole('button', {name: 'Edit Hero heading', exact: true})).toHaveCount(0);
-    await expect(saveButton(owner)).toBeDisabled();
+    await save(owner);
     await modeDone(owner).click();
     await expect(owner.locator('.page-active-edit-card')).toHaveCount(0);
     const after = await owner.evaluate(() => ({theme: document.documentElement.dataset.theme, palette: document.documentElement.style.cssText, personal: localStorage.getItem('gw-personal-themes')}));
@@ -540,20 +564,20 @@ try {
 
   await check('in-place fields keep Done inside the rectangle and pending saves never claim persistence', async () => {
     await edit(owner);
+    let entered = false, release;
+    const gate = new Promise(resolve => { release = resolve; });
+    const handler = async route => {if (route.request().method() === 'PATCH') {entered = true; await gate;} await route.continue();};
+    await owner.route('**/api/page-content/home', handler);
     await editText(owner, 'home.heading', firstText, {finish: false});
     const boxes = await field(owner, 'home.heading').evaluate(element => ({input: element.querySelector('.page-copy-input').getBoundingClientRect().toJSON(), done: element.querySelector('.page-field-done').getBoundingClientRect().toJSON()}));
     assert.ok(boxes.done.left >= boxes.input.left && boxes.done.right <= boxes.input.right + 1 && boxes.done.top >= boxes.input.top && boxes.done.bottom <= boxes.input.bottom + 1,
       'The Done checkmark is inside the text field: ' + JSON.stringify(boxes));
     assert.equal(await owner.getByRole('dialog').count(), 0, 'Text editing is in place.');
-    await field(owner, 'home.heading').getByRole('button', {name: 'Done editing Page heading', exact: true}).click();
-    let entered = false, release;
-    const gate = new Promise(resolve => { release = resolve; });
-    const handler = async route => {if (route.request().method() === 'PATCH') {entered = true; await gate;} await route.continue();};
-    await owner.route('**/api/page-content/home', handler);
+    await field(owner, 'home.heading').getByRole('button', {name: 'Finish editing Page heading', exact: true}).click();
     try {
-      await saveButton(owner).click();
+
       await expect.poll(() => entered).toBe(true);
-      await expect(toolbar(owner).getByRole('button', {name: 'Saving…', exact: true})).toBeDisabled();
+      await expect(saveStatus(owner)).toHaveText('Saving…');
       await expect(modeDone(owner)).toBeDisabled();
       assert.notEqual((await record(bob)).content.text.heading, firstText, 'Held saves have not reached another member.');
       assert.ok(!(await toolbar(owner).innerText()).includes('Saved for the family'));
@@ -565,13 +589,34 @@ try {
     } finally {release(); await owner.unroute('**/api/page-content/home', handler);}
   });
 
+  await check('typing during an autosave stays editable and saves the newest value without a stale overwrite', async () => {
+    const first = 'Synthetic first value in a delayed autosave', newest = 'Synthetic newer typing while the save is pending';
+    let entered = false, release;
+    const gate = new Promise(resolve => { release = resolve; });
+    const handler = async route => {if (route.request().method() === 'PATCH' && !entered) {entered = true; await gate;} await route.continue();};
+    await owner.route('**/api/page-content/home', handler);
+    try {
+      const input = await editText(owner, 'home.heading', first, {finish:false});
+      await expect.poll(() => entered).toBe(true);
+      await expect(input).toBeEnabled();
+      await input.fill(newest);
+      assert.equal((await record(bob)).content.text.heading, firstText, 'A held request has not changed shared content.');
+      release();
+      await expect.poll(async () => (await record(bob)).content.text.heading).toBe(newest);
+      await expect(input).toHaveValue(newest);
+      await save(owner);
+      await editText(owner, 'home.heading', firstText);
+      await save(owner);
+    } finally {release(); await owner.unroute('**/api/page-content/home', handler);}
+  });
+
   await check('failed saves retain drafts through navigation and same-tab reload, then retry successfully', async () => {
     const draft = 'Synthetic recoverable page draft after a failed save';
     const handler = route => route.request().method() === 'PATCH' ? route.fulfill({status: 503, json: {error: 'Synthetic shared-page save failure'}}) : route.continue();
     await owner.route('**/api/page-content/home', handler);
     try {
       await editText(owner, 'home.heading', draft);
-      await saveButton(owner).click();
+
       await expect(owner.getByRole('alert').filter({hasText: 'Synthetic shared-page save failure'})).toBeVisible();
       assert.equal((await record(bob)).content.text.heading, firstText);
       await owner.getByRole('navigation', {name: 'Main navigation', exact: true}).getByRole('button', {name: 'Family', exact: true}).click();
@@ -604,24 +649,24 @@ try {
     const latest = await record(otherOwner), changed = structuredClone(latest.content);
     changed.text.heading = theirs;
     await patch(otherOwner, 'home', changed, latest.revision);
-    await saveButton(owner).click();
+
     await expect(owner.locator('.page-editor-error[role="alert"]')).toContainText('Your draft is kept');
     await expect(field(owner, 'home.heading')).toContainText(mine);
-    await expect(saveButton(owner)).toBeDisabled();
+    await expect(saveStatus(owner)).toContainText('Couldn’t save');
     assert.equal((await record(bob)).content.text.heading, theirs);
     await owner.getByRole('button', {name: 'Review latest changes', exact: true}).click();
     await expect(owner.locator('.page-conflict-values')).toContainText('Yours: ' + mine);
     await expect(owner.locator('.page-conflict-values')).toContainText('Latest: ' + theirs);
     await owner.screenshot({path: `${output}/conflict-review-${engineName}.png`});
     await owner.getByRole('button', {name: 'Keep my edits', exact: true}).click();
-    await expect(saveButton(owner)).toBeEnabled();
+    await expect(modeDone(owner)).toBeEnabled();
     await save(owner);
     assert.equal((await record(bob)).content.text.heading, mine);
   });
 
   await check('history restoration appends a new revision and keeps the replaced version available for rollback', async () => {
     const before = await record(owner);
-    await owner.getByRole('button', {name: 'View page history', exact: true}).click();
+    await openHistory(owner);
     const dialog = owner.getByRole('region', {name: 'Page history', exact: true});
     await expect(owner.getByRole('dialog')).toHaveCount(0);
     const row = dialog.locator('.page-revision-list > li').filter({has: owner.locator('strong', {hasText: new RegExp('^Version ' + firstSaved.revision + '$')})});
@@ -824,7 +869,7 @@ try {
       assert.equal(await active.evaluate(element => getComputedStyle(element).animationName), 'none');
       assert.notEqual(await active.evaluate(element => getComputedStyle(element).boxShadow), 'none', 'Reduced motion retains a steady active outline/glow.');
       await noClip(otherOwner);
-      await field(otherOwner, 'family.heading').getByRole('button', {name: 'Done editing Page heading', exact: true}).click();
+      await field(otherOwner, 'family.heading').getByRole('button', {name: 'Finish editing Page heading', exact: true}).click();
       const dialog = await mediaPanel(otherOwner, 'family');
       await inlineEditorFits(otherOwner, dialog);
       for (const label of ['Photo', 'Gallery', 'Video']) {
@@ -852,7 +897,7 @@ try {
       }
       await otherOwner.screenshot({path: `${output}/media-panel-${viewport.width}x${viewport.height}-${engineName}.png`});
       await closeEditorPanel(otherOwner, 'Page media');
-      await otherOwner.getByRole('button', {name: 'View page history', exact: true}).click();
+      await openHistory(otherOwner);
       const historyPanel = otherOwner.getByRole('region', {name: 'Page history', exact: true});
       await expect(historyPanel).toBeVisible();
       await expect(otherOwner.getByRole('dialog')).toHaveCount(0);
@@ -871,9 +916,12 @@ try {
       }
       await closeEditorPanel(otherOwner, 'Page history');
       await otherOwner.getByRole('tab', {name: 'Memories', exact: true}).click();
-      await otherOwner.locator('.memory-filter-panel > summary').click();
+      const memoryControls=otherOwner.getByRole('region',{name:'Memory',exact:true});
+      await memoryControls.getByRole('button',{name:'Filter & sort',exact:true}).click();
+      await expect(memoryControls.getByRole('button',{name:'Filter & sort',exact:true})).toHaveAttribute('aria-expanded','true');
       const category = otherOwner.getByRole('combobox', {name: 'Category', exact: true});
-      await category.click();
+      await memoryControls.getByRole('button', {name: 'Show choices for Category', exact: true}).click();
+      await expect(category).toBeFocused();
       await expect(otherOwner.getByRole('listbox', {name: 'Category', exact: true})).toBeVisible();
       await noClip(otherOwner);
       await panelFits(otherOwner, '.choice-popover[data-open="true"]');
@@ -884,7 +932,7 @@ try {
       // family hero lock so each viewport starts from a clean saved snapshot.
       await primaryHero(otherOwner, 'family').getByRole('button', {name: 'Lock Primary hero', exact: true}).click();
       await expect(primaryHero(otherOwner, 'family')).toHaveAttribute('data-panel-locked', 'true');
-      await expect(saveButton(otherOwner)).toBeDisabled();
+      await save(otherOwner);
       await modeDone(otherOwner).click();
     }
   });
@@ -893,26 +941,28 @@ try {
     assert.ok(writes.some(write => write.method === 'PATCH'), 'The suite exercised actual UI save requests.');
     for (const write of writes.filter(write => write.method === 'PATCH')) {
       assert.deepEqual(Object.keys(write.body).sort(), ['content', 'expectedRevision', 'requestId']);
-      assert.deepEqual(Object.keys(write.body.content).sort(), ['bodyFormats', 'hero', 'panelLayout', 'text']);
+      assert.deepEqual(Object.keys(write.body.content).sort(), ['bodyFormats', 'cardLayouts', 'hero', 'panelLayout', 'text']);
       const key = decodeURIComponent(write.path.split('/').at(-1));
       assert.deepEqual(Object.keys(write.body.content.text).sort(), Object.keys(SHARED_PAGE_SCHEMA[key].fields).sort(), 'Only this shared page’s declared copy enters the snapshot.');
       for (const [field, format] of Object.entries(write.body.content.bodyFormats)) {
         assert.equal(SHARED_PAGE_SCHEMA[key].fields[field]?.format, 'markdown');
         assert.equal(format, 'markdown');
       }
-      assert.deepEqual(Object.keys(write.body.content.hero).sort(), ['media', 'mode']);
-      for (const file of write.body.content.hero.media) assert.deepEqual(Object.keys(file).sort(), ['alt', 'id'], 'Client URLs and file metadata never become write authority.');
+      assert.deepEqual(Object.keys(write.body.content.hero).sort(), write.body.content.hero.frame?['frame','media','mode']:['media','mode']);
+      if(write.body.content.hero.frame)validatePhotoFrame(write.body.content.hero.frame);
+      for (const file of write.body.content.hero.media) assert.deepEqual(Object.keys(file).sort(), file.frame?['alt','frame','id']:['alt','id'], 'Client URLs and file metadata never become write authority.');
       const layout = write.body.content.panelLayout;
+      assert.deepEqual(validateCardLayouts(key, layout, write.body.content.cardLayouts), write.body.content.cardLayouts);
       assert.deepEqual(Object.keys(layout).sort(), ['desktopOrder', 'mobileOrder', 'panels', 'version']);
-      assert.equal(layout.version, 1);
+      assert.equal(layout.version, 2);
       const visible = layout.panels.filter(panel => !panel.removed).map(panel => panel.id).sort();
       assert.deepEqual([...layout.desktopOrder].sort(), visible); assert.deepEqual([...layout.mobileOrder].sort(), visible);
       for (const panel of layout.panels) {
-        assert.deepEqual(Object.keys(panel).sort(), panel.kind === 'hero' ? ['id', 'kind', 'locked', 'removed', 'zone'] :
+        assert.deepEqual(Object.keys(panel).sort(), panel.kind !== 'content' ? ['id', 'kind', 'locked', 'removed', 'zone'] :
           ['body', 'id', 'kind', 'layout', 'locked', 'media', 'removed', 'secondary', 'title', 'zone']);
         assert.equal(typeof panel.locked, 'boolean'); assert.equal(typeof panel.removed, 'boolean');
         assert.ok(['main', 'side'].includes(panel.zone));
-        for (const file of panel.media || []) assert.deepEqual(Object.keys(file).sort(), ['alt', 'id'], 'Panel media also carries only bounded IDs and descriptions.');
+        for (const file of panel.media || []) assert.deepEqual(Object.keys(file).sort(), file.frame?['alt','frame','id']:['alt','id'], 'Panel media also carries only bounded IDs and descriptions.');
       }
     }
     for (const {id, page} of sessions) if (id !== 'anonymous' && id !== 'pending') await settleBrowserReads(page);

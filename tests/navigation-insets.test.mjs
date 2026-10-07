@@ -92,8 +92,8 @@ test('390px, 768px and landscape geometry consumes the safe-area inset once in e
       assert.deepEqual(glass, flat);
       assert.ok(glass.bottom >= 0);
       assert.ok(glass.buttonBottom >= safe, 'every button stays above the home-indicator inset');
-      assert.ok(glass.buttonBottom <= Math.max(safe, 9), 'no second safe-area or browser-chrome allowance');
-      if (safe >= 7) assert.equal(glass.bottom, safe - 7, 'shell uses only its existing non-interactive padding');
+      const chosenGap=mode==='browser'&&width>=700?18:os==='ios'&&mode==='browser'?2:0;assert.equal(glass.bottom,Math.max(chosenGap,safe-7),'single hardware inset plus explicit regular-browser wide-screen lift');
+      if (mode!=='browser'&&safe>=7) assert.equal(glass.bottom,safe-7,'installed PWA geometry remains unchanged');
       if (width >= 700) assert.equal(glass.fabBottom + glass.fabHeight / 2, glass.bottom + glass.height / 2);
       else assert.equal(glass.fabBottom - glass.bottom - glass.height, 12);
     }

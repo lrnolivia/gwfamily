@@ -19,7 +19,7 @@ export function InlineDisclosure({label,openLabel,icon='plus',summary='',populat
  }
  function recheck(event){if(event.target===invalidField.current&&event.target.validity?.valid){setValidation('');invalidField.current=null}}
  return <section className={'inline-disclosure '+className}>
-  <Control type="button" className="button inline-disclosure-trigger" disabled={disabled} aria-expanded={expanded} aria-controls={id+'-content'} onClick={()=>{if(needsAttention)focusInvalid();else setOpen(value=>!value)}}><Glyph name={meaningfulIcon}/><span>{expanded&&!needsAttention?(openLabel||label):label}</span></Control>
+  <Control type="button" className="button secondary inline-disclosure-trigger" disabled={disabled} aria-expanded={expanded} aria-controls={id+'-content'} onClick={()=>{if(needsAttention)focusInvalid();else setOpen(value=>!value)}}><Glyph name={meaningfulIcon}/><span>{expanded&&!needsAttention?(openLabel||label):label}</span></Control>
   {!expanded&&summary&&<p className="inline-disclosure-summary">{summary}</p>}
   <div ref={content} id={id+'-content'} className="inline-disclosure-content" hidden={!expanded} inert={!expanded} onInvalidCapture={showInvalid} onChangeCapture={recheck}>{validation&&<p className="form-error" role="alert">{validation}</p>}{children}</div>
  </section>;

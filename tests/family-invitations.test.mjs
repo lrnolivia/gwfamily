@@ -1,0 +1,9 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {familyInvitationToken,pendingFamilyInvitation,clearFamilyInvitation} from '../src/family-invitation-model.js';
+import {initialState,reducer} from '../src/data-adapter.js';
+const token='a'.repeat(64);
+test('invitation token survives provider return and clears without touching unrelated storage',()=>{const values=new Map([['other','keep']]),storage={getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};assert.equal(pendingFamilyInvitation('#/family-invite/'+token,storage),token);assert.equal(pendingFamilyInvitation('#/home',storage),token);clearFamilyInvitation(storage);assert.equal(pendingFamilyInvitation('#/home',storage),null);assert.equal(values.get('other'),'keep');for(const hash of ['#/family-invite/invalid','#/household-invite/'+token,'https://outside.test/#/family-invite/'+token])assert.equal(familyInvitationToken(hash),null)});
+test('invitation preview drafts are isolated and individually resettable',()=>{let state=initialState();const members=state.members;state=reducer(state,{type:'SAVE_INVITE_DRAFT',recipient:'Sample family member',groupId:null});assert.equal(state.inviteDrafts.length,1);state=reducer(state,{type:'RESET_INVITE_DRAFTS'});assert.deepEqual(state.inviteDrafts,[]);assert.deepEqual(state.members,members)});
+test('provisional UI has no interactive family actions and invitation sending is explicit',()=>{const s=readFileSync(new URL('../src/family-invitations.jsx',import.meta.url),'utf8'),view=s.slice(s.indexOf('function ProvisionalContent('));assert.match(view,/Read-only access/);assert.doesNotMatch(view,/<Button|<Control|dispatch\(|method:'POST'|Conversation|PostCard/);assert.match(s,/if\(preview\)/);assert.match(s,/Send email invitation/);assert.match(s,/Nothing is sent and no access is granted/);assert.match(s,/expectedAccountId:state.selfId/)});

@@ -87,6 +87,11 @@ export async function openNotification(db,actor,id){
  const row=await db.prepare(`SELECT n.*,seq.sequence,e.data_json AS event_data_json ${joins} WHERE ${visible} AND n.id=?`).bind(actor.id,id).first();
  if(!row)return {accountId:actor.id,available:false,message:'This update is no longer available.'};
  const t=target(row,actor),result={accountId:actor.id,available:true,target:t};
+ if(['fee','order','reunion'].includes(t.kind)){
+  const scoped=t.kind==='fee'?await db.prepare('SELECT reunion_id FROM fee_reports WHERE id=?').bind(t.id).first():t.kind==='order'?await db.prepare('SELECT reunion_id FROM shirt_claims WHERE id=?').bind(t.id).first():{reunion_id:t.id==='current'?'legacy':t.id};
+  if(!scoped?.reunion_id||!await db.prepare('SELECT id FROM reunions WHERE id=?').bind(scoped.reunion_id).first())return {accountId:actor.id,available:false,message:'This reunion is no longer available.'};
+  t.reunionId=scoped.reunion_id;
+ }
  const postId=t.kind==='comment'?t.containerId:['post','memory'].includes(t.kind)?t.id:null;
  if(postId){
   // One transactional snapshot keeps the resource and all hydration rows on the

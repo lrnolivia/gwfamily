@@ -35,3 +35,25 @@
 .planning-member-identity .membership-chips{margin-top:6px}
 .planning-history summary{min-height:44px;cursor:pointer;align-content:center}
 .planning-history h3{margin-top:16px}
+
+/* Shared status semantics stay legible in both app themes and personal palettes. */
+.planning-status{--plan-todo-bg:color-mix(in srgb,var(--surface) 88%,#cfa865);--plan-todo-text:color-mix(in srgb,var(--text) 90%,#cfa865);--plan-complete-bg:color-mix(in srgb,var(--surface) 84%,var(--accent));--plan-complete-text:var(--text);--plan-pending-bg:color-mix(in srgb,var(--surface) 92%,var(--accent));--plan-pending-text:var(--text)}
+.planning-status.planning-status{max-width:100%;flex-shrink:1;gap:6px;padding:3px 7px;border-radius:6px;min-width:0;overflow-wrap:anywhere;font-size:.8125rem;line-height:1.4}
+.planning-status>.planning-status-mark{width:1em;height:1em;flex:none}
+.planning-status.is-todo{background:var(--plan-todo-bg);color:var(--plan-todo-text);font-weight:700}
+.planning-status.is-complete{background:var(--plan-complete-bg);color:var(--plan-complete-text)}
+.planning-status:is(.is-pending,.is-waiting,.is-review){background:var(--plan-pending-bg);color:var(--plan-pending-text)}
+.planning-link.is-todo .planning-task-label,.planning-member-task.is-todo .planning-task-label{font-weight:750}
+.planning-checklist.planning-checklist{gap:18px;padding:24px}
+.planning-checklist.planning-checklist .next-step{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:14px;margin:0;padding:16px;border-radius:14px;min-width:0}
+.planning-checklist .next-step>*{min-width:0;overflow-wrap:anywhere}
+.planning-checklist .planning-link{padding-block:16px;min-height:60px;gap:12px}
+.planning-checklist .planning-link-heading{flex-direction:column;align-items:flex-start;gap:5px}
+.planning-checklist .planning-link>.glyph,.planning-checklist .planning-link>.arrow{flex:none}
+.planning-checklist.planning-checklist-compact{gap:12px;padding:20px}
+.planning-checklist-compact .planning-link{padding-block:12px}
+.planning-member-task{grid-template-columns:minmax(0,1fr) minmax(0,auto)}
+.planning-member-task .planning-status{max-width:100%}
+@container(max-width:25rem){.planning-checklist.planning-checklist .next-step{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:420px){.planning-checklist.planning-checklist{padding:20px}.planning-checklist.planning-checklist .next-step{grid-template-columns:minmax(0,1fr)}}
+@media(forced-colors:active){.planning-status.planning-status{color:CanvasText;background:Canvas;border:1px solid CanvasText}}

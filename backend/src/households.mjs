@@ -1,3 +1,4 @@
+import {photoFrameForSave,storedPhotoFrame} from './photo-framing.mjs';
 import {adultOn} from './birthdays.mjs';
 const heritageRoles={'ancestral-head':{kind:'ancestor',titles:['Ancestral head','Matriarch','Patriarch']},'torch-bearer':{kind:'member',titles:['Torch bearer','Matriarch','Patriarch']}};
 const rows=r=>r.results||[];
@@ -12,7 +13,7 @@ export async function householdState(db,actor){
  const rs=rows(await db.prepare("SELECT * FROM household_requests WHERE status='pending' AND (requester_id=? OR recipient_id=? OR household_id IN (SELECT household_id FROM household_members WHERE member_id=? AND role='head')) ORDER BY created_at").bind(actor.id,actor.id,actor.id).all());
  return {
   householdId:ms.find(m=>m.member_id===actor.id)?.household_id||null,
-  households:hs.map(h=>({id:h.id,name:h.name,color:h.color_mode==='custom'?h.color:null,colorMode:h.color_mode,photo:h.photo_url,founderId:h.founder_id,
+  households:hs.map(h=>({id:h.id,name:h.name,color:h.color_mode==='custom'?h.color:null,colorMode:h.color_mode,photo:h.photo_url,photoFrame:storedPhotoFrame(h.photo_frame_json),founderId:h.founder_id,
    memberIds:ms.filter(m=>m.household_id===h.id).map(m=>m.member_id),headIds:ms.filter(m=>m.household_id===h.id&&m.role==='head').map(m=>m.member_id),
    canManage:ms.some(m=>m.household_id===h.id&&m.member_id===actor.id&&m.role==='head'),
    heritage:heritage.filter(x=>x.household_id===h.id).map(x=>({id:x.id,personId:x.person_id,personKind:x.person_kind,role:x.role,title:x.title}))})),
@@ -21,7 +22,7 @@ export async function householdState(db,actor){
 }
 export async function householdCommand(db,actor,input,q,audit){const id=input.householdId;switch(input.type){
 case 'CREATE_HOUSEHOLD':{await householdAdult(db,actor.id);if(await db.prepare('SELECT member_id FROM household_members WHERE member_id=?').bind(actor.id).first())throw error('You already belong to a household');const hid=crypto.randomUUID();q('INSERT INTO households(id,name,founder_id) VALUES(?,?,?)',hid,clean(input.name),actor.id);q("INSERT INTO household_members(household_id,member_id,role) VALUES(?,?,'head')",hid,actor.id);audit('household-create',hid);return{id:hid};}
-case 'SAVE_HOUSEHOLD':{const h=await householdHead(db,actor,id),name=clean(input.name),colorMode=input.colorMode??(input.color?'custom':h.color_mode),color=input.color||h.color,photo=input.photo||null;if(!['custom','inherit'].includes(colorMode)||!/^#[a-f0-9]{6}$/i.test(color))throw error('Choose a household color or use personal colors');if(photo&&photo!==h.photo_url){const mid=/^\/api\/media\/([a-zA-Z0-9-]+)$/.exec(photo)?.[1],m=mid&&await db.prepare('SELECT owner_id,mime_type FROM media WHERE id=? AND deleted_at IS NULL').bind(mid).first();if(!m||m.owner_id!==actor.id||!/^image\/(png|jpeg|webp|gif)$/.test(m.mime_type))throw error('Upload a household photo from your account');}q('UPDATE households SET name=?,color=?,photo_url=?,color_mode=? WHERE id=?',name,color,photo,colorMode,id);audit('household-edit',id);return{id};}
+case 'SAVE_HOUSEHOLD':{const h=await householdHead(db,actor,id),name=clean(input.name),colorMode=input.colorMode??(input.color?'custom':h.color_mode),color=input.color||h.color,photo=input.photo||null;if(!['custom','inherit'].includes(colorMode)||!/^#[a-f0-9]{6}$/i.test(color))throw error('Choose a household color or use personal colors');if(photo&&photo!==h.photo_url){const mid=/^\/api\/media\/([a-zA-Z0-9-]+)$/.exec(photo)?.[1],m=mid&&await db.prepare('SELECT owner_id,mime_type FROM media WHERE id=? AND deleted_at IS NULL').bind(mid).first();if(!m||m.owner_id!==actor.id||!/^image\/(png|jpeg|webp|gif)$/.test(m.mime_type))throw error('Upload a household photo from your account');}q('UPDATE households SET name=?,color=?,photo_url=?,color_mode=?,photo_frame_json=? WHERE id=?',name,color,photo,colorMode,JSON.stringify(photoFrameForSave({frame:input.photoFrame,photo,previousPhoto:h.photo_url,previousFrame:h.photo_frame_json})),id);audit('household-edit',id);return{id};}
 case 'SAVE_HOUSEHOLD_HERITAGE':{
  await householdHead(db,actor,id);const entry=input.entry||{},role=Object.hasOwn(heritageRoles,entry.role)?heritageRoles[entry.role]:null,personId=clean(entry.personId,100);
  if(!role||!role.titles.includes(entry.title))throw error('Choose an ancestral head or torch bearer title');

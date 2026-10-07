@@ -7,10 +7,10 @@ import {readFileSync} from 'node:fs';
 const read=path=>readFileSync(new URL(path,import.meta.url),'utf8');
 const storage=()=>{const values=new Map();return {getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,String(value)),removeItem:key=>values.delete(key),values}};
 function previewHost(){
- const localStorage=storage(),sessionStorage=storage(),events=[];
- const page={setDefaultTimeout(){},on(){},async goto(){events.push('goto')},async waitForFunction(){},async evaluate(callback,args){return callback(args)},async reload(){events.push('reload');assert.equal(sessionStorage.getItem('gw-active-mode'),'preview','Explicit preview intent precedes reload')},getByRole(){return {async waitFor(){}}}};
+ const localStorage=storage(),sessionStorage=storage(),events=[],navigator={},window={matchMedia:()=>({matches:false})};
+ const page={setDefaultTimeout(){},on(){},async addInitScript(callback,args){callback(args)},async goto(){events.push('goto')},async waitForFunction(){},async evaluate(callback,args){return callback(args)},async reload(){events.push('reload');assert.equal(sessionStorage.getItem('gw-active-mode'),'preview','Explicit preview intent precedes reload')},getByRole(){return {async waitFor(){}}}};
  const initialState=()=>({mode:'preview',selfId:'fixture-owner',members:[{id:'fixture-owner'}],onboarding:'welcome'});
- return {localStorage,sessionStorage,events,page,context:{browser:{async newPage(){return page}},initialState,PREVIEW_KEY:'fixture-preview',url:'http://synthetic.invalid',errors:[],writes:[],localStorage,sessionStorage,console}};
+ return {localStorage,sessionStorage,events,page,context:{browser:{async newPage(){return page}},initialState,PREVIEW_KEY:'fixture-preview',url:'http://synthetic.invalid',errors:[],writes:[],localStorage,sessionStorage,navigator,window,console}};
 }
 test('Recovery bootstrap records real preview intent before loading its saved sample state',async()=>{
  const source=read('./recovery-browser.mjs'),start=source.indexOf('async function pageFor('),end=source.indexOf('\nasync function noOverflow',start),h=previewHost();
@@ -19,7 +19,7 @@ test('Recovery bootstrap records real preview intent before loading its saved sa
  assert.doesNotMatch(source.slice(start,end),/configured\s*:\s*false|notificationApi|\.dispatch\(/);
 });
 test('Hotfix owns the same explicit preview intent and independent fictional state',async()=>{
- const source=read('./hotfix-browser.mjs'),start=source.indexOf('async function pageFor('),end=source.indexOf('\ntry{',start),h=previewHost();
+ const source=read('./hotfix-browser.mjs'),start=source.indexOf('async function pageFor('),end=source.indexOf('\nasync function verifyFilterPlatter(',start),h=previewHost();
  assert.ok(start>=0&&end>start);const helper=vm.runInNewContext('('+source.slice(start,end)+')',h.context);
  await helper(768,'light','android');assert.deepEqual(h.events,['goto','reload']);assert.equal(h.sessionStorage.getItem('gw-active-mode'),'preview');assert.equal(JSON.parse(h.localStorage.getItem('fixture-preview')).state.members[0].profileColor,'#c9aa52');
  assert.doesNotMatch(source.slice(start,end),/configured\s*:\s*false|notificationApi|\.dispatch\(/);

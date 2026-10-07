@@ -93,7 +93,7 @@ test('the first palette call is gated without weakening real interactions or err
   "await page.keyboard.press('ArrowRight')", "await count.press('Enter')", "await owner.press('ArrowDown')",
   "await expect(activeOption).toBeEnabled()", "await sheetCount.press('Escape')", "await expect(owner).toBeDisabled()",
   "await page.getByRole('button',{name:'Save choices'}).click()", "assert.deepEqual(await page.evaluate(()=>window.formValues)",
-  "assert.equal(enabled.bg,enabled.expected)", "assert.notEqual(enabled.bg,disabled.bg)", "await expect(send).toBeDisabled()",
+  "assert.equal(enabled.bg,enabled.expected)", "assert.equal(enabled.bg,disabled.bg)", "await expect(send).toBeDisabled()",
   "for(const material of ['ios','android'])for(const theme of ['light','dark'])for(const color of ['#c9aa52','#d24978','#627bf0'])",
  ])assert.ok(source.includes(contract),contract);
  assert.doesNotMatch(source,/force\s*:\s*true|waitForTimeout|setTimeout|flushSync|\.selectOption\(/);

@@ -87,7 +87,7 @@ export function useNotifications(data){
    if(run.mode==='live'){
     if(!live.hydrateNotificationResource(result,{accountId:run.accountId,noticeId:id}))return false;
     if(!['post','comment','memory','conversation','invitation'].includes(result.target.kind)){
-     const session=await live.refresh();if(!valid(run)||session?.status!=='active'||(live.getCurrentState?.()||live.state).selfId!==run.accountId)return false;
+     const session=await live.refresh(result.target.reunionId?{reunionId:result.target.reunionId}:undefined);if(!valid(run)||session?.status!=='active'||(live.getCurrentState?.()||live.state).selfId!==run.accountId)return false;
     }
    }
    // Opening an invitation never accepts it. Message notices remain governed by

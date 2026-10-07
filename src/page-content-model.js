@@ -1,3 +1,5 @@
+import {cardLayoutsPayload} from './card-content-layout-model.js';
+import {photoFramePayload} from './photo-framing-model.js';
 import {panelPayload,normalizePanelContent} from './shared-panels.js';
 import {SHARED_PAGE_SCHEMA,sharedPageDefaults,validateSharedPageContent} from './shared-content-schema.js';
 
@@ -8,9 +10,20 @@ export const knownPage=page=>typeof page==='string'&&Object.hasOwn(SHARED_PAGE_S
 export const initialRecord=page=>({page,revision:0,content:sharedPageDefaults(page),canEdit:false,updatedAt:null,status:'idle',error:'',draft:null,base:null,request:null});
 
 // Never round-trip a server URL, MIME type or filename as authority to publish media.
-export function pageContentPayload(content){return {text:{...content.text},bodyFormats:{...content.bodyFormats},hero:{mode:content.hero.mode,media:content.hero.media.map(({id,alt=''})=>({id,alt}))},...(content.panelLayout?{panelLayout:panelPayload(content.panelLayout)}:{})}}
+export function pageContentPayload(content){return {text:{...content.text},bodyFormats:{...content.bodyFormats},cardLayouts:cardLayoutsPayload(content.cardLayouts),hero:{mode:content.hero.mode,...photoFramePayload(content.hero.frame),media:content.hero.media.map(({id,alt='',frame})=>({id,alt,...photoFramePayload(frame)}))},...(content.panelLayout?{panelLayout:panelPayload(content.panelLayout)}:{})}}
 export function pageContentFingerprint(content){return JSON.stringify(pageContentPayload(content))}
 export function pageContentDirty(record){return !!record?.draft&&pageContentFingerprint(record.draft)!==pageContentFingerprint(record.content)}
+
+// A completed save must never replace keystrokes entered while it was pending.
+export function reconcilePageSave(page,saved,current,submittedFingerprint,savedNotice){
+ const newer=!!current?.draft&&pageContentFingerprint(current.draft)!==submittedFingerprint;
+ return {...initialRecord(page),...saved,status:'ready',savedNotice,
+  draft:newer?clone(current.draft):null,base:newer?clone(saved.content):null};
+}
+
+export function pageCanAutosave(record){
+ return !!record?.canEdit&&pageContentDirty(record)&&record.status==='ready'&&!record.error&&!record.latest&&!record.conflicted;
+}
 export function pageDraftKey(account){return DRAFT_PREFIX+encodeURIComponent(account)}
 export function safePageMediaUrl(value,preview=false){
  if(typeof value!=='string')return '';
@@ -35,6 +48,13 @@ export function mergePageDraft(base,draft,latest){
   content.panelLayout=clone(draft.panelLayout);
   if(panels(latest)!==panels(base)&&panels(latest)!==panels(draft))conflicts.push({field:'panelLayout',mine:'Your panel layout and content',theirs:'Latest panel layout and content'});
  }
+ const cards=value=>cardLayoutsPayload(value.cardLayouts);
+ const original=cards(base),mine=cards(draft),theirs=cards(latest);content.cardLayouts={...theirs};
+ for(const id of new Set([...Object.keys(original),...Object.keys(mine)])){
+  const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);if(same(mine[id],original[id]))continue;
+  if(mine[id]===undefined)delete content.cardLayouts[id];else content.cardLayouts[id]=clone(mine[id]);
+  if(!same(theirs[id],original[id])&&!same(theirs[id],mine[id]))conflicts.push({field:'cardLayout:'+id,mine:'Your card content arrangement',theirs:'Latest card content arrangement'});
+ }
  return {content,conflicts};
 }
 export async function pageContentRequest(path,{fetchImpl=globalThis.fetch,...options}={}){
@@ -57,14 +77,14 @@ export function resetPageContentPreview(storage){
 export function readStored(storage,key,fallback){try{const value=JSON.parse(storage?.getItem(key)||'null');return value&&typeof value==='object'&&!Array.isArray(value)?value:fallback}catch{return fallback}}
 export function writeStored(storage,key,value){try{if(!storage)return false;storage.setItem(key,JSON.stringify(value));return true}catch{return false}}
 export function validRestoredDraft(page,value){try{validateSharedPageContent(page,pageContentPayload(value));return normalizePanelContent(page,value)}catch{return null}}
-export function withOutputMedia(content,submitted){const files=new Map([...submitted.hero.media,...(submitted.panelLayout?.panels||[]).flatMap(panel=>panel.media||[])].map(file=>[file.id,file]));const enrich=file=>({...files.get(file.id),...file});return {...content,hero:{...content.hero,media:content.hero.media.map(enrich)},panelLayout:{...content.panelLayout,panels:content.panelLayout.panels.map(panel=>panel.kind==='hero'?panel:{...panel,media:panel.media.map(enrich)})}}}
+export function withOutputMedia(content,submitted){const files=new Map([...submitted.hero.media,...(submitted.panelLayout?.panels||[]).flatMap(panel=>panel.media||[])].map(file=>[file.id,file]));const enrich=file=>({...files.get(file.id),...file});return {...content,hero:{...content.hero,media:content.hero.media.map(enrich)},panelLayout:{...content.panelLayout,panels:content.panelLayout.panels.map(panel=>panel.kind!=='content'?panel:{...panel,media:panel.media.map(enrich)})}}}
 
 export function reconcilePageRecord(page,result,freshest,stored){
  result={...result,content:normalizePanelContent(page,result.content)};
  if(freshest?.status==='saving'||Number.isInteger(freshest?.revision)&&result.revision<freshest.revision)return freshest;
  const prior=pageContentDirty(freshest)?freshest:null;
  const draft=prior?.draft||(stored&&validRestoredDraft(page,stored.draft)),base=prior?.base||(stored&&validRestoredDraft(page,stored.base));
- const next={...initialRecord(page),...result,status:'ready',error:'',draft:result.canEdit&&draft?clone(draft):null,base:result.canEdit&&base?clone(base):null,request:prior?.request||stored?.request||null};
+ const next={...initialRecord(page),...result,status:'ready',refreshing:false,error:'',draft:result.canEdit&&draft?clone(draft):null,base:result.canEdit&&base?clone(base):null,request:prior?.request||stored?.request||null};
  // Keep the original optimistic revision and freshest keystrokes across polling.
  if(next.draft){next.revision=prior?.revision??stored?.revision??result.revision;if(next.revision!==result.revision){next.latest=result;if(prior?.merge&&prior.latest?.revision===result.revision)next.merge=prior.merge}}
  return next;
@@ -75,4 +95,3 @@ export function collectPageDrafts(records,stored={}){
  for(const [page,value] of Object.entries(records)){if(pageContentDirty(value))drafts[page]={draft:value.draft,base:value.base||value.content,revision:value.revision,request:value.request};else delete drafts[page]}
  return drafts;
 }
-

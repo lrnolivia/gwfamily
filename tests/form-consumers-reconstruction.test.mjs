@@ -18,7 +18,7 @@ test('guard is active before source/model checks and rejects network and child p
 });
 test('compact household appearance contains its editable name instead of a duplicate static preview',()=>{
  const appearance=block(households,"{tab==='appearance'?",":tab==='members'?");
- assert.match(appearance,/<ProfileStyleEditor[^>]*photoLabel="Household photo"[^>]*showColors=\{false\}/);
+ assert.match(appearance,/<ProfileStyleEditor[\s\S]*?photoLabel="Household photo"[\s\S]*?showColors=\{false\}/);
  assert.match(appearance,/<ProfileStyleEditor[^>]*>[\s\S]*<label>Household name<input[\s\S]*<\/ProfileStyleEditor>/);
  assert.equal((appearance.match(/<label>Household name/g)||[]).length,1);
  assert.ok(appearance.indexOf('</ProfileStyleEditor>')<appearance.indexOf('Use each viewer’s personal color'));
@@ -100,9 +100,9 @@ test('merchandise arbitrary price, comma choices and independent availability re
 });
 test('item upload/save maintain immediate locks, confirmed URL, scope checks and retry errors',()=>{
  assert.match(merchandise,/if\(uploading.current\|\|saving.current\)return/);assert.match(merchandise,/const upload=await readPreviewFile\(file,state.mode\)/);
- assert.match(merchandise,/version===generation.current\)set\('photo',upload.url\)/);
+ assert.match(merchandise,/mounted.current&&version===generation.current\)setEditing\(value=>value\?\(\{\.\.\.value,photo:upload.url,photoFrame:undefined\}\):value\)/);
  assert.match(merchandise,/if\(saving.current\|\|uploading.current\|\|!editing\)return/);
- assert.match(merchandise,/disabled=\{busy\|\|photoBusy\}/);assert.match(merchandise,/setPhotoError\(e.message\|\|/);
+ assert.match(merchandise,/disabled=\{busy\|\|photoBusy\|\|archived\}/);assert.match(merchandise,/setPhotoError\(e.message\|\|/);
  assert.match(merchandise,/const account=accountGeneration.current/);assert.match(merchandise,/account===accountGeneration.current/);
 });
 test('claim identities use the exact API member_id; five fulfillment statuses remain searchable',()=>{

@@ -1,0 +1,36 @@
+/* Additive private-chat controls. Keep the existing Glass/Flat and personal palette. */
+.messages-page .message-writing textarea{padding-inline-end:112px}
+.messages-page .message-writing>.attach-direct{position:absolute;right:62px;bottom:10px;min-width:44px;min-height:44px;color:var(--control,var(--accent));background:transparent}
+.messages-page .message-writing>.attach-direct:hover:not(:disabled){background:var(--raised)}
+.messages-page .message-writing>.attach-direct:disabled{color:var(--muted);opacity:.6}
+.messages-page .message-writing>.attach-direct:focus-visible,.private-message-files a:focus-visible{outline:3px solid var(--control,var(--accent));outline-offset:3px}
+.messages-page .direct-message{grid-template-columns:36px minmax(0,1fr);column-gap:8px;align-items:end}
+.messages-page .direct-message.is-own{grid-template-columns:minmax(0,1fr) 36px}
+.direct-message .message-avatar{grid-column:1;grid-row:1;align-self:end}
+.direct-message .message-avatar .avatar{width:36px;height:36px;object-fit:cover}
+.direct-message .message-bubble{grid-column:2;grid-row:1}
+.direct-message .message-read{grid-column:2}
+.direct-message.is-own .message-avatar{grid-column:2}
+.direct-message.is-own .message-bubble,.direct-message.is-own .message-read{grid-column:1}
+.message-author-line{display:grid;gap:4px;margin-bottom:8px}
+.message-author-line .message-author{margin:0}
+.conversation-row-copy>.membership-chips{display:flex;flex-wrap:wrap;overflow:visible;white-space:normal;gap:4px}
+.private-message-files,.message-draft-attachments,.message-upload-list{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:8px;min-width:0}
+.private-message-files li,.message-draft-attachments li,.message-upload-list li{min-width:0}
+.private-message-files a{display:flex;align-items:center;gap:10px;min-height:48px;max-width:100%;padding:8px 2px;color:var(--control,var(--accent));text-decoration:underline;text-underline-offset:3px}
+.private-message-files a>.glyph{flex:none;width:22px;height:22px}
+.private-message-files a>span,.message-draft-attachments li>span,.message-upload-copy{display:grid;gap:4px;min-width:0;flex:1}
+.private-message-files strong,.message-draft-attachments strong,.message-upload-copy strong{font-size:.875rem;font-weight:600;overflow-wrap:anywhere}
+.private-message-files small,.message-draft-attachments small,.message-upload-copy small{color:var(--muted);font-size:.75rem;line-height:1.5;overflow-wrap:anywhere}
+.message-draft-attachments li,.message-upload-list li{display:flex;align-items:center;gap:10px;padding:6px;border-bottom:1px solid var(--line)}
+.message-draft-attachments li:last-child,.message-upload-list li:last-child{border-bottom:0}
+.message-upload-actions{display:flex;align-items:center;gap:6px;flex:none}
+.message-upload-copy progress{width:100%;height:6px;accent-color:var(--control,var(--accent))}
+.message-upload-copy progress::-webkit-progress-bar{background:var(--raised);border-radius:3px}
+.message-upload-copy progress::-webkit-progress-value{background:var(--control,var(--accent));border-radius:3px}
+.message-upload-copy progress::-moz-progress-bar{background:var(--control,var(--accent));border-radius:3px}
+.message-upload-list .icon-button,.message-draft-attachments .icon-button{min-width:44px;min-height:44px;flex:none}
+.message-recovered label{display:grid;gap:8px;font-size:.875rem}
+.message-recovered textarea{max-width:100%;width:100%;box-sizing:border-box;resize:vertical;background:var(--surface);color:var(--text,var(--ink));line-height:1.5}
+@media(max-width:420px){.message-upload-list li{flex-wrap:wrap}.message-upload-copy{flex-basis:calc(100% - 54px)}.message-upload-actions{margin-inline-start:auto}.messages-page .direct-message{max-width:96%;grid-template-columns:28px minmax(0,1fr)}.messages-page .direct-message.is-own{grid-template-columns:minmax(0,1fr) 28px}.direct-message .message-avatar .avatar{width:28px;height:28px}}
+@media(forced-colors:active){.private-message-files a{color:LinkText}.message-upload-copy progress{accent-color:Highlight}.messages-page .message-writing>.attach-direct:focus-visible,.private-message-files a:focus-visible{outline-color:Highlight}}

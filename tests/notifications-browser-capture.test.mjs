@@ -68,7 +68,7 @@ test('responsive loop retains every width, fit check and normal settings click a
  assert.match(loop,/await captureNotificationViewport\(alice,[^\n]+-inbox\.png`\)/);
  assert.match(loop,/const previous=await openSettings\(alice\)/);
  const normalSettings=source.slice(source.indexOf('async function openSettings('),source.indexOf('async function refresh(page)'));
- assert.match(normalSettings,/getByRole\('button',\{name:'Notification settings',exact:true\}\)\.click\(\)/);assert.match(normalSettings,/returnFromSettings[\s\S]*getByRole\('button',\{name:'Back',exact:true\}\)\.click\(\)/);assert.doesNotMatch(normalSettings,/force:|dispatchEvent|showPopover|waitForTimeout/);
+ assert.match(normalSettings,/getByRole\('button',\{name:'Notification settings',exact:true\}\)\.click\(\)/);assert.match(normalSettings,/returnFromSettings[\s\S]*locator\('\.page-navigation-header'\)\.getByRole\('button',\{name:\/\^Back to \/\}\)\.click\(\)/);assert.doesNotMatch(normalSettings,/force:|dispatchEvent|showPopover|waitForTimeout/);
  assert.match(loop,/-settings\.png`,\{settings:true\}\)/);
  assert.equal((loop.match(/showInbox\(alice\)/g)||[]).length,1,'Only the normal initial bell action may open the inbox.');
  assert.doesNotMatch(loop,/fullPage:true|force:|dispatchEvent|waitForTimeout/);

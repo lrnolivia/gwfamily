@@ -14,4 +14,5 @@ paths.info='M12 11v6M12 7h.01M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z';
 paths.history='M3 11a9 9 0 1 1 2.6 7M3 5v6h6M12 7v5l4 2';
 paths.lock='M5 10h14v11H5ZM8 10V7a4 4 0 0 1 8 0v3M12 14v3';
 paths.edit='m14 5 5 5M4 20l5-1L21 7l-4-4L5 15ZM4 20h7';
+paths.mail='M3 5h18v14H3ZM3 6l9 7 9-7';
 export default paths;

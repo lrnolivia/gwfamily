@@ -172,7 +172,10 @@ test('harness drains actual requests and verifies authenticated routes on both s
   assert.match(navigation, /Promise\.all\(\[page\.waitForEvent\('domcontentloaded'\), control\.click\(\)\]\)/);
   assert.match(source, /\.app:not\(\.is-onboarding\) > header/); assert.match(source, /locator\('\.onboard'\)\)\.toHaveCount\(0\)/);
   assert.match(source, /required\.push\(`\/api\/conversations\/\$\{encodeURIComponent\(id\)\}`, `\/api\/conversations\/\$\{encodeURIComponent\(id\)\}\/messages`\)/);
-  assert.match(source, /await expect\(messageRow\(bob, secret\)\)\.toHaveCount\(1\);\s+await navigate\(bob, 'chat', directId\)/);
+  const consent=source.slice(source.indexOf("await check('DM invitation consent"),source.indexOf("await check('ordinary outsiders"));
+  assert.match(consent,/await expect\(bob\)\.toHaveURL/);
+  assert.match(consent,/await expect\.poll\(async \(\) => \(await summary\(bob, directId\)\)\?\.unreadCount\)\.toBe\(0\);\s+await settleBrowserReads\(bob\);/);
+  assert.doesNotMatch(consent,/await navigate\(bob, 'chat', directId\)/);
   assert.doesNotMatch(navigation, /waitForTimeout|networkidle|route\.abort|clearInterval|setTimeout/);
 });
 

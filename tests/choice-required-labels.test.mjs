@@ -9,12 +9,12 @@ test('required markers stay visible but do not duplicate native required semanti
 });
 test('all required recovery choice queries map to the actual conditional native controls',()=>{
  const app=source('src/react-app.jsx'),member=source('src/family.jsx'),recovery=source('tests/recovery-browser.mjs');
- assert.match(app,/platform==='ios'\?<ChoiceControl label="Heading style"[^>]*required options=\{\[\{value:'serif',label:'Serif'\},\{value:'sans',label:'Momo'\}\]\}/);
+ assert.match(app,/GW_HEADING_FONTS.map/);assert.match(app,/role="group" aria-label="GW heading fonts"/);assert.match(app,/aria-pressed=\{headingFont===font.value\}/);
  assert.match(app,/<ChoiceControl label="Interface style"[^>]*required options=\{\[\{value:'ios',label:'Glass'\},\{value:'android',label:'Flat'\}\]\}/);
  const contact=source('src/profiles.jsx');assert.match(contact,/<ChoiceControl label="Who can see your details\?" variant="chips" required value=\{contact.visibility\}/);
  assert.match(member,/<ChoiceControl label=\{child\?'Gender':'Gender · optional'\} variant="search" required=\{child\}/);
  assert.match(recovery,/const appearance=page\.locator\('\.appearance-page'\)/);
- assert.match(recovery,/appearance\.getByRole\('group',\{name:'Heading style',exact:true\}\)/);
+ assert.match(recovery,/appearance\.getByRole\('group',\{name:'GW heading fonts',exact:true\}\)/);
  assert.match(recovery,/themeAppearance\.getByRole\('group',\{name:'Interface style',exact:true\}\)/);
  assert.match(recovery,/getByRole\('combobox',\{name:'Gender',exact:true\}\)/);
 });

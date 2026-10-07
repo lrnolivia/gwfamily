@@ -23,6 +23,6 @@ test('page conflict assertion distinguishes persistent editor state from toast a
  const browser=await source('tests/page-content-browser.mjs');
  assert.match(browser,/owner\.locator\('\.(?:page-editor-error)\[role="alert"\]'\)\)\.toContainText\('Your draft is kept'\)/);
  assert.doesNotMatch(browser,/owner\.getByRole\('alert'\)\)\.toContainText\('Your draft is kept'\)/);
- assert.match(browser,/expect\(saveButton\(owner\)\)\.toBeDisabled\(\)/);
+ assert.match(browser,/expect\(saveStatus\(owner\)\)\.toContainText\('Couldn’t save'\)/);
  assert.match(browser,/getByRole\('button', \{name: 'Review latest changes', exact: true\}\)\.click\(\)/);
 });

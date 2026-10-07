@@ -1,0 +1,3 @@
+import {readFile,mkdir,writeFile} from 'node:fs/promises';import {createHash} from 'node:crypto';import {dirname} from 'node:path';import {fileURLToPath} from 'node:url';
+const assets=JSON.parse(await readFile(new URL('./sign-in-assets.json',import.meta.url),'utf8'));
+for(const asset of assets){if(!/^brand\/sign-in\/[a-z-]+\.[0-9a-f]{12}\.png$/.test(asset.path))throw Error('Unexpected provider artwork path');const bytes=Buffer.from(asset.base64,'base64');if(createHash('sha256').update(bytes).digest('hex')!==asset.sha256)throw Error('Provider artwork identity mismatch');const out=fileURLToPath(new URL('../dist/'+asset.path,import.meta.url));await mkdir(dirname(out),{recursive:true});await writeFile(out,bytes)}

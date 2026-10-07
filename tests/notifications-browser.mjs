@@ -110,7 +110,7 @@ async function openSettings(page){
 }
 async function returnFromSettings(page,previous){
  await expectSettingsPage(page);
- await page.locator('#main .page-back-row').getByRole('button',{name:'Back',exact:true}).click();
+ await page.locator('.page-navigation-header').getByRole('button',{name:/^Back to /}).click();
  await expect(page).toHaveURL(previous);
  await expect(page.getByRole('region',{name:'Notification choices',exact:true})).toHaveCount(0);
 }
@@ -359,7 +359,10 @@ try{
   }finally{holdSettingsArrival=null;release();}
   await expect(backgroundBell(alice)).toHaveAttribute('aria-label','Notifications, 2 unread');await expect(reactions).toBeEnabled();await expect(reactions).toBeChecked();
   assert.deepEqual(settingsWrites().slice(writesBefore).map(write=>({viewer:write.viewer,payload:write.payload})),[{viewer:'bob',payload:{expectedAccountId:'alice',revision:oldSettings.revision,categories:{reactions:false}}}]);
-  assert.deepEqual(accounts.alice.settings,oldSettings);assert.deepEqual(accounts.bob.settings,previous);await returnFromSettings(alice,previousRoute);await expect(bell(alice)).toHaveAccessibleName('Notifications, 2 unread');await showInbox(alice);await expect(panel(alice).locator('[data-notice-id^="alice-"]')).toHaveCount(0);await expect(panel(alice).locator('[data-notice-id^="bob-"]')).toHaveCount(2);
+  assert.deepEqual(accounts.alice.settings,oldSettings);assert.deepEqual(accounts.bob.settings,previous);
+  const homeRoute=new URL(alice.url());homeRoute.hash='/home';assert.notEqual(previousRoute,homeRoute.href,'The previous account route was different');
+  await expect(alice.locator('.page-navigation-header').getByRole('button',{name:'Back to Home',exact:true})).toBeVisible();
+  await returnFromSettings(alice,homeRoute.href);await expect(bell(alice)).toHaveAccessibleName('Notifications, 2 unread');await showInbox(alice);await expect(panel(alice).locator('[data-notice-id^="alice-"]')).toHaveCount(0);await expect(panel(alice).locator('[data-notice-id^="bob-"]')).toHaveCount(2);
  });
  await check('notification controls fit 320/390/768/1280 across approved materials and palettes',async()=>{
   for(const variant of [{width:320,theme:'light',material:'android'},{width:390,theme:'dark',material:'ios'},{width:768,theme:'light',material:'ios'},{width:1280,theme:'dark',material:'android'}]){
