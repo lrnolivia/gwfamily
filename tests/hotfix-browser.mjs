@@ -115,7 +115,7 @@ try{
   await p.getByRole('button',{name:'Profile and appearance'}).click();
   const action=p.getByRole('button',{name:'Go to You',exact:true});await expect(action).toBeVisible();
   const paint=await action.evaluate(e=>{const s=getComputedStyle(e),r=e.getBoundingClientRect();return {background:s.backgroundColor,color:s.color,shadow:s.textShadow,width:r.width,height:r.height}});
-  assert.equal(paint.background,'rgb(236, 157, 0)','Yellow keeps the exact approved fill');assert.equal(paint.color,'rgb(255, 255, 255)','Yellow labels stay white');assert.notEqual(paint.shadow,'none','Yellow receives its soft warm-brown shadow');assert.ok(paint.width>=44&&paint.height>=44);
+  assert.equal(paint.background,'rgb(236, 157, 0)','Yellow keeps the exact approved fill');assert.equal(paint.color,'rgb(255, 250, 240)','Yellow labels use the approved warm near-white');assert.notEqual(paint.shadow,'none','Yellow receives its soft warm-brown shadow');assert.ok(paint.width>=44&&paint.height>=44);
   await p.screenshot({path:`docs/recovery-qa/yellow-white-label-${theme}-${platform}.png`});results.push({check:'yellow white label paint, visual review required',theme,platform,paint});await p.close();
  }
  // Exercise the real display-mode listener and CSS; this is a simulation, not a physical-device install check.

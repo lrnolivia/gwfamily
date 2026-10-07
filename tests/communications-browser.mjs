@@ -856,7 +856,7 @@ try {
     await expect(alice.getByRole('img',{name:'Alice profile photo',exact:true})).toHaveAttribute('src',/^\/api\/media\//);
     await alice.getByRole('button',{name:'Save profile',exact:true}).click();
     await navigate(bob,'profile','alice');
-    await bob.getByRole('button',{name:'View Alice profile photo',exact:true}).click();
+    await bob.locator('.profile-overview').getByRole('button',{name:'View Alice profile photo',exact:true}).click();
     await expect(bob.locator('.photo-viewer-image')).toBeVisible();
     const comment=bob.getByRole('textbox',{name:'Write a comment…',exact:true});
     await comment.fill('A synthetic comment on this profile photo');await bob.getByRole('button',{name:'Send',exact:true}).click();

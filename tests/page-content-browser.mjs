@@ -279,10 +279,22 @@ async function editText(page, key, value, {finish = true} = {}) {
   const [pageId, name] = key.split('.'), label = SHARED_PAGE_SCHEMA[pageId].fields[name].label;
   const root = field(page, key);
   const input = root.getByRole('textbox', {name: label, exact: true});
-  if (!await input.count()) await root.getByRole('button', {name: 'Edit ' + label, exact: true}).click();
-  await input.fill(value);
-  if (finish) await root.getByRole('button', {name: 'Finish editing ' + label, exact: true}).click();
-  return input;
+  const trigger = root.getByRole('button', {name: 'Edit ' + label, exact: true});
+  try {
+    if (!await input.count()) await trigger.click();
+    await expect(input).toBeVisible();
+    await input.fill(value);
+    if (finish) {
+      await root.getByRole('button', {name: 'Finish editing ' + label, exact: true}).click();
+      await expect(input).toHaveCount(0);
+      await expect(trigger).toBeFocused(); // Finish restores focus on the next animation frame.
+    }
+    return input;
+  } catch (error) {
+    const diagnostic=await root.evaluate(element=>({url:location.href,html:element.outerHTML.slice(0,6000),active:document.activeElement?.outerHTML.slice(0,1000),rect:element.getBoundingClientRect().toJSON(),hit:(()=>{const r=element.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.outerHTML.slice(0,1000)})()}())).catch(()=>({url:page.url(),missing:true}));
+    console.error('GW EDIT TRANSITION '+JSON.stringify({key,diagnostic}));
+    throw error;
+  }
 }
 async function save(page) {
   const retry=toolbar(page).getByRole('button',{name:'Try saving again',exact:true});
