@@ -22,6 +22,15 @@
    error, editor drop targets, and checkbox boundaries retain their contrast. */
 :is(.app,#sheet-body) .card{border-color:color-mix(in srgb,var(--line) 15%,transparent)}
 :is(.app,#sheet-body) :is(.manage-member-row,.planning-member+.planning-member,.planning-people,.post-actions,.leader-summary-row,.leader-deadlines>div,.profile-counts,.page-panel-inline-controls,.page-inline-editor,.reunion-plans-page .payment-inline){border-color:var(--decorative-line)}
+/* Neutral control edges use the same 30% theme stroke as dividers.
+   Focus, selection, errors, editor targets and system high-contrast colors remain distinct. */
+@media(forced-colors:none){
+ html[data-theme][data-platform] :is(.button.secondary,.on-floating-surface.icon-button,.on-floating-surface.filter-trigger):not([aria-pressed=true]):not([aria-selected=true]):not([aria-invalid=true]){border-color:var(--decorative-line)!important}
+ :is(.app,#sheet-body,.gw-glass-menu,.gw-material-menu) :is(input:not(.page-copy-input):not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]):not([type=range]):not([type=hidden]):not([aria-invalid=true]),select:not([aria-invalid=true]),textarea:not(.page-copy-input):not([aria-invalid=true]),.writing-box,.notification-options,.member-picker-options,.social-links a,.segmented,.view-icons,.reply-pill,.size-choice:not([aria-pressed=true])){border-color:var(--decorative-line)}
+ .choice-control:not([aria-invalid=true]):not([data-invalid=true]) .choice-chip>input:not(:checked)+.choice-chip-face:not(:hover),.choice-popover.choice-popover{border-color:var(--decorative-line)}
+ :is(.app,#sheet-body,.gw-glass-menu,.gw-material-menu) .choice-control:is([aria-invalid=true],[data-invalid=true]) .choice-search-field>input{border-color:var(--line)}
+ .poll .poll-choice:not(.is-selected):not(:hover){border-color:var(--decorative-line)}
+}
 .leader-page.stack{gap:24px}
 .leader-page>.leader-page-heading{gap:16px;align-items:center;margin:0;padding:0}
 .leader-page-heading h1{margin:0 0 8px}

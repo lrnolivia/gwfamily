@@ -903,7 +903,8 @@ try {
       await memoryControls.getByRole('button',{name:'Filter & sort',exact:true}).click();
       await expect(memoryControls.getByRole('button',{name:'Filter & sort',exact:true})).toHaveAttribute('aria-expanded','true');
       const category = otherOwner.getByRole('combobox', {name: 'Category', exact: true});
-      await category.click();
+      await memoryControls.getByRole('button', {name: 'Show choices for Category', exact: true}).click();
+      await expect(category).toBeFocused();
       await expect(otherOwner.getByRole('listbox', {name: 'Category', exact: true})).toBeVisible();
       await noClip(otherOwner);
       await panelFits(otherOwner, '.choice-popover[data-open="true"]');

@@ -123,9 +123,10 @@ export function PageContentProvider({children,enabled=true}){
  },[allowed,preview,install,persistDrafts,beginWork]);
  useEffect(()=>{
   if(!allowed||!editingPage||workCount||autosaveHolds)return;
-  const page=editingPages.find(key=>pageCanAutosave(records[key]));
-  if(!page)return;
-  const timer=setTimeout(()=>{if(identity.current===account&&pageCanAutosave(ref.current[page]))void save(page)},900);
+  const pages=editingPages.filter(key=>pageCanAutosave(records[key]));
+  if(!pages.length)return;
+  // Related pages share one quiet period; each retains its own revision and request.
+  const timer=setTimeout(()=>{if(identity.current!==account)return;for(const page of pages)if(pageCanAutosave(ref.current[page]))void save(page)},900);
   return()=>clearTimeout(timer);
  },[allowed,account,editingPage,editingPages,records,workCount,autosaveHolds,save]);
  const discard=useCallback(page=>{const before=ref.current[page];if(!before||before.status==='saving')return;const latest=before.latest||before;install(page,{...before,...latest,draft:null,base:null,request:null,error:'',latest:null,conflicted:false,status:'ready'});persistDrafts()},[install,persistDrafts]);

@@ -19,7 +19,7 @@ async function verifyFilterPlatter(page,locator,label){
  const paint=await locator.evaluate(element=>{
   const probe=document.createElement('span');probe.style.background='var(--raised)';probe.style.color='var(--text)';element.append(probe);
   const actual=getComputedStyle(element),expected=getComputedStyle(probe),box=element.getBoundingClientRect();
-  const result={background:actual.backgroundColor,raised:expected.backgroundColor,color:actual.color,text:expected.color,padding:parseFloat(actual.paddingLeft),radius:parseFloat(actual.borderRadius),width:box.width,overflow:document.documentElement.scrollWidth-innerWidth};probe.remove();return result;
+  const result={background:actual.backgroundColor,raised:expected.backgroundColor,color:actual.color,text:expected.color,padding:parseFloat(actual.paddingLeft),radius:parseFloat(actual.borderRadius),width:box.width,rowGap:actual.rowGap,overflow:document.documentElement.scrollWidth-innerWidth};probe.remove();return result;
  });
  assert.equal(paint.background,paint.raised,label+' follows the active raised surface');assert.equal(paint.color,paint.text,label+' follows active text');
  const search=locator.locator('input[type="search"]');if(await search.count()){
@@ -27,7 +27,7 @@ async function verifyFilterPlatter(page,locator,label){
   const tone=color=>parsePaintColor(color).slice(0,3).map(channel=>channel<=.04045?channel/12.92:((channel+.055)/1.055)**2.4).reduce((sum,channel,index)=>sum+channel*[.2126,.7152,.0722][index],0);
   assert.ok(tone(placeholder.search)>tone(placeholder.filter)+.001,label+' search field is lighter than Filter & sort: '+JSON.stringify(placeholder));
  }
- assert.ok(paint.padding>=12&&paint.radius>=12&&paint.width>200,label+' has its own padded platter');assert.ok(paint.overflow<=1,label+' stays within viewport');
+ assert.ok(paint.padding>=12&&paint.radius>=12&&paint.width>200,label+' has its own padded platter');if(await locator.evaluate(element=>element.classList.contains('browse-controls')))assert.equal(parseFloat(paint.rowGap),8,label+' keeps a compact search/filter gap');assert.ok(paint.overflow<=1,label+' stays within viewport');
  // Changing a theme token must immediately repaint the shell without remounting.
  const custom=await locator.evaluate(element=>{const root=document.documentElement,previous=root.style.getPropertyValue('--raised');root.style.setProperty('--raised','rgb(93, 71, 108)');const background=getComputedStyle(element).backgroundColor;if(previous)root.style.setProperty('--raised',previous);else root.style.removeProperty('--raised');return background;});
  assert.equal(custom,'rgb(93, 71, 108)',label+' follows custom theme tokens');
@@ -60,6 +60,9 @@ try{
   await p.screenshot({path:`docs/recovery-qa/hotfix-menu-${width}-${theme}-${platform}.png`});await p.keyboard.press('Escape');
   await fab.click();await p.getByText('Tag family',{exact:false}).first().click();const picker=p.getByRole('combobox',{name:'Family in this post'});await picker.fill('Shirley');await p.getByRole('option',{name:/Shirley Thomas/}).click();await p.getByRole('textbox',{name:"What's on your mind"}).fill('A family memory from the hotfix test');await p.getByRole('button',{name:'Send post',exact:true}).click();await p.getByText('A family memory from the hotfix test',{exact:true}).waitFor();const savedPost=await p.evaluate(key=>JSON.parse(localStorage.getItem(key)).state.posts.find(post=>post.text==='A family memory from the hotfix test'),PREVIEW_KEY);assert.ok(savedPost?.memberIds?.includes('shirley'),'saved post retains selected ancestor ID');assert.equal(await p.locator('.ancestor-tag').filter({hasText:'Shirley Thomas'}).count(),1,'ancestor tag is rendered with its memorial description');
   await nav.getByRole('button',{name:'You',exact:true}).click();await p.getByRole('button',{name:'Edit profile',exact:true}).click();
+  const neutral=p.locator('.button.secondary').filter({visible:true}).first();await expect(neutral).toBeVisible();
+  const stroke=await neutral.evaluate(element=>{const probe=document.createElement('span');probe.style.color='var(--decorative-line)';element.append(probe);const result={actual:getComputedStyle(element).borderTopColor,expected:getComputedStyle(probe).color};probe.remove();return result});assert.deepEqual(parsePaintColor(stroke.actual),parsePaintColor(stroke.expected),'Neutral secondary stroke follows 30% active-theme token');
+  await neutral.focus();await p.keyboard.press('Tab');await p.keyboard.press('Shift+Tab');await expect(neutral).toBeFocused();assert.ok(await neutral.evaluate(element=>{const style=getComputedStyle(element);return style.outlineStyle!=='none'&&parseFloat(style.outlineWidth)>=2}),'Keyboard focus retains a visible ring');
   await p.screenshot({path:`docs/recovery-qa/hotfix-profile-${width}-${theme}-${platform}.png`,fullPage:true});
   results.push({width,theme,platform,status:'passed'});await p.close();
  }

@@ -1,5 +1,6 @@
 /* Product tokens and domain content; geometry belongs to version-pinned shared UI. */
 .browse-controls.work-view-controls{--work-control-surface:color-mix(in srgb,var(--raised) 94%,var(--text));--work-control-choice:var(--raised);--work-control-canvas:var(--bg);--work-control-text:var(--text);--work-control-muted:var(--muted);--work-control-accent:var(--control,var(--accent));--work-control-on-accent:var(--control-text,var(--ink));--work-control-done:var(--control,var(--accent));--work-control-on-done:var(--control-text,var(--ink));border:1px solid var(--decorative-line,var(--line));font:inherit}
+.browse-controls.work-view-controls{row-gap:8px}
 .browse-controls .work-controls-footer{flex-wrap:wrap}
 .browse-controls.work-view-controls{--work-control-search:color-mix(in srgb,var(--raised) 84%,var(--text))}
 [data-theme=light] .browse-controls.work-view-controls{--work-control-search:var(--surface)}
