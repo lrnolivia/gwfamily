@@ -22,8 +22,6 @@ const ASSET_ALLOWLIST=Object.freeze([
  'desktop-chrome-install-menu.svg','desktop-chrome-confirm.svg',
  'windows-chrome-apps-open.svg','chromeos-launcher-open.svg','windows-edge-install-menu.svg'
 ]);
-const INLINE_ASSET_ALLOWLIST=['ios-add-light.svg','ios-add-dark.svg','android-install-light.svg','android-install-dark.svg'];
-const MOBILE_ASSET_ALLOWLIST=Object.freeze(["ios-1-light.png", "ios-2-light.png", "ios-3-light.png", "ios-1-dark.png", "ios-2-dark.png", "ios-3-dark.png", "android-1-light.png", "android-2-light.png", "android-3-light.png", "android-1-dark.png", "android-2-dark.png", "android-3-dark.png"]);
 const HOSTED_PLAN=Object.freeze([
  'narrow and roomy viewports','Glass and Flat materials','light and dark themes',
  'fullpage install Back','glyph-led OS tabs and automatic native-device selection','all sixteen SVGs load',
@@ -126,7 +124,7 @@ try{
    if(request.method()!=='GET'){writes.push({phase,method:request.method(),url:request.url()});return route.abort()}
    if(request.url()===FIXTURE_URL)return route.fulfill({contentType:'text/html',body:html});
    if(url.origin===new URL(FIXTURE_URL).origin&&url.pathname==='/__review/help/tree-artwork.png')return route.fulfill({contentType:'image/png',body:await readFile(root+'dist/tree-artwork.png')});
-   const asset=[...ASSET_ALLOWLIST,...MOBILE_ASSET_ALLOWLIST,...INLINE_ASSET_ALLOWLIST,...APPROVED_ASSET_ALLOWLIST].find(file=>url.origin===new URL(FIXTURE_URL).origin&&url.pathname==='/__review/help/install-guide/'+file);
+   const asset=[...ASSET_ALLOWLIST,...APPROVED_ASSET_ALLOWLIST].find(file=>url.origin===new URL(FIXTURE_URL).origin&&url.pathname==='/__review/help/install-guide/'+file);
    if(asset){assetLoads.add(asset);return route.fulfill({contentType:asset.endsWith('.png')?'image/png':'image/svg+xml',body:await readFile(root+'dist/install-guide/'+asset)})}
    if(url.origin===new URL(FIXTURE_URL).origin&&url.pathname==='/favicon.ico')return route.fulfill({status:204,body:''});
    deniedRequests.push({phase,url:request.url()});return route.abort();
@@ -278,13 +276,13 @@ try{
   assert.ok(snapshot.routeReplacements.every(route=>!route.id&&!route.section&&['home','reunion','family','you','tutorial'].includes(route.type)),'Tour replaces public routes only');
   assert.equal(snapshot.draft,SYNTHETIC_DRAFT+' after interruption');
   await assertNoOverflow(page,'final state');
-  results.push({width,material,theme,result:'passed',steps:7,textZoomPercent:200,accounts:['fixture-a','fixture-b'],installation:'mock-only; not performed',notificationDelivery:false});
+  results.push({width,material,theme,nativeIdentity:await page.evaluate(()=>({userAgent:navigator.userAgent,platform:navigator.platform,maxTouchPoints:navigator.maxTouchPoints,userAgentDataMobile:navigator.userAgentData?.mobile??null})),result:'passed',steps:7,textZoomPercent:200,accounts:['fixture-a','fixture-b'],installation:'mock-only; not performed',notificationDelivery:false});
   // Desktop guides are retained assets, but the product guide now offers only
   // iOS and Android phones/tablets. Verify retained bytes without adding tabs.
   if(results.length===1)for(const file of ASSET_ALLOWLIST){const svg=await page.evaluate(async file=>{const response=await fetch('/__review/help/install-guide/'+file);if(!response.ok)throw Error('Retained guide asset failed: '+file);return response.text()},file);assert.match(svg,/<svg[ >]/);}
   await context.close();
  }
- assert.deepEqual([...assetLoads].sort(),[...ASSET_ALLOWLIST,...MOBILE_ASSET_ALLOWLIST,...INLINE_ASSET_ALLOWLIST].sort(),'Every allowlisted SVG was actually requested');
+ assert.deepEqual([...assetLoads].sort(),[...ASSET_ALLOWLIST,...APPROVED_ASSET_ALLOWLIST].sort(),'Every allowlisted SVG was actually requested');
  // Desktop identities never expose the illustrated install guide, even at narrow widths.
  const desktop=await browser.newContext({userAgent:'Mozilla/5.0 (Macintosh; Intel Mac OS X)',viewport:{width:320,height:900},serviceWorkers:'block',permissions:[]});
  const desktopPage=await desktop.newPage();await desktopPage.route('**/*',route=>route.request().url()===FIXTURE_URL?route.fulfill({contentType:'text/html',body:html}):route.fulfill({status:204,body:''}));
