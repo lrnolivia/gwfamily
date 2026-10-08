@@ -327,7 +327,8 @@ async function mediaPanel(page, key = 'home') {
 async function togglePanelProtection(page, panel, locked) {
  const name=locked?/^Lock /:/^Unlock /,inline=panel.getByRole('button',{name});
  if(await inline.count()){await inline.click();return}
- await panel.getByRole('button',{name:/^Panel options for /}).click();
+ const title=await panel.getAttribute('data-panel-title');assert.ok(title,'Target panel declares its own title');
+ await panel.getByRole('button',{name:'Panel options for '+title,exact:true}).click();
  const inspector=page.locator('.page-object-tools');
  await inspector.getByRole('button',{name}).click();
  await inspector.getByRole('button',{name:'Close object tools',exact:true}).click();

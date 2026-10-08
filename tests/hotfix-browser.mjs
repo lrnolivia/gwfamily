@@ -4,13 +4,13 @@ import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {initialState,PREVIEW_KEY} from '../src/data-adapter.js';
 import {parsePaintColor} from './page-save-contrast.mjs';
-const browser=await (process.env.GW_BROWSER==='webkit'?webkit:chromium).launch({headless:true}),results=[],errors=[];
+const browser=await (process.env.GW_BROWSER==='webkit'?webkit:chromium).launch({headless:true,executablePath:process.env.PW_CHROME||undefined}),results=[],errors=[];
 await mkdir('docs/recovery-qa',{recursive:true});
 async function pageFor(width,theme,platform,mode='browser'){
  const page=await browser.newPage({viewport:{width,height:900},reducedMotion:'reduce'});page.setDefaultTimeout(12000);page.on('pageerror',e=>errors.push(e.message));
  await page.addInitScript(mode=>{Object.defineProperty(navigator,'standalone',{get:()=>mode==='standalone'});const original=window.matchMedia.bind(window);window.matchMedia=query=>{const media=original(query);if(query==='(display-mode: standalone)')Object.defineProperty(media,'matches',{get:()=>mode==='standalone'});return media}},mode);
  await page.goto('http://127.0.0.1:4173');await page.waitForFunction(()=>!!document.documentElement.dataset.platform);
- const state=initialState();state.onboarding='done';state.members.find(m=>m.id===state.selfId).profileColor='#c9aa52';
+ const state=initialState();state.onboarding='done';state.previewRoleView='leader';state.members.find(m=>m.id===state.selfId).profileColor='#c9aa52';
  await page.evaluate(({state,key,theme,platform})=>{localStorage.setItem(key,JSON.stringify({schema:2,mode:'preview',state}));
   sessionStorage.setItem('gw-active-mode','preview');localStorage.setItem('gw-theme',theme);localStorage.setItem('gw-platform',platform);localStorage.setItem('gw-preview-notice:v1','seen');localStorage.setItem('gw-install-dismissed','true')},{state,key:PREVIEW_KEY,theme,platform});
  await page.reload({waitUntil:'domcontentloaded'});await page.getByRole('navigation',{name:'Main navigation'}).waitFor();return page;
@@ -28,7 +28,7 @@ async function verifyFilterPlatter(page,locator,label){
   const tone=color=>parsePaintColor(color).slice(0,3).map(channel=>channel<=.04045?channel/12.92:((channel+.055)/1.055)**2.4).reduce((sum,channel,index)=>sum+channel*[.2126,.7152,.0722][index],0);
   assert.ok(tone(placeholder.search)>tone(placeholder.filter)+.001,label+' search field is lighter than Filter & sort: '+JSON.stringify(placeholder));
  }
- assert.ok(paint.padding>=12&&paint.radius>=12&&paint.width>200,label+' has its own padded platter');if(await locator.evaluate(element=>element.classList.contains('browse-controls')))assert.equal(parseFloat(paint.rowGap),8,label+' keeps a compact search/filter gap');assert.ok(paint.overflow<=1,label+' stays within viewport');
+ assert.ok(paint.padding>=12&&paint.radius>=12&&paint.width>200,label+' has its own padded platter: '+JSON.stringify(paint));if(await locator.evaluate(element=>element.classList.contains('browse-controls')))assert.equal(parseFloat(paint.rowGap),8,label+' keeps a compact search/filter gap');assert.ok(paint.overflow<=1,label+' stays within viewport');
  // Changing a theme token must immediately repaint the shell without remounting.
  const custom=await locator.evaluate(element=>{const root=document.documentElement,previous=root.style.getPropertyValue('--raised');root.style.setProperty('--raised','rgb(93, 71, 108)');const background=getComputedStyle(element).backgroundColor;if(previous)root.style.setProperty('--raised',previous);else root.style.removeProperty('--raised');return background;});
  assert.equal(custom,'rgb(93, 71, 108)',label+' follows custom theme tokens');

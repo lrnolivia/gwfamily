@@ -412,7 +412,13 @@ try {
       await alice.evaluate(() => window.dispatchEvent(new Event('online')));
       await expect(alice.getByRole('button', {name: 'Reload updated app', exact: true})).toBeVisible();
       await expect(composer(alice)).toHaveValue(nextDraft);
-      await reloadRoute(alice, 'chat', directId, alice.getByRole('button', {name: 'Reload updated app', exact: true}));
+      const beforeReload=await alice.evaluate(()=>performance.timeOrigin);
+      await alice.getByRole('button',{name:'Reload updated app',exact:true}).click();
+      await expect(alice.locator('.gw-update-toast')).toContainText('Save or close your draft before reloading.');
+      assert.equal(await alice.evaluate(()=>performance.timeOrigin),beforeReload,'Update control refuses a reload with unsent drafts.');
+      await expect(composer(alice)).toHaveValue(nextDraft);
+      // Explicit same-tab browser reload remains a separate recovery boundary.
+      alice.once('dialog',dialog=>dialog.accept());await reloadRoute(alice,'chat',directId);
       await expect(composer(alice)).toHaveValue(nextDraft);
       await expect(alice.locator('.message-outbox')).toContainText(text);
       assert.equal(await messageRow(alice, text).count(), 0, 'The preserved draft is still unsent after reload.');
@@ -658,7 +664,7 @@ try {
       await expect(alice.getByRole('alert').filter({hasText: 'Synthetic fixture comment failure'})).toBeVisible();
       await expect(field).toHaveValue(text);
       await expect(alice.getByRole('button', {name: 'Reload updated app', exact: true})).toBeEnabled();
-      await reloadRoute(alice, 'post', commentPostId, alice.getByRole('button', {name: 'Reload updated app', exact: true}));
+      const beforeReload=await alice.evaluate(()=>performance.timeOrigin);await alice.getByRole('button',{name:'Reload updated app',exact:true}).click();await expect(alice.locator('.gw-update-toast')).toContainText('Save or close your draft before reloading.');assert.equal(await alice.evaluate(()=>performance.timeOrigin),beforeReload,'Update control preserves pending comment work.');alice.once('dialog',dialog=>dialog.accept());await reloadRoute(alice,'post',commentPostId);
       await expect(field).toHaveValue(text);
       await alice.screenshot({path: `${output}/comment-draft-reload-${engineName}.png`});
     } finally {
