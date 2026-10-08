@@ -2,9 +2,11 @@ import {PUSH_IMPLEMENTATION_READY,validateSubscription,validatePushEndpoint} fro
 import {drainWithInjectedSender} from './push-store.mjs';
 export function pushStorageReady(env){return env.PUSH_SCHEMA_VERSION==='1'}
 export function runtimeReady(env){
- // Do not even inspect credential bindings in the disabled preparation build.
- if(!PUSH_IMPLEMENTATION_READY||env.PUSH_ENABLED!=='true')return false;
- return typeof env.PUSH_VAPID_PRIVATE_KEY==='string'&&!!env.PUSH_VAPID_PRIVATE_KEY&&typeof env.PUSH_VAPID_PUBLIC_KEY==='string'&&/^[A-Za-z0-9_-]{87}$/.test(env.PUSH_VAPID_PUBLIC_KEY)&&/^[A-Za-z0-9_-]{1,32}$/.test(env.PUSH_KEY_VERSION||'')&&typeof env.PUSH_SUBJECT==='string'&&/^mailto:[^\s@]+@[^\s@]+$|^https:\/\//.test(env.PUSH_SUBJECT);
+ // Off and unapplied schema never inspect credentials or database bindings.
+ if(!PUSH_IMPLEMENTATION_READY||env.PUSH_ENABLED!=='true'||!pushStorageReady(env))return false;
+ const validKey=(value,bytes)=>{try{if(typeof value!=='string'||!/^[A-Za-z0-9_-]+$/.test(value))return false;const raw=atob(value.replace(/-/g,'+').replace(/_/g,'/'));return raw.length===bytes&&(bytes!==65||raw.charCodeAt(0)===4)}catch{return false}};
+ let subject;try{subject=new URL(env.PUSH_SUBJECT)}catch{return false}
+ return validKey(env.PUSH_VAPID_PRIVATE_KEY,32)&&validKey(env.PUSH_VAPID_PUBLIC_KEY,65)&&/^[A-Za-z0-9_-]{1,32}$/.test(env.PUSH_KEY_VERSION||'')&&((subject.protocol==='mailto:'&&/^[^\s@]+@[^\s@]+$/.test(subject.pathname))||(subject.protocol==='https:'&&!!subject.hostname&&!subject.username&&!subject.password));
 }
 export function createPushSender(env,{load=()=>import('web-push'),fetcher=globalThis.fetch}={}){
  return async({subscription,keyVersion,payload,ttl,timeoutMs=10000})=>{

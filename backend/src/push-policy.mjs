@@ -1,6 +1,5 @@
-// Deliberate compile-time interlock. There is no production sender in this package.
-export const PUSH_IMPLEMENTATION_READY = false;
-export function pushStatus(){return {ready:false,pushEnabled:false,reason:'activation-required'}}
+// Delivery still requires explicit deployment, schema and database control gates.
+export const PUSH_IMPLEMENTATION_READY = true;
 export function assertAccount(actor,expectedAccountId){if(!actor?.id||actor.id!==expectedAccountId)throw new Error('Account changed; refresh before changing this device')}
 export function validatePushEndpoint(endpoint){
  if(typeof endpoint!=='string'||endpoint.length>2048)throw new Error('Invalid endpoint');

@@ -1,3 +1,4 @@
+import {PUSH_IMPLEMENTATION_READY} from '../src/push-policy.mjs';
 import {build,version as esbuildVersion} from 'esbuild';
 import {readFile,writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
@@ -14,5 +15,5 @@ const options=workerBuildOptions();await build({...options,entryPoints:['src/sit
 const bundle=await readFile('build/site-worker.mjs'),config=JSON.parse(await readFile('wrangler.jsonc','utf8'));
 for(const path of ['/api/*','/health',...CORE_ASSET_PATHS])assert.ok(config.assets.run_worker_first.includes(path),'Missing Worker-first path '+path);
 const sourceSha=/^[a-f0-9]{40}$/.test(process.env.GW_SOURCE_SHA||'')?process.env.GW_SOURCE_SHA:null;
-const provenance={version:1,sourceSha,bundle:'backend/build/site-worker.mjs',sha256:sha256(bundle),bytes:bundle.length,node:process.version,esbuild:esbuildVersion,frontend,assets:identities,workerFirst:config.assets.run_worker_first,compatibilityDate:config.compatibility_date,compatibilityFlags:config.compatibility_flags,pushActivation:false};
+const provenance={version:1,sourceSha,bundle:'backend/build/site-worker.mjs',sha256:sha256(bundle),bytes:bundle.length,node:process.version,esbuild:esbuildVersion,frontend,assets:identities,workerFirst:config.assets.run_worker_first,compatibilityDate:config.compatibility_date,compatibilityFlags:config.compatibility_flags,pushActivation:false,pushImplementationReady:PUSH_IMPLEMENTATION_READY};
 await writeFile('build/site-worker-provenance.json',JSON.stringify(provenance,null,2)+'\n');console.log('::notice::Exact production site Worker provenance '+JSON.stringify(provenance));
