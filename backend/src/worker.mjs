@@ -1,3 +1,5 @@
+import {drainEmailNotifications} from './email-notifications.mjs';
+import {emailRuntimeReady} from './email-delivery-policy.mjs';
 import {resolveReunion as resolveReunionRecord} from './reunions.mjs';
 import {cleanupMessageAttachments} from './message-attachments.mjs';
 import {runtimeReady,drainPush,pushStorageReady} from './push-runtime.mjs';
@@ -46,4 +48,4 @@ app.put('/api/me/favorites/:id',async c=>{const actor=c.get('actor'),id=c.req.pa
 app.delete('/api/me/favorites/:id',async c=>{await c.env.DB.prepare('DELETE FROM favorites WHERE member_id=? AND favorite_member_id=?').bind(c.get('actor').id,c.req.param('id')).run();return c.json({favorite:false})});
 app.notFound(c=>c.json({error:'Not found'},404));return app}
 const app=createApp();
-export default {fetch:(request,env,ctx)=>app.fetch(request,env,ctx),scheduled:(controller,env,ctx)=>{if(controller.cron==='* * * * *'){if(runtimeReady(env))ctx.waitUntil(drainPush(authEnvironment(env)));return}ctx.waitUntil(cleanupMessageAttachments(authEnvironment(env)));if(env.BIRTHDAY_POSTS_ENABLED==='true')ctx.waitUntil(celebrateBirthdays(authEnvironment(env).DB,new Date(controller.scheduledTime)))}};
+export default {fetch:(request,env,ctx)=>app.fetch(request,env,ctx),scheduled:(controller,env,ctx)=>{if(controller.cron==='* * * * *'){if(runtimeReady(env))ctx.waitUntil(drainPush(authEnvironment(env)));if(emailRuntimeReady(env))ctx.waitUntil(drainEmailNotifications(authEnvironment(env)));return}ctx.waitUntil(cleanupMessageAttachments(authEnvironment(env)));if(env.BIRTHDAY_POSTS_ENABLED==='true')ctx.waitUntil(celebrateBirthdays(authEnvironment(env).DB,new Date(controller.scheduledTime)))}};

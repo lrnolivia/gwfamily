@@ -45,3 +45,5 @@ html[data-theme] :is(.notification-panel,.notification-settings),html[data-theme
 .notification-settings-page .notification-settings-section{scroll-margin-block-start:96px}
 .notification-settings-page .notification-device-status button{width:fit-content;max-width:100%;min-height:44px;white-space:normal}
 @media(max-width:520px){.notification-settings-page{gap:24px;padding-block-end:24px}.notification-settings-page .notification-device-status button{width:100%}}
+
+.notification-device-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}.notification-device-heading h2{margin:0;min-width:0}.notification-settings-page .notification-device-info{flex:0 0 44px;width:44px;min-width:44px;height:44px;padding:10px}.notification-device-status [hidden]{display:none}

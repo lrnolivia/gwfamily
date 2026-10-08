@@ -141,6 +141,12 @@ jobs:
       - id: browser_install
         if: ${{ !cancelled() && steps.restore_build.outcome == 'success' }}
         run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Ordinary onboarding source geometry
+        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        run: GW_ONBOARDING_QA_OUTPUT=docs/onboarding-qa node tests/onboarding-browser.mjs
+      - name: Fictional eight-preset email previews
+        if: ${{ !cancelled() && matrix.browser == 'chromium' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        run: GW_EMAIL_QA_OUTPUT=docs/email-preview-qa node tests/email-preview-browser.mjs
       - name: Contextual editor geometry and command checks
         if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         id: panel_arrow_editor
@@ -312,6 +318,8 @@ jobs:
             docs/help-qa
             docs/notifications-qa
             docs/editor-geometry-qa
+            docs/onboarding-qa
+            docs/email-preview-qa
             docs/content-actions-qa
             backend/build/worker.mjs
             backend/build/worker-provenance.json

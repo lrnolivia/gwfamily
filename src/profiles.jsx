@@ -1,3 +1,4 @@
+import {THEME_PRESETS} from './theme-presets.js';
 import {ProfileContactActions} from './profile-contact-actions.jsx';
 import {unlinkInterfaceAccent} from './interface-accent.js';
 import {ChoiceControl} from './choice-control.jsx';
@@ -22,7 +23,7 @@ export function ProfilePhotoControl({name,photo,photoFrame,onPhotoFrame,onPhoto,
 }
 export function ProfileColorEditor({color='#4f996c',onColor,disabled=false,label='Profile color',legend='Make it feel like home',description='Choose your profile color.',selected=true,allowCustom=true}){
  const {theme}=useApp();
- const colors=[['Red','#e64f59'],['Orange','#ff7a00'],['Yellow','#ec9d00'],['Green','#387b51'],['Blue','#3985e6'],['Violet','#a267d5'],['Coral pink','#ff6685'],['Stone','#8a8178']];
+ const colors=THEME_PRESETS.map(({label,color})=>[label,color]);
  return <fieldset className="profile-colors" aria-label={label} disabled={disabled}><legend>{legend}</legend><p className="field-help">{description}</p><div className="profile-color-options" role="group" aria-label={label+' options'}><div className="profile-swatches-scroll">{colors.map(([label,value])=><Control key={value} type="button" aria-label={label} aria-pressed={selected&&color.toLowerCase()===value} className="profile-color-swatch" style={{'--swatch':value,'--swatch-active':profilePalette(value,theme)['--control'],'--swatch-active-text':profilePalette(value,theme)['--control-text']}} onClick={()=>onColor(value)}><span aria-hidden="true">{selected&&color.toLowerCase()===value?<Glyph name="check"/>:null}</span></Control>)}</div>{allowCustom&&<label className="profile-custom-color" title={'Custom '+label.toLowerCase()}><input type="color" aria-label={'Custom '+label.toLowerCase()} value={color} onChange={e=>onColor(e.target.value)}/><span>Custom</span></label>}</div></fieldset>
 }
 export function ProfileStyleEditor({name,photo,photoFrame,onPhotoFrame,color='#4f996c',onColor,onPhoto,onRemove,busy=false,disabled=false,error='',children,showColors=true,photoLabel='Profile photo',description='Your family profile'}){

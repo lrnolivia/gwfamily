@@ -1,3 +1,4 @@
+import {registerEmailNotifications} from './email-notifications.mjs';
 import {requestDiagnosticContext} from './error-diagnostics.mjs';
 import {registerPhotoDiscussions,photoCommentsReferenceMedia} from './photo-discussions.mjs';
 import {invitationsEnabled,provisionalAllowed,registerInvitationEntry,registerFamilyInvitations} from './family-invitations.mjs';
@@ -18,7 +19,7 @@ import {publicAuthConfig} from './auth-providers.mjs';
 import {can} from './policy.mjs';
 export function registerPublic(app,authFactory){
  registerInvitationEntry(app,authFactory);
- app.get('/api/config',c=>{const e=authEnvironment(c.env);return c.json({...publicAuthConfig(e,authReady(e)),familyInvitations:invitationsEnabled(e),familyInvitationEmail:invitationsEnabled(e)&&Boolean(e.EMAIL)})});
+ app.get('/api/config',c=>{const e=authEnvironment(c.env);return c.json({...publicAuthConfig(e,authReady(e)),familyInvitations:invitationsEnabled(e),familyInvitationEmail:invitationsEnabled(e)&&Boolean(e.EMAIL),emailNotifications:e.EMAIL_SCHEMA_VERSION==='1'})});
  app.get('/api/session',async c=>{
   const e=authEnvironment(c.env);if(!authReady(e))return c.json({signedIn:false,configured:false,canRehearseFirstLoad:false});
   const session=await authFactory(e,requestDiagnosticContext(c,'auth.session.initial')).api.getSession({headers:c.req.raw.headers});if(!session)return c.json({signedIn:false,configured:true,canRehearseFirstLoad:false});
@@ -57,7 +58,7 @@ export function registerPublic(app,authFactory){
   try{await e.DB.batch([e.DB.prepare('INSERT INTO media(id,owner_id,object_key,name,mime_type,size_bytes) VALUES(?,?,?,?,?,?)').bind(id,session.user.id,key,'Profile photo',file.type,file.size),e.DB.prepare('UPDATE user SET image=?,updatedAt=? WHERE id=?').bind(url,Date.now(),session.user.id)])}catch(error){await e.R2.delete(key);throw error}return c.json({url},201);
  });
 }
-export function registerFamily(app){registerPhotoDiscussions(app);registerPushRoutes(app);registerNotifications(app);registerHouseholdInvites(app);registerFamilyInvitations(app);registerMessaging(app);registerPageContent(app);
+export function registerFamily(app){registerPhotoDiscussions(app);registerPushRoutes(app);registerEmailNotifications(app);registerNotifications(app);registerHouseholdInvites(app);registerFamilyInvitations(app);registerMessaging(app);registerPageContent(app);
  app.get('/api/calendar',async c=>{try{return c.json(await readCalendar(c.env.DB,c.get('actor'),c.req.query('reunionId')))}catch(error){if(error.status)throw new UserError(error.message,error.status);throw error}});
  app.get('/api/state',async c=>c.json(await familyState(c.env.DB,c.get('actor'),c.req.query('reunionId'))));
  app.post('/api/commands',async c=>c.json(await command(c.env.DB,c.get('actor'),await c.req.json())));

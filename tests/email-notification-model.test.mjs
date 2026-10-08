@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {emailAppearance,initialEmailAppearance} from '../src/email-notification-model.js';
+import {THEME_PRESETS} from '../src/theme-presets.js';
+test('email DTO accepts exactly eight named preset IDs and both existing fonts/modes',()=>{for(const p of THEME_PRESETS)for(const theme of ['light','dark'])for(const headingFont of ['sans','serif'])assert.deepEqual(emailAppearance({preset:p.id,theme,headingFont}),{preset:p.id,theme,headingFont});for(const preset of ['default','#387b51','#fff','custom'])assert.throws(()=>emailAppearance({preset,theme:'light',headingFont:'sans'}))});
+test('initial email appearance derives only an approved current choice, without adding arbitrary colors',()=>{assert.deepEqual(initialEmailAppearance({theme:'dark',headingFont:'serif',interfaceAccent:{mode:'custom',color:'#3985e6'}}),{preset:'blue',theme:'dark',headingFont:'serif'});assert.equal(initialEmailAppearance({interfaceAccent:{mode:'profile'},profileColor:'#ff6685'}).preset,'coral-pink');assert.equal(initialEmailAppearance({interfaceAccent:{mode:'custom',color:'#123456'}}).preset,'green')});

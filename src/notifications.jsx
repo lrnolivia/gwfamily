@@ -1,4 +1,5 @@
 import {PushDeviceSettings} from './push-device.jsx';
+import {EmailNotificationSettings} from './email-notifications.jsx';
 import React,{forwardRef,useEffect,useRef,useState} from 'react';
 import {Button,Control,Glyph,useApp,formatTime} from './ui-core.jsx';
 import {ChoiceControl} from './choice-control.jsx';
@@ -47,10 +48,11 @@ export function NotificationSettings(){
  return <section className="notification-settings stack" aria-label="Notification choices">
   <p className="notification-settings-intro">Choose the activity you want to hear about. Tags, replies, and private status updates have their own choices.</p>
   <PreviewDisclosure notifications={n}/><Failure notifications={n}/>{n.loading&&<ActivityDots label="Loading notification choices"/>}
+  <PushDeviceSettings/>
+  <EmailNotificationSettings/>
   <section className="notification-settings-section"><h2>Activity in GW</h2><ChoiceControl label="In-app activity" value={settings.globalOff?'off':'on'} onChange={value=>n.saveSettings({globalOff:value==='off'})} disabled={disabled} options={[{value:'on',label:'On'},{value:'off',label:'Off'}]} help="Off pauses every activity category. Your choices and read history stay saved." variant="chips"/></section>
   <section className="notification-settings-section"><h2>Following</h2><ChoiceControl label="Whose posts and memories?" value={settings.scope==='off'?'leaders':settings.scope} onChange={scope=>n.saveSettings({scope})} disabled={disabled||settings.globalOff} options={NOTIFICATION_SCOPES.filter(option=>option.value!=='off')} help="Following applies to general posts and memories. Your direct replies, tags, and private updates use the categories below." variant="chips"/>{settings.scope==='selected'&&<MemberPicker label="People to follow" multiple value={settings.selectedIds} onChange={selectedIds=>n.saveSettings({selectedIds})} disabled={disabled||settings.globalOff} filter={member=>member.id!==state.selfId&&!member.managedBy&&member.origin!=='dependent'} help="Choose registered family members. Private children’s records and ancestors are never notification recipients."/>}</section>
   <section className="notification-settings-section"><h2>Activity categories</h2><p className="small muted">Each choice is saved when you change it.{settings.globalOff?' All categories are paused while activity is off.':''}</p><div className="notification-category-options">{NOTIFICATION_CATEGORIES.map(category=><label className="notification-category-choice" key={category.id}><span><strong>{category.label}</strong><span>{category.detail}</span></span><input type="checkbox" aria-label={category.label} checked={settings.categories[category.id]} disabled={disabled||settings.globalOff} onChange={event=>n.saveSettings({categories:{[category.id]:event.target.checked}})}/></label>)}</div></section>
-  <PushDeviceSettings/>
   {n.busy&&<ActivityDots label="Saving notification choices"/>}
  </section>;
 }

@@ -1,0 +1,17 @@
+/* GW onboarding hotfix 20261008: centered entry and secondary preview. */
+.app.is-onboarding { padding: 0 !important; }
+.is-onboarding #main { min-height: 100dvh; padding: 0; }
+.onboarding-frame { box-sizing: border-box; min-height: 100dvh; width: 100%; padding: max(16px, env(safe-area-inset-top), env(safe-area-inset-bottom)) 16px; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(56px, 1fr) auto minmax(56px, 1fr); justify-items: center; }
+.onboarding-frame > .onboard.card { grid-row: 2; margin: 0; width: 100%; max-width: 500px !important; box-sizing: border-box; }
+.onboarding-frame .onboard .sign-in-form { margin-top: 0; padding-top: 0; border-top: 0; }
+.onboarding-frame > .onboarding-preview-button { grid-row: 3; align-self: start; justify-self: center; margin: 12px 0 0; width: auto; min-height: 44px; padding: 8px 18px; font-size: .8125rem; }
+
+/* GW onboarding hotfix v2: compact heading group, Momo and visible-viewport centering. */
+.onboarding-frame { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 100svh; padding: 16px; }
+.is-onboarding #main { min-height: 100svh; }
+.onboarding-frame > .onboard.card { flex: none; gap: 8px; }
+.onboarding-frame .onboard .welcome-mark { margin-bottom: 16px; }
+.onboarding-frame .onboard .welcome-tagline { margin: 0; }
+.onboarding-frame .onboard .sign-in-form .form-heading h2 { margin-top: 0; }
+.onboarding-frame .welcome-mark .wordmark { font-family: "Momo Trust Display", sans-serif !important; font-weight: 400; }
+.onboarding-frame > .onboarding-preview-button { flex: none; align-self: center; margin: 0; }
