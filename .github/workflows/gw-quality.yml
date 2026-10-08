@@ -144,6 +144,9 @@ jobs:
       - name: Ordinary onboarding source geometry
         if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         run: GW_ONBOARDING_QA_OUTPUT=docs/onboarding-qa node tests/onboarding-browser.mjs
+      - name: Isolated device push settings regression
+        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        run: GW_PUSH_QA_OUTPUT=docs/push-settings-qa node tests/push-settings-browser.mjs
       - name: Fictional eight-preset email previews
         if: ${{ !cancelled() && matrix.browser == 'chromium' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         run: GW_EMAIL_QA_OUTPUT=docs/email-preview-qa node tests/email-preview-browser.mjs
@@ -319,6 +322,7 @@ jobs:
             docs/notifications-qa
             docs/editor-geometry-qa
             docs/onboarding-qa
+            docs/push-settings-qa
             docs/email-preview-qa
             docs/content-actions-qa
             backend/build/worker.mjs

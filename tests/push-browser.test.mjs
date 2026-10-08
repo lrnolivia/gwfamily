@@ -21,3 +21,23 @@ test('explicit enable requests permission before awaited setup and retains the s
  const pending=controller.enable({ready:true,publicKey:key,keyVersion:'v1'},account);assert.deepEqual(calls,['permission']);assert.deepEqual(await pending,{enabled:true,deviceId:'fixture-device'});assert.deepEqual(calls,['permission','subscribe','save']);
 });
 test('denied permission does not subscribe or save',async()=>{let calls=0;const controller=createDevicePushController({Notification:{requestPermission:async()=> 'denied'},registration:{pushManager:{getSubscription:()=>calls++}},save:()=>calls++,currentAccountId:()=> 'fixture'});const key=Buffer.from([4,...Array(64).fill(0)]).toString('base64url');assert.deepEqual(await controller.enable({ready:true,publicKey:key,keyVersion:'v1'},'fixture'),{enabled:false,reason:'denied'});assert.equal(calls,0)});
+
+test('reopening settings resolves only this browser subscription and current key without permission or enrollment',async()=>{
+ const {resolveBrowserPush}=await import('../src/push-client.js');
+ const endpoint='https://web.push.apple.com/fictional-offline-only';
+ const fingerprint=Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(endpoint))).toString('hex');
+ const status={ready:true,keyVersion:'v1',devices:[{id:'other-browser',endpointFingerprint:'0'.repeat(64),keyVersion:'v1'},{id:'this-browser',endpointFingerprint:fingerprint,keyVersion:'v1'}]};
+ let reads=0;const registration={pushManager:{getSubscription:async()=>{reads++;return {endpoint}}}};
+ assert.equal(typeof resolveBrowserPush,'function');
+ assert.deepEqual(await resolveBrowserPush(status,registration),{pushEnabled:true,testDeviceId:'this-browser'});
+ assert.deepEqual(await resolveBrowserPush({...status,keyVersion:'v2'},registration),{pushEnabled:false,testDeviceId:null});
+ assert.deepEqual(await resolveBrowserPush(status,{pushManager:{getSubscription:async()=>null}}),{pushEnabled:false,testDeviceId:null});
+ assert.deepEqual(await resolveBrowserPush({...status,ready:false},registration),{pushEnabled:false,testDeviceId:null});assert.equal(reads,2);
+});
+
+test('push failures preserve a safe request reference and never render untrusted reference text',async()=>{
+ const {requestPush}=await import('../src/push-client.js');assert.equal(typeof requestPush,'function');
+ const requestId='12345678-1234-4234-8234-123456789abc';
+ await assert.rejects(()=>requestPush('/fictional','POST',{},async()=>new Response(JSON.stringify({error:'Request could not be completed',requestId}),{status:500})),error=>error.message.includes(requestId));
+ await assert.rejects(()=>requestPush('/fictional','POST',{},async()=>new Response(JSON.stringify({error:'Safe failure',requestId:'private-endpoint-cookie'}),{status:500})),error=>error.message==='Safe failure');
+});

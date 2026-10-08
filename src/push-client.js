@@ -1,4 +1,25 @@
 // Shared device controller. Readiness, key and registration are preloaded before Enable.
+export async function requestPush(path,method='GET',body,fetcher=globalThis.fetch){
+ const response=await fetcher(path,{method,credentials:'same-origin',headers:{'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
+ const value=await response.json();
+ if(!response.ok){
+  const reference=value.requestId||response.headers.get('X-Request-ID');
+  const safeReference=typeof reference==='string'&&/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(reference)?reference:null;
+  const error=new Error((value.error||'Device push could not be updated.')+(safeReference?' Reference: '+safeReference: ''));
+  error.code=value.code;error.providerStatus=value.providerStatus;throw error;
+ }
+ return value;
+}
+export async function resolveBrowserPush(status,registration){
+ const off={pushEnabled:false,testDeviceId:null};
+ if(!status?.ready||!registration?.pushManager)return off;
+ // Passive lookup only: opening settings never asks permission or resubscribes.
+ const subscription=await registration.pushManager.getSubscription();if(!subscription?.endpoint)return off;
+ const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(subscription.endpoint));
+ const fingerprint=Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('');
+ const device=status.devices?.find(device=>device.endpointFingerprint===fingerprint&&device.keyVersion===status.keyVersion);
+ return device?{pushEnabled:true,testDeviceId:device.id}:off;
+}
 export function deviceCapability({window,navigator,Notification}){
  const ua=navigator?.userAgent||'',ios=/iPad|iPhone|iPod/.test(ua)||(navigator?.platform==='MacIntel'&&navigator?.maxTouchPoints>1);
  const installed=!!(window?.matchMedia?.('(display-mode: standalone)')?.matches||navigator?.standalone===true);
