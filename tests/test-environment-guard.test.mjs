@@ -15,3 +15,10 @@ test('code build identity excludes live content and test storage stays in memory
  const source=fs.readFileSync(new URL('../scripts/version-assets.mjs',import.meta.url),'utf8');assert.match(source,/readFile\('dist\/react-app.js'\)/);assert.match(source,/readFile\('dist\/react-app.css'\)/);assert.doesNotMatch(source,/fetch\(|\/api\/|D1|R2|contentRevision|mediaRevision/);
  assert.match(fs.readFileSync(new URL('../backend/tests/test-db.mjs',import.meta.url),'utf8'),/new DatabaseSync\(':memory:'\)/);
 });
+
+test('CI enables the browser guard after checkout and dependencies, never before repository exists',()=>{
+ const source=fs.readFileSync(new URL('../.github/workflows/gw-quality.yml',import.meta.url),'utf8');
+ assert(source.indexOf('NODE_OPTIONS=--import=')>source.indexOf('npx playwright install --with-deps'));
+ assert.doesNotMatch(source,/^env:\n  NODE_OPTIONS:/m);
+ assert.match(source,/Enforce fixture guard for browser checks and fixture servers/);
+});
