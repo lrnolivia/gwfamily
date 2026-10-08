@@ -23,7 +23,7 @@ async function openComments(page,postId){
 
 try{
  const returning=await pageFor();let releaseConfig;const configGate=new Promise(resolve=>{releaseConfig=resolve});
- await returning.route('**/api/config',async route=>{await configGate;await route.fulfill({contentType:'application/json',body:JSON.stringify({configured:true,email:true,providers:['google','microsoft','yahoo'],origin:url})})});
+ await returning.route('**/api/config',async route=>{await configGate;await route.fulfill({contentType:'application/json',body:JSON.stringify({configured:true,email:true,providers:['google','microsoft','yahoo'],providerMethods:['google','microsoft','yahoo'].map(id=>({id,mode:'access'})),origin:url})})});
  await returning.route('**/api/session',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({signedIn:false,configured:true})}));
  try{
   // This scenario intentionally returns to the live sign-in path. Saved preview
