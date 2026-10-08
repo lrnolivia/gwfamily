@@ -86,11 +86,13 @@ try{
   await page.setViewportSize({width,height:900});
   await expect(tools()).toBeVisible();
   await expect(tools()).toHaveJSProperty('open',true);
+  await expect.poll(()=>tools().evaluate(node=>node.matches(':modal')),{message:'Inspector finishes switching between Full pane and Mobile sheet'}).toBe(width<=700);
   const rows=await tools().locator('.image-control-row').evaluateAll(nodes=>nodes.map(node=>{const r=node.getBoundingClientRect(),style=getComputedStyle(node);return {left:r.left,right:r.right,padding:Number.parseFloat(style.paddingLeft),radius:Number.parseFloat(style.borderRadius),children:[...node.querySelectorAll('button,input')].map(control=>{const b=control.getBoundingClientRect();return {left:b.left,right:b.right,width:b.width,height:b.height}})}}));
   assert.ok(rows.length>=6,'All image control platters survive a viewport transition');
   for(const row of rows){assert.ok(row.padding>=12&&row.radius>=12,JSON.stringify(row));for(const c of row.children)assert.ok(c.left>=row.left-1&&c.right<=row.right+1&&c.width>=43.9&&c.height>=43.9,JSON.stringify(row))}
-  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
   await page.screenshot({path:`${output}/${engine}-photo-${width}.png`});
+  const overflow=await page.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,elements:[...document.querySelectorAll('body *')].flatMap(node=>{const r=node.getBoundingClientRect();return r.width&&r.right>innerWidth+1?[{tag:node.tagName,className:node.className?.baseVal??node.className,left:r.left,right:r.right,width:r.width}]:[]}).slice(0,20)}));
+  assert.ok(overflow.scrollWidth<=overflow.width+1,JSON.stringify(overflow));
  }
  await tools().getByRole('button',{name:'Decrease Photo or video size',exact:true}).click();
  await tools().getByRole('button',{name:'Apply image',exact:true}).click();await saved();

@@ -7,7 +7,7 @@ import {build} from 'esbuild';
 // transport are stubbed; lifecycle listeners, queueing and request ownership run
 // unchanged, including typingRequest's abort propagation and timeout.
 let bundle;
-async function channelHarness(t,{autoRead=true,ignoreAbort=false}={}){
+async function channelHarness(t,{autoRead=true,ignoreAbort=false,beforeSubscribe=null}={}){
  if(!bundle){
   const source=await readFile(new URL('../src/activity.jsx',import.meta.url),'utf8');
   const result=await build({stdin:{contents:source+'\nexport {channelFor};',resolveDir:new URL('../src/',import.meta.url).pathname,loader:'jsx'},bundle:true,write:false,format:'esm',platform:'node',plugins:[{name:'isolated-typing-lifecycle',setup(builder){
@@ -35,6 +35,8 @@ async function channelHarness(t,{autoRead=true,ignoreAbort=false}={}){
  };
  const {channelFor}=await import('data:text/javascript;base64,'+Buffer.from(bundle).toString('base64')+'#'+crypto.randomUUID());
  t.mock.timers.enable({apis:['setTimeout','setInterval','Date'],now:1000});
+ const documentListeners=window.listenerCount;
+ if(beforeSubscribe)window.dispatchEvent(new Event(beforeSubscribe));
  const entry=channelFor('alice:posts:p1','/api/posts/p1/typing','alice'),source=Symbol('editor');
  const subscribe=listener=>{const unsubscribe=entry.subscribe(listener);let active=true;const close=()=>{if(active){active=false;unsubscribe()}};cleanups.push(close);return close};
  const unsubscribe=subscribe(value=>snapshots.push(value));
@@ -46,6 +48,7 @@ async function channelHarness(t,{autoRead=true,ignoreAbort=false}={}){
   for(const [key,descriptor]of Object.entries(saved))if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key];
  });
  return {entry,source,calls,snapshots,document,window,unsubscribe,subscribe,result,flush,
+  documentListeners,
   get writes(){return calls.filter(call=>call.options.method==='POST')},
   get reads(){return calls.filter(call=>call.options.method!=='POST')},
   get latest(){return snapshots.at(-1)},
@@ -119,7 +122,7 @@ for(const recovery of ['focus','input','visibility']){
 test('shared channels stop only at the last subscriber and remove all lifecycle listeners on disposal',async t=>{
  const h=await channelHarness(t,{autoRead:false});const unsubscribeSecond=h.subscribe(()=>{});h.entry.signal(h.source);await h.flush();
  h.unsubscribe();assert.equal(h.reads[0].aborted,false);assert.equal(h.writes[0].aborted,false);
- unsubscribeSecond();assert.equal(h.reads[0].aborted,true);assert.equal(h.writes[0].aborted,true);assert.equal(h.window.listenerCount,0);assert.equal(h.document.listenerCount,0);
+ unsubscribeSecond();assert.equal(h.reads[0].aborted,true);assert.equal(h.writes[0].aborted,true);assert.equal(h.window.listenerCount,h.documentListeners);assert.equal(h.document.listenerCount,0);
  const count=h.calls.length;h.emit('pageshow');h.emit('focus');h.visibility('visible');h.entry.signal(h.source);await h.flush();assert.equal(h.calls.length,count);
 });
 
@@ -147,3 +150,12 @@ test('real live transport failures still clear presence and do not poison later 
  h.entry.signal(h.source);await h.flush();h.writes[0].reject(Error('Real provider failure'));await h.flush();assert.deepEqual(h.latest,[]);
  h.entry.stop(h.source);await h.flush();assert.deepEqual(h.writes.map(typing),[true,false]);h.writes[1].resolve(h.result('Carol'));await h.flush();assert.equal(h.latest[0].name,'Carol');
 });
+
+for(const boundary of ['beforeunload','pagehide']){
+ test(`a channel first mounted after ${boundary} cannot start transport`,async t=>{
+  const h=await channelHarness(t,{beforeSubscribe:boundary});await h.flush();h.tick(10000);await h.flush();
+  assert.equal(h.calls.length,0);h.entry.signal(h.source);await h.flush();
+  if(boundary==='pagehide'){assert.equal(h.calls.length,0);h.emit('pageshow');await h.flush();assert.equal(h.reads.length,1)}
+  else assert.equal(h.reads.length,1,'fresh input recovers a cancelled unload');
+ });
+}

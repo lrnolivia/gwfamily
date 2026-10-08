@@ -862,6 +862,14 @@ try {
     await expect(bob.locator('.profile-overview .profile-photo-open img')).toHaveAttribute('src',savedPhoto);
     await bob.locator('.profile-overview').getByRole('button',{name:'View Alice profile photo',exact:true}).click();
     await expect(bob.locator('.photo-viewer-image')).toBeVisible();
+    const photoViewport=bob.viewportSize();
+    for(const width of [390,1280]){
+      await bob.setViewportSize({width,height:844});
+      const edge=await bob.locator('.app>.app-header').evaluate(node=>{const style=getComputedStyle(node,'::after');return {display:style.display,blur:style.backdropFilter||style.webkitBackdropFilter,mask:style.maskImage||style.webkitMaskImage}});
+      assert.notEqual(edge.display,'none');assert.match(edge.blur,/blur\(18px\)/);assert.match(edge.mask,/linear-gradient/);
+      await noClip(bob);await bob.screenshot({path:`${output}/photo-glass-edge-${width}-${engineName}.png`});
+    }
+    await bob.setViewportSize(photoViewport);
     const comment=bob.getByRole('textbox',{name:'Write a comment…',exact:true});
     await comment.fill('A synthetic comment on this profile photo');await bob.getByRole('button',{name:'Send',exact:true}).click();
     await expect(bob.locator('.chat-bubble').filter({hasText:'A synthetic comment on this profile photo'})).toHaveCount(1);await expect(comment).toHaveValue('');

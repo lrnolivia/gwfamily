@@ -8,11 +8,19 @@ export function ActivityDots({label='Saving…',compact=false,className='',...pr
 }
 const POLL_MS=2500,HEARTBEAT_MS=2500,IDLE_MS=4500,MAX_TTL_MS=8000;
 const channels=new Map();
+// Passive React effects can mount after beforeunload. Track the document from
+// module startup so a newly subscribed channel cannot fetch during teardown.
+const typingDocument={unloading:false,suspended:false};
+if(typeof window!=='undefined'){
+ window.addEventListener('beforeunload',()=>{typingDocument.unloading=true});
+ window.addEventListener('pagehide',()=>{typingDocument.suspended=true});
+ window.addEventListener('pageshow',()=>{typingDocument.unloading=false;typingDocument.suspended=false});
+}
 const visible=()=>typeof document==='undefined'||document.visibilityState==='visible';
 const expiresAt=value=>typeof value==='number'?value:Date.parse(value);
 function channelFor(key,path,selfId){
  let entry=channels.get(key);if(entry)return entry;
- let snapshot=[],disposed=false,suspended=false,unloading=false,polling=false,readController=null,writeController=null,pollTimer,expiryTimer,idleTimer,lastSent=0,signaled=false,lastPoll=0,version=0,writeGeneration=0,chain=Promise.resolve();
+ let snapshot=[],disposed=false,suspended=typingDocument.suspended,unloading=typingDocument.unloading,polling=false,readController=null,writeController=null,pollTimer,expiryTimer,idleTimer,lastSent=0,signaled=false,lastPoll=0,version=0,writeGeneration=0,chain=Promise.resolve();
  const subscribers=new Set(),sources=new Map();
  const notify=()=>{for(const listener of subscribers)listener(snapshot)};
  const setSnapshot=next=>{snapshot=next;notify()};
@@ -29,7 +37,7 @@ function channelFor(key,path,selfId){
  const abortRead=()=>{version++;readController?.abort();readController=null;polling=false};
  const abortWrites=()=>{writeGeneration++;writeController?.abort();writeController=null;chain=Promise.resolve()};
  const read=async()=>{
-  if(disposed||suspended||unloading||polling||!visible())return;
+  if(disposed||suspended||unloading||typingDocument.suspended||typingDocument.unloading||polling||!visible())return;
   polling=true;const controller=new AbortController();readController=controller;const ticket=++version,startedAt=Date.now();lastPoll=startedAt;
   try{accept(await typingRequest(path,{signal:controller.signal},api),ticket,startedAt)}catch{if(!disposed&&!controller.signal.aborted&&ticket===version)setSnapshot([])}finally{if(readController===controller){readController=null;polling=false}}
  };
@@ -55,7 +63,7 @@ function channelFor(key,path,selfId){
   // Teardown must not start a final fetch. The server TTL expires our presence.
   abortRead();abortWrites();sources.clear();clearTimeout(idleTimer);signaled=false;lastSent=0;setSnapshot([]);
  };
- const resume=()=>{if(disposed||suspended||!visible())return;unloading=false;read()};
+ const resume=()=>{if(disposed||suspended||typingDocument.suspended||!visible())return;typingDocument.unloading=false;unloading=false;read()};
  const onVisibility=()=>{if(!visible()){abortRead();stopAll();setSnapshot([])}else resume()};
  const onBeforeUnload=()=>{unloading=true;pause()};
  const onPageHide=()=>{suspended=true;pause()};
