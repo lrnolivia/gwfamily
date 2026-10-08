@@ -79,4 +79,13 @@ html[data-theme][data-platform] .page-markdown-footer{border:0;border-top:1px so
 
 html[data-theme][data-platform] .page-markdown-editor:focus-within{border-color:color-mix(in srgb,var(--control) 30%,transparent)}
 
-html[data-theme][data-platform] .page-markdown-done{background:var(--control);color:var(--control-text);border-radius:8px;padding-inline:12px}
+/* The inspector's shared :focus-visible rule also matches the editable DOM.
+   Its extra outline crossed both dividers; the editor owns the focus edge. */
+html[data-theme][data-platform] .page-markdown-editor :is(.page-markdown-visual,.page-markdown-source):is(:focus,:focus-visible){outline:0!important;border:0!important;box-shadow:none!important}
+html[data-theme][data-platform] .page-markdown-toolbar{background:color-mix(in srgb,var(--control) 12%,var(--raised));color:var(--control)}
+html[data-theme][data-platform] .page-markdown-toolbar button{color:var(--control)}
+html[data-theme][data-platform] .page-markdown-toolbar button:is([aria-pressed=true],:hover):not(:disabled){background:var(--control);color:var(--control-text)}
+html[data-theme][data-platform] .page-markdown-footer{align-items:center;padding:6px 8px;min-height:57px}
+/* A 36px surface sits inside the 44px tap target, with room on each side. */
+html[data-theme][data-platform] .page-markdown-done{position:relative;isolation:isolate;background:transparent!important;color:var(--control-text);border-radius:8px;min-height:44px;height:44px;padding:6px 12px;line-height:1.25;flex-shrink:0}
+html[data-theme][data-platform] .page-markdown-done::before{content:"";position:absolute;inset:4px 0;z-index:-1;pointer-events:none;border-radius:8px;background:var(--control)}

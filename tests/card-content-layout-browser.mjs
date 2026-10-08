@@ -5,7 +5,7 @@ import {mkdir,writeFile} from 'node:fs/promises';
 import {pageContentPayload} from '../src/page-content-model.js';
 if(!process.env.CI&&process.env.GW_HOSTED_BROWSER_QA!=='1')throw Error('Run only in the authorized hosted shared-page fixture.');
 const base=process.env.GW_PAGE_CONTENT_URL||'http://127.0.0.1:4176';
-assert.match(base,/^http:\/\/(127\.0\.0\.1|localhost):4176$/);
+assert.match(base,/^http:\/\/(127\.0\.0\.1|localhost):(4176|4179)$/);
 const engine=process.env.GW_BROWSER==='webkit'?'webkit':'chromium',browser=await (engine==='webkit'?webkit:chromium).launch({headless:true});
 const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'}),page=await context.newPage(),errors=[],results=[];
 const pendingReads=new Set(),network=[];
@@ -91,5 +91,4 @@ try{
  });
  assert.deepEqual(errors,[],JSON.stringify({network}));await writeFile(`${output}/${engine}-card-content-results.json`,JSON.stringify({browser:engine,sourceSha:process.env.GW_SOURCE_SHA||null,results,errors},null,2));
 }finally{await context.close();await browser.close()}
-
 

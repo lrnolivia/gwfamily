@@ -48,6 +48,16 @@ try{
   const layer=await tools().locator('.liquid-glass-content').evaluate(node=>({display:getComputedStyle(node).display,z:getComputedStyle(node).zIndex,effect:getComputedStyle(node.parentElement.querySelector('.liquid-glass-effect')).zIndex}));assert.notEqual(layer.display,'contents');assert.ok(Number(layer.z)>Number(layer.effect));
   const textbox=tools().getByRole('textbox',{name:'RSVP next-step copy',exact:true});await textbox.fill('Live formatting preview');await expect(body).toContainText('Live formatting preview');
   await tools().getByRole('button',{name:'Undo formatting or typing',exact:true}).click();await expect(body).not.toContainText('Live formatting preview');
+  const editorStyle=await tools().locator('.page-markdown-editor').evaluate(root=>{
+   const visual=root.querySelector('.page-markdown-visual'),bar=root.querySelector('.page-markdown-toolbar'),footer=root.querySelector('.page-markdown-footer'),done=footer.querySelector('.page-markdown-done'),style=getComputedStyle(visual),barStyle=getComputedStyle(bar),footerStyle=getComputedStyle(footer),surface=getComputedStyle(done,'::before'),button=done.getBoundingClientRect(),frame=footer.getBoundingClientRect();
+   const probe=document.createElement('span');probe.style.color='var(--control)';probe.hidden=true;root.append(probe);const accent=getComputedStyle(probe).color;probe.remove();
+   return {focused:visual===document.activeElement,outline:style.outlineStyle,shadow:style.boxShadow,border:style.borderTopWidth,divider:getComputedStyle(root).getPropertyValue('--editor-divider').trim(),top:{width:barStyle.borderBottomWidth,color:barStyle.borderBottomColor},bottom:{width:footerStyle.borderTopWidth,color:footerStyle.borderTopColor},barBackground:barStyle.backgroundColor,bodyBackground:style.backgroundColor,glyph:getComputedStyle(bar.querySelector('button')).color,accent,surfaceHeight:button.height-parseFloat(surface.top)-parseFloat(surface.bottom),button:{height:button.height,top:button.top,bottom:button.bottom},frame:{top:frame.top,bottom:frame.bottom}};
+  });
+  assert.equal(editorStyle.focused,true);assert.equal(editorStyle.outline,'none');assert.equal(editorStyle.shadow,'none');assert.equal(editorStyle.border,'0px');
+  for(const line of [editorStyle.top,editorStyle.bottom]){assert.equal(line.width,'1px');assert.match(line.color,/rgba\((0, 0, 0|255, 255, 255), 0\.3\)/,JSON.stringify(editorStyle))}
+  assert.notEqual(editorStyle.barBackground,editorStyle.bodyBackground,'Formatting controls have their own accent surface.');
+  assert.equal(editorStyle.glyph,editorStyle.accent,'Formatting glyphs use the interface accent.');
+  assert.equal(editorStyle.button.height,44);assert.equal(editorStyle.surfaceHeight,36);assert.ok(editorStyle.button.top>=editorStyle.frame.top+6&&editorStyle.button.bottom<=editorStyle.frame.bottom-6,JSON.stringify(editorStyle));
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
   await page.screenshot({path:`${output}/${engine}-wysiwyg-${width}.png`});
   await tools().getByRole('button',{name:'Done',exact:true}).click();

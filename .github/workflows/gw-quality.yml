@@ -219,9 +219,13 @@ jobs:
         if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 10
         run: |
-          curl -fsS http://127.0.0.1:4176/api/config
+          # Separate synthetic database: earlier suites must not consume this
+          # editor session's production-equivalent page-write rate allowance.
+          GW_FIXTURE_PORT=4179 node backend/tests/fixture-server.mjs > /tmp/gw-card-content-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4179/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4179/api/config
           mkdir -p docs/ci-logs
-          CI=true node scripts/ci-test-summary.mjs card-content-layout-browser --browser tests/card-content-layout-browser.mjs 2>&1 | tee docs/ci-logs/card-content-layout-browser.log
+          GW_PAGE_CONTENT_URL=http://127.0.0.1:4179 CI=true node scripts/ci-test-summary.mjs card-content-layout-browser --browser tests/card-content-layout-browser.mjs 2>&1 | tee docs/ci-logs/card-content-layout-browser.log
       - name: Invitation and provisional access browser checks
         if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 6

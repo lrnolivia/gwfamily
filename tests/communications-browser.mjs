@@ -554,12 +554,16 @@ try {
     await expect(alice.getByRole('heading', {name: 'Fixture cousins planning', exact: true})).toBeVisible();
     await denied(bob, `/api/conversations/${groupId}`, {method: 'PATCH', data: {name: 'Not authorized'}});
     const bobRow = alice.locator('.conversation-member').filter({has: alice.getByText('Bob', {exact: true})});
+    const promote = bobRow.getByRole('button', {name: 'Make manager', exact: true});
+    await settlePointerTarget(promote);
     const promotedResponse = alice.waitForResponse(response => response.url().startsWith(base + `/api/conversations/${groupId}/members/`) && response.request().method() === 'PATCH');
-    await bobRow.getByRole('button', {name: 'Make manager', exact: true}).click();
+    await promote.click();
     const promoted = await promotedResponse;
     assert.ok(promoted.ok(), 'Manager change is acknowledged: ' + promoted.status());
     await expect.poll(async () => (await ok(bob, `/api/conversations/${groupId}`)).conversation.myRole).toBe('manager');
-    await bobRow.getByRole('button', {name: 'Remove manager role', exact: true}).click();
+    const demote = bobRow.getByRole('button', {name: 'Remove manager role', exact: true});
+    await settlePointerTarget(demote);
+    await demote.click();
     await expect.poll(async () => (await ok(bob, `/api/conversations/${groupId}`)).conversation.myRole).toBe('member');
     await alice.locator('.page-back').click();
     await expect(alice).toHaveURL(new RegExp('#/chat/' + groupId + '$'));
@@ -582,7 +586,9 @@ try {
     await navigate(bob, 'chat', groupId);
     await expect(messageRow(bob, 'Group fixture secret before acceptance')).toHaveCount(1);
     const bobRow = alice.locator('.conversation-member').filter({has: alice.getByText('Bob', {exact: true})});
-    await bobRow.getByRole('button', {name: 'Remove', exact: true}).click();
+    const remove = bobRow.getByRole('button', {name: 'Remove', exact: true});
+    await settlePointerTarget(remove);
+    await remove.click();
     await expect(alice.getByRole('heading', {name: 'Remove Bob?', exact: true})).toBeVisible();
     await alice.getByRole('button', {name: 'Confirm removal', exact: true}).click();
     await expect(bobRow).toHaveCount(0);
@@ -923,5 +929,4 @@ try {
   for (const {trace} of sessions) trace.log('browser-close-start', {pending: trace.snapshot().pending});
   try {await browser.close();} finally {await persist();}
 }
-
 
