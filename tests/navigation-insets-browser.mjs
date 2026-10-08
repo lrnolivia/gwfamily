@@ -190,11 +190,20 @@ try {
           assert.equal(paint.fill,'rgba(0, 0, 0, 0)',`${label}: selected destination has no rectangular fill`);
           assert.equal(paint.glyph,'rgb(255, 250, 240)',`${label}: selected accent capsule has warm off-white glyph`);
         }
-        await page.evaluate(()=>window.scrollTo(0,300));
+        // Tall tablet windows can fit the entire synthetic Family page. Give
+        // this scroll-only check enough isolated content to exercise the real
+        // compact-header transition, then remove it before inset measurements.
+        await page.evaluate(()=>{
+          const spacer=document.createElement('div');spacer.id='navigation-qa-scroll-space';
+          spacer.setAttribute('aria-hidden','true');spacer.inert=true;spacer.style.height='400px';
+          document.querySelector('main').append(spacer);window.scrollTo(0,300);
+        });
+        await page.waitForFunction(()=>window.scrollY>=299);
         await expect(page.locator('.page-navigation-header')).toHaveAttribute('data-compact','true');
         const back=page.locator('.page-route-glyph');await expect(back).toBeVisible();await expect(page.locator('.page-navigation-header .page-back')).toHaveCount(0);
         const backBox=await back.boundingBox();assert.ok(backBox.y>=0&&backBox.y+backBox.height<=device.height,`${label}: Main destination glyph stays visible after scroll`);
-        await page.evaluate(()=>window.scrollTo(0,0));
+        await page.evaluate(()=>{window.scrollTo(0,0);document.getElementById('navigation-qa-scroll-space').remove();});
+        await page.waitForFunction(()=>window.scrollY===0&&!document.querySelector('.page-navigation-header').hasAttribute('data-compact'));
         for (const safe of [0, 21, 34]) {
           await navigationStage(page, trace, `safe-area geometry ${safe}px`);
           await page.evaluate(value => document.documentElement.style.setProperty('--gw-safe-bottom', `${value}px`), safe);
