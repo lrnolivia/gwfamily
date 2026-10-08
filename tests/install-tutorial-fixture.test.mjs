@@ -41,7 +41,7 @@ test('install and tutorial are fullpage views using glyph-led native tabs and Ba
  assert.match(fixture,/route\.type==='tutorial'&&<>[\s\S]*<Tutorial\/>/);
  assert.doesNotMatch(fixture,/sheet\.type==='install'|sheet\.type==='tutorial'|<Sheet title=.*Install/);
  assert.match(source,/getByRole\('tablist',\{name:'Instructions for'/);
- assert.match(source,/getByRole\('tablist',\{name:'Safari example'/);
+ assert.match(source,/getByRole\('tablist',\{name:'Safari example',exact:true\}\)\)\.toHaveCount\(0\)/);
  assert.match(source,/getByRole\('tablist',\{name:'Explore a topic'/);
  assert.match(source,/osTabs\.locator\('\.glyph'\)/);
  assert.doesNotMatch(source,/getByRole\('radio'|chooseRadio|Next topic|I’ll explore on my own|Explore Home/);

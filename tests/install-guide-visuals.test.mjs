@@ -15,7 +15,7 @@ const source=async name=>readFile(new URL('../src/'+name,import.meta.url),'utf8'
 const provenance=JSON.parse(await readFile(new URL('../docs/install-guide/provenance.json',import.meta.url),'utf8'));
 
 async function offlineRenderer(){
- const contents=`import React from 'react';import{renderToString}from'react-dom/server';import{AppContext}from'./src/ui-core.jsx';import{InstallGuide}from'./src/install.jsx';import{InstallGuideVisual,installVisualSequences,safariVisualLayouts}from'./src/install-guide-visuals.jsx';export{installVisualSequences,safariVisualLayouts};export function renderVisual(platform,step){return renderToString(<InstallGuideVisual platform={platform} step={step}/>)}export function renderGuide(routeType){return renderToString(<AppContext.Provider value={{route:{type:routeType},openSheet(){},goBack(){}}}><InstallGuide/></AppContext.Provider>)}`;
+ const contents=`import React from 'react';import{renderToString}from'react-dom/server';import{AppContext}from'./src/ui-core.jsx';import{InstallGuide}from'./src/install.jsx';import{InstallGuideVisual,installVisualSequences,safariVisualLayouts}from'./src/install-guide-visuals.jsx';export{installVisualSequences,safariVisualLayouts};function withNav(nav,fn){const old=Object.getOwnPropertyDescriptor(globalThis,'navigator');Object.defineProperty(globalThis,'navigator',{value:nav,configurable:true});try{return fn()}finally{if(old)Object.defineProperty(globalThis,'navigator',old);else delete globalThis.navigator}}export function renderVisual(platform,step,nav={userAgent:'iPhone'},color=null,theme='light'){return withNav(nav,()=>renderToString(<AppContext.Provider value={{installAccentColor:color,theme}}><InstallGuideVisual platform={platform} step={step}/></AppContext.Provider>))}export function renderGuide(routeType,nav={userAgent:'iPhone'}){return withNav(nav,()=>renderToString(<AppContext.Provider value={{theme:'light',route:{type:routeType},openSheet(){},goBack(){}}}><InstallGuide/></AppContext.Provider>))}`;
  const compiled=await build({stdin:{contents,loader:'jsx',resolveDir:root},bundle:true,jsx:'automatic',platform:'node',format:'cjs',write:false,loader:{'.css':'empty'},define:{'process.env.NODE_ENV':'"production"'}});
  const saved=Object.fromEntries(['window','document','location'].map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
  Object.assign(globalThis,{window:{addEventListener(){},dispatchEvent(){},matchMedia(){return {matches:false}}},location:{protocol:'http:',pathname:'/'},document:{createElement(){return {width:0,height:0,getContext(){return {createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),putImageData(){}}},toDataURL(){return 'data:image/png;base64,'}}}}});
@@ -39,18 +39,16 @@ test('each recreation has verified content identity, honest version uncertainty 
   assert.doesNotMatch(svg,/<script|<foreignObject|\bonclick=|\bonload=|href="https?:\/\//i);assert.ok(entry.alt&&entry.layout&&entry.platform&&entry.browser);
  }
 });
-test('iOS has compact, direct Share and iPad examples plus a complete Add screen',async()=>{
- assert.deepEqual(Object.keys(renderer.safariVisualLayouts),['compact','direct','ipad']);
- const html=renderer.renderVisual('apple',0);assert.match(html,/Safari example/);for(const label of ['iPhone: Compact','iPhone: Top \/ Bottom','iPad'])assert.ok(html.includes(label),label);assert.match(html,/role="tablist"/);assert.equal((html.match(/role="tab"/g)||[]).length,3);assert.equal((html.match(/aria-selected="true"/g)||[]).length,1);assert.equal((html.match(/tabindex="0"/g)||[]).length,1);assert.equal((html.match(/tabindex="-1"/g)||[]).length,2);assert.doesNotMatch(html,/type="radio"/);assert.match(html,/only changes the example/);
- assert.match(html,/<\/button><\/div><p class="choice-help">Choose the toolbar you see\. This only changes the example\.<\/p>/,'Example-only explanation is rendered after the tablist, never inside its navigation controls');
- assert.deepEqual(renderer.safariVisualLayouts,{compact:'ios-safari-compact',direct:'ios-safari-direct-share',ipad:'ipados-safari-share'});
- const visual=await source('install-guide-visuals.jsx');assert.match(visual,/value=\{safariLayout\} onChange=\{setSafariLayout\}/);assert.doesNotMatch(visual,/<ViewSwitcher[^>]*\bhelp=/,'ViewSwitcher has no help prop contract');
- const add=await readFile(new URL('../dist/install-guide/ios-safari-add-screen.svg',import.meta.url),'utf8');
- for(const label of ['Add to Home Screen','Open as Web App','greenwhitefamily.com','Green &amp; White','Cancel','>Add<'])assert.ok(add.includes(label),label);assert.match(add,/#34c759/);assert.match(add,/data:image\/png;base64,/);
+test('current approved guide selects native tablet identity, theme/color and hides desktop',async()=>{
+ const ipad={userAgent:'Macintosh',platform:'MacIntel',maxTouchPoints:5};
+ assert.match(renderer.renderVisual('apple',1,ipad,'#3985e6','dark'),/approved-v2\/screens\/blue-ipad-dark-2.png/);
+ assert.match(renderer.renderVisual('android',2,{userAgent:'Android'},'#ff6685','light'),/coral-pink-androidTablet-light-3.png/);
+ for(const nav of [{userAgent:'Macintosh',platform:'MacIntel',maxTouchPoints:0},{userAgent:'Windows NT'},{userAgent:'CrOS'}]){assert.equal(renderer.renderGuide('install',nav),'');assert.equal(renderer.renderVisual('apple',0,nav),'');}
+ const app=await source('react-app.jsx');assert.match(app,/installAccentColor:paletteColor/);assert.match(app,/installDevice\(\)&&<ActionRow icon="phone" title="Add to your device"/);assert.match(app,/installDevice\(\)&&<ActionRow icon="home" title="Add to Homescreen"/);
 });
 test('native images have full alternatives and captions outside chrome; failure keeps written help',async()=>{
- for(const platform of supported)for(let step=0;step<3;step++){
-  const html=renderer.renderVisual(platform,step);assert.match(html,/data-recreation="true"/);assert.match(html,/<img[^>]+alt="Recreated/);assert.match(html,/<figcaption>/);assert.match(html,/Control recreation/);assert.match(html,/width="(?:360|420)"/);
+ for(const platform of ['apple','android'])for(let step=0;step<3;step++){
+  const html=renderer.renderVisual(platform,step);assert.match(html,/data-recreation="true"/);assert.match(html,/<img[^>]+alt=""/);assert.match(html,/<figcaption>/);assert.match(html,/approved-v2\/screens\//);
  }
  const visual=await source('install-guide-visuals.jsx');assert.match(visual,/onError=\{\(\)=>setUnavailable\(true\)\}/);assert.match(visual,/Follow the written steps above/);assert.match(visual,/key=\{id\}/);assert.doesNotMatch(visual,/fetch\(|requestPermission|pushManager|navigator\.share|\.prompt\(|localStorage|<details|<summary|role="button"/);
  const css=await source('install-guide-visuals.css');assert.match(css,/height:auto/);assert.match(css,/min-width:0/);assert.match(css,/@media\(max-width:500px\)/);assert.match(css,/forced-colors/);
@@ -80,8 +78,8 @@ test('hosted fixture covers iOS, Android and every Safari tab with synthetic pri
  const fixture=await readFile(new URL('./install-tutorial-browser.mjs',import.meta.url),'utf8');
  const osLoop=/for\(const \[name,assetCount\] of (\[\[[^\n]+?\]\])\)/.exec(fixture);assert.ok(osLoop,'Exact named OS/assets matrix must remain inspectable');
  assert.deepEqual(JSON.parse(osLoop[1].replaceAll("'",'"')),[['iPhone / iPad',3],['Android',3]]);
- for(const [label,id] of [['iPhone: Compact','ios-safari-compact'],['iPhone: Top / Bottom','ios-safari-direct-share'],['iPad','ipados-safari-share']])assert.ok(fixture.includes("['"+label+"','"+id+"']"),label);
- assert.match(fixture,/getByRole\('tablist',\{name:'Instructions for'/);assert.match(fixture,/getByRole\('tablist',\{name:'Safari example'/);assert.doesNotMatch(fixture,/getByRole\('radio'/);
+ assert.match(fixture,/APPROVED_ASSET_ALLOWLIST/);assert.match(fixture,/Every designated artwork|All designated artwork/);assert.match(fixture,/install-guide\/approved-v2\/screens\//);
+ assert.match(fixture,/getByRole\('tablist',\{name:'Instructions for'/);assert.match(fixture,/getByRole\('tablist',\{name:'Safari example',exact:true\}\)\)\.toHaveCount\(0\)/);assert.doesNotMatch(fixture,/getByRole\('radio'/);
  for(const marker of ['An unsent synthetic update','A separate unsent synthetic draft',"window.fixture.account('fixture-b')","window.fixture.account('fixture-a')",'Progress never stores draft or content',"getByRole('button',{name:'Back',exact:true}).click()",'Preserved synthetic draft',"mockInstallPrompt('dismissed')","mockInstallPrompt('failure')",'Mock install prompt only; no device installation or notification delivery is performed.'])assert.ok(fixture.includes(marker),marker);
  assert.match(fixture,/if\(!\['dismissed','failure'\]\.includes\(mode\)\)/);assert.doesNotMatch(fixture,/new Event\('appinstalled'|outcome:'accepted'|requestPermission|pushManager|navigator\.share|serviceWorker\.register|physicalDeviceValidation:true|actualInstallation:true|notificationDelivery:true/);
 });
@@ -90,5 +88,5 @@ test('approved mobile artwork retains verified bytes and intrinsic phone proport
  const manifest=JSON.parse(await readFile(new URL('../docs/install-guide/approved-mobile.json',import.meta.url),'utf8'));
  assert.equal(manifest.mobileOnly,true);assert.equal(manifest.assets.length,12);
  for(const asset of manifest.assets){const bytes=await readFile(new URL('../dist/install-guide/'+asset.name+'.png',import.meta.url));assert.equal(createHash('sha256').update(bytes).digest('hex'),asset.sha256);assert.equal(bytes.readUInt32BE(16),asset.width);assert.equal(bytes.readUInt32BE(20),asset.height)}
- const visual=await source('install-guide-visuals.jsx');assert.match(visual,/max-width: 700px/);assert.match(visual,/navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1/);assert.match(visual,/app\?\.theme==='light'/);
+ const visual=await source('install-guide-visuals.jsx');assert.match(visual,/installDevice\(\)/);assert.match(visual,/app\?\.theme==='light'/);assert.match(visual,/guideAccent\(app\?\.installAccentColor\)/);
 });
