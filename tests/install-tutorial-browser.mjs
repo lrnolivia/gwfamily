@@ -7,8 +7,8 @@ import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {contextualTourSteps,tourProgressKey} from '../src/contextual-tour-model.js';
 import {installGuideAssets} from '../src/install-guide-assets.js';
-const approved=JSON.parse(await readFile(new URL('../docs/install-guide/approved-v2/manifest.json',import.meta.url),'utf8'));
-const APPROVED_ASSET_ALLOWLIST=Object.freeze([...approved.screens,...approved.inlineControls].map(item=>'approved-v2/'+item.file));
+const approved=JSON.parse(await readFile(new URL('../docs/install-guide/approved-v4/manifest.json',import.meta.url),'utf8'));
+const APPROVED_ASSET_ALLOWLIST=Object.freeze([...approved.screens,...approved.inlineControls].map(item=>'approved-v4/'+item.file));
 
 if(!process.env.CI&&process.env.GW_HOSTED_BROWSER_QA!=='1')throw new Error('Help browser QA runs only in the authorized hosted CI environment.');
 const root=fileURLToPath(new URL('../',import.meta.url));
@@ -148,29 +148,29 @@ try{
    await osMore.getByRole('button',{name:'More',exact:true}).click();await expect(page.getByRole('dialog',{name:'Other device instructions',exact:true})).toBeVisible();
    await page.getByRole('button',{name:'View '+name+' instructions',exact:true}).click();await expect(osMore.locator(':scope > span')).toHaveText(expected);
   }
-  for(const [name,assetCount] of [['iPhone / iPad',3],['Android',3]]){
+  for(const [name,assetCount] of [['iPhone / iPad',approved.deviceStepCounts[width===320?'ios':'ipad']],['Android',3]]){
    await chooseDevice(name);
-   await expect(page.locator('.install-steps>li')).toHaveCount(3);
+   await expect(page.locator('.install-steps>li')).toHaveCount(assetCount);
    await expect(page.locator('.install-native-frame img')).toHaveCount(assetCount);
    if(assetCount)await expect.poll(()=>page.locator('.install-native-frame img').evaluateAll(images=>images.every(img=>img.complete&&img.naturalWidth>0))).toBe(true);
    await assertNoOverflow(page,name);
   }
   await chooseDevice('iPhone / iPad');await osMore.getByRole('button',{name:'More',exact:true}).focus();await page.keyboard.press('Enter');await expect(page.getByRole('dialog',{name:'Other device instructions',exact:true})).toBeVisible();await page.keyboard.press('Escape');await expect(osMore.getByRole('button',{name:'More',exact:true})).toBeFocused();
-  await expect(page.locator('.install-steps')).toContainText('Page Menu');
+  await expect(page.locator('.install-steps')).toContainText(width===320?'Page Menu':'Share');
   await expect(page.locator('.install-steps')).toContainText('if that switch appears');
   await expect(page.getByRole('tablist',{name:'Safari example',exact:true})).toHaveCount(0);
   const image=page.locator('.install-mobile-visual img').first();
-  const device=width===320?'ios':'ipad';await expect(image).toHaveAttribute('src','install-guide/approved-v2/screens/default-'+device+'-'+theme+'-1.png');
+  const device=width===320?'ios':'ipad';await expect(image).toHaveAttribute('src','install-guide/approved-v4/screens/default-'+device+'-'+theme+'-1.png');
   const ratio=await image.evaluate(img=>({natural:img.naturalWidth/img.naturalHeight,rendered:img.getBoundingClientRect().width/img.getBoundingClientRect().height}));assert.ok(Math.abs(ratio.natural-ratio.rendered)<.01,'Approved mobile illustration keeps its intrinsic proportions');
   // All designated artwork and inline controls must update without remounting the guide.
   for(const [accent,color] of [['default',null],['red','#e64f59'],['orange','#ff7a00'],['yellow','#ec9d00'],['green','#387b51'],['blue','#3985e6'],['violet','#a267d5'],['coral-pink','#ff6685'],['stone','#8a8178']])for(const mode of ['light','dark']){
    await page.evaluate(({mode,color})=>window.fixture.theme(mode,color),{mode,color});
    for(const [label,os] of [['iPhone / iPad',width===320?'ios':'ipad'],['Android',width===320?'android':'androidTablet']]){
     await chooseDevice(label);
-    const images=page.locator('.install-mobile-visual img');await expect(images).toHaveCount(3);
-    for(let step=0;step<3;step++)await expect(images.nth(step)).toHaveAttribute('src','install-guide/approved-v2/screens/'+accent+'-'+os+'-'+mode+'-'+(step+1)+'.png');
+    const stepCount=approved.deviceStepCounts[os],images=page.locator('.install-mobile-visual img');await expect(images).toHaveCount(stepCount);
+    for(let step=0;step<stepCount;step++)await expect(images.nth(step)).toHaveAttribute('src','install-guide/approved-v4/screens/'+accent+'-'+os+'-'+mode+'-'+(step+1)+'.png');
     await expect.poll(()=>images.evaluateAll(images=>images.every(img=>img.complete&&img.naturalWidth>0))).toBe(true);
-    const control=page.locator('.install-inline-control img');await expect(control).toHaveAttribute('src','install-guide/approved-v2/inline-controls/'+(os==='ios'||os==='ipad'?'ios-add':'android-install-'+accent)+'-'+mode+'.svg');
+    const control=page.locator('.install-inline-control img');await expect(control).toHaveAttribute('src','install-guide/approved-v4/inline-controls/'+(os==='ios'||os==='ipad'?'ios-add':'android-install-'+accent)+'-'+mode+'.svg');
     await assertNoOverflow(page,'approved '+os+' '+accent+' '+mode);
    }
   }

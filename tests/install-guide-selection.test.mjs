@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {installDevice,guideAccent,guideAsset,guideDeviceForPlatform,guideDimensions} from '../src/install-guide-selection.js';
+import {installDevice,guideAccent,guideAsset,guideDeviceForPlatform,guideDimensions,guideStepCount,guideSteps} from '../src/install-guide-selection.js';
 test('native identity distinguishes tablet, phone and desktop independently of material and width',()=>{
  for(const [nav,expected] of [[{userAgent:'iPhone'},'ios'],[{userAgent:'iPad'},'ipad'],[{userAgent:'Macintosh',platform:'MacIntel',maxTouchPoints:5},'ipad'],[{userAgent:'Android Mobile'},'android'],[{userAgent:'Android'},'androidTablet'],[{userAgent:'Android Mobile',userAgentData:{mobile:false}},'androidTablet'],[{userAgent:'Macintosh',platform:'MacIntel',maxTouchPoints:0},null],[{userAgent:'Windows NT'},null],[{userAgent:'CrOS'},null]])assert.equal(installDevice(nav),expected);
  assert.equal(guideDeviceForPlatform('ipad','android'),'androidTablet');assert.equal(guideDeviceForPlatform('android','apple'),'ios');
@@ -13,12 +13,16 @@ test('resolved interface colors route all designated presets, preserve default a
  assert.equal(guideAccent('#E64F59'),'red');for(const value of [null,'#4f996c','#123456','red'])assert.equal(guideAccent(value),'default');
 });
 test('every approved device/color/theme/step routes to verified original artwork with provenance',async()=>{
- const manifest=JSON.parse(await readFile(new URL('../docs/install-guide/approved-v2/manifest.json',import.meta.url)));
- assert.equal(manifest.sourceBuild,'b3805113f4f49220c35b');assert.equal(manifest.previewOnly,true);assert.equal(manifest.screens.length,216);assert.equal(manifest.inlineControls.length,25);
+ const manifest=JSON.parse(await readFile(new URL('../docs/install-guide/approved-v4/manifest.json',import.meta.url)));
+ assert.equal(manifest.sourceBuild,'b3805113f4f49220c35b');assert.equal(manifest.previewOnly,true);assert.equal(manifest.screens.length,234);assert.equal(manifest.inlineControls.length,25);
  const keys=new Set();for(const item of [...manifest.screens,...manifest.inlineControls]){
-  const bytes=await readFile(new URL('../dist/install-guide/approved-v2/'+item.file,import.meta.url));assert.equal(createHash('sha256').update(bytes).digest('hex'),item.sha256,item.file);
+  const bytes=await readFile(new URL('../dist/install-guide/approved-v4/'+item.file,import.meta.url));assert.equal(createHash('sha256').update(bytes).digest('hex'),item.sha256,item.file);
   if(item.file.endsWith('.png')){assert.equal(bytes.readUInt32BE(16),item.width);assert.equal(bytes.readUInt32BE(20),item.height);keys.add(item.file);assert.deepEqual(guideDimensions(item.device,item.file.split('/')[1].split('-'+item.device+'-')[0]),[item.width,item.height]);}
   else assert.doesNotMatch(bytes.toString(),/<script|<foreignObject|\bonload=|\bonclick=|href="https?:/i);
  }
- for(const accent of ['default','red','orange','yellow','green','blue','violet','coral-pink','stone'])for(const device of ['ios','ipad','android','androidTablet'])for(const theme of ['light','dark'])for(let step=0;step<3;step++)assert.ok(keys.has(guideAsset(device,accent,theme,step).replace('approved-v2/','')));
+ for(const accent of ['default','red','orange','yellow','green','blue','violet','coral-pink','stone'])for(const device of ['ios','ipad','android','androidTablet'])for(const theme of ['light','dark'])for(let step=0;step<guideStepCount(device);step++)assert.ok(keys.has(guideAsset(device,accent,theme,step).replace('approved-v4/','')));
 });
+
+test('iPhone uses four manifest actions; tablets and Android retain three with matching copy',()=>{assert.deepEqual(guideSteps('ios').map(s=>s.action),['open-page-menu','share','add-to-home-screen','add']);for(const device of ['ipad','android','androidTablet'])assert.equal(guideStepCount(device),3);assert.equal(guideStepCount('ios'),4);assert.match(guideSteps('ios')[0].text,/Page Menu/);assert.match(guideSteps('ipad')[0].text,/Share/)});
+
+test('runtime flow subset is exactly the approved manifest, without bundling image provenance',async()=>{const full=JSON.parse(await readFile(new URL('../docs/install-guide/approved-v4/manifest.json',import.meta.url))),runtime=JSON.parse(await readFile(new URL('../src/install-guide-flow.json',import.meta.url)));assert.deepEqual(runtime,{deviceStepCounts:full.deviceStepCounts,flows:full.flows})});

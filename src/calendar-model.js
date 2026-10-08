@@ -1,3 +1,4 @@
+import {isPreviewLeader,isMemberView} from './member-view-model.js';
 // One calendar extends reunion_settings. Dates are calendar dates; timed events
 // also retain their IANA zone and unambiguous UTC instants.
 export const CALENDAR_COMMANDS=new Set(['SAVE_CALENDAR','SAVE_EVENT','ARCHIVE_EVENT','RESTORE_EVENT']);
@@ -18,7 +19,7 @@ export function eventInstant(date,time,zone,occurrence=''){
  return new Date(occurrence==='later'?matches.at(-1):matches[0]).toISOString();
 }
 export function calendarRecord(details={}){const c=details.calendar||{};return {revision:Number.isSafeInteger(c.revision)?c.revision:0,visibility:c.visibility==='leaders'?'leaders':'family',timezone:c.timezone||'UTC',schedule:details.schedule||'',events:Array.isArray(c.events)?c.events:[]}}
-export function canManageCalendar(state){return state.mode==='preview'||state.capabilities?.manageCalendar===true}
+export function canManageCalendar(state){return !isMemberView(state)&&(isPreviewLeader(state)||state.capabilities?.manageCalendar===true)}
 export function visibleCalendar(details={},leader=false){const c=calendarRecord(details);return {...c,events:leader?c.events:c.visibility==='family'?c.events.filter(e=>!e.archivedAt&&e.visibility==='family'):[],schedule:leader||c.visibility==='family'?c.schedule:''}}
 export function normalizeEvent(value,defaultZone='UTC'){
  if(!value||typeof value!=='object'||Array.isArray(value))fail('Enter event details.');

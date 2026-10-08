@@ -1,3 +1,4 @@
+import manifest from './install-guide-flow.json' with {type:'json'};
 import {installPlatform} from './install-capabilities.js';
 const accents={'#e64f59':'red','#ff7a00':'orange','#ec9d00':'yellow','#387b51':'green','#3985e6':'blue','#a267d5':'violet','#ff6685':'coral-pink','#8a8178':'stone'};
 // Native identity selects artwork independently of the chosen Glass/Flat material.
@@ -10,8 +11,19 @@ export function installDevice(nav=globalThis.navigator){
  return null;
 }
 export const guideAccent=color=>accents[String(color||'').toLowerCase()]||'default';
-export const guideAsset=(device,accent,theme,step)=>`approved-v2/screens/${accent}-${device}-${theme}-${step+1}.png`;
+export const guideAsset=(device,accent,theme,step)=>`approved-v4/screens/${accent}-${device}-${theme}-${step+1}.png`;
 export function guideDeviceForPlatform(device,platform){return platform==='apple'?(device==='ipad'||device==='androidTablet'?'ipad':'ios'):(device==='ipad'||device==='androidTablet'?'androidTablet':'android');}
 
-const dimensions={"default-ios":[482,985],"default-ipad":[940,1300],"default-android":[522,1008],"default-androidTablet":[992,1463],"green-ios":[482,985],"green-ipad":[940,1300],"green-android":[522,1008],"green-androidTablet":[992,1463],"orange-ios":[482,985],"orange-ipad":[940,1300],"orange-android":[522,1008],"orange-androidTablet":[992,1463],"yellow-ios":[472,983],"yellow-ipad":[940,1300],"yellow-android":[522,1008],"yellow-androidTablet":[992,1463],"red-ios":[482,985],"red-ipad":[940,1300],"red-android":[522,1008],"red-androidTablet":[992,1463],"blue-ios":[482,985],"blue-ipad":[940,1300],"blue-android":[522,1008],"blue-androidTablet":[992,1463],"violet-ios":[482,985],"violet-ipad":[940,1300],"violet-android":[522,1008],"violet-androidTablet":[992,1463],"stone-ios":[482,985],"stone-ipad":[940,1300],"stone-android":[522,1008],"stone-androidTablet":[992,1463],"coral-pink-ios":[482,985],"coral-pink-ipad":[940,1300],"coral-pink-android":[522,1008],"coral-pink-androidTablet":[992,1463]};
-export const guideDimensions=(device,accent)=>dimensions[accent+'-'+device];
+const dimensions={ios:[482,360],ipad:[940,440],android:[521,360],androidTablet:[991,440]};
+export const guideDimensions=(device,accent)=>dimensions[device];
+
+const guideCopy={
+ 'open-page-menu':'In Safari’s Compact layout, tap Page Menu beside the address bar. If your layout has a direct Share button, continue to Share.',
+ 'share':'Tap Share. On iPad, use the Share button in the Safari toolbar. Expand the share sheet if needed.',
+ 'add-to-home-screen':'Scroll through the actions and choose Add to Home Screen. If it is missing on iPhone, scroll to Edit Actions and add it there.',
+ 'add':'Turn on Open as Web App if that switch appears, then tap Add. Open the new icon from your Home Screen.',
+ 'open-chrome-menu':'In Chrome, tap More: the vertical three-dot button on the right of the address bar.',
+ 'install':'Review the app name and website, then confirm Install. Open Green & White Family from your Home Screen or app drawer.'
+};
+export const guideStepCount=device=>manifest.deviceStepCounts[device]||0;
+export const guideSteps=device=>(manifest.flows[device]||[]).map(step=>({...step,title:step.instruction,text:device.startsWith('android')&&step.action==='add-to-home-screen'?'Tap Add to home screen. Older versions may instead say Install app or Install and create shortcut.':guideCopy[step.action]}));

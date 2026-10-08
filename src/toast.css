@@ -4,6 +4,7 @@
 .gw-toast-host{position:fixed;z-index:99;inset-inline:var(--gw-nav-side-clearance,12px);inset-block-end:max(110px,calc(var(--gw-nav-bottom,0px) + var(--gw-nav-height,72px) + 16px));display:flex;justify-content:center;pointer-events:none}
 .gw-toast{display:flex;align-items:center;gap:8px;inline-size:fit-content;max-inline-size:min(100%,34rem);max-block-size:min(35dvh,14rem);overflow-y:auto;overscroll-behavior:contain;background:var(--text);color:var(--bg);border-radius:16px;padding:4px 6px 4px 16px;font-size:1rem;line-height:1.45;pointer-events:auto;isolation:isolate}
 .gw-toast-message{min-inline-size:0;overflow-wrap:anywhere;white-space:pre-wrap;padding-block:6px;margin:0}
+.gw-toast-copy{min-inline-size:0}.gw-toast-actions{display:flex;flex-wrap:wrap;gap:4px;padding-block-end:4px}.gw-toast-action{min-block-size:44px;padding:8px 12px;background:color-mix(in srgb,currentColor 12%,transparent);color:inherit;border:1px solid currentColor;border-radius:12px;font:inherit;cursor:pointer}.gw-toast-action:focus-visible{outline:2px solid currentColor;outline-offset:2px}.gw-toast-action:disabled{opacity:.65;cursor:wait}
 .gw-toast-dismiss{flex:none;display:grid;place-items:center;min-inline-size:44px;min-block-size:44px;color:inherit;background:transparent;border:0;border-radius:10px;padding:10px;touch-action:manipulation;cursor:pointer}
 .gw-toast-dismiss svg{inline-size:18px;block-size:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
 .gw-toast-dismiss:hover{background:color-mix(in srgb,currentColor 10%,transparent)}

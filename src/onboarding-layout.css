@@ -22,3 +22,5 @@ body:has(.family-invite-entry) :is(.app-header,.page-navigation-header,.bottom,.
 .onboarding-frame :is(h1,h2,h3,.wordmark){font-family:"Momo Trust Display",sans-serif!important;font-weight:400}
 
 .onboarding-more-trigger>.glyph{width:18px;height:18px;transform:rotate(-90deg);transition:transform 160ms ease}.onboarding-more-trigger[aria-expanded="true"]>.glyph{transform:rotate(90deg)}.onboarding-more-pop{overflow-y:auto}@media(prefers-reduced-motion:reduce){.onboarding-more-trigger>.glyph{transition:none}}.install-guide-options{display:flex;align-items:center;justify-content:space-between;gap:12px}.install-guide-options>span{color:var(--muted);font-size:.8125rem}.install-guide-options .onboarding-more-trigger{flex:none}
+
+.returning-device-account{display:grid;justify-items:center;gap:8px;text-align:center}.returning-device-account>img{width:48px;height:48px;border-radius:50%;object-fit:cover}.returning-device-account p{margin:0}

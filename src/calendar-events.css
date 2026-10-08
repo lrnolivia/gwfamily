@@ -40,3 +40,5 @@
 
 .calendar-heading{min-width:0;max-width:100%}
 .calendar-heading>.button{width:auto!important;max-width:100%;flex:0 1 auto;margin:0;white-space:normal}
+
+.manage-schedule-action{width:100%;align-self:stretch;margin-top:8px}

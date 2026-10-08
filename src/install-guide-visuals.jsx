@@ -1,6 +1,6 @@
 import React,{useState} from 'react';
 import {useApp} from './ui-core.jsx';
-import {installDevice,guideAccent,guideAsset,guideDeviceForPlatform,guideDimensions} from './install-guide-selection.js';
+import {installDevice,guideAccent,guideAsset,guideDeviceForPlatform,guideDimensions,guideSteps,guideStepCount} from './install-guide-selection.js';
 import './install-guide-visuals.css';
 
 // These are original, tightly cropped native-control recreations. They never
@@ -21,12 +21,12 @@ function ApprovedInstallRecreation({device,accent,theme,platform,step}){
  const [unavailable,setUnavailable]=useState(false),file=guideAsset(device,accent,theme,step),id=[accent,device,theme,step+1].join('-'),[width,height]=guideDimensions(device,accent);
  return <figure className="install-native-visual install-mobile-visual" data-recreation="true" data-asset-id={id}>
   <div className="install-native-frame">{unavailable?<p className="install-visual-unavailable" role="status">The visual couldn’t load. Follow the written steps above.</p>:<img src={'install-guide/'+file} width={width} height={height} alt="" decoding="async" onError={()=>setUnavailable(true)}/>}</div>
-  <figcaption><span>{mobileDescriptions[platform][step]}</span></figcaption>
+  <figcaption><span>{guideSteps(device)[step].title}</span></figcaption>
  </figure>;
 }
 export function InstallGuideVisual({platform,step}){
  const app=useApp(),native=installDevice();
- if(!native||!['apple','android'].includes(platform)||step<0||step>2)return null;
- const device=guideDeviceForPlatform(native,platform),accent=guideAccent(app?.installAccentColor),theme=app?.theme==='light'?'light':'dark',id=[device,accent,theme,step].join('-');
+ if(!native||!['apple','android'].includes(platform)||step<0)return null;
+ const device=guideDeviceForPlatform(native,platform);if(step>=guideStepCount(device))return null;const accent=guideAccent(app?.installAccentColor),theme=app?.theme==='light'?'light':'dark',id=[device,accent,theme,step].join('-');
  return <div className="install-visual-group is-mobile-guide"><ApprovedInstallRecreation key={id} device={device} accent={accent} theme={theme} platform={platform} step={step}/></div>;
 }

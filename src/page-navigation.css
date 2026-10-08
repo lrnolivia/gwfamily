@@ -67,3 +67,7 @@ html[data-platform=ios]:not([data-page-edit-mode=true]) .app>.app-header::after{
 
 /* Glass softens actual scroll content at the shared header edge on every route. */
 html[data-platform=ios]:not([data-page-edit-mode=true]) .app>.app-header::after{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);mask-image:linear-gradient(to bottom,#000,transparent);-webkit-mask-image:linear-gradient(to bottom,#000,transparent)}
+
+.family-calendar-entry{margin-inline-start:auto;display:grid;place-items:center;inline-size:44px;block-size:44px;flex:none;border:1px solid var(--line);border-radius:50%;background:var(--surface);color:var(--text)}.has-inline-title .family-calendar-entry{position:absolute;inset-inline-end:0;inset-block-start:var(--gw-inline-back-top,0px)}.family-calendar-entry:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+.page-navigation-header .family-calendar-entry{pointer-events:auto;z-index:2}#main:has(.family-tabs)>.intro>[data-page-back-anchor=true]{max-inline-size:calc(100% - 56px)}

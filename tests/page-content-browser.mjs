@@ -866,7 +866,11 @@ try {
     browserReads.get(anonymous).beginNavigation(anonymous.url());
     await anonymous.reload({waitUntil: 'domcontentloaded'});
     await expect(anonymous.locator('.onboard')).toBeVisible();
-    await expect(anonymous.getByRole('heading', {name: 'Come on in.', exact: true})).toBeVisible();
+    // This isolated fixture deliberately enables no email or social providers.
+    await expect(anonymous.locator('.onboard .welcome-tagline')).toHaveText('Same roots. New memories.');
+    await expect(anonymous.locator('.welcome-actions').getByRole('button', {name: 'Continue', exact: true})).toBeVisible();
+    await expect(anonymous.getByRole('button', {name: 'Set up your profile', exact: true})).toBeVisible();
+    await expect(anonymous.locator('.sign-in-form')).toHaveCount(0);
     await expect(anonymous.locator('footer')).toContainText('Green & White. Same roots. New memories.');
     await expect(anonymous.getByText(updated.text.footerTagline, {exact: true})).toHaveCount(0);
     await expect(anonymous.getByText((await record(owner)).content.text.heading, {exact: true})).toHaveCount(0);

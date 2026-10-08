@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {optionsTipKey,claimOptionsTip} from '../src/profile-options-tip.js';
+test('options tip claims once per account, mode and device',()=>{const m=new Map(),s={getItem:k=>m.get(k),setItem:(k,v)=>m.set(k,v)};const key=optionsTipKey('live','fixture-a');assert.equal(claimOptionsTip(s,key),true);assert.equal(claimOptionsTip(s,key),false);assert.equal(claimOptionsTip(s,optionsTipKey('live','fixture-b')),true);assert.equal(claimOptionsTip(s,optionsTipKey('preview','fixture-a')),true);assert.equal(claimOptionsTip(s,null),false)});
+test('options tip tolerates storage failure',()=>assert.equal(claimOptionsTip({getItem(){throw Error('blocked')}},optionsTipKey('live','fixture')),true));

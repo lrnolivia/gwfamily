@@ -21,7 +21,11 @@ export async function memorialCommand(db,actor,input,q,audit){
   if(await db.prepare('SELECT id FROM memorials WHERE source_member_id=?').bind(sourceId).first())throw fail('This family member already has a memorial profile',409);
  }
  const birthYear=year(value.birthYear),deathYear=year(value.deathYear);if(birthYear&&deathYear&&birthYear>deathYear)throw fail('The birth year must come before the year of passing');
- const profile={birthYear,deathYear,photo:clean(value.photo||'',2000)};
+ const prior=existing?JSON.parse(existing.profile_json||'{}'):{};
+ const quote=clean(value.quote===undefined?(prior.quote||''):value.quote,1000);
+ const profileColor=clean(value.profileColor===undefined?(prior.profileColor||''):value.profileColor,7);
+ if(profileColor&&!/^#[0-9a-f]{6}$/i.test(profileColor))throw fail('Choose a valid profile color');
+ const profile={...prior,birthYear,deathYear,photo:clean(value.photo||'',2000),quote,profileColor};
  if(profile.photo){
   const old=existing?JSON.parse(existing.profile_json):{},source=sourceId&&await db.prepare('SELECT image FROM user WHERE id=?').bind(sourceId).first();
   if(profile.photo!==old.photo&&profile.photo!==source?.image){const mediaId=/^\/api\/media\/([A-Za-z0-9-]+)$/.exec(profile.photo)?.[1],media=mediaId&&await db.prepare('SELECT owner_id,mime_type FROM media WHERE id=? AND deleted_at IS NULL').bind(mediaId).first();if(!media||media.owner_id!==actor.id||!/^image\/(png|jpeg|webp|gif)$/.test(media.mime_type))throw fail('Upload a photo from your account before saving')}

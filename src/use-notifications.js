@@ -7,7 +7,7 @@ export function useNotifications(data){
  // host also renders saved preview state once bootstrap finishes, without it.
  const {state}=data,previewReady=data.preview||!data.loading&&data.config?.configured===false;
  const enabled=state.onboarding==='done'&&(state.mode==='preview'?previewReady:state.mode==='live'&&data.session?.status==='active');
- const identity=enabled?`${state.mode}:${state.selfId}`:'inactive',current=useRef({identity,data});current.current={identity,data};
+ const identity=enabled?`${state.mode}:${state.selfId}${state.viewAsMember===true?':member':''}`:'inactive',current=useRef({identity,data});current.current={identity,data};
  const runtime=useRef(null),channel=useRef(null),[snapshot,setSnapshot]=useState(()=>blank(identity,state));
  // Adapter state changes synchronously before React installs the next render.
  // Both that state and the callback's rendered owner must still own this run.
@@ -94,7 +94,7 @@ export function useNotifications(data){
    // Opening an invitation never accepts it. Message notices remain governed by
    // the conversation read cursor; opening a link alone cannot read a message.
    const notice=(snapshot.items||[]).find(n=>n.id===id);
-   if(notice?.kind!=='message.created'){
+   if(notice?.kind!=='message.created'&&!live.state.viewAsMember){
     if(run.mode==='preview')await live.dispatch({type:'MARK_NOTICE_READ',id});
     else await live.notificationApi.read(id,run.accountId);
    }

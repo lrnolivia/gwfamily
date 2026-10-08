@@ -17,6 +17,7 @@ export function resourceAccessSql({kind,id,container,member,eventKind="''",revis
  WHEN 'order' THEN EXISTS(SELECT 1 FROM shirt_claims no WHERE no.id=${id} AND (no.member_id=${member} OR ${roleSql(member,['admin','planner'])}))
  WHEN 'member' THEN EXISTS(SELECT 1 FROM members nm WHERE nm.id=${id} AND (nm.id=${member} OR ${roleSql(member,['admin'])}))
  WHEN 'reunion' THEN EXISTS(SELECT 1 FROM reunion_settings ns WHERE ns.id=${id})
+ WHEN 'family_calendar_moderation' THEN EXISTS(SELECT 1 FROM family_calendar_events fe WHERE fe.id=${id} AND fe.created_by=${member})
  WHEN 'invitation' THEN ${adultSql(member)} AND EXISTS(SELECT 1 FROM conversation_members cm JOIN conversations cv ON cv.id=cm.conversation_id WHERE cm.conversation_id=${id} AND cm.member_id=${member} AND cm.status='pending' AND cm.invite_generation=${revision} AND cv.archived_at IS NULL)
  WHEN 'conversation' THEN ${adultSql(member)} AND EXISTS(SELECT 1 FROM conversation_members cm JOIN conversations cv ON cv.id=cm.conversation_id WHERE cm.conversation_id=${id} AND cm.member_id=${member} AND cm.status='active' AND cm.notifications_muted=0 AND cv.archived_at IS NULL)
  ELSE 0 END`;

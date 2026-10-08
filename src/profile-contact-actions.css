@@ -22,3 +22,5 @@ html[data-theme][data-platform] .profile-page .profile-overview-head>div{padding
  html[data-theme][data-platform] .profile-page .profile-overview-head{flex-direction:column;align-items:flex-start;gap:18px}
  html[data-theme][data-platform] .profile-page .profile-overview-head>div{padding-top:0}
 }
+
+.shared-contact-actions{display:flex;flex-wrap:wrap;gap:6px;margin-block-start:8px}.shared-contact-badge{display:inline-flex;align-items:center;gap:7px;min-block-size:44px;max-inline-size:100%;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:var(--soft);color:var(--text);text-decoration:none;font-size:.8125rem}.shared-contact-badge .glyph{inline-size:18px;block-size:18px;flex:none}.shared-contact-badge span{min-inline-size:0;overflow-wrap:anywhere}.shared-contact-badge:focus-visible{outline:2px solid var(--accent);outline-offset:3px}

@@ -1,0 +1,5797 @@
+{
+  "version": "preview-home-action-focused-20261008-v4",
+  "sourceBuild": "b3805113f4f49220c35b",
+  "previewOnly": true,
+  "figmaPhoneReadback": [
+    {
+      "accent": "Default",
+      "pageId": "147:14858",
+      "mutatedNodeIds": [
+        "159:9655"
+      ],
+      "checks": [
+        {
+          "id": "176:10828",
+          "mode": "dark",
+          "step": 1,
+          "clearance": 62.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32,
+          "nativeMenuClosed": true
+        },
+        {
+          "id": "159:10062",
+          "mode": "dark",
+          "step": 2,
+          "clearance": 47,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "159:10186",
+          "mode": "dark",
+          "step": 3,
+          "clearance": 32.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "159:10355",
+          "mode": "dark",
+          "step": 4,
+          "clearance": 41.960205078125,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "176:10646",
+          "mode": "light",
+          "step": 1,
+          "clearance": 62.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32,
+          "nativeMenuClosed": true
+        },
+        {
+          "id": "159:9656",
+          "mode": "light",
+          "step": 2,
+          "clearance": 47,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "159:9780",
+          "mode": "light",
+          "step": 3,
+          "clearance": 32.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "159:9947",
+          "mode": "light",
+          "step": 4,
+          "clearance": 41.960205078125,
+          "numberCorrect": true,
+          "dim": 0.32
+        }
+      ]
+    },
+    {
+      "accent": "Green",
+      "pageId": "126:5588",
+      "mutatedNodeIds": [
+        "160:9655"
+      ],
+      "checks": [
+        {
+          "id": "177:34320",
+          "mode": "dark",
+          "step": 1,
+          "clearance": 62.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32,
+          "nativeMenuClosed": true
+        },
+        {
+          "id": "160:10062",
+          "mode": "dark",
+          "step": 2,
+          "clearance": 47,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:10186",
+          "mode": "dark",
+          "step": 3,
+          "clearance": 32.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:10355",
+          "mode": "dark",
+          "step": 4,
+          "clearance": 41.960205078125,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "177:34138",
+          "mode": "light",
+          "step": 1,
+          "clearance": 62.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32,
+          "nativeMenuClosed": true
+        },
+        {
+          "id": "160:9656",
+          "mode": "light",
+          "step": 2,
+          "clearance": 47,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:9780",
+          "mode": "light",
+          "step": 3,
+          "clearance": 32.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:9947",
+          "mode": "light",
+          "step": 4,
+          "clearance": 41.960205078125,
+          "numberCorrect": true,
+          "dim": 0.32
+        }
+      ]
+    },
+    {
+      "accent": "Orange",
+      "pageId": "126:5589",
+      "mutatedNodeIds": [
+        "160:30192"
+      ],
+      "checks": [
+        {
+          "id": "177:37114",
+          "mode": "dark",
+          "step": 1,
+          "clearance": 62.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32,
+          "nativeMenuClosed": true
+        },
+        {
+          "id": "160:30599",
+          "mode": "dark",
+          "step": 2,
+          "clearance": 47,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:30723",
+          "mode": "dark",
+          "step": 3,
+          "clearance": 32.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:30892",
+          "mode": "dark",
+          "step": 4,
+          "clearance": 41.960205078125,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "177:36932",
+          "mode": "light",
+          "step": 1,
+          "clearance": 62.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32,
+          "nativeMenuClosed": true
+        },
+        {
+          "id": "160:30193",
+          "mode": "light",
+          "step": 2,
+          "clearance": 47,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:30317",
+          "mode": "light",
+          "step": 3,
+          "clearance": 32.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:30484",
+          "mode": "light",
+          "step": 4,
+          "clearance": 41.960205078125,
+          "numberCorrect": true,
+          "dim": 0.32
+        }
+      ]
+    },
+    {
+      "accent": "Yellow",
+      "pageId": "126:5590",
+      "mutatedNodeIds": [
+        "160:38903"
+      ],
+      "checks": [
+        {
+          "id": "177:39908",
+          "mode": "dark",
+          "step": 1,
+          "clearance": 61.4285888671875,
+          "numberCorrect": true,
+          "dim": 0.32,
+          "nativeMenuClosed": true
+        },
+        {
+          "id": "160:39310",
+          "mode": "dark",
+          "step": 2,
+          "clearance": 47,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:39434",
+          "mode": "dark",
+          "step": 3,
+          "clearance": 31.428466796875,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:39603",
+          "mode": "dark",
+          "step": 4,
+          "clearance": 42.5714111328125,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "177:39726",
+          "mode": "light",
+          "step": 1,
+          "clearance": 61.428558349609375,
+          "numberCorrect": true,
+          "dim": 0.32,
+          "nativeMenuClosed": true
+        },
+        {
+          "id": "160:38904",
+          "mode": "light",
+          "step": 2,
+          "clearance": 47,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:39028",
+          "mode": "light",
+          "step": 3,
+          "clearance": 31.42852783203125,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:39195",
+          "mode": "light",
+          "step": 4,
+          "clearance": 42.5714111328125,
+          "numberCorrect": true,
+          "dim": 0.32
+        }
+      ]
+    },
+    {
+      "accent": "Red",
+      "pageId": "126:5591",
+      "mutatedNodeIds": [
+        "160:47614"
+      ],
+      "checks": [
+        {
+          "id": "177:42702",
+          "mode": "dark",
+          "step": 1,
+          "clearance": 62.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32,
+          "nativeMenuClosed": true
+        },
+        {
+          "id": "160:48021",
+          "mode": "dark",
+          "step": 2,
+          "clearance": 47,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:48145",
+          "mode": "dark",
+          "step": 3,
+          "clearance": 32.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:48314",
+          "mode": "dark",
+          "step": 4,
+          "clearance": 41.960205078125,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "177:42520",
+          "mode": "light",
+          "step": 1,
+          "clearance": 62.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32,
+          "nativeMenuClosed": true
+        },
+        {
+          "id": "160:47615",
+          "mode": "light",
+          "step": 2,
+          "clearance": 47,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:47739",
+          "mode": "light",
+          "step": 3,
+          "clearance": 32.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:47906",
+          "mode": "light",
+          "step": 4,
+          "clearance": 41.960205078125,
+          "numberCorrect": true,
+          "dim": 0.32
+        }
+      ]
+    },
+    {
+      "accent": "Blue",
+      "pageId": "126:5592",
+      "mutatedNodeIds": [
+        "160:56325"
+      ],
+      "checks": [
+        {
+          "id": "177:45496",
+          "mode": "dark",
+          "step": 1,
+          "clearance": 62.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32,
+          "nativeMenuClosed": true
+        },
+        {
+          "id": "160:56732",
+          "mode": "dark",
+          "step": 2,
+          "clearance": 47,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:56856",
+          "mode": "dark",
+          "step": 3,
+          "clearance": 32.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:57025",
+          "mode": "dark",
+          "step": 4,
+          "clearance": 41.960205078125,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "177:45314",
+          "mode": "light",
+          "step": 1,
+          "clearance": 62.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32,
+          "nativeMenuClosed": true
+        },
+        {
+          "id": "160:56326",
+          "mode": "light",
+          "step": 2,
+          "clearance": 47,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:56450",
+          "mode": "light",
+          "step": 3,
+          "clearance": 32.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:56617",
+          "mode": "light",
+          "step": 4,
+          "clearance": 41.960205078125,
+          "numberCorrect": true,
+          "dim": 0.32
+        }
+      ]
+    },
+    {
+      "accent": "Violet",
+      "pageId": "126:5593",
+      "mutatedNodeIds": [
+        "160:65036"
+      ],
+      "checks": [
+        {
+          "id": "177:48290",
+          "mode": "dark",
+          "step": 1,
+          "clearance": 62.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32,
+          "nativeMenuClosed": true
+        },
+        {
+          "id": "160:65443",
+          "mode": "dark",
+          "step": 2,
+          "clearance": 47,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:65567",
+          "mode": "dark",
+          "step": 3,
+          "clearance": 32.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:65736",
+          "mode": "dark",
+          "step": 4,
+          "clearance": 41.960205078125,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "177:48108",
+          "mode": "light",
+          "step": 1,
+          "clearance": 62.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32,
+          "nativeMenuClosed": true
+        },
+        {
+          "id": "160:65037",
+          "mode": "light",
+          "step": 2,
+          "clearance": 47,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:65161",
+          "mode": "light",
+          "step": 3,
+          "clearance": 32.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:65328",
+          "mode": "light",
+          "step": 4,
+          "clearance": 41.960205078125,
+          "numberCorrect": true,
+          "dim": 0.32
+        }
+      ]
+    },
+    {
+      "accent": "Stone",
+      "pageId": "126:5594",
+      "mutatedNodeIds": [
+        "160:73747"
+      ],
+      "checks": [
+        {
+          "id": "177:51084",
+          "mode": "dark",
+          "step": 1,
+          "clearance": 62.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32,
+          "nativeMenuClosed": true
+        },
+        {
+          "id": "160:74154",
+          "mode": "dark",
+          "step": 2,
+          "clearance": 47,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:74278",
+          "mode": "dark",
+          "step": 3,
+          "clearance": 32.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:74447",
+          "mode": "dark",
+          "step": 4,
+          "clearance": 41.960205078125,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "177:50902",
+          "mode": "light",
+          "step": 1,
+          "clearance": 62.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32,
+          "nativeMenuClosed": true
+        },
+        {
+          "id": "160:73748",
+          "mode": "light",
+          "step": 2,
+          "clearance": 47,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:73872",
+          "mode": "light",
+          "step": 3,
+          "clearance": 32.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:74039",
+          "mode": "light",
+          "step": 4,
+          "clearance": 41.960205078125,
+          "numberCorrect": true,
+          "dim": 0.32
+        }
+      ]
+    },
+    {
+      "accent": "Coral pink",
+      "pageId": "147:21331",
+      "mutatedNodeIds": [
+        "160:82458"
+      ],
+      "checks": [
+        {
+          "id": "177:53878",
+          "mode": "dark",
+          "step": 1,
+          "clearance": 62.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32,
+          "nativeMenuClosed": true
+        },
+        {
+          "id": "160:82865",
+          "mode": "dark",
+          "step": 2,
+          "clearance": 47,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:82989",
+          "mode": "dark",
+          "step": 3,
+          "clearance": 32.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:83158",
+          "mode": "dark",
+          "step": 4,
+          "clearance": 41.960205078125,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "177:53696",
+          "mode": "light",
+          "step": 1,
+          "clearance": 62.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32,
+          "nativeMenuClosed": true
+        },
+        {
+          "id": "160:82459",
+          "mode": "light",
+          "step": 2,
+          "clearance": 47,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:82583",
+          "mode": "light",
+          "step": 3,
+          "clearance": 32.039794921875,
+          "numberCorrect": true,
+          "dim": 0.32
+        },
+        {
+          "id": "160:82750",
+          "mode": "light",
+          "step": 4,
+          "clearance": 41.960205078125,
+          "numberCorrect": true,
+          "dim": 0.32
+        }
+      ]
+    }
+  ],
+  "pngChecks": [
+    {
+      "file": "screens/default-ios-dark-1.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50704,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-ios-dark-2.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 99904,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-ios-dark-3.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50708,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-ios-dark-4.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50935,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-ios-light-1.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50731,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-ios-light-2.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 99933,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-ios-light-3.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50729,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-ios-light-4.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50934,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-ipad-light-1.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 122829,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-ipad-light-2.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243632,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-ipad-light-3.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243751,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-ipad-dark-1.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 122835,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-ipad-dark-2.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243594,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-ipad-dark-3.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243713,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-android-light-1.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 49258,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-android-light-2.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97080,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-android-light-3.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97125,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-android-dark-1.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 49263,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-android-dark-2.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97047,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-android-dark-3.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97102,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-androidTablet-light-1.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 121182,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-androidTablet-light-2.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240050,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-androidTablet-light-3.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240050,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-androidTablet-dark-1.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 121186,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-androidTablet-dark-2.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240013,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/default-androidTablet-dark-3.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240013,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-ios-dark-1.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50704,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-ios-dark-2.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 99904,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-ios-dark-3.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50708,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-ios-dark-4.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50935,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-ios-light-1.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50731,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-ios-light-2.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 99933,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-ios-light-3.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50729,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-ios-light-4.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50934,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-ipad-light-1.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 122829,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-ipad-light-2.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243632,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-ipad-light-3.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243751,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-ipad-dark-1.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 122835,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-ipad-dark-2.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243594,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-ipad-dark-3.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243713,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-android-light-1.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 49258,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-android-light-2.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97080,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-android-light-3.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97125,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-android-dark-1.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 49263,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-android-dark-2.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97047,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-android-dark-3.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97102,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-androidTablet-light-1.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 121182,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-androidTablet-light-2.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240050,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-androidTablet-light-3.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240050,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-androidTablet-dark-1.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 121186,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-androidTablet-dark-2.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240013,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/green-androidTablet-dark-3.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240013,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-ios-dark-1.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50986,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-ios-dark-2.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 100227,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-ios-dark-3.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50989,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-ios-dark-4.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 51198,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-ios-light-1.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 51014,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-ios-light-2.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 100257,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-ios-light-3.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 51012,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-ios-light-4.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 51196,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-ipad-light-1.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 122760,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-ipad-light-2.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243632,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-ipad-light-3.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243751,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-ipad-dark-1.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 122766,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-ipad-dark-2.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243594,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-ipad-dark-3.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243713,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-android-light-1.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 49258,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-android-light-2.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97080,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-android-light-3.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97125,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-android-dark-1.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 49263,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-android-dark-2.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97047,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-android-dark-3.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97102,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-androidTablet-light-1.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 121182,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-androidTablet-light-2.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240050,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-androidTablet-light-3.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240050,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-androidTablet-dark-1.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 121186,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-androidTablet-dark-2.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240013,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/orange-androidTablet-dark-3.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240013,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-ios-dark-1.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50878,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-ios-dark-2.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 99630,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-ios-dark-3.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50881,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-ios-dark-4.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 51100,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-ios-light-1.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50905,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-ios-light-2.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 99660,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-ios-light-3.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50903,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-ios-light-4.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 51098,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-ipad-light-1.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 122760,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-ipad-light-2.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243632,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-ipad-light-3.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243751,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-ipad-dark-1.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 122766,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-ipad-dark-2.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243594,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-ipad-dark-3.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243713,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-android-light-1.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 49258,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-android-light-2.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97080,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-android-light-3.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97125,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-android-dark-1.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 49263,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-android-dark-2.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97047,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-android-dark-3.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97102,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-androidTablet-light-1.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 121182,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-androidTablet-light-2.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240050,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-androidTablet-light-3.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240050,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-androidTablet-dark-1.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 121186,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-androidTablet-dark-2.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240013,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/yellow-androidTablet-dark-3.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240013,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-ios-dark-1.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50986,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-ios-dark-2.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 100227,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-ios-dark-3.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50989,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-ios-dark-4.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 51198,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-ios-light-1.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 51014,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-ios-light-2.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 100257,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-ios-light-3.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 51012,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-ios-light-4.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 51196,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-ipad-light-1.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 122760,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-ipad-light-2.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243632,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-ipad-light-3.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243751,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-ipad-dark-1.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 122766,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-ipad-dark-2.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243594,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-ipad-dark-3.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243713,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-android-light-1.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 49258,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-android-light-2.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97080,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-android-light-3.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97125,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-android-dark-1.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 49263,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-android-dark-2.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97047,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-android-dark-3.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97102,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-androidTablet-light-1.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 121182,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-androidTablet-light-2.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240050,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-androidTablet-light-3.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240050,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-androidTablet-dark-1.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 121186,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-androidTablet-dark-2.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240013,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/red-androidTablet-dark-3.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240013,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-ios-dark-1.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50709,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-ios-dark-2.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 99904,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-ios-dark-3.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50713,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-ios-dark-4.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50938,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-ios-light-1.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50736,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-ios-light-2.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 99933,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-ios-light-3.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50734,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-ios-light-4.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50937,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-ipad-light-1.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 122829,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-ipad-light-2.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243632,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-ipad-light-3.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243751,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-ipad-dark-1.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 122835,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-ipad-dark-2.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243594,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-ipad-dark-3.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243713,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-android-light-1.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 49258,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-android-light-2.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97080,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-android-light-3.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97125,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-android-dark-1.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 49263,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-android-dark-2.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97047,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-android-dark-3.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97102,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-androidTablet-light-1.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 121182,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-androidTablet-light-2.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240050,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-androidTablet-light-3.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240050,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-androidTablet-dark-1.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 121186,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-androidTablet-dark-2.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240013,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/blue-androidTablet-dark-3.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240013,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-ios-dark-1.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50704,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-ios-dark-2.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 99904,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-ios-dark-3.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50708,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-ios-dark-4.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50935,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-ios-light-1.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50731,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-ios-light-2.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 99933,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-ios-light-3.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50729,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-ios-light-4.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50934,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-ipad-light-1.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 122829,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-ipad-light-2.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243632,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-ipad-light-3.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243751,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-ipad-dark-1.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 122835,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-ipad-dark-2.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243594,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-ipad-dark-3.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243713,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-android-light-1.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 49258,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-android-light-2.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97080,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-android-light-3.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97125,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-android-dark-1.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 49263,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-android-dark-2.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97047,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-android-dark-3.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97102,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-androidTablet-light-1.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 121182,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-androidTablet-light-2.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240050,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-androidTablet-light-3.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240050,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-androidTablet-dark-1.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 121186,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-androidTablet-dark-2.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240013,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/violet-androidTablet-dark-3.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240013,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-ios-dark-1.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50705,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-ios-dark-2.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 99904,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-ios-dark-3.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50709,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-ios-dark-4.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50935,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-ios-light-1.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50732,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-ios-light-2.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 99933,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-ios-light-3.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50730,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-ios-light-4.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50934,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-ipad-light-1.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 122829,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-ipad-light-2.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243632,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-ipad-light-3.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243751,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-ipad-dark-1.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 122835,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-ipad-dark-2.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243594,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-ipad-dark-3.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243713,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-android-light-1.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 49258,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-android-light-2.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97080,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-android-light-3.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97125,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-android-dark-1.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 49263,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-android-dark-2.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97047,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-android-dark-3.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97102,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-androidTablet-light-1.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 121182,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-androidTablet-light-2.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240050,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-androidTablet-light-3.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240050,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-androidTablet-dark-1.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 121186,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-androidTablet-dark-2.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240013,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/stone-androidTablet-dark-3.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240013,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-ios-dark-1.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50704,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-ios-dark-2.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 99904,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-ios-dark-3.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50708,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-ios-dark-4.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50935,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-ios-light-1.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50731,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-ios-light-2.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 99933,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-ios-light-3.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50729,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-ios-light-4.png",
+      "width": 482,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 50934,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-ipad-light-1.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 122829,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-ipad-light-2.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243632,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-ipad-light-3.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243751,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-ipad-dark-1.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 122835,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-ipad-dark-2.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243594,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-ipad-dark-3.png",
+      "width": 940,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 243713,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-android-light-1.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 49258,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-android-light-2.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97080,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-android-light-3.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97125,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-android-dark-1.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 49263,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-android-dark-2.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97047,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-android-dark-3.png",
+      "width": 521,
+      "height": 360,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 108,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 1,
+          "bandPixels": 108,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 97102,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-androidTablet-light-1.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 121182,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-androidTablet-light-2.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240050,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-androidTablet-light-3.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240050,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-androidTablet-dark-1.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 121186,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-androidTablet-dark-2.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240013,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    },
+    {
+      "file": "screens/coral-pink-androidTablet-dark-3.png",
+      "width": 991,
+      "height": 440,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cutEdges": {
+        "top": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        },
+        "bottom": {
+          "edgeMaxAlpha": 0,
+          "bandPixels": 132,
+          "monotonic": true
+        }
+      },
+      "partialAlphaPixels": 240013,
+      "transparentCorners": true,
+      "actionFullyOpaque": true
+    }
+  ],
+  "uniformDimensions": {
+    "ios": [
+      482,
+      360
+    ],
+    "ipad": [
+      940,
+      440
+    ],
+    "android": [
+      521,
+      360
+    ],
+    "androidTablet": [
+      991,
+      440
+    ]
+  },
+  "uniformCropFamilies": 13,
+  "lightDarkCropPairs": 117,
+  "nativeEffectsAndSourceImagesPreserved": true,
+  "newIPhoneFirstStep": "Existing native toolbar and Home retained; opened native menu and its outline layers hidden; spotlight moved to actual native Page Menu control.",
+  "originalFullScreenBoardsPreserved": true,
+  "inlineControlBytesUnchanged": true,
+  "backgroundsRestored": true,
+  "renderedReview": [
+    "Default/iPhone four steps",
+    "Yellow/iPhone four steps",
+    "Blue/Pixel phone",
+    "Orange/iPad Air",
+    "Coral pink/Pixel Tablet"
+  ],
+  "limits": [
+    "Native browser/OS UI is Figma kit illustration, not physical-device browser capture.",
+    "Home preview source build remains b3805113f4f49220c35b; this revision changes crops, alpha fades and adds the missing native iPhone opener.",
+    "No application source edits, tests, builds, integration or deployment performed by the artwork producer."
+  ]
+}

@@ -13,7 +13,7 @@
 .notification-popover.gw-glass-menu[popover],.notification-popover.gw-material-menu[popover]{overflow:hidden}
 .notification-popover.gw-glass-menu>.liquid-glass-content{max-height:none;overflow:visible;min-height:0}
 .notification-popover .notification-panel.pop-content{max-height:var(--notification-content-max-height,none);overflow:auto;overscroll-behavior:contain;min-height:0}
-.notification-badge{position:absolute;right:-3px;top:-4px;min-width:18px;min-height:18px;padding:2px 4px;border-radius:12px;font-size:.65rem;font-weight:700;line-height:14px;background:var(--control,var(--accent));color:var(--control-text,var(--ink));border:2px solid var(--bg);font-variant-numeric:tabular-nums}
+.notification-badge{position:absolute;right:-3px;top:-4px;min-width:18px;min-height:18px;padding:2px 4px;border-radius:12px;font-size:.65rem;font-weight:700;line-height:14px;background:#b9253a;color:#fff4ee;animation:gw-notification-pulse 2.6s ease-in-out infinite;border:2px solid var(--bg);font-variant-numeric:tabular-nums}
 .notification-panel{box-sizing:border-box;width:min(390px,calc(100vw - 32px));max-width:100%;display:grid;gap:16px;min-width:0}
 .notification-panel h3,.notification-settings h2,.notification-settings h3{font-family:var(--flat-font,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif)!important;font-weight:650;font-size:1.125rem;letter-spacing:-.015em;line-height:1.35;margin:0}
 .notification-panel-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
@@ -47,3 +47,5 @@ html[data-theme] :is(.notification-panel,.notification-settings),html[data-theme
 @media(max-width:520px){.notification-settings-page{gap:24px;padding-block-end:24px}.notification-settings-page .notification-device-status button{width:100%}}
 
 .notification-device-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}.notification-device-heading h2{margin:0;min-width:0}.notification-settings-page .notification-device-info{flex:0 0 44px;width:44px;min-width:44px;height:44px;padding:10px}.notification-device-status [hidden]{display:none}
+
+@keyframes gw-notification-pulse{0%,100%{box-shadow:0 0 0 0 rgba(185,37,58,.1)}50%{box-shadow:0 0 8px 3px rgba(185,37,58,.32)}}@media(prefers-reduced-motion:reduce){.notification-badge{animation:none}}

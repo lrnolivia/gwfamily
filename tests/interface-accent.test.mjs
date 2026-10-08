@@ -1,16 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {CUSTOM_ACCENT_PICKER_ENABLED,readInterfaceAccent,interfaceAccentColor,unlinkInterfaceAccent,INTERFACE_ACCENT_KEY} from '../src/interface-accent.js';
-test('custom device accent survives reload and profile edits without changing identity',()=>{const profile={profileColor:'#cc8844'};const preference=unlinkInterfaceAccent({mode:'profile',color:'#4f996c'},profile.profileColor);const saved=readInterfaceAccent({getItem:key=>key===INTERFACE_ACCENT_KEY?JSON.stringify(preference):null});assert.equal(interfaceAccentColor(saved,'#992266'),profile.profileColor);assert.equal(profile.profileColor,'#cc8844');assert.equal(interfaceAccentColor({mode:'family'},profile.profileColor),null);});
-test('invalid and unavailable device preferences safely use defaults',()=>{for(const storage of [{getItem:()=>'{invalid'},{getItem:()=>{throw Error('blocked')}},{getItem:()=>JSON.stringify({mode:'custom',color:'url(bad)'})}])assert.deepEqual(readInterfaceAccent(storage),{mode:'family',color:'#4f996c'});});
-
-test('default colors are independent of profile colors and explicit choices survive',()=>{assert.deepEqual(readInterfaceAccent({getItem:()=>null}),{mode:'family',color:'#4f996c'});assert.equal(interfaceAccentColor(readInterfaceAccent(null),'#cc8844'),null);for(const mode of ['family','profile','custom'])assert.equal(readInterfaceAccent({getItem:key=>key===INTERFACE_ACCENT_KEY?JSON.stringify({mode,color:'#cc8844'}):null}).mode,mode);});
-
-test('custom picker flag is off while preset and stored accent colors still apply',()=>{
- assert.equal(CUSTOM_ACCENT_PICKER_ENABLED,false);
- for(const color of ['#3985e6','#cc8844']){
- const preference=readInterfaceAccent({getItem:()=>JSON.stringify({mode:'custom',color})});
- assert.deepEqual(preference,{mode:'custom',color});
- assert.equal(interfaceAccentColor(preference,'#387b51'),color);
- }
- assert.equal(interfaceAccentColor({mode:'profile'},'#387b51'),'#387b51');
-});
+import {CUSTOM_ACCENT_PICKER_ENABLED,readInterfaceAccent,interfaceAccentColor,interfacePreset,unlinkInterfaceAccent,INTERFACE_ACCENT_KEY} from '../src/interface-accent.js';
+import {THEME_PRESETS} from '../src/theme-presets.js';
+test('custom profile stays exact while linked and unlinked interface maps to a GW preset',()=>{const profile={profileColor:'#cc8844'},preference=unlinkInterfaceAccent({mode:'profile',color:'#4f996c'},profile.profileColor);const saved=readInterfaceAccent({getItem:key=>key===INTERFACE_ACCENT_KEY?JSON.stringify(preference):null});assert.equal(interfaceAccentColor(saved,'#992266'),interfacePreset(profile.profileColor).color);assert.equal(profile.profileColor,'#cc8844');assert.equal(interfaceAccentColor({mode:'profile'},profile.profileColor),interfacePreset(profile.profileColor).color);assert.equal(interfaceAccentColor({mode:'family'},profile.profileColor),null);});
+test('invalid and unavailable device preferences safely use defaults',()=>{for(const storage of [{getItem:()=>'{invalid'},{getItem:()=>{throw Error('blocked')}},{getItem:()=>JSON.stringify({mode:'custom',color:'url(bad)'})}])assert.deepEqual(readInterfaceAccent(storage),{mode:'family',color:'#4f996c'});assert.equal(interfacePreset('url(bad)'),null);});
+test('all exact presets remain exact and arbitrary old device accents cannot escape the interface policy',()=>{assert.equal(CUSTOM_ACCENT_PICKER_ENABLED,false);for(const p of THEME_PRESETS){assert.equal(interfacePreset(p.color.toUpperCase()).color,p.color);assert.equal(interfaceAccentColor({mode:'profile'},p.color),p.color);}for(const color of ['#cc8844','#123456','#ffffff','#000000']){const saved=readInterfaceAccent({getItem:()=>JSON.stringify({mode:'custom',color})});assert.ok(THEME_PRESETS.some(p=>p.color===saved.color));assert.equal(interfaceAccentColor({mode:'custom',color}),saved.color);assert.ok(THEME_PRESETS.some(p=>p.color===interfaceAccentColor({mode:'profile'},color)));}});
+test('profile preview mapping does not mutate profile or unrelated default choice',()=>{const preference={mode:'profile',color:'#4f996c'},snapshot=JSON.stringify(preference);assert.equal(interfaceAccentColor(preference,'#cc8844','#3985e6'),'#3985e6');assert.equal(JSON.stringify(preference),snapshot);assert.equal(interfaceAccentColor({mode:'family'},'#cc8844'),null);});

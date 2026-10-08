@@ -5,6 +5,7 @@ import {CATEGORIES,DEFAULT_CATEGORIES,eligibleMemberSql,resourceAccessSql,follow
 const rows=r=>r.results||[];
 const stamp=v=>v?Date.parse(/Z$|[+-]\d\d:\d\d$/.test(v)?v:v.replace(' ','T')+'Z'):null;
 const titles={
+ 'family_calendar.changed':'Your family event was edited','family_calendar.removed':'Your family event was removed',
  'post.published':'A new family update','memory.published':'A new shared memory','post.tagged':'You were tagged in an update','memory.tagged':'You were tagged in a memory',
  'comment.created':'Someone replied to your post','reply.created':'A new reply in your conversation','reaction.added':'Someone reacted to your contribution',
  'announcement.published':'A family leader announcement','birthday.celebrated':'A family birthday celebration',
@@ -66,7 +67,7 @@ function target(row,actor){
  const meta=json(row.event_data_json)||{};
  return {kind,id,containerId:row.container_id||null,anchorId:kind==='comment'?id:meta.messageId||null,...(kind==='conversation'&&meta.sequence?{sequence:meta.sequence}:{}),...(['fee','order','member'].includes(kind)?{section:can(actor,kind==='fee'?'confirm_fees':kind==='order'?'manage_reunion':'manage_members')?'planner':'you'}:{})};
 }
-function serialize(row,actor){return {id:row.id,kind:row.kind,category:row.category,title:titles[row.kind]||'A family update',text:'Open to view the latest details.',createdAt:stamp(row.created_at),sequence:row.sequence,readAt:row.read_at||null,target:target(row,actor),targetId:row.container_id||row.resource_id||row.subject_id};}
+function serialize(row,actor){const meta=json(row.event_data_json)||{},moderation=row.resource_kind==='family_calendar_moderation';return {id:row.id,kind:row.kind,category:row.category,title:titles[row.kind]||'A family update',text:moderation?String(meta.title||'Family event')+': '+String(meta.reason||'A moderator updated this event.'):'Open to view the latest details.',createdAt:stamp(row.created_at),sequence:row.sequence,readAt:row.read_at||null,target:target(row,actor),targetId:row.container_id||row.resource_id||row.subject_id};}
 function integer(value,name,min=0,max=Number.MAX_SAFE_INTEGER){const n=typeof value==='string'&&/^\d+$/.test(value)?Number(value):value;if(!Number.isSafeInteger(n)||n<min||n>max)throw new UserError('Use a valid '+name);return n}
 export async function listNotifications(db,actor,{limit=50,before}={}){
  limit=integer(limit,'page limit',1,100);if(before!==undefined&&before!==null)before=integer(before,'notification cursor',1);

@@ -2,3 +2,5 @@
 @media(max-width:700px){.reunion-plans-page{gap:20px}.reunion-merchandise-panel{padding:18px}.reunion-plan-heading{align-items:flex-start}}
 
 :is(.reunion-merchandise-panel,.reunion-fees-panel).is-not-needed .planning-task-label{color:var(--muted);text-decoration:line-through;text-decoration-thickness:1px}
+
+.home-reunion-plan-entry{padding:16px}.home-reunion-plan-entry>.home-reunion-plan{width:100%;min-width:0}.home-reunion-plan strong{overflow-wrap:anywhere}

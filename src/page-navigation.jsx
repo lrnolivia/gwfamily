@@ -20,7 +20,7 @@ export function PageNavigationHeader({previous,compact}){
   measure();let frame=null;const schedule=()=>{if(frame===null)frame=requestAnimationFrame(()=>{frame=null;measure()})};const observer=new ResizeObserver(schedule);observer.observe(header);if(title)observer.observe(title);
   return()=>{if(frame!==null)cancelAnimationFrame(frame);observer.disconnect();app.style.removeProperty('--gw-page-title-height');app.style.removeProperty('--gw-app-header-offset');document.documentElement.style.removeProperty('--gw-app-header-offset')};
  },[]);
- const {route,state,messaging,goBack}=useApp(),page=usePageContent(route.type),main=mainPages.has(route.type),showBack=!main,[heading,setHeading]=useState(null),headerRef=useRef(null),[position,setPosition]=useState(null);
+ const {route,state,messaging,goBack,go}=useApp(),page=usePageContent(route.type),main=mainPages.has(route.type),showBack=!main,[heading,setHeading]=useState(null),headerRef=useRef(null),[position,setPosition]=useState(null);
  useLayoutEffect(()=>{
   const root=document.getElementById('main');if(!root){setHeading(null);return;}
   const update=()=>{const next=root.querySelector('h1')||(!['post','photo','memory','chat'].includes(route.type)&&root.querySelector(':scope > section > h2,:scope > div > h2'));setHeading(current=>current===next?current:next)};
@@ -41,5 +41,5 @@ export function PageNavigationHeader({previous,compact}){
  const inline=Boolean(heading)&&!compact,mainGlyph={home:'home',reunion:'calendar',family:'people',you:'user'}[route.type];
  return <div ref={headerRef} style={inline&&position?{'--gw-inline-back-top':position.top+'px','--gw-inline-back-left':position.left+'px'}:undefined} className={'page-back-row page-navigation-header '+(main?'is-main-page':'')+(inline?' has-inline-title':'')} data-compact={compact||undefined}>
  {main?<span className={'page-route-glyph '+(inline?'page-title-glyph':'')} aria-hidden="true"><Glyph name={mainGlyph}/></span>:showBack&&back(inline?'page-title-back icon-button':'icon-button')}
- <span className="page-compact-title" aria-hidden="true">{title}</span></div>;
+ <span className="page-compact-title" aria-hidden="true">{title}</span>{route.type==='family'&&<Control type="button" className="family-calendar-entry" aria-label="Family Calendar" title="Family Calendar" onClick={()=>go({type:'family-calendar'})}><Glyph name="calendar"/></Control>}</div>;
 }

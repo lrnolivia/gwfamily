@@ -41,14 +41,14 @@ test('each recreation has verified content identity, honest version uncertainty 
 });
 test('current approved guide selects native tablet identity, theme/color and hides desktop',async()=>{
  const ipad={userAgent:'Macintosh',platform:'MacIntel',maxTouchPoints:5};
- assert.match(renderer.renderVisual('apple',1,ipad,'#3985e6','dark'),/approved-v2\/screens\/blue-ipad-dark-2.png/);
+ assert.match(renderer.renderVisual('apple',1,ipad,'#3985e6','dark'),/approved-v4\/screens\/blue-ipad-dark-2.png/);
  assert.match(renderer.renderVisual('android',2,{userAgent:'Android'},'#ff6685','light'),/coral-pink-androidTablet-light-3.png/);
  for(const nav of [{userAgent:'Macintosh',platform:'MacIntel',maxTouchPoints:0},{userAgent:'Windows NT'},{userAgent:'CrOS'}]){assert.equal(renderer.renderGuide('install',nav),'');assert.equal(renderer.renderVisual('apple',0,nav),'');}
  const app=await source('react-app.jsx');assert.match(app,/installAccentColor:paletteColor/);assert.match(app,/installDevice\(\)&&<ActionRow icon="phone" title="Add to your device"/);assert.match(app,/installDevice\(\)&&<ActionRow icon="home" title="Add to Homescreen"/);
 });
 test('native images have full alternatives and captions outside chrome; failure keeps written help',async()=>{
  for(const platform of ['apple','android'])for(let step=0;step<3;step++){
-  const html=renderer.renderVisual(platform,step);assert.match(html,/data-recreation="true"/);assert.match(html,/<img[^>]+alt=""/);assert.match(html,/<figcaption>/);assert.match(html,/approved-v2\/screens\//);
+  const html=renderer.renderVisual(platform,step);assert.match(html,/data-recreation="true"/);assert.match(html,/<img[^>]+alt=""/);assert.match(html,/<figcaption>/);assert.match(html,/approved-v4\/screens\//);
  }
  const visual=await source('install-guide-visuals.jsx');assert.match(visual,/onError=\{\(\)=>setUnavailable\(true\)\}/);assert.match(visual,/Follow the written steps above/);assert.match(visual,/key=\{id\}/);assert.doesNotMatch(visual,/fetch\(|requestPermission|pushManager|navigator\.share|\.prompt\(|localStorage|<details|<summary|role="button"/);
  const css=await source('install-guide-visuals.css');assert.match(css,/height:auto/);assert.match(css,/min-width:0/);assert.match(css,/@media\(max-width:500px\)/);assert.match(css,/forced-colors/);
@@ -76,9 +76,9 @@ test('hosted fixture serves only exact cropped self-hosted guide assets and deni
 });
 test('hosted fixture covers iOS, Android and every Safari tab with synthetic privacy-preserving Back and consent flows',async()=>{
  const fixture=await readFile(new URL('./install-tutorial-browser.mjs',import.meta.url),'utf8');
- const osLoop=/for\(const \[name,assetCount\] of (\[\[[^\n]+?\]\])\)/.exec(fixture);assert.ok(osLoop,'Exact named OS/assets matrix must remain inspectable');
- assert.deepEqual(JSON.parse(osLoop[1].replaceAll("'",'"')),[['iPhone / iPad',3],['Android',3]]);
- assert.match(fixture,/APPROVED_ASSET_ALLOWLIST/);assert.match(fixture,/Every designated artwork|All designated artwork/);assert.match(fixture,/install-guide\/approved-v2\/screens\//);
+ assert.match(fixture,/approved\.deviceStepCounts\[width===320\?'ios':'ipad'\]/,'Phone and tablet expectations derive from approved device counts');
+ assert.match(fixture,/toHaveCount\(assetCount\)/);assert.match(fixture,/stepCount=approved\.deviceStepCounts\[os\]/);
+ assert.match(fixture,/APPROVED_ASSET_ALLOWLIST/);assert.match(fixture,/Every designated artwork|All designated artwork/);assert.match(fixture,/install-guide\/approved-v4\/screens\//);
  assert.match(fixture,/getByRole\('tablist',\{name:'Instructions for'/);assert.match(fixture,/getByRole\('tablist',\{name:'Safari example',exact:true\}\)\)\.toHaveCount\(0\)/);assert.doesNotMatch(fixture,/getByRole\('radio'/);
  for(const marker of ['An unsent synthetic update','A separate unsent synthetic draft',"window.fixture.account('fixture-b')","window.fixture.account('fixture-a')",'Progress never stores draft or content',"getByRole('button',{name:'Back',exact:true}).click()",'Preserved synthetic draft',"mockInstallPrompt('dismissed')","mockInstallPrompt('failure')",'Mock install prompt only; no device installation or notification delivery is performed.'])assert.ok(fixture.includes(marker),marker);
  assert.match(fixture,/if\(!\['dismissed','failure'\]\.includes\(mode\)\)/);assert.doesNotMatch(fixture,/new Event\('appinstalled'|outcome:'accepted'|requestPermission|pushManager|navigator\.share|serviceWorker\.register|physicalDeviceValidation:true|actualInstallation:true|notificationDelivery:true/);

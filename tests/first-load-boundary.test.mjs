@@ -20,13 +20,13 @@ test('the live wrapper preserves enrollment before optional upload and refreshes
  assert.match(enrollment,/onSave=\{saveProfile\}/);assert.ok(enrollment.indexOf("api('/api/enroll'")<enrollment.indexOf("api('/api/onboarding/photo'"));
  assert.match(enrollment,/if\(values\.file\)/);assert.match(enrollment,/await \(refreshEntry\|\|data\.refresh\)\(\)/);
  assert.doesNotMatch(enrollment,/canRehearseFirstLoad|rehearsal|roles|BOOTSTRAP_OWNER_EMAIL/);
- assert.match(signIn,/email,otp:code\}\)\}\);await \(refreshEntry\|\|data\.refresh\)\(\)/);
+ assert.match(signIn,/email,otp:code\}\)\}\);rememberDeviceProvider\('email'\);await \(refreshEntry\|\|data\.refresh\)\(\)/);
 });
 test('loading is outside Onboarding and the App sandbox neither resets data nor changes the real route',()=>{
  const app=read('src/react-app.jsx'),onboarding=app.slice(app.indexOf('function Onboarding(){'),app.indexOf('function Home(){'));
  assert.doesNotMatch(onboarding,/Getting things ready|data\.loading\?/);
  assert.match(app,/firstLoadView\(data,state,entryReview,entryLoading\)/);assert.match(app,/openFirstLoad:canFreshStart\?openFirstLoad:null/);
- assert.match(app,/rehearsing\?<FirstLoadRehearsal/);assert.match(app,/showFirstLoad\?<FirstLoad busy=\{entryBusy\}/);assert.match(app,/!rehearsing&&<PushLifecycle\/>/);
+ assert.match(app,/rehearsing\?<FirstLoadRehearsal/);assert.match(app,/showFirstLoad\?<FirstLoad busy=\{entryBusy\}/);assert.match(app,/!rehearsing&&<>\s*<PushLifecycle\/><NotificationArrivalToasts\/><PushEnrollmentPrompt\/>/);
  const callbacks=app.slice(app.indexOf('async function refreshEntry(){'),app.indexOf('const actualNeedsEntry=',app.indexOf('async function refreshEntry(){')));
  assert.doesNotMatch(callbacks,/dispatch\(|resetPreview|resetPageContentPreview|navigation\.(?:go|replace|back)|localStorage|sessionStorage/);
  assert.match(callbacks,/entryOrigin\.current=\{focus:document\.activeElement,scroll:window\.scrollY\}/);assert.match(callbacks,/top:origin\.scroll/);
@@ -34,8 +34,8 @@ test('loading is outside Onboarding and the App sandbox neither resets data nor 
 });
 test('session capability uses verified server session and leaves the enrollment authority gate unchanged',()=>{
  const routes=read('backend/src/routes.mjs'),session=routes.slice(routes.indexOf("app.get('/api/session'"),routes.indexOf("app.post('/api/enroll'"));
- assert.match(session,/canRehearseFirstLoad:canRehearseFirstLoad\(e,session,member\)/);assert.match(session,/SELECT status,removed_at FROM members WHERE id=\?/);assert.doesNotMatch(session,/batch\(|INSERT|UPDATE|DELETE|roles|is_leader/);
- assert.equal((session.match(/canRehearseFirstLoad:false/g)||[]).length,3);
+ assert.match(session,/canRehearseFirstLoad:canRehearseFirstLoad\(e,session,member\)/);assert.match(session,/SELECT status,removed_at,is_leader FROM members WHERE id=\?/);assert.doesNotMatch(session,/batch\(|INSERT|UPDATE|DELETE|roles_json/);
+ assert.match(session,/canViewAsMember:member\?\.status==='active'&&member\?\.is_leader===1/);assert.equal((session.match(/canRehearseFirstLoad:false/g)||[]).length,3);
  assert.match(routes,/const owner=Boolean\(e\.BOOTSTRAP_OWNER_EMAIL\)&&e\.BOOTSTRAP_OWNER_EMAIL\.toLowerCase\(\)===session\.user\.email\.toLowerCase\(\)/);
  for(const path of ['src/first-load.jsx','src/first-load-model.js','src/enrollment-form.jsx'])assert.doesNotMatch(read(path),/lrnwhite|icloud\.com|BOOTSTRAP_OWNER_EMAIL/);
 });
