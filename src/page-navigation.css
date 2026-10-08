@@ -65,3 +65,6 @@ html[data-platform=ios]:not([data-page-edit-mode=true]) .app>.app-header::after{
 #main :is(button,a,input,select,textarea){scroll-margin-block-start:calc(var(--gw-app-header-offset,96px) + 76px);scroll-margin-block-end:calc(var(--gw-nav-height,72px) + 48px)}
 
 .page-navigation-header:not(.has-inline-title) .page-compact-title{opacity:1}
+
+/* Glass softens actual scroll content at the shared header edge on every route. */
+html[data-platform=ios]:not([data-page-edit-mode=true]) .app>.app-header::after{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);mask-image:linear-gradient(to bottom,#000,transparent);-webkit-mask-image:linear-gradient(to bottom,#000,transparent)}

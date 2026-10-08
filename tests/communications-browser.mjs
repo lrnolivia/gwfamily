@@ -708,13 +708,13 @@ try {
       const surfaces=await alice.evaluate(()=>{
         const h=document.querySelector('.app>.app-header'),n=document.querySelector('.page-navigation-header');
         const a=getComputedStyle(h,'::before'),b=getComputedStyle(n,'::before'),fade=getComputedStyle(h,'::after');
-        return {titleHeight:n.getBoundingClientRect().height,pageLayerDisplay:b.display,header:{background:a.backgroundColor,image:a.backgroundImage,blur:a.backdropFilter||a.webkitBackdropFilter,bottom:a.bottom,left:a.left,right:a.right},page:{background:b.backgroundColor,image:b.backgroundImage,blur:b.backdropFilter||b.webkitBackdropFilter,top:b.top,left:b.left,right:b.right},pageBackground:getComputedStyle(n).backgroundColor,fade:{height:fade.height,image:fade.backgroundImage,blur:fade.backdropFilter||fade.webkitBackdropFilter},clip:b.clipPath,bottom:b.bottom};
+        return {titleHeight:n.getBoundingClientRect().height,pageLayerDisplay:b.display,header:{background:a.backgroundColor,image:a.backgroundImage,blur:a.backdropFilter||a.webkitBackdropFilter,bottom:a.bottom,left:a.left,right:a.right},page:{background:b.backgroundColor,image:b.backgroundImage,blur:b.backdropFilter||b.webkitBackdropFilter,top:b.top,left:b.left,right:b.right},pageBackground:getComputedStyle(n).backgroundColor,fade:{height:fade.height,image:fade.backgroundImage,blur:fade.backdropFilter||fade.webkitBackdropFilter,mask:fade.maskImage||fade.webkitMaskImage},clip:b.clipPath,bottom:b.bottom};
       });
       assert.equal(surfaces.page.top,'-1px');
       assert.equal(surfaces.header.left,surfaces.page.left);assert.equal(surfaces.header.right,surfaces.page.right);
       if(material==='ios'){
         assert.match(surfaces.header.blur,/blur\(18px\)/);assert.equal(surfaces.pageLayerDisplay,'none');assert.ok(Math.abs(parseFloat(surfaces.header.bottom)+Math.ceil(surfaces.titleHeight))<=1,'One upper backdrop covers the entire title row');
-        assert.equal(surfaces.page.image,'none');assert.equal(surfaces.pageBackground,'rgba(0, 0, 0, 0)');assert.equal(surfaces.bottom,'0px');assert.equal(surfaces.clip,'inset(0px)');assert.equal(surfaces.fade.height,'24px');assert.match(surfaces.fade.image,/linear-gradient/);assert.equal(surfaces.fade.blur,'none');
+        assert.equal(surfaces.page.image,'none');assert.equal(surfaces.pageBackground,'rgba(0, 0, 0, 0)');assert.equal(surfaces.bottom,'0px');assert.equal(surfaces.clip,'inset(0px)');assert.equal(surfaces.fade.height,'24px');assert.match(surfaces.fade.image,/linear-gradient/);assert.match(surfaces.fade.blur,/blur\(18px\)/);assert.match(surfaces.fade.mask,/linear-gradient/);
       }else{assert.equal(surfaces.header.bottom,'-1px');assert.equal(surfaces.header.background,surfaces.page.background);assert.equal(surfaces.page.image,'none');assert.equal(surfaces.page.blur,'none');}
       await noClip(alice);await alice.screenshot({path:`${output}/connected-header-${width}-${theme}-${material}-${engineName}.png`});
     }

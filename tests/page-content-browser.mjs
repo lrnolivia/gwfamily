@@ -374,7 +374,7 @@ async function uploadPageMedia(page, dialog, picker, files) {
     await expect(dialog.getByRole('button', {name: 'Apply media', exact: true})).toBeEnabled();
     await expect(modeDone(page)).toBeEnabled();
     await expect(modeDone(page)).toBeEnabled();
-  } finally {release(); await page.unroute('**/api/media', handler);}
+  } finally {release(); await page.unrouteAll({behavior:'wait'});}
 }
 async function closeEditorPanel(page, name) {
   const panel = page.getByRole('region', {name, exact: true});

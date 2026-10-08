@@ -121,3 +121,5 @@ html[data-theme][data-platform] .card-slot-context-actions>.card-slot-layout{pos
 .page-element-preview .card-slot-content{gap:8px;max-width:100%}
 .page-element-preview .page-copy-target,.page-element-preview .page-body-edit-target{outline:0!important;border:0!important}
 .page-element-preview-caption{font-size:.75rem;color:var(--muted)}
+
+html[data-theme][data-platform] .card-content-slot[data-object-selected=true]{outline-color:color-mix(in srgb,var(--control) 30%,transparent)}

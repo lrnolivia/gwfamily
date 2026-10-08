@@ -160,3 +160,9 @@ body,.app,.card,section,.intro,footer,.bottom,.muted,.page-edit-modebar,dialog,.
 
 /* The active field sits above adjacent copy with one focus edge. */
 html[data-theme][data-platform] .page-copy-input-wrap,html[data-theme][data-platform] .page-panel-text-edit{background:var(--raised);box-shadow:0 6px 16px rgb(0 0 0 / 16%),0 2px 4px rgb(0 0 0 / 8%)}
+
+/* A quiet accent edge indicates the editing target without a bright rim. */
+html[data-theme][data-platform] .page-copy-input-wrap,html[data-theme][data-platform] .page-copy-input-wrap:focus-within,html[data-theme][data-platform] .page-panel-text-edit{border-color:color-mix(in srgb,var(--control) 30%,transparent)}
+html[data-theme][data-platform] .page-active-edit-card{outline-color:color-mix(in srgb,var(--control) 30%,transparent)}
+
+html[data-theme][data-platform] .page-copy-input-wrap .page-field-done{background:var(--control);color:var(--control-text)}
