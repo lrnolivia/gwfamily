@@ -1,3 +1,4 @@
+import {requestDiagnosticContext} from './error-diagnostics.mjs';
 import {UserError,json} from './family-service.mjs';
 import {authEnvironment,authReady,createRateStorage} from './auth.mjs';
 import {familyEmail} from './email-template.mjs';
@@ -35,7 +36,7 @@ export async function provisionalFeed(db){
  return {readOnly:true,posts:posts.map(p=>({id:p.id,text:p.body,createdAt:p.created_at,author:p.name,photos:photos(json(p.metadata_json).files)})),memories:memories.flatMap(m=>{const v=json(m.data_json),id=typeof v.image==='string'?v.image.match(/^\/api\/media\/([A-Za-z0-9_-]{1,100})$/)?.[1]:null;return id?[{id:m.id,title:String(v.title||''),photo:{id,url:'/api/provisional/media/'+id,alt:String(v.title||'Family memory')}}]:[]})};
 }
 export function registerInvitationEntry(app,authFactory){
- async function session(c){const env=authEnvironment(c.env);if(!authReady(env))throw new UserError('Sign-in is not configured',503);const s=await authFactory(env).api.getSession({headers:c.req.raw.headers});if(!s?.user?.emailVerified)throw new UserError('Verify your email before continuing',401);return {env,user:s.user}}
+ async function session(c){const env=authEnvironment(c.env);if(!authReady(env))throw new UserError('Sign-in is not configured',503);const s=await authFactory(env,requestDiagnosticContext(c,'auth.session.initial')).api.getSession({headers:c.req.raw.headers});if(!s?.user?.emailVerified)throw new UserError('Verify your email before continuing',401);c.set('diagnosticStage','request.handler');return {env,user:s.user}}
  app.post('/api/family-invitations/accept',async c=>{const {env,user}=await session(c);if(c.req.header('Origin')!==env.AUTH_ORIGIN)throw new UserError('Invalid request origin',403);const value=await c.req.json();if(value.expectedAccountId!==user.id)throw new UserError('Your sign-in changed. Reload before continuing.',409);return c.json(await acceptFamilyInvitation(env,value.token,user))});
  async function permit(c){const {env,user}=await session(c),member=await env.DB.prepare('SELECT status,removed_at FROM members WHERE id=?').bind(user.id).first();if(!await provisionalAllowed(env,user,member))throw new UserError('Read-only family access is not available',403);return env}
  app.get('/api/provisional/feed',async c=>{const env=await permit(c);return c.json(await provisionalFeed(env.DB))});

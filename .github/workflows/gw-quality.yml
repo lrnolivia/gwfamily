@@ -44,8 +44,15 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm ci --ignore-scripts
         working-directory: backend
-      - id: backend_build
+      - name: Mandatory pinned auth schema gate
+        id: auth_schema
         if: ${{ !cancelled() && steps.backend_install.outcome == 'success' }}
+        working-directory: backend
+        run: |
+          mkdir -p docs/ci-logs
+          node scripts/check-auth-schema-fixture.mjs 2>&1 | tee docs/ci-logs/auth-schema.log
+      - id: backend_build
+        if: ${{ !cancelled() && steps.backend_install.outcome == 'success' && steps.auth_schema.outcome == 'success' }}
         run: |
           mkdir -p docs/ci-logs
           node ../scripts/ci-test-summary.mjs backend 2>&1 | tee docs/ci-logs/backend.log

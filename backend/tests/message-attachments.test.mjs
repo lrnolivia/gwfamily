@@ -36,7 +36,7 @@ const {validateAttachmentBytes,normalizeAttachmentIds,attachmentGuardSql,loadMes
 // Also exercise the real generic-media GET handler, isolated from unrelated
 // page/calendar/push modules. Its lookup must never expose private-chat rows.
 const routesSource=await readFile(new URL('routes.mjs',root),'utf8');
-const routesUrl=dataModule(routesSource.replace(/from\s+(['"])\.\/([^'"]+)\1/g,(_,quote,path)=>`from '${path==='messaging.mjs'?messagingUrl:stubUrl}'`));
+const routesUrl=dataModule(routesSource.replace(/from\s+(['"])\.\/([^'"]+)\1/g,(_,quote,path)=>`from '${path==='messaging.mjs'?messagingUrl:path==='error-diagnostics.mjs'?new URL(path,root).href:stubUrl}'`));
 const {registerFamily}=await import(routesUrl);
 
 const LIMIT=10*1024*1024;

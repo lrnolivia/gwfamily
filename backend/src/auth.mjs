@@ -5,7 +5,7 @@ import {microsoftAccess} from './microsoft-access.mjs';
 import {accessProviderConfig,configuredAuthProviders,accessProviderRateRules} from './auth-providers.mjs';
 import { betterAuth } from 'better-auth';
 import { emailOTP, magicLink } from 'better-auth/plugins';
-import {authDiagnosticLogger} from './error-diagnostics.mjs';
+import {createAuthDiagnosticLogger} from './error-diagnostics.mjs';
 
 export function authEnvironment(env) {
   return { ...env, DB: env.DB || env.D1,
@@ -26,7 +26,7 @@ export function createRateStorage(db) {
     return {allowed: row.count <= rule.max, retryAfter: row.count <= rule.max ? null : Math.max(1,Math.ceil((row.reset_at-now)/1000))};
   }};
 }
-export function createAuth(rawEnv) {
+export function authOptions(rawEnv,diagnosticContext={}) {
   const env = authEnvironment(rawEnv);
   if (!authReady(env)) throw new Error('Authentication is not configured');
   const providers = {};
@@ -37,13 +37,13 @@ export function createAuth(rawEnv) {
     if (!env.EMAIL || env.AUTH_EMAIL_ENABLED !== 'true') throw new Error('Email sign-in is not enabled');
     await env.EMAIL.send({from:{email:'family@greenwhitefamily.com',name:'Green & White Family'},to:email,subject,text,html});
   };
-  return betterAuth({
-    logger:authDiagnosticLogger,
+  return {
+    logger:createAuthDiagnosticLogger(diagnosticContext),
     database: env.DB, secret: env.BETTER_AUTH_SECRET, baseURL: env.AUTH_ORIGIN,
     trustedOrigins:[env.AUTH_ORIGIN,...(providers.apple?['https://appleid.apple.com']:[])], emailAndPassword:{enabled:false}, socialProviders:providers,
     account:{accountLinking:{enabled:false}},
     session:{expiresIn:60*60*24*7,updateAge:60*60*24,cookieCache:{enabled:false}},
-    advanced:{useSecureCookies:true,ipAddress:{ipAddressHeaders:['cf-connecting-ip']}},
+    advanced:{useSecureCookies:true,ipAddress:{ipAddressHeaders:['cf-connecting-ip']},database:{validateSchema:false}},
     rateLimit:{enabled:true,window:60,max:30,customStorage:createRateStorage(env.DB),customRules:{
       ...accessProviderRateRules(env),'/microsoft-proof/send-code':{window:300,max:6},'/microsoft-proof/complete':{window:300,max:10},'/microsoft-proof/cancel':{window:300,max:10},'/sign-in/magic-link':{window:300,max:3},'/email-otp/send-verification-otp':{window:300,max:3},'/sign-in/email-otp':{window:300,max:8}
     }},
@@ -59,5 +59,6 @@ export function createAuth(rawEnv) {
           signInLinkEmail(safe.href));
       }})
     ],user:{deleteUser:{enabled:false}}
-  });
+  };
 }
+export function createAuth(rawEnv,diagnosticContext={}) {return betterAuth(authOptions(rawEnv,diagnosticContext));}
