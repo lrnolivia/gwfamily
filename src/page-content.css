@@ -157,3 +157,6 @@ body,.app,.card,section,.intro,footer,.bottom,.muted,.page-edit-modebar,dialog,.
 .page-copy-frame.is-active::after{display:none}
 .page-active-edit-card:has(.page-copy-frame.is-active,.page-markdown-editor,.page-panel-text-edit){outline:none}
 .card-content-slot:has(.page-markdown-editor,.page-copy-frame.is-active,.page-panel-text-edit){outline:none}
+
+/* The active field sits above adjacent copy with one focus edge. */
+html[data-theme][data-platform] .page-copy-input-wrap,html[data-theme][data-platform] .page-panel-text-edit{background:var(--raised);box-shadow:0 6px 16px rgb(0 0 0 / 16%),0 2px 4px rgb(0 0 0 / 8%)}

@@ -935,7 +935,11 @@ try {
       const active = otherOwner.locator('.page-active-edit-card');
       await expect(active).toHaveCount(1);
       assert.equal(await active.evaluate(element => getComputedStyle(element).animationName), 'none');
-      assert.notEqual(await active.evaluate(element => getComputedStyle(element).outlineStyle), 'none', 'Reduced motion retains a stable selected outline.');
+      const selectedField=field(otherOwner,'family.heading').locator('.page-copy-input-wrap');
+      await expect(selectedField).toBeVisible();
+      const selection=await selectedField.evaluate(element=>{const style=getComputedStyle(element);return {width:parseFloat(style.borderTopWidth),style:style.borderTopStyle,color:style.borderTopColor,control:getComputedStyle(document.documentElement).getPropertyValue('--control').trim()}});
+      assert.equal(selection.width,1);assert.equal(selection.style,'solid');assert.notEqual(selection.color,'rgba(0, 0, 0, 0)','Reduced motion retains the field selection edge.');
+      assert.equal(await active.evaluate(element=>getComputedStyle(element).outlineStyle),'none','Field focus owns one edge without a stacked parent outline.');
       await noClip(otherOwner);
       await field(otherOwner, 'family.heading').getByRole('button', {name: 'Finish editing Page heading', exact: true}).click();
       const dialog = await mediaPanel(otherOwner, 'family');

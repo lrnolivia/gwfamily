@@ -90,3 +90,13 @@
 .page-panel-arrange-bar>.page-panel-inline-controls>button[aria-pressed=true]>.liquid-glass-tint{background:var(--control);opacity:1}
 .page-panel-arrange-bar>.page-panel-inline-controls .glyph{width:20px;height:20px}
 .page-arrange-content-preview[inert]{pointer-events:none;user-select:none}
+
+/* An open task can defer panel reparenting across the Mobile breakpoint. */
+@media(max-width:700px){.page-panel-layout.has-side>.page-panel-columns{grid-template-columns:minmax(0,1fr)}}
+
+/* Panel options stay inside their panel as a compact corner glyph. */
+.page-panel-options-entry{position:absolute;top:8px;right:8px;z-index:4;margin:0;width:44px;height:44px}
+html[data-theme][data-platform] .page-panel-options-entry>button{position:relative;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;box-shadow:none}
+.page-panel-options-entry>button::before{content:'';position:absolute;inset:8px;border-radius:8px;background:var(--raised)}
+.page-panel-options-entry>button>.glyph{position:relative;width:16px;height:16px}
+.page-panel-options-entry>button>.liquid-glass-tint{opacity:0}

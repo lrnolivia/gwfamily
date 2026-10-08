@@ -62,3 +62,17 @@
 .page-object-tools .page-markdown-footer{border:0;padding:4px}
 .page-object-tools .page-markdown-tool,.page-object-tools .page-markdown-source-toggle{min-width:44px;min-height:44px;border-radius:8px}
 .page-object-tools .page-markdown-visual{min-height:160px;max-height:40dvh}
+
+/* Focus belongs to the outer edge; internal separators are neutral hairlines. */
+.page-markdown-editor{--editor-divider:rgb(128 128 128 / 20%)}
+html[data-theme=light] .page-markdown-editor{--editor-divider:rgb(0 0 0 / 14%)}
+html[data-theme=dark] .page-markdown-editor{--editor-divider:rgb(255 255 255 / 14%)}
+html[data-theme][data-platform] .page-markdown-toolbar{border:0;border-bottom:1px solid var(--editor-divider)!important}
+html[data-theme][data-platform] .page-markdown-mode-tools{border-inline-start:1px solid var(--editor-divider)!important}
+html[data-theme][data-platform] .page-markdown-visual-wrap{border:0!important}
+html[data-theme][data-platform] .page-markdown-footer{border:0;border-top:1px solid var(--editor-divider)!important}
+.page-object-tools .page-markdown-toolbar{overflow:hidden}
+.page-object-tools .page-markdown-tools{overflow-x:auto;scrollbar-width:thin;scrollbar-color:var(--editor-divider) transparent}
+.page-object-tools .page-markdown-tools::-webkit-scrollbar{height:4px}
+.page-object-tools .page-markdown-tools::-webkit-scrollbar-thumb{background:var(--editor-divider);border-radius:4px}
+@media(min-width:701px){.page-object-tools:has(.page-markdown-editor){width:min(620px,calc(100vw - 24px))}}

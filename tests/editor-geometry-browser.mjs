@@ -84,7 +84,10 @@ try{
 
  for(const width of [320,390,768,1280]){
   await page.setViewportSize({width,height:900});
+  await expect(tools()).toBeVisible();
+  await expect(tools()).toHaveJSProperty('open',true);
   const rows=await tools().locator('.image-control-row').evaluateAll(nodes=>nodes.map(node=>{const r=node.getBoundingClientRect(),style=getComputedStyle(node);return {left:r.left,right:r.right,padding:Number.parseFloat(style.paddingLeft),radius:Number.parseFloat(style.borderRadius),children:[...node.querySelectorAll('button,input')].map(control=>{const b=control.getBoundingClientRect();return {left:b.left,right:b.right,width:b.width,height:b.height}})}}));
+  assert.ok(rows.length>=6,'All image control platters survive a viewport transition');
   for(const row of rows){assert.ok(row.padding>=12&&row.radius>=12,JSON.stringify(row));for(const c of row.children)assert.ok(c.left>=row.left-1&&c.right<=row.right+1&&c.width>=43.9&&c.height>=43.9,JSON.stringify(row))}
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
   await page.screenshot({path:`${output}/${engine}-photo-${width}.png`});
