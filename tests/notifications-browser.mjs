@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 // Hosted-only synthetic notification checks. API routes are intercepted in memory;
 // this file cannot write to a real account, send email/push, or request permission.
 import {chromium,webkit,expect} from '@playwright/test';

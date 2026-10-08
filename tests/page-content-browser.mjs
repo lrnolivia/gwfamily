@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 import {settlePointerTarget} from './browser-transition-readiness.mjs';
 import {pageContentPayload} from '../src/page-content-model.js';
 import {validatePhotoFrame} from '../src/photo-framing-model.js';

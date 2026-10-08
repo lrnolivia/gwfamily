@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 import assert from 'node:assert/strict';
 import {expect} from '@playwright/test';
 

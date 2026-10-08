@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 // Hosted synthetic fixture only. Never run against production.
 import {chromium,webkit,expect} from '@playwright/test';
 import assert from 'node:assert/strict';

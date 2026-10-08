@@ -16,9 +16,9 @@ test('code build identity excludes live content and test storage stays in memory
  assert.match(fs.readFileSync(new URL('../backend/tests/test-db.mjs',import.meta.url),'utf8'),/new DatabaseSync\(':memory:'\)/);
 });
 
-test('CI enables the browser guard after checkout and dependencies, never before repository exists',()=>{
- const source=fs.readFileSync(new URL('../.github/workflows/gw-quality.yml',import.meta.url),'utf8');
- assert(source.indexOf('NODE_OPTIONS=--import=')>source.indexOf('npx playwright install --with-deps'));
- assert.doesNotMatch(source,/^env:\n  NODE_OPTIONS:/m);
- assert.match(source,/Enforce fixture guard for browser checks and fixture servers/);
+test('fixture guard is scoped to tests and servers, never GitHub checkout or upload actions',()=>{
+ const source=fs.readFileSync(new URL('../.github/workflows/gw-quality.yml',import.meta.url),'utf8');assert.doesNotMatch(source,/NODE_OPTIONS/);
+ const runner=fs.readFileSync(new URL('../scripts/ci-test-summary.mjs',import.meta.url),'utf8');assert.match(runner,/\['--import',new URL\('..\/tests\/test-environment-guard.mjs'/);
+ assert.match(fs.readFileSync(new URL('../backend/tests/test-db.mjs',import.meta.url),'utf8'),/import '..\/..\/tests\/test-environment-guard.mjs'/);
+ for(const name of ['onboarding-browser.mjs','push-settings-browser.mjs','email-preview-browser.mjs','install-v4-browser.mjs','home-reunion-browser.mjs','memorial-update-browser.mjs'])assert.match(fs.readFileSync(new URL('./'+name,import.meta.url),'utf8'),/import '.\/test-environment-guard.mjs'/);
 });

@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 // Ordinary built app, fictional anonymous session, no remote API or writes.
 import {chromium,webkit,expect} from '@playwright/test';
 import {createServer} from 'node:http';

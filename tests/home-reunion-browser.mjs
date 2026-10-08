@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 // Real built Home, fictional preview only. No external writes or payments.
 import {chromium,webkit,expect} from '@playwright/test';import {createServer} from 'node:http';import {readFile,mkdir,writeFile} from 'node:fs/promises';import {resolve,extname} from 'node:path';import assert from 'node:assert/strict';
 import {initialState,PREVIEW_KEY} from '../src/data-adapter.js';import {derivePlanning} from '../src/planning-model.js';import {sharedPageDefaults} from '../src/shared-content-schema.js';

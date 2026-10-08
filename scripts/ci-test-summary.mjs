@@ -8,7 +8,7 @@ const browser=process.argv[3]==='--browser',browserPath=process.argv[4];
 const requiredBrowsers=new Set(['recovery-browser','hotfix-browser','media-browser','live-browser','communications-browser','navigation-insets-browser','page-content-browser','granular-panel-framing-browser','card-content-layout-browser','editor-geometry-browser','content-actions-browser','family-invitations-browser','choice-control-browser','notifications-browser','install-tutorial-browser','webkit-memory-reload','webkit-diagnostics'].map(name=>'tests/'+name+'.mjs'));
 if(process.argv[3]&&!build&&!browser||browser&&!requiredBrowsers.has(browserPath)||process.argv[5])throw Error('Only the existing complete suite, build or named required browser command is supported');
 let captured='',truncated=false,started=false;
-const child=spawn(browser?'node':'npm',browser?[browserPath]:build?['run','build']:['test'],{cwd:process.cwd(),env:process.env,stdio:['inherit','pipe','pipe']});
+const child=spawn(browser?'node':'npm',browser?['--import',new URL('../tests/test-environment-guard.mjs',import.meta.url).pathname,browserPath]:build?['run','build']:['test'],{cwd:process.cwd(),env:process.env,stdio:['inherit','pipe','pipe']});
 function capture(chunk){const text=chunk.toString();if(captured.length+text.length<=2*1024*1024)captured+=text;else truncated=true;}
 child.stdout.on('data',chunk=>{process.stdout.write(chunk);capture(chunk)});
 child.stderr.on('data',chunk=>{process.stderr.write(chunk);capture(chunk)});

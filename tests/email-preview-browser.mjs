@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 // Headless local fictional email previews only; outbound requests are forbidden.
 import {chromium,expect} from '@playwright/test';
 import {createServer} from 'node:http';

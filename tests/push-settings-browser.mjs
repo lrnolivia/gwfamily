@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 // Isolated real PushDeviceSettings component. All auth, browser push APIs and
 // API responses are fictional; no permission prompt or provider request occurs.
 import {build} from 'esbuild';

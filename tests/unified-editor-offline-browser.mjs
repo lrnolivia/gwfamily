@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 // Explicit OFFLINE interaction exercise. External requests are rejected before
 // navigation; fallback fonts are expected. Not final visual/typography evidence.
 // Isolated synthetic fixture only; never points at family production data.

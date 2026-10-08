@@ -1,3 +1,4 @@
+import '../../tests/test-environment-guard.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync,readdirSync } from 'node:fs';
 export function database({beforeMigration}={}){

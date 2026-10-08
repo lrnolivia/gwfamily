@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 // Hosted-only authenticated communications checks. Start the isolated fixture on
 // port 4175 first. Never substitute these checks for physical-device keyboard QA.
 import {chromium, webkit, expect} from '@playwright/test';

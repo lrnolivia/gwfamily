@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 // Hosted authenticated fixture only. Uses the production command/permission path.
 import {chromium,webkit,expect} from '@playwright/test';
 import {createTestPng} from './png-fixtures.mjs';

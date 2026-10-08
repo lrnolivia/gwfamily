@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 // Hosted, synthetic fixture only. Screenshots establish rendered geometry;
 // they do not establish physical-device acceptance or production persistence.
 import {createTestPng} from './png-fixtures.mjs';

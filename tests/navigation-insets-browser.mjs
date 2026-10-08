@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 // Hosted-only geometry regression. Run after build against the isolated static
 // preview on port 4173. Simulated UA/insets/keyboard cannot replace device QA.
 import {chromium, webkit, expect} from '@playwright/test';

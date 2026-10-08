@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 import {expect} from '@playwright/test';
 
 // Wait for the real authenticated bootstrap, not the gap before React starts

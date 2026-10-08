@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 import {createTestPng} from './png-fixtures.mjs';
 import {chromium,webkit} from '@playwright/test';
 import assert from 'node:assert/strict';

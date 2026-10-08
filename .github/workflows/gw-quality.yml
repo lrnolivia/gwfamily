@@ -141,9 +141,6 @@ jobs:
       - id: browser_install
         if: ${{ !cancelled() && steps.restore_build.outcome == 'success' }}
         run: npx playwright install --with-deps ${{ matrix.browser }}
-      - name: Enforce fixture guard for browser checks and fixture servers
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
-        run: echo "NODE_OPTIONS=--import=$GITHUB_WORKSPACE/tests/test-environment-guard.mjs" >> "$GITHUB_ENV"
       - name: Ordinary onboarding source geometry
         if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         run: GW_ONBOARDING_QA_OUTPUT=docs/onboarding-qa node tests/onboarding-browser.mjs

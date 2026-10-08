@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 // Ordinary built app, isolated fictional saved preview, no external writes.
 import {chromium,webkit,expect} from '@playwright/test';
 import {createServer} from 'node:http';import {readFile,mkdir,writeFile} from 'node:fs/promises';import {resolve,extname} from 'node:path';import assert from 'node:assert/strict';

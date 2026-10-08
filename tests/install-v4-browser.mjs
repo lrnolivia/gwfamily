@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 // Actual built app with fictional preview data and normal UI interaction only.
 // No physical install, push permission/subscription, sends or external writes.
 import {chromium,webkit,expect} from '@playwright/test';

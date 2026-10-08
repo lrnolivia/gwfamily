@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 // Actual built app, fictional local preview; no provider or production writes.
 import {chromium,webkit,expect} from '@playwright/test';
 import {createServer} from 'node:http';

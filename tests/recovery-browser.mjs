@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 import {settlePointerTarget} from './browser-transition-readiness.mjs';
 import {createTestPng} from './png-fixtures.mjs';
 import {cssColorAlpha} from './css-color.mjs';
