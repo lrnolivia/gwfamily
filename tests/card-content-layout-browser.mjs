@@ -90,8 +90,8 @@ try{
   const anonymous=await browser.newContext();try{assert.equal((await anonymous.request.get(base+'/api/page-content/home')).status(),401)}finally{await anonymous.close()}
  });
  await check('Content plus adds a plain text area that edits, arranges and persists with standard header actions',async()=>{
-  await page.setViewportSize({width:1280,height:900});await navigate(base+'/#/home');
-  const edit=toolbar().getByRole('button',{name:/^(Edit page|Resume page edits)$/});if(await edit.count())await edit.click();
+  await page.setViewportSize({width:1280,height:900});await navigate(base+'/#/home');await reload();
+  const edit=toolbar().getByRole('button',{name:/^(Edit page|Resume page edits)$/});await expect(edit).toBeVisible();await edit.click();
   await hero().getByRole('button',{name:/^Panel options for/}).click();let pane=page.locator('.page-object-tools[open]');
   const unlock=pane.getByRole('button',{name:/^Unlock /});if(await unlock.count())await unlock.click();
   await pane.getByRole('button',{name:'Add element',exact:true}).click();const menu=pane.getByRole('menu',{name:'Add panel element',exact:true});
