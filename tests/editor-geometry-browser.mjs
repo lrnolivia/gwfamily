@@ -26,6 +26,17 @@ try{
  for(const width of [320,390,768,1280]){
   await page.setViewportSize({width,height:900});await begin();
   await expect(page.getByRole('navigation',{name:'Main navigation',exact:true})).toBeHidden();
+  for(const id of ['hero','native-reunion']){
+   const attached=page.locator('[data-panel-page="home"] [data-panel-id="'+id+'"]');
+   if(!await attached.count())continue;
+   const corner=await attached.evaluate(panel=>{
+    const entry=panel.querySelector(':scope > .page-panel-options-entry'),surface=panel.querySelector(':scope > .card,:scope > .home-hero,:scope > .page-arrange-content-preview > .card');
+    if(!entry||!surface)return null;
+    const e=entry.getBoundingClientRect(),s=surface.getBoundingClientRect();return {position:getComputedStyle(entry).position,top:e.top-s.top,right:s.right-e.right,bottom:e.bottom-s.bottom};
+   });
+   assert.ok(corner,'Panel options must belong to the visible platter: '+id);
+   assert.equal(corner.position,'absolute');assert.ok(corner.top>=0&&corner.top<=12&&corner.right>=0&&corner.right<=12&&corner.bottom<=0,JSON.stringify(corner));
+  }
   const heading=page.locator('[data-page-field="home.feedTitle"]');
   await heading.scrollIntoViewIfNeeded();const before=await snapshot(heading);
   await heading.getByRole('button',{name:'Edit Feed heading',exact:true}).click();

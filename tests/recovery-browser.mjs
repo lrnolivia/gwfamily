@@ -23,7 +23,7 @@ async function openComments(page,postId){
 
 try{
  const returning=await pageFor();let releaseConfig;const configGate=new Promise(resolve=>{releaseConfig=resolve});
- await returning.route('**/api/config',async route=>{await configGate;await route.fulfill({contentType:'application/json',body:JSON.stringify({configured:true,email:true,providers:[],origin:url})})});
+ await returning.route('**/api/config',async route=>{await configGate;await route.fulfill({contentType:'application/json',body:JSON.stringify({configured:true,email:true,providers:['google','microsoft','yahoo'],origin:url})})});
  await returning.route('**/api/session',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({signedIn:false,configured:true})}));
  try{
   // This scenario intentionally returns to the live sign-in path. Saved preview
@@ -39,6 +39,16 @@ try{
   releaseConfig();await returning.getByRole('button',{name:'Email me a code',exact:true}).waitFor();await expect(loading).toHaveCount(0);await expect(returning.locator('.onboard')).toBeVisible();
   const emailPaint=await returning.locator('.email-field-label').evaluate(label=>{const icon=label.querySelector('.glyph'),r=label.getBoundingClientRect(),g=icon.getBoundingClientRect(),s=getComputedStyle(label);return {centerDelta:Math.abs(g.y+g.height/2-r.y-r.height/2),gap:parseFloat(s.columnGap),iconWidth:g.width,fontSize:parseFloat(s.fontSize)}});
   assert.ok(emailPaint.centerDelta<=1,'email glyph is vertically centered beside the label');assert.ok(emailPaint.gap>=4,'email glyph has a visible gap before the label');assert.ok(Math.abs(emailPaint.iconWidth-emailPaint.fontSize)<=1,'email glyph scales to the label text');
+  for(const width of [320,390,768])for(const theme of ['light','dark']){
+   await returning.setViewportSize({width,height:844});await returning.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
+   await expect(returning.locator('.gw-provider-button')).toHaveCount(3);
+   const geometry=await returning.locator('.gw-provider-button').evaluateAll(buttons=>buttons.map(button=>{const r=button.getBoundingClientRect(),art=button.querySelector('.gw-provider-mark>img,.gw-provider-mark>svg'),a=art.getBoundingClientRect(),label=button.querySelector('.gw-provider-label').getBoundingClientRect(),mark=button.querySelector('.gw-provider-mark').getBoundingClientRect();return {width:r.width,height:r.height,left:r.left,right:r.right,top:r.top,bottom:r.bottom,artWidth:a.width,artHeight:a.height,naturalWidth:art.naturalWidth||24,naturalHeight:art.naturalHeight||24,surface:getComputedStyle(button).backgroundColor,labelLeft:label.left,labelRight:label.right,labelTop:label.top,labelBottom:label.bottom,markRight:mark.right}}));
+   assert.ok(geometry.every(r=>Math.abs(r.width-geometry[0].width)<=1&&r.height===56&&Math.abs(r.left-geometry[0].left)<=1),'all provider surfaces share size and alignment');
+   assert.ok(geometry.every(r=>r.left>=0&&r.right<=width&&r.surface!=='rgba(0, 0, 0, 0)'),'provider surfaces remain visible within the viewport');
+   assert.ok(geometry.every(r=>r.naturalWidth>0&&Math.abs(r.artWidth/r.artHeight-r.naturalWidth/r.naturalHeight)<.03),'provider lettering and logos retain original proportions');
+   assert.ok(geometry.every(r=>r.markRight<r.labelLeft&&r.labelRight<=r.right&&r.labelTop>=r.top&&r.labelBottom<=r.bottom),'native labels and logos do not overlap or leave their surfaces');
+   await returning.screenshot({path:`docs/recovery-qa/sign-in-providers-${width}-${theme}.png`,fullPage:true});
+  }
   await returning.screenshot({path:'docs/recovery-qa/sign-in-email-label.png',fullPage:true});
   results.push('quiet loading stays separate from welcome and returning preview state never flashes while live session loads');
  }finally{releaseConfig();await returning.close()}

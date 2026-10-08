@@ -1,27 +1,9 @@
-# Official provider sign-in buttons
+# Native provider sign-in buttons
 
-Verified against the providers’ public documentation on 2026-10-06. The six shipped assets are original complete buttons. Their typography, logo, spacing, background, border, and proportions are preserved. Provenance and SHA-256 digests are in `provider-branding-assets.json`.
+Lauren authorized native buttons with the app’s interface typeface on 2026-10-08. Google, Microsoft and Yahoo now share a responsive 320px maximum width, 56px height, centered logo/label group and consistent spacing. The supplied logos retain their proportions and colors. Authentication, enabled-provider flags and account handling are unchanged.
 
-## Google
+Google’s current gradient G is the original PNG from https://developers.google.com/static/identity/images/g-logo.png, embedded with a SHA-256 identity in `src/official-sign-in-brand.mjs`. Microsoft’s four-color symbol uses the exact rectangles from the original SVG documented in `provider-branding-assets.json`. Yahoo’s supplied white Y mark is displayed through a logo-sized viewport into its original purple button PNG, without changing the stored bytes.
 
-Source: https://developers.google.com/identity/branding-guidelines
+The original complete-button artwork remains retained with its hashes and upstream provenance. Native labels use the existing interface typeface as explicitly requested by Lauren; they do not claim to be the providers’ complete pre-approved button artwork. Google and Microsoft surfaces respect the explicit app theme; Yahoo retains its purple surface. Keyboard focus, forced-color text, accessible names and disabled/busy handling remain native. No external image or font request occurs at sign-in time, and no authentication SDK was added.
 
-The current guide was updated 2026-07-07 and supplies the gradient G, Google Sans, and light/dark buttons. This implementation uses the original Android/Web rectangular 4× PNGs from Google’s archive. The current SVG export contains a `foreignObject` conic gradient, so the supplied PNG avoids relying on SVG HTML rendering. The archive’s SVG originals are retained only as provenance, not deployed. No substitute font or logo is drawn.
-
-## Microsoft
-
-Source: https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-branding-in-apps
-
-The complete light and dark SVGs are downloaded directly from the official article. Text is outlined in the supplied artwork, so it retains its original appearance without loading Segoe UI or another font. Both buttons preserve Microsoft’s symbol and full sign-in wording. The component does not imply that work/school or personal account types are supported beyond the actual authentication configuration.
-
-## Yahoo
-
-Source: https://developer.yahoo.com/sign-in-with-yahoo/
-
-The official rectangular archive supplies PNGs only. Both original full-color light and purple dark buttons are included. The Yahoo Sans Semibold lettering and the supplied mark remain unchanged. Yahoo asks developers to use its provided artwork, preserve proportions, and give its button similar prominence to other providers. The Y-shaped artwork here comes from that original complete button; it is not a recreated standalone logo.
-
-## Integration and accessibility
-
-Only the sign-in providers advertised by the existing capability layer are mapped. Branding availability is not an authentication capability. Native buttons keep full accessible labels and do not submit the email-code form. All buttons share a 252px-wide frame and at least a 56px interaction height. The image aspect ratio remains unchanged. Disabled/busy controls suppress activation and show a separate waiting label; the artwork itself is not faded, recolored, cropped, or distorted. High-contrast mode provides system-color text controls. Theme selection respects the app’s explicit light/dark setting, with system preference only when no app setting is present.
-
-Assets use content-hashed same-origin paths under `dist/brand/sign-in/`. Rendering does not fetch third-party images or fonts and does not load any new authentication SDK. Trademarks remain the property of their respective providers.
+Brand sources: https://developers.google.com/identity/branding-guidelines, https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-branding-in-apps, https://developer.yahoo.com/sign-in-with-yahoo/. Trademarks belong to their providers.
