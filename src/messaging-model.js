@@ -41,7 +41,7 @@ export function conversationIndexReads(){
  return {cancel,run(key,request,success,failure){
   if(active?.key===key)return active.promise;
   cancel();const epoch=generation,controller=new AbortController(),entry={key,controller,promise:null};active=entry;
-  entry.promise=Promise.resolve().then(()=>request(controller.signal)).then(value=>{if(active===entry&&generation===epoch)success(value)},error=>{if(active===entry&&generation===epoch&&!controller.signal.aborted)failure(error)}).finally(()=>{if(active===entry)active=null});
+  entry.promise=Promise.resolve().then(()=>{if(active!==entry||generation!==epoch||controller.signal.aborted)return;return request(controller.signal)}).then(value=>{if(active===entry&&generation===epoch)success(value)},error=>{if(active===entry&&generation===epoch&&!controller.signal.aborted)failure(error)}).finally(()=>{if(active===entry)active=null});
   return entry.promise;
  }};
 }

@@ -7,6 +7,8 @@ import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {contextualTourSteps,tourProgressKey} from '../src/contextual-tour-model.js';
 import {installGuideAssets} from '../src/install-guide-assets.js';
+const approved=JSON.parse(await readFile(new URL('../docs/install-guide/approved-v2/manifest.json',import.meta.url),'utf8'));
+const APPROVED_ASSET_ALLOWLIST=Object.freeze([...approved.screens,...approved.inlineControls].map(item=>'approved-v2/'+item.file));
 
 if(!process.env.CI&&process.env.GW_HOSTED_BROWSER_QA!=='1')throw new Error('Help browser QA runs only in the authorized hosted CI environment.');
 const root=fileURLToPath(new URL('../',import.meta.url));
@@ -20,11 +22,9 @@ const ASSET_ALLOWLIST=Object.freeze([
  'desktop-chrome-install-menu.svg','desktop-chrome-confirm.svg',
  'windows-chrome-apps-open.svg','chromeos-launcher-open.svg','windows-edge-install-menu.svg'
 ]);
-const INLINE_ASSET_ALLOWLIST=['ios-add-light.svg','ios-add-dark.svg','android-install-light.svg','android-install-dark.svg'];
-const MOBILE_ASSET_ALLOWLIST=Object.freeze(["ios-1-light.png", "ios-2-light.png", "ios-3-light.png", "ios-1-dark.png", "ios-2-dark.png", "ios-3-dark.png", "android-1-light.png", "android-2-light.png", "android-3-light.png", "android-1-dark.png", "android-2-dark.png", "android-3-dark.png"]);
 const HOSTED_PLAN=Object.freeze([
  'narrow and roomy viewports','Glass and Flat materials','light and dark themes',
- 'fullpage install Back','glyph-led OS and Safari tabs','all sixteen SVGs load',
+ 'fullpage install Back','glyph-led OS tabs and automatic native-device selection','all sixteen SVGs load',
  'seven visible native anchors','Next Back Skip Finish and replay',
  'keyboard focus wrapping and arrow shortcuts','200 percent text zoom',
  'protected native-dialog interruption','readonly route interruption',
@@ -47,8 +47,8 @@ function Fixture(){
  const replaceRoute=next=>{const value=safeRoute(next);audit.current.routeReplacements.push(value);setRoute(value);if(value.type==='family')setFamilyTab(value.tab||'people')};
  const goBack=()=>{setSheet(null);setRoute(history.current.pop()||{type:'home'})};
  const activate=(name,callback)=>{audit.current.nativeActivations.push(name);callback()};
- const [guideTheme,setGuideTheme]=useState('dark');
- const setTheme=(theme,color='#627bf0')=>{setGuideTheme(theme);document.documentElement.dataset.theme=theme;for(const [key,value] of Object.entries(profilePalette(color,theme)))document.documentElement.style.setProperty(key,value)};
+ const [guideTheme,setGuideTheme]=useState('dark'),[guideColor,setGuideColor]=useState(null);
+ const setTheme=(theme,color=null)=>{setGuideTheme(theme);setGuideColor(color);document.documentElement.dataset.theme=theme;for(const [key,value] of Object.entries(profilePalette(color,theme)))document.documentElement.style.setProperty(key,value)};
  useEffect(()=>{setTheme('dark')},[]);
  useEffect(()=>{
   window.fixture={
@@ -59,8 +59,8 @@ function Fixture(){
    mockInstallPrompt:mode=>{if(!['dismissed','failure'].includes(mode))throw Error('Only mock dismissed/failure outcomes are allowed');const event=new Event('beforeinstallprompt',{cancelable:true});event.fixtureMockOnly=true;event.prompt=async()=>{audit.current.mockPromptCalls++;if(mode==='failure')throw Error('Synthetic mock prompt failure')};event.userChoice=Promise.resolve({outcome:'dismissed'});window.dispatchEvent(event)},
    snapshot:()=>({route:{...route},account,pending,draft:drafts[account],...audit.current})
   };
- },[route,account,platform,pending,sheet,drafts,guideTheme]);
- const app={platform,theme:guideTheme,state:{mode:'live',selfId:account},route,data:{pending},messaging:{synthetic:true},notifications:{synthetic:true},openSheet:setSheet,go,replaceRoute,goBack};
+ },[route,account,platform,pending,sheet,drafts,guideTheme,guideColor]);
+ const app={platform,theme:guideTheme,installAccentColor:guideColor,state:{mode:'live',selfId:account},route,data:{pending},messaging:{synthetic:true},notifications:{synthetic:true},openSheet:setSheet,go,replaceRoute,goBack};
  const closeSheet=()=>{if(sheet==='interruption')audit.current.interruptionClosed++;setSheet(null)};
  const draft=drafts[account]||'';
  return <AppContext.Provider value={app}>{platform==='ios'&&<GlassSystem/>}<TutorialProvider>
@@ -109,7 +109,10 @@ try{
  for(const width of [320,1280])for(const material of ['ios','android'])for(const theme of ['light','dark']){
   const caseLabel=width+'-'+material+'-'+theme;
   phase='fixture bootstrap '+caseLabel;
-  const context=await browser.newContext({viewport:{width,height:900},reducedMotion:'reduce',serviceWorkers:'block',permissions:[],acceptDownloads:false});
+  const context=await browser.newContext({userAgent:material==='ios'?(width===320?'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X)':'Mozilla/5.0 (Macintosh; Intel Mac OS X)'):(width===320?'Mozilla/5.0 (Linux; Android 16; Pixel) Mobile':'Mozilla/5.0 (Linux; Android 16; Pixel Tablet)'),viewport:{width,height:900},reducedMotion:'reduce',serviceWorkers:'block',permissions:[],acceptDownloads:false});
+  // Playwright UA strings do not replace Chromium UA Client Hints; keep synthetic identity consistent.
+  if(material==='android')await context.addInitScript(mobile=>Object.defineProperty(navigator,'userAgentData',{get:()=>({mobile,platform:'Android'})}),width===320);
+  if(material==='ios'&&width===1280)await context.addInitScript(()=>{Object.defineProperty(navigator,'platform',{get:()=> 'MacIntel'});Object.defineProperty(navigator,'maxTouchPoints',{get:()=>5})});
   const page=await context.newPage();lastPage=page;page.setDefaultTimeout(12000);
   // Capture failures before navigation or any locator wait.
   page.on('pageerror',error=>{if(errors.length<40)errors.push({phase,message:error.message,stack:String(error.stack||'').slice(0,2500)})});
@@ -121,7 +124,7 @@ try{
    if(request.method()!=='GET'){writes.push({phase,method:request.method(),url:request.url()});return route.abort()}
    if(request.url()===FIXTURE_URL)return route.fulfill({contentType:'text/html',body:html});
    if(url.origin===new URL(FIXTURE_URL).origin&&url.pathname==='/__review/help/tree-artwork.png')return route.fulfill({contentType:'image/png',body:await readFile(root+'dist/tree-artwork.png')});
-   const asset=[...ASSET_ALLOWLIST,...MOBILE_ASSET_ALLOWLIST,...INLINE_ASSET_ALLOWLIST].find(file=>url.origin===new URL(FIXTURE_URL).origin&&url.pathname==='/__review/help/install-guide/'+file);
+   const asset=[...ASSET_ALLOWLIST,...APPROVED_ASSET_ALLOWLIST].find(file=>url.origin===new URL(FIXTURE_URL).origin&&url.pathname==='/__review/help/install-guide/'+file);
    if(asset){assetLoads.add(asset);return route.fulfill({contentType:asset.endsWith('.png')?'image/png':'image/svg+xml',body:await readFile(root+'dist/install-guide/'+asset)})}
    if(url.origin===new URL(FIXTURE_URL).origin&&url.pathname==='/favicon.ico')return route.fulfill({status:204,body:''});
    deniedRequests.push({phase,url:request.url()});return route.abort();
@@ -148,25 +151,30 @@ try{
    await assertNoOverflow(page,name);
   }
   await chooseTab(osTabs.getByRole('tab',{name:'iPhone / iPad',exact:true}),expect);
+  await osTabs.getByRole('tab',{name:'iPhone / iPad',exact:true}).focus();
+  await page.keyboard.press('End');await expect(osTabs.getByRole('tab',{name:'Android',exact:true})).toHaveAttribute('aria-selected','true');
+  await page.keyboard.press('Home');await expect(osTabs.getByRole('tab',{name:'iPhone / iPad',exact:true})).toHaveAttribute('aria-selected','true');
   await expect(page.locator('.install-steps')).toContainText('Page Menu');
   await expect(page.locator('.install-steps')).toContainText('if that switch appears');
-  if(width>700){
-  const safariTabs=page.getByRole('tablist',{name:'Safari example',exact:true});
-  for(const [name,id] of [['iPhone: Compact','ios-safari-compact'],['iPhone: Top / Bottom','ios-safari-direct-share'],['iPad','ipados-safari-share']]){
-   await chooseTab(safariTabs.getByRole('tab',{name,exact:true}),expect);
-   const image=page.locator('[data-asset-id="'+id+'"] img');await expect(image).toBeVisible();
-   await expect.poll(()=>image.evaluate(img=>img.complete&&img.naturalWidth>0)).toBe(true);
+  await expect(page.getByRole('tablist',{name:'Safari example',exact:true})).toHaveCount(0);
+  const image=page.locator('.install-mobile-visual img').first();
+  const device=width===320?'ios':'ipad';await expect(image).toHaveAttribute('src','install-guide/approved-v2/screens/default-'+device+'-'+theme+'-1.png');
+  const ratio=await image.evaluate(img=>({natural:img.naturalWidth/img.naturalHeight,rendered:img.getBoundingClientRect().width/img.getBoundingClientRect().height}));assert.ok(Math.abs(ratio.natural-ratio.rendered)<.01,'Approved mobile illustration keeps its intrinsic proportions');
+  // All designated artwork and inline controls must update without remounting the guide.
+  for(const [accent,color] of [['default',null],['red','#e64f59'],['orange','#ff7a00'],['yellow','#ec9d00'],['green','#387b51'],['blue','#3985e6'],['violet','#a267d5'],['coral-pink','#ff6685'],['stone','#8a8178']])for(const mode of ['light','dark']){
+   await page.evaluate(({mode,color})=>window.fixture.theme(mode,color),{mode,color});
+   for(const [label,os] of [['iPhone / iPad',width===320?'ios':'ipad'],['Android',width===320?'android':'androidTablet']]){
+    await chooseTab(osTabs.getByRole('tab',{name:label,exact:true}),expect);
+    const images=page.locator('.install-mobile-visual img');await expect(images).toHaveCount(3);
+    for(let step=0;step<3;step++)await expect(images.nth(step)).toHaveAttribute('src','install-guide/approved-v2/screens/'+accent+'-'+os+'-'+mode+'-'+(step+1)+'.png');
+    await expect.poll(()=>images.evaluateAll(images=>images.every(img=>img.complete&&img.naturalWidth>0))).toBe(true);
+    const control=page.locator('.install-inline-control img');await expect(control).toHaveAttribute('src','install-guide/approved-v2/inline-controls/'+(os==='ios'||os==='ipad'?'ios-add':'android-install-'+accent)+'-'+mode+'.svg');
+    await assertNoOverflow(page,'approved '+os+' '+accent+' '+mode);
+   }
   }
-  // The recovered ViewSwitcher owns tab semantics and native arrow/Home/End keys.
-  await safariTabs.getByRole('tab',{name:'iPhone: Compact',exact:true}).focus();
-  await page.keyboard.press('ArrowRight');await expect(safariTabs.getByRole('tab',{name:'iPhone: Top / Bottom',exact:true})).toHaveAttribute('aria-selected','true');
-  await page.keyboard.press('End');await expect(safariTabs.getByRole('tab',{name:'iPad',exact:true})).toBeFocused();
-  await page.keyboard.press('Home');await expect(safariTabs.getByRole('tab',{name:'iPhone: Compact',exact:true})).toHaveAttribute('aria-selected','true');
-  }else{
-   await expect(page.getByRole('tablist',{name:'Safari example',exact:true})).toHaveCount(0);
-   const image=page.locator('.install-mobile-visual img').first();await expect(image).toHaveAttribute('src','install-guide/ios-1-'+theme+'.png');
-   const ratio=await image.evaluate(img=>({natural:img.naturalWidth/img.naturalHeight,rendered:img.getBoundingClientRect().width/img.getBoundingClientRect().height}));assert.ok(Math.abs(ratio.natural-ratio.rendered)<.01,'Approved mobile illustration keeps its intrinsic proportions');
-  }
+  await page.evaluate(theme=>window.fixture.theme(theme),theme);
+  await chooseTab(osTabs.getByRole('tab',{name:'iPhone / iPad',exact:true}),expect);
+  await page.evaluate(()=>window.fixture.textZoom(200));await assertNoOverflow(page,'200 percent install text');await page.evaluate(()=>window.fixture.textZoom(100));
   await expect(page.getByText('Mock install prompt only; no device installation or notification delivery is performed.',{exact:false})).toBeVisible();
   await page.evaluate(()=>window.fixture.mockInstallPrompt('dismissed'));
   await page.getByRole('button',{name:'Install Green & White',exact:true}).click();
@@ -268,13 +276,18 @@ try{
   assert.ok(snapshot.routeReplacements.every(route=>!route.id&&!route.section&&['home','reunion','family','you','tutorial'].includes(route.type)),'Tour replaces public routes only');
   assert.equal(snapshot.draft,SYNTHETIC_DRAFT+' after interruption');
   await assertNoOverflow(page,'final state');
-  results.push({width,material,theme,result:'passed',steps:7,textZoomPercent:200,accounts:['fixture-a','fixture-b'],installation:'mock-only; not performed',notificationDelivery:false});
+  results.push({width,material,theme,nativeIdentity:await page.evaluate(()=>({userAgent:navigator.userAgent,platform:navigator.platform,maxTouchPoints:navigator.maxTouchPoints,userAgentDataMobile:navigator.userAgentData?.mobile??null})),result:'passed',steps:7,textZoomPercent:200,accounts:['fixture-a','fixture-b'],installation:'mock-only; not performed',notificationDelivery:false});
   // Desktop guides are retained assets, but the product guide now offers only
   // iOS and Android phones/tablets. Verify retained bytes without adding tabs.
   if(results.length===1)for(const file of ASSET_ALLOWLIST){const svg=await page.evaluate(async file=>{const response=await fetch('/__review/help/install-guide/'+file);if(!response.ok)throw Error('Retained guide asset failed: '+file);return response.text()},file);assert.match(svg,/<svg[ >]/);}
   await context.close();
  }
- assert.deepEqual([...assetLoads].sort(),[...ASSET_ALLOWLIST,...MOBILE_ASSET_ALLOWLIST,...INLINE_ASSET_ALLOWLIST].sort(),'Every allowlisted SVG was actually requested');
+ assert.deepEqual([...assetLoads].sort(),[...ASSET_ALLOWLIST,...APPROVED_ASSET_ALLOWLIST].sort(),'Every allowlisted SVG was actually requested');
+ // Desktop identities never expose the illustrated install guide, even at narrow widths.
+ const desktop=await browser.newContext({userAgent:'Mozilla/5.0 (Macintosh; Intel Mac OS X)',viewport:{width:320,height:900},serviceWorkers:'block',permissions:[]});
+ const desktopPage=await desktop.newPage();await desktopPage.route('**/*',route=>route.request().url()===FIXTURE_URL?route.fulfill({contentType:'text/html',body:html}):route.fulfill({status:204,body:''}));
+ await desktopPage.goto(FIXTURE_URL);await desktopPage.getByRole('button',{name:'Install help',exact:true}).click();await expect(desktopPage.locator('.install-guide')).toHaveCount(0);await desktop.close();
+ for(const file of APPROVED_ASSET_ALLOWLIST)assert.ok(assetLoads.has(file),'Every approved image/control was actually requested: '+file);
  assert.deepEqual(errors,[],'No browser runtime errors');assert.deepEqual(consoleErrors,[],'No browser console errors');
  assert.deepEqual(writes,[],'No fixture network writes');assert.deepEqual(deniedRequests,[],'No requests outside the exact synthetic asset allowlist');
  assert.deepEqual(failedRequests,[],'No fixture asset-load failures');
@@ -290,7 +303,7 @@ try{
    const v=window.visualViewport;
    return {step:step||null,viewport:{width:v?.width??innerWidth,height:v?.height??innerHeight,left:v?.offsetLeft??0,top:v?.offsetTop??0},target:numericRect(targetName?document.querySelector('[data-gw-tour="'+targetName+'"]'):null),coach:numericRect(document.querySelector('.tour-coach')),spotlight:numericRect(document.querySelector('.tour-spotlight')),state:tour?.dataset.tourGeometry||null,stableFrames:Number(tour?.dataset.tourStableFrames)||0,nextDisabled:document.querySelector('.tour-next')?.disabled??null};
   }).catch(e=>({error:e.message})),2500);
-  diagnostics.dom=await bounded(lastPage.evaluate(()=>({url:location.href,readyState:document.readyState,title:document.title,rootChildren:document.getElementById('root')?.childElementCount,bodyText:document.body.innerText.slice(0,4000),tourStep:document.querySelector('.contextual-tour')?.dataset.tourStep,dialogs:[...document.querySelectorAll('dialog')].map(el=>({open:el.open,label:el.getAttribute('aria-labelledby')})),buttons:[...document.querySelectorAll('button')].slice(0,40).map(el=>({text:el.textContent.slice(0,100),label:el.getAttribute('aria-label'),disabled:el.disabled}))})).catch(e=>({error:e.message})),2500);
+  diagnostics.dom=await bounded(lastPage.evaluate(()=>({url:location.href,readyState:document.readyState,title:document.title,navigator:{userAgent:navigator.userAgent,platform:navigator.platform,maxTouchPoints:navigator.maxTouchPoints,userAgentDataMobile:navigator.userAgentData?.mobile??null},rootChildren:document.getElementById('root')?.childElementCount,bodyText:document.body.innerText.slice(0,4000),tourStep:document.querySelector('.contextual-tour')?.dataset.tourStep,dialogs:[...document.querySelectorAll('dialog')].map(el=>({open:el.open,label:el.getAttribute('aria-labelledby')})),buttons:[...document.querySelectorAll('button')].slice(0,40).map(el=>({text:el.textContent.slice(0,100),label:el.getAttribute('aria-label'),disabled:el.disabled}))})).catch(e=>({error:e.message})),2500);
   await lastPage.screenshot({path:output+'/'+(process.env.GW_BROWSER||'chromium')+'-failure.png',fullPage:true,timeout:4000}).catch(()=>{});
  }
  await writeFile(output+'/'+(process.env.GW_BROWSER||'chromium')+'-failure.json',JSON.stringify(diagnostics,null,2));

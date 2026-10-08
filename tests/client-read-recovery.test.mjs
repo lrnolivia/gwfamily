@@ -17,7 +17,7 @@ test('conversation polls coalesce per account and late success or failure cannot
  const a=reads.run('a',()=>{requests++;return old.promise},value=>events.push(value),error=>events.push(error.message));
  assert.equal(reads.run('a',()=>{throw Error('Duplicate request')},()=>{},()=>{}),a);await Promise.resolve();assert.equal(requests,1);
  const b=reads.run('b',()=>next.promise,value=>events.push(value),error=>events.push(error.message));next.resolve('new account');await b;old.resolve('old account');await a;assert.deepEqual(events,['new account']);
- const failure=deferred(),c=reads.run('b',()=>failure.promise,value=>events.push(value),error=>events.push(error.message));reads.cancel();failure.reject(Error('obsolete error'));await c;assert.deepEqual(events,['new account']);
+ const failure=deferred(),c=reads.run('b',()=>failure.promise,value=>events.push(value),error=>events.push(error.message));await Promise.resolve();reads.cancel();failure.reject(Error('obsolete error'));await c;assert.deepEqual(events,['new account']);
 });
 test('slow same-account polls complete once and can refresh again after completion',async()=>{
  const reads=conversationIndexReads(),slow=deferred(),events=[];
