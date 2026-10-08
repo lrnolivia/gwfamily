@@ -111,7 +111,7 @@ try{
  // soft shadow as proof of WCAG text contrast on the bright fill.
  for(const theme of ['light','dark'])for(const platform of ['ios','android']){
   const p=await pageFor(390,theme,platform);
-  await p.evaluate(key=>{const preview=JSON.parse(localStorage.getItem(key));preview.state.members.find(member=>member.id===preview.state.selfId).profileColor='#ec9d00';localStorage.setItem(key,JSON.stringify(preview));localStorage.setItem('gw-interface-accent:v1',JSON.stringify({mode:'profile',color:'#ec9d00'}))},PREVIEW_KEY);await p.reload({waitUntil:'domcontentloaded'});
+  await p.evaluate(()=>localStorage.setItem('gw-interface-accent:v1',JSON.stringify({mode:'custom',color:'#ec9d00'})));await p.reload({waitUntil:'domcontentloaded'});
   await p.getByRole('button',{name:'Profile and appearance'}).click();
   const action=p.getByRole('button',{name:'Go to You',exact:true});await expect(action).toBeVisible();
   const paint=await action.evaluate(e=>{const s=getComputedStyle(e),r=e.getBoundingClientRect();return {background:s.backgroundColor,color:s.color,shadow:s.textShadow,width:r.width,height:r.height}});

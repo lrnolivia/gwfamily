@@ -234,3 +234,6 @@ html[data-theme] .poll .poll-choice>.poll-indicator.selected{background:color-mi
 
 .planning-status.planning-status{--plan-complete-bg:color-mix(in srgb,var(--status-success) 16%,var(--surface));--plan-complete-text:var(--status-success);--plan-pending-bg:color-mix(in srgb,var(--status-caution) 16%,var(--surface));--plan-pending-text:var(--status-caution)}
 .received-reactions .reaction-pill{display:inline-flex;align-items:center;justify-content:center;font-size:12px;line-height:1;padding:0 8px}
+
+/* Font previews keep their raised surface when selected, so use theme text. */
+html[data-theme][data-platform] .heading-font-option[aria-pressed=true]{color:var(--text)!important;text-shadow:none}
