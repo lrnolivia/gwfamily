@@ -382,10 +382,11 @@ async function closeEditorPanel(page, name) {
   await expect(panel).toHaveCount(0);
   await expect(page.getByRole('dialog')).toHaveCount(0);
 }
-async function inlineEditorFits(page, panel) {
+async function editorPanelFits(page, panel) {
   await expect(panel).toBeVisible();
-  assert.equal(await panel.evaluate(element => !!element.closest('main') && !element.closest('dialog')), true,
-    'Media and history are ordinary inline page editors.');
+  const surface=await panel.evaluate(element=>({media:element.getAttribute('aria-label')==='Page media',inMain:!!element.closest('main'),tools:!!element.closest('dialog.page-object-tools'),modal:element.closest('dialog')?.matches(':modal')||false}));
+  if(surface.media){assert.equal(surface.inMain,false,'Media edits stay outside the canvas.');assert.equal(surface.tools,true,'Media uses the shared object-tools surface.');assert.equal(surface.modal,true,'The image task protects its unsaved media draft.')}
+  else assert.equal(surface.inMain&&!surface.tools,true,'History retains its ordinary inline page surface.');
   const geometry = await panel.evaluate(element => ({box: element.getBoundingClientRect().toJSON(), width: innerWidth}));
   assert.ok(geometry.box.width > 0 && geometry.box.left >= -1 && geometry.box.right <= geometry.width + 1,
     'The inline editor fits the reading width: ' + JSON.stringify(geometry));
@@ -944,7 +945,7 @@ try {
       await noClip(otherOwner);
       await field(otherOwner, 'family.heading').getByRole('button', {name: 'Finish editing Page heading', exact: true}).click();
       const dialog = await mediaPanel(otherOwner, 'family');
-      await inlineEditorFits(otherOwner, dialog);
+      await editorPanelFits(otherOwner, dialog);
       for (const label of ['Photo', 'Gallery', 'Video']) {
         await dialog.getByRole('button', {name: label, exact: true}).scrollIntoViewIfNeeded();
         await expect(dialog.getByRole('button', {name: label, exact: true})).toBeInViewport({ratio: 1});
@@ -953,20 +954,20 @@ try {
         await dialog.getByRole('button', {name: label, exact: true}).click();
         await expect(dialog.getByRole('button', {name: label, exact: true})).toHaveAttribute('aria-pressed', 'true');
         await noClip(otherOwner);
-        await inlineEditorFits(otherOwner, dialog);
+        await editorPanelFits(otherOwner, dialog);
       }
       if (viewport.height < 500) {
         await dialog.getByRole('button', {name: 'Gallery', exact: true}).click();
         await uploadPageMedia(otherOwner, dialog, dialog.getByLabel('Choose page photos', {exact: true}), [uploadPhoto('synthetic-landscape-first.png'), uploadPhoto('synthetic-landscape-second.png')]);
         await expect(dialog.locator('.page-media-files > li')).toHaveCount(2);
-        await inlineEditorFits(otherOwner, dialog);
+        await editorPanelFits(otherOwner, dialog);
         assert.ok(await otherOwner.locator('.page-object-tools').evaluate(element => element.scrollHeight > element.clientHeight),
           'A short landscape viewport scrolls the protected media task.');
         await dialog.getByRole('button', {name: 'Use original media', exact: true}).click();
         await expect(dialog.locator('.page-media-files > li')).toHaveCount(0);
         await dialog.getByRole('button', {name: 'Apply media', exact: true}).scrollIntoViewIfNeeded();
         await expect(dialog.getByRole('button', {name: 'Apply media', exact: true})).toBeInViewport({ratio: 1});
-        await inlineEditorFits(otherOwner, dialog);
+        await editorPanelFits(otherOwner, dialog);
       }
       await otherOwner.screenshot({path: `${output}/media-panel-${viewport.width}x${viewport.height}-${engineName}.png`});
       await closeEditorPanel(otherOwner, 'Page media');
@@ -975,7 +976,7 @@ try {
       await expect(historyPanel).toBeVisible();
       await expect(otherOwner.getByRole('dialog')).toHaveCount(0);
       await noClip(otherOwner);
-      await inlineEditorFits(otherOwner, historyPanel);
+      await editorPanelFits(otherOwner, historyPanel);
       const history = historyPanel.getByRole('combobox', {name: 'History for', exact: true});
       for (const key of ['family', 'people', 'memories', 'tree', 'global']) {
         const label = SHARED_PAGE_SCHEMA[key].label + (key === 'global' ? '' : ' page');
