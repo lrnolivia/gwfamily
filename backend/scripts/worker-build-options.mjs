@@ -5,6 +5,9 @@ import {builtinModules} from 'node:module';
 const builtins=new Set(builtinModules.filter(name=>!name.startsWith('node:')));
 export function workerBuildOptions(){return {
  entryPoints:['src/worker.mjs'],bundle:true,format:'esm',platform:'browser',
+ // Select native request-local AsyncLocalStorage for the actual Worker runtime.
+ // Better Auth's browser fallback shares request state across concurrent calls.
+ conditions:['workerd'],
  external:['node:*'],
  plugins:[{name:'workers-node-builtins',setup(context){context.onResolve({filter:/^[^./]/},args=>builtins.has(args.path)?{path:'node:'+args.path,external:true}:null)}}],
  // The default workerd registry has no import.meta.url. Only node: built-ins

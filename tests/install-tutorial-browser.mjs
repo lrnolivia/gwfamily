@@ -20,6 +20,8 @@ const ASSET_ALLOWLIST=Object.freeze([
  'desktop-chrome-install-menu.svg','desktop-chrome-confirm.svg',
  'windows-chrome-apps-open.svg','chromeos-launcher-open.svg','windows-edge-install-menu.svg'
 ]);
+const INLINE_ASSET_ALLOWLIST=['ios-add-light.svg','ios-add-dark.svg','android-install-light.svg','android-install-dark.svg'];
+const MOBILE_ASSET_ALLOWLIST=Object.freeze(["ios-1-light.png", "ios-2-light.png", "ios-3-light.png", "ios-1-dark.png", "ios-2-dark.png", "ios-3-dark.png", "android-1-light.png", "android-2-light.png", "android-3-light.png", "android-1-dark.png", "android-2-dark.png", "android-3-dark.png"]);
 const HOSTED_PLAN=Object.freeze([
  'narrow and roomy viewports','Glass and Flat materials','light and dark themes',
  'fullpage install Back','glyph-led OS and Safari tabs','all sixteen SVGs load',
@@ -45,7 +47,8 @@ function Fixture(){
  const replaceRoute=next=>{const value=safeRoute(next);audit.current.routeReplacements.push(value);setRoute(value);if(value.type==='family')setFamilyTab(value.tab||'people')};
  const goBack=()=>{setSheet(null);setRoute(history.current.pop()||{type:'home'})};
  const activate=(name,callback)=>{audit.current.nativeActivations.push(name);callback()};
- const setTheme=(theme,color='#627bf0')=>{document.documentElement.dataset.theme=theme;for(const [key,value] of Object.entries(profilePalette(color,theme)))document.documentElement.style.setProperty(key,value)};
+ const [guideTheme,setGuideTheme]=useState('dark');
+ const setTheme=(theme,color='#627bf0')=>{setGuideTheme(theme);document.documentElement.dataset.theme=theme;for(const [key,value] of Object.entries(profilePalette(color,theme)))document.documentElement.style.setProperty(key,value)};
  useEffect(()=>{setTheme('dark')},[]);
  useEffect(()=>{
   window.fixture={
@@ -56,8 +59,8 @@ function Fixture(){
    mockInstallPrompt:mode=>{if(!['dismissed','failure'].includes(mode))throw Error('Only mock dismissed/failure outcomes are allowed');const event=new Event('beforeinstallprompt',{cancelable:true});event.fixtureMockOnly=true;event.prompt=async()=>{audit.current.mockPromptCalls++;if(mode==='failure')throw Error('Synthetic mock prompt failure')};event.userChoice=Promise.resolve({outcome:'dismissed'});window.dispatchEvent(event)},
    snapshot:()=>({route:{...route},account,pending,draft:drafts[account],...audit.current})
   };
- },[route,account,platform,pending,sheet,drafts]);
- const app={platform,state:{mode:'live',selfId:account},route,data:{pending},messaging:{synthetic:true},notifications:{synthetic:true},openSheet:setSheet,go,replaceRoute,goBack};
+ },[route,account,platform,pending,sheet,drafts,guideTheme]);
+ const app={platform,theme:guideTheme,state:{mode:'live',selfId:account},route,data:{pending},messaging:{synthetic:true},notifications:{synthetic:true},openSheet:setSheet,go,replaceRoute,goBack};
  const closeSheet=()=>{if(sheet==='interruption')audit.current.interruptionClosed++;setSheet(null)};
  const draft=drafts[account]||'';
  return <AppContext.Provider value={app}>{platform==='ios'&&<GlassSystem/>}<TutorialProvider>
@@ -118,8 +121,8 @@ try{
    if(request.method()!=='GET'){writes.push({phase,method:request.method(),url:request.url()});return route.abort()}
    if(request.url()===FIXTURE_URL)return route.fulfill({contentType:'text/html',body:html});
    if(url.origin===new URL(FIXTURE_URL).origin&&url.pathname==='/__review/help/tree-artwork.png')return route.fulfill({contentType:'image/png',body:await readFile(root+'dist/tree-artwork.png')});
-   const asset=ASSET_ALLOWLIST.find(file=>url.origin===new URL(FIXTURE_URL).origin&&url.pathname==='/__review/help/install-guide/'+file);
-   if(asset){assetLoads.add(asset);return route.fulfill({contentType:'image/svg+xml',body:await readFile(root+'dist/install-guide/'+asset)})}
+   const asset=[...ASSET_ALLOWLIST,...MOBILE_ASSET_ALLOWLIST,...INLINE_ASSET_ALLOWLIST].find(file=>url.origin===new URL(FIXTURE_URL).origin&&url.pathname==='/__review/help/install-guide/'+file);
+   if(asset){assetLoads.add(asset);return route.fulfill({contentType:asset.endsWith('.png')?'image/png':'image/svg+xml',body:await readFile(root+'dist/install-guide/'+asset)})}
    if(url.origin===new URL(FIXTURE_URL).origin&&url.pathname==='/favicon.ico')return route.fulfill({status:204,body:''});
    deniedRequests.push({phase,url:request.url()});return route.abort();
   });
@@ -147,6 +150,7 @@ try{
   await chooseTab(osTabs.getByRole('tab',{name:'iPhone / iPad',exact:true}),expect);
   await expect(page.locator('.install-steps')).toContainText('Page Menu');
   await expect(page.locator('.install-steps')).toContainText('if that switch appears');
+  if(width>700){
   const safariTabs=page.getByRole('tablist',{name:'Safari example',exact:true});
   for(const [name,id] of [['iPhone: Compact','ios-safari-compact'],['iPhone: Top / Bottom','ios-safari-direct-share'],['iPad','ipados-safari-share']]){
    await chooseTab(safariTabs.getByRole('tab',{name,exact:true}),expect);
@@ -158,6 +162,11 @@ try{
   await page.keyboard.press('ArrowRight');await expect(safariTabs.getByRole('tab',{name:'iPhone: Top / Bottom',exact:true})).toHaveAttribute('aria-selected','true');
   await page.keyboard.press('End');await expect(safariTabs.getByRole('tab',{name:'iPad',exact:true})).toBeFocused();
   await page.keyboard.press('Home');await expect(safariTabs.getByRole('tab',{name:'iPhone: Compact',exact:true})).toHaveAttribute('aria-selected','true');
+  }else{
+   await expect(page.getByRole('tablist',{name:'Safari example',exact:true})).toHaveCount(0);
+   const image=page.locator('.install-mobile-visual img').first();await expect(image).toHaveAttribute('src','install-guide/ios-1-'+theme+'.png');
+   const ratio=await image.evaluate(img=>({natural:img.naturalWidth/img.naturalHeight,rendered:img.getBoundingClientRect().width/img.getBoundingClientRect().height}));assert.ok(Math.abs(ratio.natural-ratio.rendered)<.01,'Approved mobile illustration keeps its intrinsic proportions');
+  }
   await expect(page.getByText('Mock install prompt only; no device installation or notification delivery is performed.',{exact:false})).toBeVisible();
   await page.evaluate(()=>window.fixture.mockInstallPrompt('dismissed'));
   await page.getByRole('button',{name:'Install Green & White',exact:true}).click();
@@ -265,7 +274,7 @@ try{
   if(results.length===1)for(const file of ASSET_ALLOWLIST){const svg=await page.evaluate(async file=>{const response=await fetch('/__review/help/install-guide/'+file);if(!response.ok)throw Error('Retained guide asset failed: '+file);return response.text()},file);assert.match(svg,/<svg[ >]/);}
   await context.close();
  }
- assert.deepEqual([...assetLoads].sort(),[...ASSET_ALLOWLIST].sort(),'Every allowlisted SVG was actually requested');
+ assert.deepEqual([...assetLoads].sort(),[...ASSET_ALLOWLIST,...MOBILE_ASSET_ALLOWLIST,...INLINE_ASSET_ALLOWLIST].sort(),'Every allowlisted SVG was actually requested');
  assert.deepEqual(errors,[],'No browser runtime errors');assert.deepEqual(consoleErrors,[],'No browser console errors');
  assert.deepEqual(writes,[],'No fixture network writes');assert.deepEqual(deniedRequests,[],'No requests outside the exact synthetic asset allowlist');
  assert.deepEqual(failedRequests,[],'No fixture asset-load failures');

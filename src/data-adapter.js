@@ -154,6 +154,13 @@ function reduceState(state,action){
     case 'MODERATE':return {...state,reports:state.reports.map(r=>r.id===action.id?{...r,status:action.status}:r),
       posts:action.status==='removed'?state.posts.filter(p=>p.id!==action.targetId):state.posts,
       memories:action.status==='removed'?state.memories.filter(m=>m.id!==action.targetId):state.memories};
+    case 'ADD_MEMORIAL':case 'SAVE_MEMORIAL':{
+     const value={...action.memorial,id:action.type==='ADD_MEMORIAL'?'preview-memorial-'+(state.lastId+1):action.memorial.id,createdBy:state.selfId,canEdit:true,previewTest:action.type==='ADD_MEMORIAL'||action.memorial.previewTest};
+     let next={...state,memorials:action.type==='ADD_MEMORIAL'?[...state.memorials,value]:state.memorials.map(m=>m.id===value.id?{...m,...value}:m),lastId:state.lastId+1};
+     if(value.householdId)next=householdPreview(next,{type:'SAVE_HOUSEHOLD_HERITAGE',householdId:value.householdId,entry:{personId:value.id,role:'ancestral-head',title:'Ancestral head'}})||next;
+     return next;
+    }
+    case 'RESET_MEMORIAL_TEST_DATA':return {...state,memorials:state.memorials.filter(m=>!m.previewTest),households:state.households.map(h=>({...h,heritage:h.heritage?.filter(e=>!state.memorials.some(m=>m.previewTest&&m.id===e.personId))}))};
     case 'RESET_INVITE_DRAFTS': return {...state,inviteDrafts:[]};
  case 'SAVE_INVITE_DRAFT':return {...state,inviteDrafts:[...state.inviteDrafts,{id:'invite-'+(state.lastId+1),
       recipient:action.recipient,groupId:action.groupId,createdAt:Date.now()}],lastId:state.lastId+1};

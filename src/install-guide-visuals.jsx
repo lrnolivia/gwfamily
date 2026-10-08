@@ -1,4 +1,5 @@
-import React,{useState} from 'react';
+import React,{useEffect,useState} from 'react';
+import {useApp} from './ui-core.jsx';
 import {ViewSwitcher} from './view-switcher.jsx';
 import {installGuideAssets} from './install-guide-assets.js';
 import './install-guide-visuals.css';
@@ -41,10 +42,24 @@ function NativeControlRecreation({id}){
   <figcaption><span className="install-recreation-label">Control recreation</span><span>{annotation[id]||asset.title}</span></figcaption>
  </figure>;
 }
+const mobileDescriptions={
+ apple:['Safari page menu with Share.','Fully expanded Safari share sheet with Add to Home Screen.','Add to Home Screen confirmation with Add.'],
+ android:['Chrome toolbar with the More menu.','Chrome overflow menu with Add to Home screen.','GW Family install confirmation with Install.']
+};
+function MobileInstallRecreation({platform,step,theme}){
+ const [unavailable,setUnavailable]=useState(false),os=platform==='apple'?'ios':'android',width=os==='ios'?430:412,height=os==='ios'?932:892,id=os+'-'+(step+1)+'-'+theme;
+ return <figure className="install-native-visual install-mobile-visual" data-recreation="true" data-asset-id={id}>
+  <div className="install-native-frame">{unavailable?<p className="install-visual-unavailable" role="status">The visual couldn’t load. Follow the written steps above.</p>:<img src={'install-guide/'+id+'.png'} width={width} height={height} alt={'Recreated '+mobileDescriptions[platform][step]} decoding="async" onError={()=>setUnavailable(true)}/>}</div>
+  <figcaption><span className="install-recreation-label">Control recreation</span><span>{mobileDescriptions[platform][step]}</span></figcaption>
+ </figure>;
+}
 export function InstallGuideVisual({platform,step}){
+ const app=useApp(),[mobile,setMobile]=useState(false);
+ useEffect(()=>{const query=window.matchMedia('(max-width: 700px)'),sync=()=>setMobile(query.matches&&!(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1));sync();query.addEventListener('change',sync);return()=>query.removeEventListener('change',sync)},[]);
  const [safariLayout,setSafariLayout]=useState(()=>globalThis.navigator?.platform==='MacIntel'&&globalThis.navigator?.maxTouchPoints>1?'ipad':'compact');
  const sequence=installVisualSequences[platform];
  if(!sequence)return null; // Unknown browsers get honest written help, never a fabricated OS.
+ if(mobile&&['apple','android'].includes(platform))return <div className="install-visual-group is-mobile-guide"><MobileInstallRecreation key={platform+'-'+step+'-'+app?.theme} platform={platform} step={step} theme={app?.theme==='light'?'light':'dark'}/></div>;
  const id=platform==='apple'&&step===0?safariVisualLayouts[safariLayout]:sequence[step];
  return <div className="install-visual-group">
   {platform==='apple'&&step===0&&<div className="install-layout-choices"><ViewSwitcher label="Safari example" value={safariLayout} onChange={setSafariLayout} options={[{value:'compact',label:'iPhone: Compact',icon:'phone'},{value:'direct',label:'iPhone: Top / Bottom',icon:'phone'},{value:'ipad',label:'iPad',icon:'phone'}]}/><p className="choice-help">Choose the toolbar you see. This only changes the example.</p></div>}

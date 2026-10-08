@@ -4,7 +4,7 @@ html[data-theme=dark]{--destructive-accent:#d43541}
 html[data-theme][data-platform] .button.sign-out.sign-out{background:var(--destructive-accent,#d43943)!important;color:var(--bright-text,#fffaf0)!important;border:0!important;--gw-control-color:var(--destructive-accent,#d43943);--gw-control-alpha:100%;--button-shadow-color:color-mix(in srgb,var(--destructive-accent) 38%,#000);box-shadow:var(--gw-action-shadow)!important;min-height:48px;white-space:normal}
 html[data-theme][data-platform] .gw-optic-control.button.sign-out.sign-out>.liquid-glass-tint{background:var(--destructive-accent,#d43943)!important}
 html[data-theme=dark][data-platform] .button.sign-out.sign-out{background:var(--destructive-accent,#d43943)!important;color:var(--bright-text,#fffaf0)!important}
-.you-account-actions{display:grid;gap:12px;justify-items:stretch;margin-block:24px;min-width:0}
+.you-account-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;justify-content:stretch;justify-items:stretch;margin-block:24px;min-width:0}
 .you-account-actions>.sign-out{min-width:200px;max-width:100%}
 .preview-account-actions{display:grid;gap:12px;min-width:0;align-items:start}
 .preview-account-actions.is-compact{padding-top:12px;border-top:1px solid var(--line)}
@@ -20,3 +20,6 @@ html[data-theme=dark][data-platform] .button.sign-out.sign-out{background:var(--
 .heading-fonts{padding:0;margin:0;border:0;min-width:0}
 .heading-fonts legend{margin-bottom:10px;font-weight:650}
 @media(max-width:359px){.heading-font-options{grid-template-columns:minmax(0,1fr)}}
+
+.page-panel-zone-side>.you-account-actions{width:100%;margin:0}
+.page-panel-zone-side>.you-account-actions>.sign-out{width:100%;max-width:none;min-width:0}

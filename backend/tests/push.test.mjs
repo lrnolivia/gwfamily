@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {database,seed} from './test-db.mjs';
-import {pushStatus,validateSubscription,genericPayload,retryOutcome} from '../src/push-policy.mjs';
+import {PUSH_IMPLEMENTATION_READY,validateSubscription,genericPayload,retryOutcome} from '../src/push-policy.mjs';
 import {registerDevice,revokeDevice,claimDelivery,authorizedDelivery,finishDelivery,drainWithInjectedSender} from '../src/push-store.mjs';
 // Non-cryptographic structural placeholders. No key generation, encryption,
 // signature, credentials, real subscription, provider or remote request involved.
@@ -13,7 +13,7 @@ function notice(x,id='event1'){
  x.sqlite.prepare(`INSERT INTO notification_events(id,event_key,kind,actor_id,resource_kind,resource_id,category,audience,direct_ids_json) VALUES(?,?,'membership.role_changed','owner','member','bob','membership','direct','["bob"]')`).run(id,id);
  return x.sqlite.prepare('SELECT * FROM push_outbox').all();
 }
-test('deployment readiness remains hard disabled',()=>assert.deepEqual(pushStatus(),{ready:false,pushEnabled:false,reason:'activation-required'}));
+test('implementation is available behind deployment, schema and database activation gates',()=>assert.equal(PUSH_IMPLEMENTATION_READY,true));
 test('allowlisted strict endpoint and browser-key structural validation',()=>{
  assert.deepEqual(validateSubscription(structuralSub),structuralSub);
  for(const endpoint of ['http://web.push.apple.com/a','https://127.0.0.1/a','https://web.push.apple.com.evil.test/a','https://user@web.push.apple.com/a','https://web.push.apple.com:8443/a','https://web.push.apple.com/a#x','https://web.push.apple.com/a?x','https://WEB.PUSH.APPLE.COM/a'])assert.throws(()=>validateSubscription({...structuralSub,endpoint}));

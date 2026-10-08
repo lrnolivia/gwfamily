@@ -2,10 +2,10 @@ import {PageAddedElement} from './page-elements.jsx';
 import React,{useContext,useEffect,useId,useRef,useState} from 'react';
 import {PageElementPreview} from './page-element-preview.jsx';
 import {PageObjectTools} from './page-object-tools.jsx';
-import {sharedPanelTitle} from './shared-panels.js';
+import {sharedPanelTitle,removeSharedPanel} from './shared-panels.js';
 import {Control,Glyph} from './ui-core.jsx';
 import {PagePanelLockContext,usePageContent} from './page-content.jsx';
-import {CARD_COLUMNS,cardSlots,cardLayoutOf,defaultCardLayout,moveCardSlot,stepCardSlot,alignCardSlot,applyCardImageSettings,cardColumnVertical,alignCardColumn,keyboardCardSlot,updateCardLayout} from './card-content-layout-model.js';
+import {CARD_COLUMNS,cardSlots,cardLayoutOf,defaultCardLayout,moveCardSlot,stepCardSlot,alignCardSlot,applyCardImageSettings,cardColumnVertical,alignCardColumn,keyboardCardSlot,updateCardLayout,setCardSlotRemoved} from './card-content-layout-model.js';
 import {ImageControlRow,ImageLayoutContext,ImageLayoutControls,LayoutChoices} from './image-edit-controls.jsx';
 import './card-content-layout.css';
 
@@ -46,7 +46,7 @@ export function CardContentLayout({page,cardId='hero',items,hidden=[],className=
  const start=event=>{baseline.current=editor.content.cardLayouts?.[cardId];editor.activateSurface(event.currentTarget);setArranging(true);setNotice('Drag content between columns, or use the labelled controls. Changes stay in your page draft.')};
  const close=()=>{setArranging(false);drag.reset();requestAnimationFrame(()=>entry.current?.focus())};
  const cancel=()=>{change(baseline.current);setNotice('Card arrangement cancelled. Other page edits are kept.');close()};
- const visible=column=>layout[column].filter(item=>arranging||!hidden.includes(item.id));
+ const visible=column=>layout[column].filter(item=>!(layout.hidden||[]).includes(item.id)&&(arranging||!hidden.includes(item.id)));
  const single=!arranging&&CARD_COLUMNS.some(column=>!visible(column).length);
  return <div ref={root} className={'card-content-layout '+className+(arranging?' is-arranging':'')+(single?' is-single-column':'')} data-card-layout={cardId}>
   {editable&&editor.arrangingPage&&!arranging&&<div className="card-layout-entry"><Control ref={entry} type="button" disabled={busy} onClick={start}><Glyph name="settings"/>Arrange card content</Control></div>}
@@ -73,6 +73,8 @@ export function CardContentLayout({page,cardId='hero',items,hidden=[],className=
    <div className="page-object-tools-group"><h3>Move within panel</h3><div className="page-object-tools-actions"><Control type="button" disabled={busy||layout[selected.column][0]?.id===selected.id} onClick={()=>change(value=>stepCardSlot(value,selected.id,-1))}>Move earlier</Control><Control type="button" disabled={busy||layout[selected.column].at(-1)?.id===selected.id} onClick={()=>change(value=>stepCardSlot(value,selected.id,1))}>Move later</Control></div></div>
    <div className="page-object-tools-group"><h3>{selected.column==='left'?'Left':'Right'} column alignment</h3><p>Moves all content in this column.</p><LayoutChoices label={(selected.column==='left'?'Left':'Right')+' column vertical alignment'} value={cardColumnVertical(layout,selected.column)} disabled={busy} options={[["top","Top"],["center","Middle","middle"],["bottom","Bottom"]]} onChange={vertical=>change(value=>alignCardColumn(value,selected.column,vertical))}/></div>
    <div className="page-object-tools-actions"><Control type="button" disabled={busy} onClick={()=>change(defaultCardLayout(page,panel),null,'Original layout restored for this panel only.')}>Reset panel layout</Control></div>
+   <div className="page-editor-destructive-group"><Control type="button" className="page-editor-remove" disabled={busy} onClick={()=>{change(value=>setCardSlotRemoved(value,selected.id),null,selectedDefinition.label+' removed. Undo is available.');setToolSlot(null);editor.activateSurface(root.current)}}><Glyph name="close"/>Remove element</Control></div>
+   <div className="page-editor-destructive-group"><Control type="button" className="page-editor-remove" disabled={busy} onClick={()=>editor.update(page,content=>({...content,panelLayout:removeSharedPanel(content.panelLayout,cardId)}),{historyLabel:'Remove panel'})}><Glyph name="close"/>Remove panel</Control></div>
    <p role="status">{notice||'Changes save automatically.'}</p>
   </PageObjectTools>}
   <p className="sr-only" role="status" aria-live="polite">{notice}</p>

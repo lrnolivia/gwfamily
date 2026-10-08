@@ -24,6 +24,7 @@
     "AUTH_ORIGIN": "https://greenwhitefamily.com",
     "AUTH_EMAIL_ENABLED": "true",
     "BIRTHDAY_POSTS_ENABLED": "true",
+    "PUSH_SCHEMA_VERSION": "1",
     "AUTH_MICROSOFT_ACCESS_ENABLED": "true",
     "AUTH_YAHOO_ACCESS_ENABLED": "true",
     "FAMILY_INVITATIONS_ENABLED": "true",
@@ -53,7 +54,8 @@
   ],
   "triggers": {
     "crons": [
-      "0 * * * *"
+      "0 * * * *",
+      "* * * * *"
     ]
   }
 }

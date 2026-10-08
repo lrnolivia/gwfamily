@@ -64,7 +64,7 @@ test('current menu wording and older-version fallbacks are bounded honestly',()=
 });
 test('hosted fixture serves only exact cropped self-hosted guide assets and denies network writes',async()=>{
  const fixture=await readFile(new URL('./install-tutorial-browser.mjs',import.meta.url),'utf8');
- assert.match(fixture,/src\/install-guide-visuals\.css/);assert.match(fixture,/contentType:'image\/svg\+xml'/);
+ assert.match(fixture,/src\/install-guide-visuals\.css/);assert.match(fixture,/asset.endsWith\('\.png'\)\?'image\/png':'image\/svg\+xml'/);
  const fixtureUrl=/const FIXTURE_URL='([^']+)'/.exec(fixture);assert.ok(fixtureUrl);assert.equal(fixtureUrl[1],'https://gw-help-fixture.invalid/__review/help/');
  assert.match(fixture,/request\.url\(\)===FIXTURE_URL/);assert.match(fixture,/url\.origin===new URL\(FIXTURE_URL\)\.origin&&url\.pathname==='\/__review\/help\/install-guide\/'\+file/);
  const allowlist=/const ASSET_ALLOWLIST=Object\.freeze\(\[([\s\S]*?)\]\)/.exec(fixture);assert.ok(allowlist);
@@ -84,4 +84,11 @@ test('hosted fixture covers iOS, Android and every Safari tab with synthetic pri
  assert.match(fixture,/getByRole\('tablist',\{name:'Instructions for'/);assert.match(fixture,/getByRole\('tablist',\{name:'Safari example'/);assert.doesNotMatch(fixture,/getByRole\('radio'/);
  for(const marker of ['An unsent synthetic update','A separate unsent synthetic draft',"window.fixture.account('fixture-b')","window.fixture.account('fixture-a')",'Progress never stores draft or content',"getByRole('button',{name:'Back',exact:true}).click()",'Preserved synthetic draft',"mockInstallPrompt('dismissed')","mockInstallPrompt('failure')",'Mock install prompt only; no device installation or notification delivery is performed.'])assert.ok(fixture.includes(marker),marker);
  assert.match(fixture,/if\(!\['dismissed','failure'\]\.includes\(mode\)\)/);assert.doesNotMatch(fixture,/new Event\('appinstalled'|outcome:'accepted'|requestPermission|pushManager|navigator\.share|serviceWorker\.register|physicalDeviceValidation:true|actualInstallation:true|notificationDelivery:true/);
+});
+
+test('approved mobile artwork retains verified bytes and intrinsic phone proportions',async()=>{
+ const manifest=JSON.parse(await readFile(new URL('../docs/install-guide/approved-mobile.json',import.meta.url),'utf8'));
+ assert.equal(manifest.mobileOnly,true);assert.equal(manifest.assets.length,12);
+ for(const asset of manifest.assets){const bytes=await readFile(new URL('../dist/install-guide/'+asset.name+'.png',import.meta.url));assert.equal(createHash('sha256').update(bytes).digest('hex'),asset.sha256);assert.equal(bytes.readUInt32BE(16),asset.width);assert.equal(bytes.readUInt32BE(20),asset.height)}
+ const visual=await source('install-guide-visuals.jsx');assert.match(visual,/max-width: 700px/);assert.match(visual,/navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1/);assert.match(visual,/app\?\.theme==='light'/);
 });
