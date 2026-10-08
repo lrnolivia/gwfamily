@@ -103,6 +103,7 @@ jobs:
       fail-fast: false
       matrix:
         browser: [chromium, webkit]
+        group: [surfaces, navigation, editors, api]
     env:
       GW_BROWSER: ${{ matrix.browser }}
       GW_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
@@ -142,25 +143,26 @@ jobs:
         if: ${{ !cancelled() && steps.restore_build.outcome == 'success' }}
         run: npx playwright install --with-deps ${{ matrix.browser }}
       - name: Ordinary onboarding source geometry
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'surfaces' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         run: GW_ONBOARDING_QA_OUTPUT=docs/onboarding-qa node tests/onboarding-browser.mjs
       - name: Isolated device push settings regression
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'surfaces' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         run: GW_PUSH_QA_OUTPUT=docs/push-settings-qa node tests/push-settings-browser.mjs
       - name: Approved guide, Home plan, memorial and safe reload integration
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'surfaces' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 5
         run: |
           node tests/editor-field-regression-browser.mjs
+          node tests/reunion-schedule-editor-browser.mjs
           GW_MEMBERSHIP_QA_OUTPUT=docs/membership-qa node tests/membership-panel-browser.mjs
           GW_V4_QA_OUTPUT=docs/install-v4-qa node tests/install-v4-browser.mjs
           GW_HOME_QA_OUTPUT=docs/home-reunion-qa node tests/home-reunion-browser.mjs
           GW_MEMORIAL_QA_OUTPUT=docs/memorial-qa node tests/memorial-update-browser.mjs
       - name: Fictional eight-preset email previews
-        if: ${{ !cancelled() && matrix.browser == 'chromium' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'surfaces' && matrix.browser == 'chromium' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         run: GW_EMAIL_QA_OUTPUT=docs/email-preview-qa node tests/email-preview-browser.mjs
       - name: Contextual editor geometry and command checks
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         id: panel_arrow_editor
         timeout-minutes: 6
         run: |
@@ -171,7 +173,7 @@ jobs:
           CI=true node scripts/ci-test-summary.mjs editor-geometry-browser --browser tests/editor-geometry-browser.mjs 2>&1 | tee docs/ci-logs/editor-geometry-browser.log
       - name: Device-aware navigation geometry checks
         id: navigation_geometry
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' && steps.panel_arrow_editor.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'navigation' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 6
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 --directory dist > /tmp/gw-http.log 2>&1 &
@@ -184,13 +186,13 @@ jobs:
           CI=true node scripts/ci-test-summary.mjs navigation-insets-browser --browser tests/navigation-insets-browser.mjs 2>&1 | tee docs/ci-logs/navigation-insets-browser.log
       - name: Guided install and optional help checks
         id: guide_help
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' && steps.navigation_geometry.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'navigation' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 6
         run: |
           mkdir -p docs/ci-logs
           CI=true node scripts/ci-test-summary.mjs install-tutorial-browser --browser tests/install-tutorial-browser.mjs 2>&1 | tee docs/ci-logs/install-tutorial-browser.log
       - name: Shared page editor browser checks
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' && steps.navigation_geometry.outcome == 'success' && steps.guide_help.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         id: shared_page_editor
         timeout-minutes: 10
         run: |
@@ -199,12 +201,12 @@ jobs:
           mkdir -p docs/ci-logs
           CI=true node scripts/ci-test-summary.mjs page-content-browser --browser tests/page-content-browser.mjs 2>&1 | tee docs/ci-logs/page-content-browser.log
       - name: Full recovery browser checks
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' && steps.navigation_geometry.outcome == 'success' && steps.guide_help.outcome == 'success' && steps.shared_page_editor.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'navigation' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         run: |
           mkdir -p docs/ci-logs
           node scripts/ci-test-summary.mjs recovery-browser --browser tests/recovery-browser.mjs 2>&1 | tee docs/ci-logs/recovery-browser.log
       - name: Hotfix browser checks
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' && steps.navigation_geometry.outcome == 'success' && steps.guide_help.outcome == 'success' && steps.shared_page_editor.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'navigation' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         run: |
           for i in $(seq 1 30); do
             if curl -fsS --connect-timeout 1 --max-time 2 http://127.0.0.1:4173/ > /dev/null; then break; fi
@@ -214,20 +216,20 @@ jobs:
           mkdir -p docs/ci-logs
           node scripts/ci-test-summary.mjs hotfix-browser --browser tests/hotfix-browser.mjs 2>&1 | tee docs/ci-logs/hotfix-browser.log
       - name: Live API integration browser checks
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' && steps.navigation_geometry.outcome == 'success' && steps.guide_help.outcome == 'success' && steps.shared_page_editor.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'api' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         run: |
           node backend/tests/fixture-server.mjs > /tmp/gw-fixture.log 2>&1 &
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4174/api/config && break; sleep 1; done
           mkdir -p docs/ci-logs
           node scripts/ci-test-summary.mjs media-browser --browser tests/media-browser.mjs 2>&1 | tee docs/ci-logs/media-browser.log
       - name: Live API application browser checks
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' && steps.navigation_geometry.outcome == 'success' && steps.guide_help.outcome == 'success' && steps.shared_page_editor.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'api' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         run: |
           curl -fsS --connect-timeout 1 --max-time 2 http://127.0.0.1:4174/api/config
           mkdir -p docs/ci-logs
           node scripts/ci-test-summary.mjs live-browser --browser tests/live-browser.mjs 2>&1 | tee docs/ci-logs/live-browser.log
       - name: Private communications browser checks
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' && steps.navigation_geometry.outcome == 'success' && steps.guide_help.outcome == 'success' && steps.shared_page_editor.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'api' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 10
         run: |
           node backend/tests/communications-fixture-server.mjs > /tmp/gw-communications-fixture.log 2>&1 &
@@ -235,7 +237,7 @@ jobs:
           mkdir -p docs/ci-logs
           CI=true node scripts/ci-test-summary.mjs communications-browser --browser tests/communications-browser.mjs 2>&1 | tee docs/ci-logs/communications-browser.log
       - name: Panel movement and photo framing browser checks
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' && steps.navigation_geometry.outcome == 'success' && steps.guide_help.outcome == 'success' && steps.shared_page_editor.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 10
         run: |
           if ! curl -fsS http://127.0.0.1:4176/api/config; then
@@ -246,14 +248,14 @@ jobs:
           mkdir -p docs/ci-logs
           CI=true node scripts/ci-test-summary.mjs granular-panel-framing-browser --browser tests/granular-panel-framing-browser.mjs 2>&1 | tee docs/ci-logs/granular-panel-framing-browser.log
       - name: Post and comment management browser checks
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' && steps.navigation_geometry.outcome == 'success' && steps.guide_help.outcome == 'success' && steps.shared_page_editor.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 6
         run: |
           curl -fsS http://127.0.0.1:4188/api/config
           mkdir -p docs/ci-logs
           CI=true node scripts/ci-test-summary.mjs content-actions-browser --browser tests/content-actions-browser.mjs 2>&1 | tee docs/ci-logs/content-actions-browser.log
       - name: Card content arrangement browser checks
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' && steps.navigation_geometry.outcome == 'success' && steps.guide_help.outcome == 'success' && steps.shared_page_editor.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 10
         run: |
           # Separate synthetic database: earlier suites must not consume this
@@ -264,7 +266,7 @@ jobs:
           mkdir -p docs/ci-logs
           GW_PAGE_CONTENT_URL=http://127.0.0.1:4179 CI=true node scripts/ci-test-summary.mjs card-content-layout-browser --browser tests/card-content-layout-browser.mjs 2>&1 | tee docs/ci-logs/card-content-layout-browser.log
       - name: Invitation and provisional access browser checks
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' && steps.navigation_geometry.outcome == 'success' && steps.guide_help.outcome == 'success' && steps.shared_page_editor.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'api' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 6
         run: |
           node backend/tests/family-invitations-fixture-server.mjs > /tmp/gw-invitation-fixture.log 2>&1 &
@@ -273,13 +275,13 @@ jobs:
           mkdir -p docs/ci-logs
           CI=true node scripts/ci-test-summary.mjs family-invitations-browser --browser tests/family-invitations-browser.mjs 2>&1 | tee docs/ci-logs/family-invitations-browser.log
       - name: Choice and Send keyboard checks
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' && steps.navigation_geometry.outcome == 'success' && steps.guide_help.outcome == 'success' && steps.shared_page_editor.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'navigation' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 6
         run: |
           mkdir -p docs/ci-logs
           CI=true node scripts/ci-test-summary.mjs choice-control-browser --browser tests/choice-control-browser.mjs 2>&1 | tee docs/ci-logs/choice-control-browser.log
       - name: Durable activity inbox checks
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' && steps.navigation_geometry.outcome == 'success' && steps.guide_help.outcome == 'success' && steps.shared_page_editor.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'navigation' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 6
         run: |
           if ! curl -fsS http://127.0.0.1:4173/; then
@@ -289,7 +291,7 @@ jobs:
           mkdir -p docs/ci-logs
           CI=true node scripts/ci-test-summary.mjs notifications-browser --browser tests/notifications-browser.mjs 2>&1 | tee docs/ci-logs/notifications-browser.log
       - name: Safari same-tab memory upload reload regression
-        if: ${{ !cancelled() && matrix.browser == 'webkit' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' && steps.navigation_geometry.outcome == 'success' && steps.guide_help.outcome == 'success' && steps.shared_page_editor.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'api' && matrix.browser == 'webkit' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 5
         run: |
           if ! curl -fsS http://127.0.0.1:4174/api/config; then
@@ -299,7 +301,7 @@ jobs:
           mkdir -p docs/ci-logs
           node scripts/ci-test-summary.mjs webkit-memory-reload --browser tests/webkit-memory-reload.mjs 2>&1 | tee docs/ci-logs/webkit-memory-reload.log
       - name: WebKit isolated navigation diagnostics
-        if: ${{ !cancelled() && matrix.browser == 'webkit' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' && steps.navigation_geometry.outcome == 'success' && steps.guide_help.outcome == 'success' && steps.shared_page_editor.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.group == 'surfaces' && matrix.browser == 'webkit' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 6
         run: |
           mkdir -p docs/ci-logs
@@ -314,7 +316,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: gw-family-qa-${{ github.sha }}-${{ matrix.browser }}
+          name: gw-family-qa-${{ github.sha }}-${{ matrix.browser }}-${{ matrix.group }}
           path: |
             docs/ci-logs
             gw-build.sha256
@@ -329,6 +331,7 @@ jobs:
             docs/choice-control-qa
             docs/help-qa
             docs/notifications-qa
+            docs/schedule-editor-qa
             docs/editor-geometry-qa
             docs/onboarding-qa
             docs/push-settings-qa

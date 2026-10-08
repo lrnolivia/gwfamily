@@ -519,17 +519,29 @@ try {
     await expect(owner.locator('html')).not.toHaveAttribute('data-page-edit-mode', 'true');
   });
 
-  await check('Plan and Calendar sections edit independently, retain sidebars and save placement',async()=>{
-    for(const [tab,key,panelId,titleField] of [['Plan','reunion-plans','native-rsvp','rsvpTitle'],['Calendar','reunion-calendar','native-events','heading']]){
+  await check('Plan and Schedule sections edit independently, retain sidebars and save placement',async()=>{
+    for(const [tab,key,panelId,titleField] of [['Plan','reunion-plans','native-rsvp','rsvpTitle'],['Schedule','reunion-calendar','native-events',null]]){
       await navigate(owner,'reunion');await owner.getByRole('tab',{name:tab,exact:true}).click();await edit(owner);
       const layout=owner.locator(`[data-panel-page="${key}"]`),panel=layout.locator(`[data-panel-id="${panelId}"]`);
+      // Schedule birthdays moved to Family Calendar; create a real editable
+      // sidebar card rather than require an obsolete native birthday panel.
+      let customId=null;
+      if(tab==='Schedule'){
+        await expect(owner.locator('[data-page-field="reunion-calendar.heading"]')).toHaveCount(0);
+        const originalIds=(await record(owner,key)).content.panelLayout.panels.map(row=>row.id);
+        await owner.getByRole('button',{name:'Add Panel',exact:true}).click();
+        const add=owner.getByRole('dialog',{name:'Add Panel',exact:true});await add.getByRole('radio',{name:'Side area',exact:true}).check();await add.getByRole('button',{name:'Add side panel',exact:true}).click();await save(owner);
+        customId=(await record(owner,key)).content.panelLayout.panels.find(row=>!originalIds.includes(row.id)).id;
+      }
       await expect(layout.locator('.page-panel-zone-side > .page-shared-panel')).not.toHaveCount(0);
       await expect(panel).toBeVisible();
       await expect(panel).not.toHaveAttribute('data-panel-locked','true');
       await togglePanelProtection(owner,panel,true);await save(owner);await expect(panel).toHaveAttribute('data-panel-locked','true');
       await togglePanelProtection(owner,panel,false);await save(owner);await expect(panel).not.toHaveAttribute('data-panel-locked','true');
-      const before=(await record(owner,key)).content.text[titleField];await editText(owner,key+'.'+titleField,before+' Synthetic edit');await save(owner);
-      assert.equal((await record(owner,key)).content.text[titleField],before+' Synthetic edit');
+      const before=titleField?(await record(owner,key)).content.text[titleField]:(await record(owner,key)).content.panelLayout.panels.find(row=>row.id===customId).title;
+      const editTitle=async value=>{if(titleField)await editText(owner,key+'.'+titleField,value);else{const custom=layout.locator('[data-panel-id="'+customId+'"]');await custom.getByRole('button',{name:'Edit Panel heading',exact:true}).click();await custom.getByRole('textbox',{name:'Panel heading',exact:true}).fill(value);await custom.getByRole('button',{name:'Finish editing Panel heading',exact:true}).click()}await save(owner)};
+      const readTitle=async()=>{const content=(await record(owner,key)).content;return titleField?content.text[titleField]:content.panelLayout.panels.find(row=>row.id===customId).title};
+      await editTitle(before+' Synthetic edit');assert.equal(await readTitle(),before+' Synthetic edit');
       await toolbar(owner).locator('.page-edit-tools > summary').click();await toolbar(owner).getByRole('button',{name:'Arrange page',exact:true}).click();
       await panel.getByRole('button',{name:/^Side for /}).click();await save(owner);
       assert.equal((await record(owner,key)).content.panelLayout.panels.find(row=>row.id===panelId).zone,'side');
@@ -550,9 +562,9 @@ try {
       await reorder.getByRole('button',{name:'Done',exact:true}).click();
       await owner.screenshot({path:`${output}/${key}-editable-sidebar-${engineName}.png`});
       await panel.getByRole('button',{name:/^Main for /}).click();await save(owner);
-      await toolbar(owner).locator('.page-edit-tools > summary').click();await toolbar(owner).getByRole('button',{name:'Finish arranging',exact:true}).click();await editText(owner,key+'.'+titleField,before);await save(owner);await togglePanelProtection(owner,panel,true);await save(owner);await modeDone(owner).click();
+      await toolbar(owner).locator('.page-edit-tools > summary').click();await toolbar(owner).getByRole('button',{name:'Finish arranging',exact:true}).click();await editTitle(before);await togglePanelProtection(owner,panel,true);await save(owner);await modeDone(owner).click();
       await owner.reload();await expect(owner.getByRole('tab',{name:tab,exact:true})).toHaveAttribute('aria-selected','true');
-      assert.equal((await record(owner,key)).content.text[titleField],before);
+      assert.equal(await readTitle(),before);
     }
   });
 
