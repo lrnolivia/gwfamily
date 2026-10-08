@@ -65,7 +65,7 @@ html[data-theme][data-platform] :is(.page-media-modes,.view-switcher)>button{bor
 
 /* Default and personal accents share white foregrounds in both materials. */
 html[data-theme][data-platform]{--control:#387b51;--control-text:#fffaf0;--control-edge:#387b51;--accent:#387b51;--ink:#fffaf0;--send-active:var(--control);--send-text:#fffaf0;--send-edge:#ffffff}
-html[data-theme][data-platform] :is(.choice-chip>input:checked+.choice-chip-face,.choice-option[aria-selected=true],.heading-font-option[aria-pressed=true]){color:var(--control-text)!important}
+html[data-theme][data-platform] :is(.choice-chip>input:checked+.choice-chip-face,.choice-option[aria-selected=true]){color:var(--control-text)!important}
 html[data-theme][data-platform] .view-switcher.view-switcher>button[aria-selected=true]{color:var(--control-text)!important}
 
 /* Preserve the established wordmark; strengthen only its light-mode lettering. */
@@ -90,7 +90,7 @@ html[data-theme][data-platform] .view-switcher.view-switcher>button[aria-selecte
 .profile-color-swatch[aria-pressed=true] .glyph{width:20px;height:20px;padding:3px;box-sizing:border-box;border-radius:50%;background:var(--swatch-active,var(--control));color:var(--swatch-active-text,#ffffff)}
 
 /* Accent labels use a dispersed darker version of their own color. */
-html[data-theme][data-platform] :is(.button:not(.secondary),.choice-chip>input:checked+.choice-chip-face,.choice-option[aria-selected=true],.heading-font-option[aria-pressed=true],.view-switcher>button[aria-selected=true],.bottom button[aria-current=page],.material-fab,.fab-glass .fab){text-shadow:var(--accent-label-glow,none)}
+html[data-theme][data-platform] :is(.button:not(.secondary),.choice-chip>input:checked+.choice-chip-face,.choice-option[aria-selected=true],.view-switcher>button[aria-selected=true],.bottom button[aria-current=page],.material-fab,.fab-glass .fab){text-shadow:var(--accent-label-glow,none)}
 html[data-theme][data-platform] :is(.choice-chip>input:checked+.choice-chip-face,.choice-option[aria-selected=true],.heading-font-option[aria-pressed=true],.view-switcher>button[aria-selected=true],.bottom button[aria-current=page],.material-fab,.fab-glass .fab) .glyph{filter:drop-shadow(0 0 1px var(--accent-label-glow-core,transparent))}
 
 /* Post identity needs enough visual weight beside the name and audience badge. */
