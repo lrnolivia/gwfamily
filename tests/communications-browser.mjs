@@ -571,8 +571,11 @@ try {
     await alice.getByRole('button', {name: 'Conversation details', exact: true}).click();
     const picker = alice.getByRole('combobox', {name: /^Invite family members/});
     await picker.fill('Owner');
-    await alice.getByRole('option', {name: 'Owner', exact: true}).click();
-    await alice.getByRole('button', {name: 'Send invitations', exact: true}).click();
+    const ownerOption=alice.getByRole('option', {name: 'Owner', exact: true});
+    await settlePointerTarget(ownerOption);await ownerOption.click();
+    await expect(alice.getByRole('button', {name: 'Remove Owner', exact: true})).toBeVisible();
+    const sendInvitations=alice.getByRole('button', {name: 'Send invitations', exact: true});
+    await expect(sendInvitations).toBeEnabled();await sendInvitations.click();
     await expect(alice.locator('.conversation-member').filter({has: alice.getByText('Owner', {exact: true})})).toContainText('Invited');
     await assertAccessDenied(owner, groupId);
     await inbox(owner);
@@ -876,6 +879,14 @@ try {
       await bob.setViewportSize({width,height:844});
       const edge=await bob.locator('.app>.app-header').evaluate(node=>{const style=getComputedStyle(node,'::after');return {display:style.display,blur:style.backdropFilter||style.webkitBackdropFilter,mask:style.maskImage||style.webkitMaskImage}});
       assert.notEqual(edge.display,'none');assert.match(edge.blur,/blur\(18px\)/);assert.match(edge.mask,/linear-gradient/);
+      const photoComposer=bob.locator('.photo-viewer-content .conversation-composer');
+      await expect(photoComposer).toBeVisible();
+      for(const focus of [false,true]){
+        if(focus)await photoComposer.getByRole('textbox').focus();
+        const box=await photoComposer.evaluate(node=>{const rect=node.getBoundingClientRect(),field=node.querySelector('textarea').getBoundingClientRect(),v=window.visualViewport;return {position:getComputedStyle(node).position,left:rect.left,right:rect.right,bottom:rect.bottom,top:rect.top,fieldTop:field.top,fieldBottom:field.bottom,width:v?.width||innerWidth,viewportBottom:(v?.offsetTop||0)+(v?.height||innerHeight)}});
+        assert.equal(box.position,'fixed');assert.ok(box.left>=0&&box.right<=box.width&&box.bottom<=box.viewportBottom&&box.fieldTop>=box.top&&box.fieldBottom<=box.bottom,JSON.stringify(box));
+      }
+      await bob.getByRole('heading',{name:'Comments',exact:true}).click();
       await noClip(bob);await bob.screenshot({path:`${output}/photo-glass-edge-${width}-${engineName}.png`});
     }
     await bob.setViewportSize(photoViewport);

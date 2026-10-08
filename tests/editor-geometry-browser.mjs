@@ -56,7 +56,7 @@ try{
   const buttons=await tools().locator('.page-markdown-toolbar button').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().top));assert.ok(Math.max(...buttons)-Math.min(...buttons)<=1);
   await expect(tools().getByRole('button',{name:'Bold',exact:true})).toBeVisible();
   stable(panelBefore,await snapshot(panel));
-  const layer=await tools().locator('.liquid-glass-content').evaluate(node=>({display:getComputedStyle(node).display,z:getComputedStyle(node).zIndex,effect:getComputedStyle(node.parentElement.querySelector('.liquid-glass-effect')).zIndex}));assert.notEqual(layer.display,'contents');assert.ok(Number(layer.z)>Number(layer.effect));
+  await expect(tools().locator('.liquid-glass')).toHaveCount(0);const layer=await tools().evaluate(node=>({background:getComputedStyle(node).backgroundColor,filter:getComputedStyle(node).backdropFilter}));assert.notEqual(layer.background,'rgba(0, 0, 0, 0)');assert.ok(!layer.filter||layer.filter==='none');
   const textbox=tools().getByRole('textbox',{name:'RSVP next-step copy',exact:true});await textbox.fill('Live formatting preview');await expect(body).toContainText('Live formatting preview');
   await tools().getByRole('button',{name:'Undo formatting or typing',exact:true}).click();await expect(body).not.toContainText('Live formatting preview');
   const editorStyle=await tools().locator('.page-markdown-editor').evaluate(root=>{

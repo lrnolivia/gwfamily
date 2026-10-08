@@ -3,18 +3,17 @@ import {chromium,webkit,expect} from '@playwright/test';
 import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {pageContentPayload} from '../src/page-content-model.js';
+import {authenticatedReadNavigation} from './browser-read-readiness.mjs';
 if(!process.env.CI&&process.env.GW_HOSTED_BROWSER_QA!=='1')throw Error('Run only in the authorized hosted shared-page fixture.');
 const base=process.env.GW_PAGE_CONTENT_URL||'http://127.0.0.1:4176';
 assert.match(base,/^http:\/\/(127\.0\.0\.1|localhost):(4176|4179)$/);
 const engine=process.env.GW_BROWSER==='webkit'?'webkit':'chromium',browser=await (engine==='webkit'?webkit:chromium).launch({headless:true});
 const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'}),page=await context.newPage(),errors=[],results=[];
-const pendingReads=new Set(),network=[];
-page.on('request',request=>{if(request.url().startsWith(base+'/api/')&&request.method()==='GET'){pendingReads.add(request);network.push({event:'start',url:request.url(),at:Date.now()})}});
-for(const event of ['requestfinished','requestfailed'])page.on(event,request=>{pendingReads.delete(request);network.push({event,url:request.url(),at:Date.now(),failure:request.failure()?.errorText});if(network.length>100)network.shift()});
+const network=[];
+page.on('request',request=>{if(request.url().startsWith(base+'/api/')&&request.method()==='GET'){network.push({event:'start',url:request.url(),at:Date.now()})}});
+for(const event of ['requestfinished','requestfailed'])page.on(event,request=>{network.push({event,url:request.url(),at:Date.now(),failure:request.failure()?.errorText});if(network.length>100)network.shift()});
 page.on('pageerror',error=>{errors.push(error.message);network.push({event:'pageerror',message:error.message,stack:error.stack,at:Date.now()})});
-const settleReads=async()=>{await expect.poll(()=>pendingReads.size,{timeout:20000,message:'Owner API reads complete before deliberate document navigation'}).toBe(0)};
-const navigate=async url=>{await settleReads();await page.goto(url)};
-const reload=async()=>{await settleReads();await page.reload()};
+const {navigate,reload,settle}=authenticatedReadNavigation(page,base);
 await page.addInitScript(()=>{localStorage.setItem('gw-platform','android');localStorage.setItem('gw-install-dismissed','true')});
 const output='docs/card-content-qa',hero=()=>page.locator('[data-panel-page="home"] [data-panel-id="hero"]'),card=()=>hero().locator('[data-card-layout="hero"]'),toolbar=()=>page.locator('.page-edit-toolbar');
 const read=async()=>{const response=await page.request.get(base+'/api/page-content/home');assert.equal(response.status(),200);return response.json()};
@@ -103,5 +102,5 @@ try{
   await page.screenshot({path:`${output}/${engine}-added-text-area.png`,fullPage:true});await toolbar().locator('.page-mode-done').click();await reload();await expect(card()).toContainText('Synthetic added plain text area');
  });
  assert.deepEqual(errors,[],JSON.stringify({network}));await writeFile(`${output}/${engine}-card-content-results.json`,JSON.stringify({browser:engine,sourceSha:process.env.GW_SOURCE_SHA||null,results,errors},null,2));
-}finally{await context.close();await browser.close()}
+}finally{await settle();await context.close();await browser.close()}
 

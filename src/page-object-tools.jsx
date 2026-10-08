@@ -1,14 +1,13 @@
 import React,{useEffect,useId,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
-import {Control,Glyph,FloatingSurfaceContext,useApp} from './ui-core.jsx';
-import {LiquidGlass} from '@sohumsuthar/liquid-glass';
+import {Control,Glyph,FloatingSurfaceContext} from './ui-core.jsx';
 import './page-object-tools.css';
 import {useFloatingPanelPosition} from './floating-panel-position.js';
 
 // One out-of-flow tool surface. A compact window gets a protected task; wide
 // windows keep a nonmodal inspector. Neither presentation resizes the canvas.
 export function PageObjectTools({title,children,onClose,returnFocus,fullHeight=false,protectedTask=false,modalOnCompact=true,onDone,busy=false,doneDisabled=false}){
- const app=useApp(),ref=useRef(null),heading=useId(),closeRef=useRef(onClose),focusRef=useRef(returnFocus);
+ const ref=useRef(null),heading=useId(),closeRef=useRef(onClose),focusRef=useRef(returnFocus);
  const floating=useFloatingPanelPosition(ref);
  const [compact,setCompact]=useState(()=>!matchMedia('(min-width: 701px)').matches);
  closeRef.current=busy?null:onClose;
@@ -20,6 +19,6 @@ export function PageObjectTools({title,children,onClose,returnFocus,fullHeight=f
   <div className="page-object-tools-body">{children}</div>
  </FloatingSurfaceContext.Provider>;
  return createPortal(<dialog ref={ref} className={'page-object-tools'+(fullHeight?' is-full-height':'')} style={floating.style} aria-labelledby={heading} aria-modal={compact&&modalOnCompact||protectedTask||undefined} onCancel={event=>{event.preventDefault();closeRef.current?.()}} onKeyDown={event=>{if(event.key==='Escape'&&!event.defaultPrevented){event.preventDefault();event.stopPropagation();closeRef.current?.()}}}>
-  {app?.platform==='android'?content:<LiquidGlass lens lensOptions={{bezel:14,refraction:1.05,dispersion:2,radius:28}} className="page-object-glass">{content}</LiquidGlass>}
+  {content}
  </dialog>,document.body);
 }

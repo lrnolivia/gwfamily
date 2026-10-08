@@ -14,8 +14,6 @@
 @media(prefers-contrast:more){.page-object-tools{border-width:2px}.card-content-slot[data-object-selected=true]{outline-width:3px}}
 
 .page-active-edit-card:has([data-object-selected=true]){outline:none}
-html[data-platform=ios] .page-object-tools{background:transparent;border:0}.page-object-glass{position:relative;border-radius:inherit;min-height:100%;overflow:hidden}.page-object-glass>.liquid-glass-content{display:block;position:relative;z-index:3;min-width:0}
-@media(prefers-reduced-transparency:reduce){html[data-platform=ios] .page-object-glass{background:var(--surface)!important}.page-object-glass>.liquid-glass-effect{display:none}}
 .page-command-button{min-width:44px;min-height:44px;padding:8px;border-radius:9px;font:650 .8125rem/1.4 system-ui,sans-serif}.page-command-button:hover:not(:disabled){background:var(--raised)}.page-command-notice{min-height:1.5em;font:.75rem/1.5 system-ui,sans-serif;color:var(--muted);margin:8px 0;overflow-wrap:anywhere}
 
 .page-object-tools-heading[data-movable]{cursor:grab;touch-action:none;user-select:none}.page-object-tools-heading[data-movable]:active{cursor:grabbing}.page-object-tools-heading[data-movable]:focus-visible{outline-offset:-3px}
@@ -27,8 +25,6 @@ html[data-font=serif] .page-object-tools :is(h2,h3){font-family:'DM Serif Text',
 .page-editor-order{display:flex;gap:8px;flex-wrap:wrap}.page-editor-order button{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;min-height:44px;padding:10px;border-radius:12px;background:var(--raised)}.page-editor-order .glyph{width:18px;height:18px}
 .page-panel-options-entry{position:relative;top:auto;right:auto;justify-content:flex-end;margin:0 0 8px;max-width:100%}.page-panel-options-entry>button{background:var(--raised);padding:8px 12px;border-radius:12px;max-width:100%}.page-panel-options-entry>button>span{padding:0;background:transparent;border-radius:0}
 
-/* Keep the glass rim while making overlapping page copy recede behind tools. */
-html[data-platform=ios] .page-object-glass>.liquid-glass-tint{background:color-mix(in srgb,var(--surface) 96%,transparent);opacity:1}
 
 /* Match task-sheet completion/exit controls without changing the editor body. */
 html[data-theme][data-platform] .page-object-tools-heading{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:12px;padding:16px 16px 12px}

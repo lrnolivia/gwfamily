@@ -64,11 +64,8 @@ function boot() {
     <Navigation node={nav}/></>);
   document.addEventListener('toggle',e=>{
     if (!e.target.matches?.(':popover-open')) return;
-    if (e.target.matches('#reaction-popout,.attach-options,#profile-popout,#notifications-popout,#member-popout')) {
-      const isMenu=e.target.matches('#reaction-popout,.attach-options');
-      enableMenuGlass(e.target,isMenu?
-        {bezel:14,refraction:1.05,dispersion:2,radius:40}:
-        {bezel:9,refraction:.9,dispersion:3,radius:40});
+    if (e.target.matches('#profile-popout,#notifications-popout')) {
+      enableMenuGlass(e.target,{bezel:9,refraction:.9,dispersion:3,radius:40});
     }
   },true);
 }

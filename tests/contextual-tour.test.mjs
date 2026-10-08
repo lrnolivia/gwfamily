@@ -56,5 +56,5 @@ test('source guards retain opt-in, real control anchoring, no automatic actions,
  const source=await readFile(new URL('../src/tutorial.jsx',import.meta.url),'utf8'),css=await readFile(new URL('../src/tutorial.css',import.meta.url),'utf8');
  assert.doesNotMatch(source,/dispatch\(|ONBOARD|requestPermission|fetch\(|api\(|sendMessage|pushManager|\.click\(|innerHTML|textContent|innerText/);
  for(const marker of ['TutorialProvider','createPortal','tour-spotlight','tour-dim','tour-pointer','Skip guide','Replay guide','Start over','Resume guide','ArrowRight','ArrowLeft','Escape','visualViewport','ResizeObserver','MutationObserver','scrollIntoView','prefers-reduced-motion','data-gw-tour-launch','origin.focus','isolateTourBranches'])assert.ok(source.includes(marker),marker);
- assert.match(css,/forced-colors:active/);assert.match(css,/prefers-contrast:more/);assert.match(css,/prefers-reduced-motion:reduce/);assert.match(source,/platform==='ios'\?<LiquidGlass/);assert.match(source,/aria-modal="false"/);
+ assert.match(css,/forced-colors:active/);assert.match(css,/prefers-contrast:more/);assert.match(css,/prefers-reduced-motion:reduce/);assert.doesNotMatch(source,/LiquidGlass/);assert.match(source,/<div className="tour-card tour-card-flat">/);assert.match(source,/aria-modal="false"/);
 });

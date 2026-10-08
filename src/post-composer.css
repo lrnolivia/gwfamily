@@ -1,12 +1,17 @@
 /* Optional tools belong to the existing post box, with its send/media footer. */
-html[data-theme][data-platform] .post-compose-field{display:grid;position:relative;isolation:isolate;min-width:0;padding-top:44px}
+html[data-theme][data-platform] .post-compose-field{--post-editor-stroke:rgb(0 0 0 / 30%);display:grid;position:relative;isolation:isolate;min-width:0;padding-top:44px;border:2px solid var(--post-editor-stroke)!important;border-radius:20px;overflow:hidden;outline:0;box-shadow:none!important}
+html[data-theme=dark][data-platform] .post-compose-field{--post-editor-stroke:color-mix(in srgb,var(--control) 30%,transparent)}
+html[data-theme][data-platform] .post-compose-field:focus-within{border-color:var(--post-editor-stroke)!important;outline:0;box-shadow:none!important}
 html[data-theme][data-platform] .post-compose-field.formatting-open{padding-top:0}
 /* The composer owns the top edge; background art must not inset its toolbar. */
 html[data-theme][data-platform] .poster-preview:has(>.post-compose-field){padding:0}
 html[data-theme][data-platform] .post-format-toggle{position:absolute;top:5px;left:8px;display:inline-flex;align-items:center;gap:5px;min-height:44px;padding:6px 10px;border-radius:999px;background:color-mix(in srgb,var(--control) 12%,var(--raised));color:var(--control);font-size:.75rem;font-weight:650;z-index:2}
 html[data-theme][data-platform] .post-format-toggle .glyph{width:15px;height:15px}
 html[data-theme][data-platform] .post-compose-field .page-markdown-editor{border:0;background:transparent;outline:0;box-shadow:none;border-radius:20px}
-html[data-theme][data-platform] .post-compose-field .page-markdown-toolbar{border-radius:20px 20px 0 0;flex-wrap:nowrap;min-width:0;animation:post-tools-in 140ms ease-out}
+html[data-theme][data-platform] .post-compose-field .page-markdown-toolbar{border-radius:0;flex-wrap:nowrap;min-width:0;animation:post-tools-in 140ms ease-out}
+html[data-theme][data-platform] .post-compose-field .page-markdown-toolbar button{border-radius:10px}
+html[data-theme][data-platform] .post-compose-field .page-markdown-tools>button:first-child{border-top-left-radius:15px}
+html[data-theme][data-platform] .post-compose-field .page-markdown-mode-tools>button:last-child{border-top-right-radius:15px}
 html[data-theme][data-platform] .post-compose-field .page-markdown-mode-tools{gap:3px;flex:0 0 auto}
 html[data-theme][data-platform] .post-compose-field .page-markdown-source-toggle>span:last-child{display:none}
 html[data-theme][data-platform] .post-format-done{display:grid;place-items:center;width:36px;min-width:36px;min-height:44px;padding:6px;border-radius:10px;background:var(--control);color:var(--control-text)!important}
@@ -19,7 +24,9 @@ html[data-theme][data-platform] .poster-preview .post-compose-field>textarea{wid
 html[data-theme][data-platform] .poster-preview .post-compose-field .page-markdown-editor{width:100%;color:var(--poster-text)}
 html[data-theme][data-platform] .poster-preview .post-compose-field :is(.page-markdown-visual,.page-markdown-source){min-height:0;padding:0;text-align:center;color:inherit;font-size:1.75rem;font-weight:700;line-height:1.25}
 html[data-theme][data-platform] .poster-preview:has(.poster-media) .post-compose-field .page-markdown-editor{color:white}
-html[data-theme][data-platform] .poster-preview .post-compose-field .page-markdown-toolbar{position:absolute;top:0;left:0;right:0;border-radius:20px 20px 0 0;color:var(--control)}
+html[data-theme][data-platform] .poster-preview .post-compose-field>.attach-direct{color:var(--poster-text)!important}
+html[data-theme][data-platform] .poster-preview:has(.poster-media) .post-compose-field>.attach-direct{color:white!important}
+html[data-theme][data-platform] .poster-preview .post-compose-field .page-markdown-toolbar{position:absolute;top:0;left:0;right:0;color:var(--control)}
 html[data-theme][data-platform] .poster-preview .post-compose-field .page-markdown-link{font-size:.8125rem;text-align:start;background:var(--surface);color:var(--text);margin-bottom:12px;border-radius:12px}
 html[data-theme][data-platform] .background-media-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:stretch}
 html[data-theme][data-platform] .background-media-actions .button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;margin:0;padding:10px;border:0;border-radius:16px;background:var(--raised);color:var(--text);font-size:.8125rem;line-height:1.3}
