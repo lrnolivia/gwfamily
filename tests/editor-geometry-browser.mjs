@@ -65,17 +65,19 @@ try{
   stable(before,await snapshot(heading));
   await page.screenshot({path:`${output}/${engine}-heading-${width}.png`});
   await heading.getByRole('button',{name:'Finish editing Feed heading',exact:true}).click();
-  const body=page.locator('[data-page-field="home.nextRsvpBody"]');
+  await finish();await page.goto(base+'/#/reunion');await begin();
+  const editableHero=page.locator('[data-panel-page="reunion"] [data-panel-id="hero"]');if(await editableHero.getAttribute('data-panel-locked')==='true'){await editableHero.getByRole('button',{name:/^Panel options for /}).click();const layer=page.locator('.page-object-tools[open]');await layer.getByRole('button',{name:/^Unlock /}).click();await layer.getByRole('button',{name:'Close object tools',exact:true}).click();}
+  const body=page.locator('[data-page-field="reunion.pricingNote"]');
   const panel=body.locator('xpath=ancestor::section[@data-panel-id][1]');
   await body.scrollIntoViewIfNeeded();const panelBefore=await snapshot(panel);
-  await body.getByRole('button',{name:'Edit RSVP next-step copy',exact:true}).click();
-  await expect(tools().getByRole('textbox',{name:'RSVP next-step copy',exact:true})).toBeVisible();
+  await body.getByRole('button',{name:'Edit Planning note',exact:true}).click();
+  await expect(tools().getByRole('textbox',{name:'Planning note',exact:true})).toBeVisible();
   await expect(body.getByRole('textbox')).toHaveCount(0);
   const buttons=await tools().locator('.page-markdown-toolbar button').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().top));assert.ok(Math.max(...buttons)-Math.min(...buttons)<=1);
   await expect(tools().getByRole('button',{name:'Bold',exact:true})).toBeVisible();
   stable(panelBefore,await snapshot(panel));
   await expect(tools().locator('.liquid-glass')).toHaveCount(0);const layer=await tools().evaluate(node=>({background:getComputedStyle(node).backgroundColor,filter:getComputedStyle(node).backdropFilter}));assert.notEqual(layer.background,'rgba(0, 0, 0, 0)');assert.ok(!layer.filter||layer.filter==='none');
-  const textbox=tools().getByRole('textbox',{name:'RSVP next-step copy',exact:true});await textbox.fill('Live formatting preview');await expect(body).toContainText('Live formatting preview');
+  const textbox=tools().getByRole('textbox',{name:'Planning note',exact:true});await textbox.fill('Live formatting preview');await expect(body).toContainText('Live formatting preview');
   await tools().getByRole('button',{name:'Undo formatting or typing',exact:true}).click();await expect(body).not.toContainText('Live formatting preview');
   const editorStyle=await tools().locator('.page-markdown-editor').evaluate(root=>{
    const visual=root.querySelector('.page-markdown-visual'),bar=root.querySelector('.page-markdown-toolbar'),footer=root.querySelector('.page-markdown-footer'),done=footer.querySelector('.page-markdown-done'),style=getComputedStyle(visual),barStyle=getComputedStyle(bar),footerStyle=getComputedStyle(footer),surface=getComputedStyle(done,'::before'),button=done.getBoundingClientRect(),frame=footer.getBoundingClientRect();
@@ -90,7 +92,7 @@ try{
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
   await page.screenshot({path:`${output}/${engine}-wysiwyg-${width}.png`});
   await tools().getByRole('button',{name:'Done',exact:true}).click();
-  await finish();results.push(`Heading and in-place WYSIWYG at ${width}px`);
+  await finish();await page.goto(base+'/#/home');results.push(`Heading and in-place WYSIWYG at ${width}px`);
  }
  await page.setViewportSize({width:1280,height:900});await begin();
  const hero=page.locator('[data-panel-page="home"] [data-panel-id="hero"]');

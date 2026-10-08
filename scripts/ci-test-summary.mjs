@@ -1,5 +1,6 @@
 // Run only in the authorized canonical GitHub CI lane. No suite is filtered.
 import {spawn} from 'node:child_process';
+import '../tests/test-environment-guard.mjs';
 import {testFailureAnnotations,testFailureCommand,testSuiteCounts,buildFailureAnnotation,browserFailureAnnotation} from './ci-test-summary-model.mjs';
 const suite=/^[A-Za-z0-9 _-]{1,40}$/.test(process.argv[2]||'')?process.argv[2]:'GW suite';
 const build=process.argv[3]==='--build';

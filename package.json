@@ -4,7 +4,7 @@
   "version": "0.2.0",
   "scripts": {
     "build": "node scripts/build-sign-in-assets.mjs && esbuild src/react-app.jsx --bundle --format=iife --jsx=automatic --outfile=dist/react-app.js && node scripts/build-favicon.mjs && node scripts/version-assets.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --import ./tests/test-environment-guard.mjs --test tests/*.test.mjs"
   },
   "dependencies": {
     "@paper-design/shaders-react": "0.0.81",

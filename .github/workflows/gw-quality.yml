@@ -9,6 +9,8 @@ concurrency:
 defaults:
   run:
     shell: bash
+env:
+  NODE_OPTIONS: --import=${{ github.workspace }}/tests/test-environment-guard.mjs
 jobs:
   shared:
     name: Shared tests and build
@@ -151,6 +153,8 @@ jobs:
         if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 5
         run: |
+          node tests/editor-field-regression-browser.mjs
+          GW_MEMBERSHIP_QA_OUTPUT=docs/membership-qa node tests/membership-panel-browser.mjs
           GW_V4_QA_OUTPUT=docs/install-v4-qa node tests/install-v4-browser.mjs
           GW_HOME_QA_OUTPUT=docs/home-reunion-qa node tests/home-reunion-browser.mjs
           GW_MEMORIAL_QA_OUTPUT=docs/memorial-qa node tests/memorial-update-browser.mjs
@@ -333,6 +337,7 @@ jobs:
             docs/install-v4-qa
             docs/home-reunion-qa
             docs/memorial-qa
+            docs/membership-qa
             docs/email-preview-qa
             docs/content-actions-qa
             backend/build/worker.mjs

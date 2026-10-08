@@ -6,9 +6,11 @@ import {leaderPreview} from './leader-preview.js';
 import {MerchandiseManager} from './merchandise-manager.jsx';
 import React,{useEffect,useRef,useState} from 'react';
 import {api} from './live-adapter.js';
-import {Button,Control,useApp,useSheetForm} from './ui-core.jsx';
+import {Button,Control,Glyph,useApp,useSheetForm} from './ui-core.jsx';
 import {PersonIdentity} from './person-identity.jsx';
 import './manage-family-people.css';
+import './membership-review-polish.css';
+import {approvalPosting} from './membership-posting-default.mjs';
 import {PeopleFilters} from './people-filters.jsx';
 import {emptyPeopleFilters,filterDirectoryMembers,managementDirectoryMembers} from './people-directory-model.js';
 export function ManageFamily({section,embedded=false}){
@@ -46,7 +48,7 @@ export function MemberReview({member:m,selfId,accountKey,onSave,onSaved}){
  async function save(status){
   if(saveLock.current||!allowed||removed||confirming||roles===null||!onSave)return;
   saveLock.current=true;setSaving(true);setError('');
-  try{if(await onSave({type:'APPROVE_MEMBER',id:m.id,status,roles,canPost:post}))onSaved?.();else setError('Membership could not be saved. Your changes are still here; try again.')}
+  try{if(await onSave({type:'APPROVE_MEMBER',id:m.id,status,roles,canPost:approvalPosting(m.status,status,post)}))onSaved?.();else setError('Membership could not be saved. Your changes are still here; try again.')}
   catch{setError('Membership could not be saved. Your changes are still here; try again.')}
   finally{saveLock.current=false;setSaving(false)}
  }
@@ -67,10 +69,11 @@ export function MemberReview({member:m,selfId,accountKey,onSave,onSaved}){
    {confirming==='REMOVE_MEMBER'?<><p>This removes their family membership and blocks access to private family posts, messages, and details. Their sign-in account, existing posts, messages, orders, and payment records will be kept.</p><p>An admin can restore this person for review later. Restoration requires a separate approval before they regain family access. No removal email is sent.</p>{state.mode==='preview'&&<p className="muted small">This changes local sample data only. Reset preview to undo all sample changes.</p>}</>:<p>This brings the membership back as pending. Family access, posting permission, and organizer roles stay off until an admin separately approves them.</p>}
    <div className="card-actions"><Button ref={cancelButton} secondary disabled={saving} onClick={()=>{setConfirming(null);setError('')}}>Cancel</Button><Button className={confirming==='REMOVE_MEMBER'?'membership-remove':''} disabled={saving} onClick={()=>changeMembership(confirming)}>{saving?'Saving…':confirming==='REMOVE_MEMBER'?'Confirm removal':'Restore for review'}</Button></div>
   </section>:removed?<section className="stack"><p>This membership has been removed. Their account and historical records are preserved.</p><Button ref={removalTrigger} secondary disabled={saving} onClick={()=>setConfirming('RESTORE_MEMBER')}>Restore membership</Button></section>:<>
-   <label className="check-row"><input type="checkbox" disabled={saving} checked={post} onChange={event=>setPost(event.target.checked)}/>Can post updates</label>
-   <fieldset className="organizer-role-options"><legend>Organizer roles</legend>{roles===null?<p role="alert">Organizer roles could not be read. Close this review and refresh before editing.</p>:['admin','moderator','planner','treasurer'].map(role=><label key={role} className="check-row"><input type="checkbox" disabled={saving} checked={roles.includes(role)} onChange={event=>setRoles(current=>event.target.checked?[...new Set([...current,role])]:current.filter(value=>value!==role))}/>{role[0].toUpperCase()+role.slice(1)}</label>)}</fieldset>
-   <div className="card-actions"><Button secondary disabled={saving||roles===null} onClick={()=>save('suspended')}>Pause access</Button><Button disabled={saving||roles===null} onClick={()=>save('active')}>{saving?'Saving…':m.status==='active'?'Save membership':'Approve membership'}</Button></div>
-   <div className="membership-removal"><Button ref={removalTrigger} secondary className="membership-remove" disabled={saving} onClick={()=>{setConfirming('REMOVE_MEMBER');setError('')}}>Remove member</Button><p className="muted small">Revoke family access while keeping their account and history. You’ll confirm the person first.</p></div>
+   <p className="membership-basics"><Glyph name="chat"/>Approved members can post, comment, and share memories.</p>
+   {m.status==='active'&&<label className="check-row membership-posting-setting"><input type="checkbox" disabled={saving} checked={post} onChange={event=>setPost(event.target.checked)}/>Allow family-feed posts</label>}
+   <fieldset className="organizer-role-options"><legend>Organizer roles <span className="field-optional">Optional</span></legend>{roles===null?<p role="alert">Organizer roles could not be read. Close this review and refresh before editing.</p>:['admin','moderator','planner','treasurer'].map(role=><label key={role} className="check-row"><input type="checkbox" disabled={saving} checked={roles.includes(role)} onChange={event=>setRoles(current=>event.target.checked?[...new Set([...current,role])]:current.filter(value=>value!==role))}/><span><strong>{role[0].toUpperCase()+role.slice(1)}</strong><small>{{admin:'Membership and settings',moderator:'Posts and conversations',planner:'Reunion plans and events',treasurer:'Fees and payments'}[role]}</small></span></label>)}</fieldset>
+   <Button className="membership-primary" disabled={saving||roles===null} onClick={()=>save('active')}>{saving?'Saving…':m.status==='active'?'Save membership':'Approve membership'}</Button>
+   <details className="membership-removal"><summary><Glyph name="more"/>More actions</summary>{m.status==='active'&&<Button secondary disabled={saving||roles===null} onClick={()=>save('suspended')}>Pause access</Button>}<Button ref={removalTrigger} secondary className="membership-remove" disabled={saving} onClick={()=>{setConfirming('REMOVE_MEMBER');setError('')}}>Remove member</Button><p className="muted small">Revoke family access while keeping their account and history. You’ll confirm the person first.</p></details>
   </>}
   {(error||data?.error)&&<p role="alert">{data?.error||error}</p>}
  </form>

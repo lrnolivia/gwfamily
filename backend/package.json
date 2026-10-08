@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/*.test.mjs",
+    "test": "node --import ../tests/test-environment-guard.mjs --test tests/*.test.mjs",
     "check": "node --check src/policy.mjs && node --check src/worker.mjs",
     "build": "node scripts/build-worker.mjs && node scripts/check-worker-bundle.mjs && node scripts/build-site-worker.mjs && node scripts/check-site-worker.mjs"
   },
