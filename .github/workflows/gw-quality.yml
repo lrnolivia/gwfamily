@@ -141,9 +141,19 @@ jobs:
       - id: browser_install
         if: ${{ !cancelled() && steps.restore_build.outcome == 'success' }}
         run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Contextual editor geometry and command checks
+        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        id: panel_arrow_editor
+        timeout-minutes: 6
+        run: |
+          GW_FIXTURE_PORT=4188 node backend/tests/fixture-server.mjs > /tmp/gw-editor-geometry-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4188/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4188/api/config
+          mkdir -p docs/ci-logs
+          CI=true node scripts/ci-test-summary.mjs editor-geometry-browser --browser tests/editor-geometry-browser.mjs 2>&1 | tee docs/ci-logs/editor-geometry-browser.log
       - name: Device-aware navigation geometry checks
         id: navigation_geometry
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' && steps.panel_arrow_editor.outcome == 'success' }}
         timeout-minutes: 6
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 --directory dist > /tmp/gw-http.log 2>&1 &
@@ -217,15 +227,6 @@ jobs:
           curl -fsS http://127.0.0.1:4176/api/config
           mkdir -p docs/ci-logs
           CI=true node scripts/ci-test-summary.mjs granular-panel-framing-browser --browser tests/granular-panel-framing-browser.mjs 2>&1 | tee docs/ci-logs/granular-panel-framing-browser.log
-      - name: Contextual editor geometry and command checks
-        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' && steps.navigation_geometry.outcome == 'success' && steps.guide_help.outcome == 'success' && steps.shared_page_editor.outcome == 'success' }}
-        timeout-minutes: 6
-        run: |
-          GW_FIXTURE_PORT=4188 node backend/tests/fixture-server.mjs > /tmp/gw-editor-geometry-fixture.log 2>&1 &
-          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4188/api/config && break; sleep 1; done
-          curl -fsS http://127.0.0.1:4188/api/config
-          mkdir -p docs/ci-logs
-          CI=true node scripts/ci-test-summary.mjs editor-geometry-browser --browser tests/editor-geometry-browser.mjs 2>&1 | tee docs/ci-logs/editor-geometry-browser.log
       - name: Post and comment management browser checks
         if: ${{ !cancelled() && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' && steps.navigation_geometry.outcome == 'success' && steps.guide_help.outcome == 'success' && steps.shared_page_editor.outcome == 'success' }}
         timeout-minutes: 6
