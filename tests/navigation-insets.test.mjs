@@ -84,16 +84,18 @@ test('device and display mode are independent of selected material and theme', (
 });
 
 test('390px, 768px and landscape geometry consumes the safe-area inset once in either material', () => {
-  for (const width of [390, 768, 667, 844]) for (const os of ['ios', 'android']) {
+  for (const width of [390, 699, 700, 768, 667, 844, 1280]) for (const os of ['ios', 'android', 'none']) {
     for (const mode of ['browser', 'standalone', 'fullscreen']) for (const safe of [0, 21, 24, 34]) {
       const options = {width, mobileOS: os, displayMode: mode, safeAreaBottom: safe};
       const glass = navigationInsetMetrics({...options, material: 'ios'});
       const flat = navigationInsetMetrics({...options, material: 'android'});
-      if(width>=700){assert.equal(flat.layout,'rail');assert.equal(flat.railWidth,96);assert.equal(flat.top,44);assert.equal(flat.buttonBottom,safe+12);}
+      if(width>=700){assert.equal(flat.layout,'rail');assert.equal(flat.railWidth,96);assert.equal(flat.top,44);assert.equal(flat.buttonBottom,safe+12);
+        if(os==='android')assert.equal(flat.fabBottom,Math.max(24,safe+12));
+        else assert.equal(flat.fabBottom,undefined,'desktop and iOS Flat keep header-adjacent Post');}
       else {assert.equal(flat.bottom,0);assert.equal(flat.height,64+safe);assert.equal(flat.buttonBottom,safe+8);assert.equal(flat.fabBottom-flat.height,12);}
       assert.ok(glass.bottom >= 0);
       assert.ok(glass.buttonBottom >= safe, 'every button stays above the home-indicator inset');
-      const chosenGap=mode==='browser'&&width>=700?18:os==='ios'&&mode==='browser'?2:0;assert.equal(glass.bottom,Math.max(chosenGap,safe-7),'single hardware inset plus explicit regular-browser wide-screen lift');
+      const chosenGap=mode==='browser'&&width>=700?18:os==='none'?4:os==='ios'&&mode==='browser'?2:0;assert.equal(glass.bottom,Math.max(chosenGap,safe-7),'single hardware inset plus explicit regular-browser wide-screen lift');
       if (mode!=='browser'&&safe>=7) assert.equal(glass.bottom,safe-7,'installed PWA geometry remains unchanged');
       if (width >= 700) assert.equal(glass.fabBottom + glass.fabHeight / 2, glass.bottom + glass.height / 2);
       else assert.equal(glass.fabBottom - glass.bottom - glass.height, 12);
