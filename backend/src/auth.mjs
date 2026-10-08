@@ -6,6 +6,7 @@ import {accessProviderConfig,configuredAuthProviders,accessProviderRateRules} fr
 import { betterAuth } from 'better-auth';
 import { emailOTP, magicLink } from 'better-auth/plugins';
 import {createAuthDiagnosticLogger} from './error-diagnostics.mjs';
+import {instrumentAuthD1} from './auth-d1-diagnostics.mjs';
 
 export function authEnvironment(env) {
   return { ...env, DB: env.DB || env.D1,
@@ -39,7 +40,7 @@ export function authOptions(rawEnv,diagnosticContext={}) {
   };
   return {
     logger:createAuthDiagnosticLogger(diagnosticContext),
-    database: env.DB, secret: env.BETTER_AUTH_SECRET, baseURL: env.AUTH_ORIGIN,
+    database: instrumentAuthD1(env.DB,diagnosticContext), secret: env.BETTER_AUTH_SECRET, baseURL: env.AUTH_ORIGIN,
     trustedOrigins:[env.AUTH_ORIGIN,...(providers.apple?['https://appleid.apple.com']:[])], emailAndPassword:{enabled:false}, socialProviders:providers,
     account:{accountLinking:{enabled:false}},
     session:{expiresIn:60*60*24*7,updateAge:60*60*24,cookieCache:{enabled:false}},

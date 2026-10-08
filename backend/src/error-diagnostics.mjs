@@ -1,6 +1,7 @@
 // Only fixed categories and names leave this module. Never emit raw messages,
 // stacks, SQL/parameters, request bodies, headers, cookies or account identities.
 const stages=new Set(['auth.session.initial','auth.session.revalidate','auth.handler','auth.other','request.handler','membership','auth.schema']);
+const databaseOperations=new Set(['prepare','bind','all','first','run','raw','batch','exec']);
 const names=new Set(['Error','TypeError','RangeError','SyntaxError','TimeoutError','AbortError','APIError','AggregateError','DOMException','BetterAuthError']);
 const codes=new Set(['D1_ERROR','D1_EXEC_ERROR','D1_TYPE_ERROR','SQLITE_ERROR','SQLITE_BUSY','SQLITE_LOCKED','SQLITE_CONSTRAINT','ETIMEDOUT','TIMEOUT','FAILED_TO_GET_SESSION','INTERNAL_SERVER_ERROR','SCHEMA_MISMATCH','D1_RESET','D1_NETWORK_ERROR','D1_TIMEOUT','D1_OVERLOADED']);
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
@@ -18,6 +19,12 @@ export function errorCategory(error){
  if(/D1.*(?:network)/i.test(code))return 'database_network';
  if(/D1.*(?:timeout|timed out)/i.test(code))return 'database_timeout';
  if(/D1.*(?:quota|limit exceeded)/i.test(code))return 'database_quota';
+ // Some documented binding/runtime errors have no D1 prefix or code property.
+ // Match only known phrases internally; their text never leaves this module.
+ if(/Network connection lost\./i.test(code))return 'network_connection_lost';
+ if(/Cannot perform I\/O on behalf of a different request/i.test(code))return 'request_context';
+ if(/Too many subrequests/i.test(code))return 'subrequest_limit';
+ if(/D1's free tier daily row (?:read|write) limit/i.test(code))return 'database_quota';
  if(/SQLITE_CONSTRAINT|constraint failed/i.test(code))return 'database_constraint';
  if(/D1_ERROR|D1_EXEC_ERROR|D1_TYPE_ERROR|SQLITE_ERROR/i.test(code))return 'database';
  if(chain(error).some(value=>field(value,'name')==='TimeoutError')||/\b(?:ETIMEDOUT|TIMEOUT)\b/.test(code))return 'timeout';
@@ -39,10 +46,14 @@ function scopedContext(context={}){
 }
 export function recordUnexpectedError(error,context,log=console.error){
  const scope=scopedContext(context),causes=chain(error).slice(1),selectedErrorPresent=errorLike(error);
- const event=context?.event==='schema_validation'?'schema_validation':'request_error';
+ const event=context?.event==='schema_validation'?'schema_validation':context?.event==='auth_database_error'?'auth_database_error':'request_error';
  const diagnostic={...scope,event,category:event==='schema_validation'?'database_schema':errorCategory(error),errorKind:!selectedErrorPresent?'absent':field(error,'name')==='APIError'?'api_error':error instanceof Error?'error':'error_like',selectedErrorPresent,errorName:selectedErrorPresent?safeName(error):'none',causeName:causes.length?safeName(causes[0]):'none',causeCode:causes.length?causes.map(safeCode).find(code=>code!=='other')||'other':'none',bodyCode:safeCode(error),status:500};
+ if(event==='auth_database_error')diagnostic.operation=databaseOperations.has(context.operation)?context.operation:'other';
  try{log(JSON.stringify(diagnostic))}catch{/* Reporting must not change the response. */}
  return scope.requestId;
+}
+export function recordAuthDatabaseError(error,context,operation,log=console.error){
+ return recordUnexpectedError(error,{requestId:context?.requestId,routeTemplate:context?.routeTemplate,stage:context?.stage,event:'auth_database_error',operation},log);
 }
 // Fresh closure per auth call: concurrent sessions cannot exchange references.
 export function createAuthDiagnosticLogger(context={},log=console.error){
