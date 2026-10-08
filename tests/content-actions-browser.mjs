@@ -14,14 +14,15 @@ try{
   const context=await browser.newContext({viewport:{width,height:900},reducedMotion:'reduce'}),page=await context.newPage();page.on('pageerror',error=>errors.push(error.message));page.setDefaultTimeout(15000);const {navigate,reload,settle}=authenticatedReadNavigation(page,base);
   await page.addInitScript(theme=>{localStorage.setItem('gw-theme',theme);localStorage.setItem('gw-platform','ios');localStorage.setItem('gw-install-dismissed','true')},theme);
   await navigate(base+'/__test/signin?user=alice');await expect(page.getByRole('navigation',{name:'Main navigation'})).toBeVisible();
-  const upload=await page.request.post(base+'/api/media',{headers:{Origin:base},multipart:{file:{name:'synthetic-proportional.png',mimeType:'image/png',buffer:createTestPng(320,200)}}});assert.equal(upload.status(),201,await upload.text());const photoFile=await upload.json();const photoPost=await command(page,{type:'ADD_POST',post:{text:'Synthetic proportional photo',files:[photoFile]}});
+  const photoTitle='Synthetic proportional photo '+width,portraitTitle='Synthetic portrait photo '+width;
+  const upload=await page.request.post(base+'/api/media',{headers:{Origin:base},multipart:{file:{name:'synthetic-proportional.png',mimeType:'image/png',buffer:createTestPng(320,200)}}});assert.equal(upload.status(),201,await upload.text());const photoFile=await upload.json();const photoPost=await command(page,{type:'ADD_POST',post:{text:photoTitle,files:[photoFile]}});
   await navigate(base+'/?qa='+randomUUID()+'#/post/'+photoPost.id);const detailImage=page.locator('.detail-page .post-card .local-file img');await expect(detailImage).toBeVisible();await expect.poll(()=>detailImage.evaluate(image=>image.naturalWidth)).toBe(320);const geometry=await detailImage.evaluate(image=>{const rect=image.getBoundingClientRect(),style=getComputedStyle(image);return {ratio:rect.width/rect.height,natural:image.naturalWidth/image.naturalHeight,fit:style.objectFit,aspect:style.aspectRatio}});assert.ok(Math.abs(geometry.ratio-geometry.natural)<.01,JSON.stringify(geometry));assert.equal(geometry.fit,'contain');assert.equal(geometry.aspect,'auto');await page.screenshot({path:`${output}/${engine}-detail-photo-${width}-${theme}.png`});
   // The feed and full post use the attachment's own dimensions, even when a
   // narrow viewport or old attachment height cap would otherwise squash it.
   const portraitUpload=await page.request.post(base+'/api/media',{headers:{Origin:base},multipart:{file:{name:'synthetic-portrait.png',mimeType:'image/png',buffer:createTestPng(200,320)}}});assert.equal(portraitUpload.status(),201);const portraitFile=await portraitUpload.json();
-  await command(page,{type:'ADD_POST',post:{text:'Synthetic portrait photo',files:[portraitFile]}});
+  await command(page,{type:'ADD_POST',post:{text:portraitTitle,files:[portraitFile]}});
   await navigate(base+'/#/home');
-  for(const name of ['Synthetic proportional photo','Synthetic portrait photo']){
+  for(const name of [photoTitle,portraitTitle]){
    const image=page.locator('.post-card').filter({hasText:name}).locator('.local-file img');await expect(image).toBeVisible();
    await expect.poll(()=>image.evaluate(node=>node.naturalHeight)).toBeGreaterThan(0);
    const size=await image.evaluate(node=>{const r=node.getBoundingClientRect();return {rendered:r.width/r.height,natural:node.naturalWidth/node.naturalHeight}});assert.ok(Math.abs(size.rendered-size.natural)<.01,JSON.stringify({name,...size}));
