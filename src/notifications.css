@@ -21,7 +21,7 @@
 .notification-list-controls{display:flex;align-items:flex-end;flex-wrap:wrap;justify-content:space-between;gap:8px 12px}
 .notification-list-controls .choice-control{margin:0}.notification-bulk-actions{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}.notification-bulk-actions>.text-button{min-height:44px;white-space:normal;text-align:left;padding:8px 0}
 .notification-inbox{list-style:none;padding:0;margin:0;min-width:0}
-.notification-row{padding:14px 0;border-block-start:1px solid var(--line);min-width:0}
+.notification-row{padding:12px;border:0;border-block-start:0;min-width:0;border-radius:16px;background:var(--raised);margin-block:8px}
 .notification-row-content{min-width:0}.notification-open{display:flex;gap:12px;width:100%;max-width:100%;min-width:0;background:transparent;color:var(--text);border:0;border-radius:12px;text-align:left;padding:6px 2px}
 .notification-open:hover{background:var(--surface)}.notification-open:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .notification-category-icon{flex:0 0 28px;display:grid;place-items:start center;padding-top:3px;color:var(--muted)}.notification-category-icon .glyph{height:22px;width:22px}

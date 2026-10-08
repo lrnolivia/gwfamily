@@ -21,7 +21,7 @@ export function notificationPopoverGeometry({layoutWidth, layoutHeight, visualVi
   // The caller supplies only a visible navigation rectangle. Reserve its
   // measured top plus a gap, without adding its safe-area inset a second time.
   const nav = bottomNavigationRect;
-  if (nav && nav.right > nav.left && nav.bottom > nav.top &&
+  if (nav && nav.right - nav.left > nav.bottom - nav.top && nav.right > nav.left && nav.bottom > nav.top &&
       nav.right > viewport.left && nav.left < viewport.left + viewport.width &&
       nav.bottom > viewport.top && nav.top < viewport.top + viewport.height) {
     bottom = Math.max(top, Math.min(bottom, nav.top - 8));

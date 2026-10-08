@@ -9,7 +9,8 @@
 @media(max-width:520px){.manage-member-row{flex-direction:column;align-items:stretch;gap:12px}.manage-member-row>.button{align-self:flex-start}}
 
 .membership-removal{border-top:1px solid var(--line);padding-top:18px;display:grid;gap:8px}
-.membership-removal .button{justify-self:start;min-height:44px}
+.membership-removal .button{justify-self:stretch;width:100%;min-height:48px}
 .membership-confirmation{padding:16px;border:1px solid var(--line);border-radius:18px}
 .membership-confirmation h3,.membership-confirmation p,.membership-removal p{margin:0}
-.membership-remove{border-color:currentColor!important;background:transparent!important}
+html[data-theme][data-platform] .button.membership-remove.membership-remove{background:var(--destructive-accent,#d93a45)!important;color:var(--bright-text,#fffaf0)!important;border:0!important;--gw-control-color:var(--destructive-accent,#d93a45);--gw-control-alpha:100%;--button-shadow-color:color-mix(in srgb,var(--destructive-accent) 38%,#000);box-shadow:var(--gw-action-shadow)!important;min-height:48px}
+html[data-theme][data-platform] .gw-optic-control.button.membership-remove.membership-remove>.liquid-glass-tint{background:var(--destructive-accent,#d93a45)!important}

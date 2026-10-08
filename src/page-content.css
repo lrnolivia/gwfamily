@@ -1,5 +1,4 @@
-/* Edit mode swaps chrome tokens only. Photos, video, and the saved personal
-   palette are untouched, and removing the attribute restores them immediately. */
+/* Editor-specific status colors never replace the saved page appearance. */
 :root{
  --page-edit-bg:#20201e;--page-edit-surface:#292926;--page-edit-raised:#343430;
  --page-edit-text:#f6f3ed;--page-edit-muted:#cac5bb;--page-edit-line:#74726a;
@@ -13,19 +12,6 @@ html[data-theme=light]{
  --page-edit-control:#55564e;--page-edit-control-text:#fffdf7;
  --page-save-bg:#275839;--page-save-ink:#fffdf7;--page-error:#9b2622;--page-glow:rgba(80,79,68,.17);--page-glow-strong:rgba(80,79,68,.26);
 }
-html[data-page-edit-mode=true]{
- --bg:var(--page-edit-bg)!important;--surface:var(--page-edit-surface)!important;
- --raised:var(--page-edit-raised)!important;--soft:var(--page-edit-raised)!important;
- --nav:var(--page-edit-surface)!important;--text:var(--page-edit-text)!important;
- --muted:var(--page-edit-muted)!important;--line:var(--page-edit-line)!important;
- --accent:var(--page-edit-control)!important;--ink:var(--page-edit-control-text)!important;
- --control:var(--page-edit-control)!important;--control-text:var(--page-edit-control-text)!important;
- --control-edge:var(--page-edit-control)!important;--profile-color:var(--page-edit-control)!important;
-}
-html[data-page-edit-mode=true] .reunion-hub{background:var(--surface)!important;color:var(--text)!important;border-color:var(--line)!important}
-html[data-page-edit-mode=true] .reunion-hub :is(.muted,.list-row p,.list-row>.glyph){color:var(--muted)!important}
-html[data-page-edit-mode=true] .reunion-hub .next-step{background:var(--raised)!important}
-html[data-page-edit-mode=true] .reunion-hub .list-row{border-color:var(--line)!important}
 .page-edit-toolbar{margin:0 0 18px;min-width:0}
 .page-edit-entry{display:flex;justify-content:flex-end;align-items:center;gap:10px;color:var(--muted);font-size:.75rem}
 .page-edit-entry-button{display:inline-flex;gap:7px;align-items:center;min-height:40px;font-size:.8125rem;font-weight:650;color:var(--text);padding:6px 10px;border-radius:10px}
@@ -56,8 +42,8 @@ html[data-theme][data-platform] .page-save-button.button:disabled>.liquid-glass-
 .page-copy-frame:focus-within::after,.page-copy-frame.is-active::after{border-style:solid;border-color:var(--control)}
 .page-copy-frame.is-active{isolation:isolate}
 .page-copy-frame.is-active .page-copy-target{visibility:hidden;pointer-events:none}
-.page-copy-input-wrap{position:absolute;inset:-4px;width:calc(var(--page-input-width, 100%) + 8px);min-height:48px;z-index:3;background:var(--raised);border-radius:3px;box-shadow:var(--page-edit-shadow)}
-.page-copy-input-wrap .page-copy-input{position:absolute;inset:0;width:100%;height:100%;min-height:48px;min-width:0;margin:0;padding:4px 52px 4px 4px;resize:none;border:1px solid var(--control);border-radius:3px;background:var(--raised);color:var(--text);font:inherit;letter-spacing:inherit;line-height:inherit;caret-color:var(--text);box-shadow:none;text-transform:none}
+.page-copy-input-wrap{box-sizing:border-box;max-width:none;position:absolute;inset:-4px;width:calc(var(--page-input-width, 100%) + 8px);min-height:48px;z-index:3;background:var(--raised);border-radius:8px;box-shadow:none}
+.page-copy-input-wrap .page-copy-input{box-sizing:border-box;position:absolute;inset:0;width:100%;height:100%;min-height:48px;min-width:0;margin:0;padding:4px 52px 4px 4px;resize:none;border:1px solid var(--control);border-radius:3px;background:var(--raised);color:var(--text);font:inherit;letter-spacing:inherit;line-height:inherit;caret-color:var(--text);box-shadow:none;text-transform:none}
 .page-copy-input-wrap .page-copy-input:focus{outline:2px solid var(--control);outline-offset:1px}
 .page-field-done{position:absolute;top:2px;right:2px;bottom:2px;width:44px;min-width:44px;min-height:44px;max-height:48px;display:flex;align-items:center;justify-content:center;padding:5px;border-radius:4px;background:var(--control);color:var(--control-text);font:650 .75rem/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:normal;text-transform:none;z-index:1}
 .page-field-done .glyph{width:16px;height:16px}
@@ -114,8 +100,8 @@ html[data-theme][data-platform] .page-save-button.button:disabled>.liquid-glass-
 .page-edit-toolbar button:disabled,.page-media-panel button:disabled,.page-history-panel button:disabled{opacity:.5;cursor:default}
 /* Only the actively edited surface pulses. Copy and media never move. */
 body,.app,.card,section,.intro,footer,.bottom,.muted,.page-edit-modebar,dialog,.page-copy-input-wrap{transition:background-color 360ms ease-out,color 360ms ease-out,border-color 360ms ease-out,box-shadow 360ms ease-out,outline-color 360ms ease-out}
-.page-active-edit-card{outline:1px solid var(--line);outline-offset:3px;animation:page-active-glow 3s ease-in-out infinite}
-@keyframes page-active-glow{0%,100%{box-shadow:0 5px 20px 3px var(--page-glow)}50%{box-shadow:0 6px 24px 5px var(--page-glow-strong)}}
+.page-active-edit-card{outline:2px solid var(--control);outline-offset:3px}
+
 @media(max-width:650px){
  .page-edit-modebar{align-items:flex-start;flex-wrap:wrap;gap:9px;padding:12px}
  .page-edit-mode-label{flex:1 1 100%}
@@ -127,7 +113,7 @@ body,.app,.card,section,.intro,footer,.bottom,.muted,.page-edit-modebar,dialog,.
  .page-media-files{max-height:280px}
 }
 @media(prefers-reduced-motion:reduce){
- .page-active-edit-card{animation:none!important;box-shadow:0 5px 20px 3px var(--page-glow)}
+ .page-active-edit-card{animation:none!important}
  body,.app,.card,section,.intro,footer,.bottom,.muted,.page-edit-modebar,dialog,.page-copy-input-wrap,.page-media-edit{transition:none!important}
 }
 @media(prefers-contrast:more){.page-copy-frame::after,.page-editable-media.is-editable::after{border-style:solid;border-width:2px}.page-media-edit>span{outline:2px solid var(--text)}}
@@ -140,9 +126,72 @@ body,.app,.card,section,.intro,footer,.bottom,.muted,.page-edit-modebar,dialog,.
 .page-mode-done{background:var(--control);color:var(--control-text)}
 .page-editor-guide{margin:10px 0 14px;font:.8125rem/1.5 system-ui,sans-serif;color:var(--muted);max-width:65ch}
 .page-edit-tools{position:relative;font:.8125rem/1.4 system-ui,sans-serif}
-.page-edit-tools>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;padding:8px 10px;border-radius:9px;list-style:none}
+.page-edit-tools>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;padding:8px 12px;border-radius:999px;background:var(--raised);border:1px solid var(--decorative-line,var(--line));list-style:none}
 .page-edit-tools>summary::-webkit-details-marker{display:none}
 .page-edit-tools[open]>div{position:absolute;top:100%;right:0;z-index:35;min-width:220px;display:grid;padding:8px;background:var(--raised);border:1px solid var(--line);border-radius:12px}
 .page-edit-tools[open]>div>button{min-height:44px;text-align:left;padding:10px;font:inherit}
 .page-edit-tools :focus-visible,.page-arrange-toggle:focus-visible{outline:2px solid var(--text);outline-offset:3px}
-@media(max-width:650px){.page-edit-modebar>.page-editor-actions{justify-content:flex-start}.page-edit-tools{margin-left:auto}.page-mode-done{margin-left:auto}}
+@media(max-width:650px){.page-edit-modebar>.page-editor-actions{justify-content:flex-start}.page-edit-tools{margin-left:0}.page-mode-done{margin-left:auto}}
+
+/* The entry lives after page content, so hidden tools leave no header gap. */
+.page-edit-toolbar.is-entry{margin:24px 0 12px}
+.page-edit-toolbar.is-entry .page-edit-entry{justify-content:center}
+.page-edit-entry-button{min-height:44px}
+
+/* Inline Done keeps a full touch target without a large filled block over text. */
+.page-copy-input-wrap{display:grid;grid-template-columns:minmax(0,1fr) 44px;align-items:start;gap:4px;padding:4px;border:1px solid var(--control)}
+.page-copy-input-wrap .page-copy-input{position:relative;inset:auto;min-height:44px;padding:0;border:0;min-width:0;height:100%;background:transparent}
+.page-copy-input-wrap .page-copy-input:focus{outline:0}
+.page-copy-input-wrap:focus-within{outline:0;border-color:var(--control)}
+.page-copy-input-wrap .page-field-done{position:relative;inset:auto;align-self:start;width:44px;height:44px;min-height:44px;max-height:44px;padding:0;border-radius:50%;background:transparent;box-shadow:none;color:var(--text)}
+.page-copy-input-wrap .page-field-done>.liquid-glass-tint{background:transparent;opacity:0}
+.page-copy-input-wrap .page-field-done:hover{background:var(--surface)}
+.page-copy-input-wrap .page-field-done .glyph{width:18px;height:18px;flex:none}
+
+/* Text formatting controls live outside the canvas; selecting text keeps its layout. */
+.page-body-edit-target{position:relative;min-height:0;border:0;padding:0}
+.page-body-edit-target::after{content:"";position:absolute;inset:-4px;border:1px dashed var(--line);border-radius:3px;pointer-events:none}
+.page-body-editor-wrap{margin:0}
+
+/* One edge owns focus; parent selection rings do not stack around fields. */
+.page-copy-frame.is-active::after{display:none}
+.page-active-edit-card:has(.page-copy-frame.is-active,.page-markdown-editor,.page-panel-text-edit){outline:none}
+.card-content-slot:has(.page-markdown-editor,.page-copy-frame.is-active,.page-panel-text-edit){outline:none}
+
+/* The active field sits above adjacent copy with one focus edge. */
+html[data-theme][data-platform] .page-copy-input-wrap,html[data-theme][data-platform] .page-panel-text-edit{background:var(--raised);box-shadow:0 6px 16px rgb(0 0 0 / 16%),0 2px 4px rgb(0 0 0 / 8%)}
+
+/* A quiet accent edge indicates the editing target without a bright rim. */
+html[data-theme][data-platform] .page-copy-input-wrap,html[data-theme][data-platform] .page-copy-input-wrap:focus-within,html[data-theme][data-platform] .page-panel-text-edit{border-color:color-mix(in srgb,var(--control) 30%,transparent)}
+html[data-theme][data-platform] .page-active-edit-card{outline-color:color-mix(in srgb,var(--control) 30%,transparent)}
+
+html[data-theme][data-platform] .page-copy-input-wrap .page-field-done{background:var(--control);color:var(--control-text)}
+
+/* The focused field and its Done action sit above both corner tool targets. */
+.page-copy-frame.is-active{z-index:6}
+.card-content-slot:has(.page-copy-frame.is-active,.page-panel-text-edit:focus-within){z-index:5}
+
+/* Custom heading fields also own their stacking layer while being edited. */
+.page-panel-text-edit{z-index:6}
+
+/* One editor surface connects guidance, page actions and the selected field. */
+.page-edit-toolbar.is-editing{padding:12px;border-radius:24px;background:var(--surface)}
+.page-edit-toolbar.is-editing :is(.page-command-notice,.page-editor-guide){margin:12px 4px;font-size:.75rem}
+.page-edit-toolbar.is-editing .page-panel-actions{padding:8px 4px 12px;gap:8px}
+.page-edit-toolbar.is-editing .page-panel-actions>button{background:var(--raised);border-radius:12px;padding:8px 12px}
+.page-edit-toolbar.is-editing .page-panel-actions>button:hover:not(:disabled){background:var(--control);color:var(--control-text)}
+.page-edit-toolbar.is-editing .page-panel-actions>.page-editor-help{flex-basis:100%;padding:2px 0;font-size:.75rem}
+.page-edit-toolbar.is-editing .page-selected-object{min-height:44px;padding:10px 12px;border-radius:14px;background:var(--raised);flex-wrap:nowrap}
+.page-edit-toolbar.is-editing .page-selected-object>span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html[data-theme][data-platform] .page-edit-toolbar.is-editing .page-command-button{background:var(--surface)}
+@media(max-width:420px){.page-edit-toolbar.is-editing{padding:10px;border-radius:20px}}
+
+.page-media-tools{display:flex;align-items:start;flex-wrap:wrap;gap:8px;margin:0 4px 12px}
+.page-media-tools:empty,.page-media-tools:not(:has(.page-optional-media)){display:none}
+.page-media-tools>div:empty{display:none}
+.page-media-tools .page-optional-media{margin:0;min-width:0}
+.page-media-tools .page-optional-media>summary{display:flex;align-items:center;gap:8px;min-height:44px;padding:10px 12px;border-radius:12px;background:var(--raised);font-size:.8125rem;list-style:none;cursor:pointer}
+.page-media-tools .page-optional-media>summary::-webkit-details-marker{display:none}
+.page-media-tools .page-optional-media>summary .glyph{width:18px;height:18px}
+.page-media-tools .page-optional-media[open]{width:100%}
+.page-panel-layout[data-empty-media-tools=true]{margin:0}

@@ -1,5 +1,12 @@
+import {createPageCommand,canApplyPageCommand,applyPageCommand,recordPageCommand,stepPageCommand,forgetPageCommands} from './page-command-history.js';
+import {canAccessLeaderTools} from './leader-access.js';
 import {shareUnchangedSnapshot,refreshingPageRecord} from './refresh-stability.js';
+import {useImageEditDraft} from './use-image-edit-draft.jsx';
+import {clearAccountImageDrafts} from './image-edit-recovery.js';
+import {PageObjectTools} from './page-object-tools.jsx';
+import {ImageLayoutContext} from './image-edit-controls.jsx';
 import {PhotoFramingEditor,photoFrameStyle} from './photo-framing.jsx';
+import {pageReadLifecycle} from './page-read-lifecycle.js';
 import {PageMarkdownEditor,PageMarkdownBody} from './page-markdown.jsx';
 import {CarouselControls,useCarouselSwipe} from './carousel-controls.jsx';
 import {carouselKeyboardDestination,wrapCarouselIndex} from './carousel-model.js';
@@ -18,12 +25,15 @@ export {pageContentPayload,pageContentFingerprint,pageContentDirty,pageDraftKey,
 const plainChildren=children=>React.Children.toArray(children).map(child=>typeof child==='string'||typeof child==='number'?String(child):React.isValidElement(child)?child.type==='br'?'\n':plainChildren(child.props.children):'').join('');
 
 export function PageContentProvider({children,enabled=true}){
- const app=useApp(),state=app?.state||{},preview=state.mode==='preview';
+ const app=useApp(),state=app?.state||{},preview=state.mode==='preview',canEditPreview=canAccessLeaderTools(state);
  const allowed=enabled&&state.onboarding==='done'&&(preview||(state.mode==='live'&&app?.data?.session?.status==='active'));
  const account=allowed?(preview?'preview:':'live:')+state.selfId:null;
- const [records,setRecords]=useState({}),[editingPage,setEditingPage]=useState(null),[editingPages,setEditingPages]=useState([]),[arrangingPage,setArrangingPage]=useState(false),[activeEditor,setActiveEditor]=useState(null),[workCount,setWorkCount]=useState(0),[autosaveHolds,setAutosaveHolds]=useState(0),[storageError,setStorageError]=useState('');
+ const [records,setRecords]=useState({}),[editingPage,setEditingPage]=useState(null),[editingPages,setEditingPages]=useState([]),[arrangingPage,setArrangingPage]=useState(false),[activeEditor,setActiveEditor]=useState(null),[selectedObject,setSelectedObject]=useState(null),[objectRequest,setObjectRequest]=useState(null),[workCount,setWorkCount]=useState(0),[autosaveHolds,setAutosaveHolds]=useState(0),[storageError,setStorageError]=useState(''),[commandHistory,setCommandHistory]=useState({past:[],future:[]}),[commandNotice,setCommandNotice]=useState('');
+ const commandRef=useRef({past:[],future:[]});
+ const installCommands=useCallback(history=>{commandRef.current=history;setCommandHistory(history)},[]);
  const pauseAutosave=useCallback(()=>{setAutosaveHolds(count=>count+1);let released=false;return()=>{if(!released){released=true;setAutosaveHolds(count=>Math.max(0,count-1))}}},[]);
  const ref=useRef({}),epoch=useRef(0),identity=useRef(account),loading=useRef(new Map()),pageUsers=useRef({}),previewStore=useRef({}),draftStore=useRef({}),routeAtEdit=useRef(null),activeSurface=useRef(null),workRef=useRef(0),reloadAllowed=useRef(false),mounted=useRef(true);
+ const reads=useRef(null);if(!reads.current)reads.current=pageReadLifecycle();
  const routeKey=app?.route?.type+':'+(app?.route?.id||'')+':'+(app?.route?.section||'');
  const install=useCallback((page,value)=>{const next=shareUnchangedSnapshot(ref.current[page],value);if(next!==ref.current[page]){ref.current={...ref.current,[page]:next};if(mounted.current)setRecords(ref.current)}return next},[]);
  const persistDrafts=useCallback(()=>{
@@ -32,15 +42,15 @@ export function PageContentProvider({children,enabled=true}){
   draftStore.current=drafts;
   const safe=writeStored(pageBrowserStorage('sessionStorage'),pageDraftKey(account),drafts);if(!safe)setStorageError('This browser could not keep a recovery copy. Keep this tab open until your page changes are saved.');else setStorageError('');return safe;
  },[account]);
- useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;epoch.current++}},[]);
+ useEffect(()=>{mounted.current=true;reads.current.resume();return()=>{mounted.current=false;epoch.current++;reads.current.suspend()}},[]);
  useLayoutEffect(()=>{
-  const previousAccount=identity.current;if(previousAccount?.startsWith('live:')&&previousAccount!==account){try{sessionStorage.removeItem(pageDraftKey(previousAccount))}catch{}}
-  epoch.current++;identity.current=account;ref.current={};setRecords({});setEditingPage(null);setStorageError('');loading.current.clear();
+  const previousAccount=identity.current;if(previousAccount?.startsWith('live:')&&previousAccount!==account){try{sessionStorage.removeItem(pageDraftKey(previousAccount));clearAccountImageDrafts(sessionStorage,previousAccount)}catch{}}
+  epoch.current++;reads.current.cancel();identity.current=account;installCommands({past:[],future:[]});setCommandNotice('');ref.current={};setRecords({});setEditingPage(null);setStorageError('');loading.current.clear();
   const recoveryStorage=pageBrowserStorage('sessionStorage');draftStore.current=account?readStored(recoveryStorage,pageDraftKey(account),{}):{};if(account&&!recoveryStorage)setStorageError('Draft recovery is unavailable in this browser. Keep this tab open until your page changes are saved.');
   previewStore.current=preview?readStored(pageBrowserStorage('localStorage'),PREVIEW_KEY,{}):{};
  },[account,preview]);
  useEffect(()=>{if(editingPage&&routeAtEdit.current!==routeKey)setEditingPage(null)},[routeKey,editingPage]);
- useEffect(()=>{if(!editingPage)setArrangingPage(false)},[editingPage]);
+ useEffect(()=>{if(!editingPage){setArrangingPage(false);setObjectRequest(null)}},[editingPage]);
  useEffect(()=>{
   const root=document.documentElement;
   if(allowed&&editingPage)root.dataset.pageEditMode='true';else delete root.dataset.pageEditMode;
@@ -51,29 +61,36 @@ export function PageContentProvider({children,enabled=true}){
   window.addEventListener('beforeunload',protect);return()=>window.removeEventListener('beforeunload',protect);
  },[]);
  useEffect(()=>{
-  const reset=()=>{if(!preview)return;epoch.current++;ref.current={};previewStore.current={};draftStore.current={};loading.current.clear();setRecords({});setEditingPage(null);try{sessionStorage.removeItem(pageDraftKey(account))}catch{}};
+  const leave=event=>{if(event.defaultPrevented)return;reads.current.suspend()};
+  const resume=()=>reads.current.resume();
+  window.addEventListener('beforeunload',leave);window.addEventListener('pagehide',leave);window.addEventListener('pageshow',resume);
+  return()=>{window.removeEventListener('beforeunload',leave);window.removeEventListener('pagehide',leave);window.removeEventListener('pageshow',resume)};
+ },[]);
+ useEffect(()=>{
+  const reset=()=>{if(!preview)return;epoch.current++;ref.current={};previewStore.current={};draftStore.current={};loading.current.clear();setRecords({});setEditingPage(null);try{sessionStorage.removeItem(pageDraftKey(account));clearAccountImageDrafts(sessionStorage,account)}catch{}};
   window.addEventListener('gw-shared-pages-preview-reset',reset);return()=>window.removeEventListener('gw-shared-pages-preview-reset',reset);
  },[preview,account]);
  const load=useCallback(async(page,{force=false,keepDraft=true}={})=>{
-  if(!allowed||!knownPage(page)||identity.current!==account)return null;
+  if(!allowed||!knownPage(page)||identity.current!==account||reads.current.suspended)return null;
   if(loading.current.has(page))return loading.current.get(page);
   if(!force&&ref.current[page]?.status&&ref.current[page].status!=='idle')return ref.current[page];
-  const generation=epoch.current,before=ref.current[page]||initialRecord(page);
+  const generation=epoch.current,before=ref.current[page]||initialRecord(page),controller=reads.current.begin();
   install(page,refreshingPageRecord(before));
   const operation=(async()=>{
    await Promise.resolve();
    try{
     let result;
-    if(preview){const saved=previewStore.current[page];result={...initialRecord(page),...(saved?.record||{}),canEdit:true};if(!validRestoredDraft(page,result.content))result={...initialRecord(page),canEdit:true}}
-    else result=await pageContentRequest('/api/page-content/'+encodeURIComponent(page));
-    if(generation!==epoch.current||identity.current!==account||!mounted.current)return null;
+    if(preview){const saved=previewStore.current[page];result={...initialRecord(page),...(saved?.record||{}),canEdit:canEditPreview};if(!validRestoredDraft(page,result.content))result={...initialRecord(page),canEdit:canEditPreview}}
+    else result=await pageContentRequest('/api/page-content/'+encodeURIComponent(page),{signal:controller.signal});
+    if(controller.signal.aborted||generation!==epoch.current||identity.current!==account||!mounted.current)return null;
     const freshest=ref.current[page]||before,stored=keepDraft?draftStore.current[page]:null;
     const next=reconcilePageRecord(page,result,keepDraft?freshest:null,stored);
+    if(!next.canEdit)installCommands(forgetPageCommands(commandRef.current,page));
     install(page,next);return next;
-   }catch(error){if(generation===epoch.current&&ref.current[page]?.status!=='saving')install(page,{...(ref.current[page]||before),status:'error',error:error.message});return null}
-   finally{if(generation===epoch.current)loading.current.delete(page)}
+   }catch(error){if(!controller.signal.aborted&&generation===epoch.current&&ref.current[page]?.status!=='saving')install(page,{...(ref.current[page]||before),status:'error',error:error.message,errorKind:'load',requestId:error.requestId||null});return null}
+   finally{reads.current.finish(controller);if(generation===epoch.current){loading.current.delete(page);if(controller.signal.aborted&&ref.current[page]?.status==='loading')install(page,{...ref.current[page],status:'ready'})}}
   })();loading.current.set(page,operation);return operation;
- },[allowed,account,preview,install]);
+ },[allowed,account,preview,canEditPreview,install]);
  const retainPage=useCallback(page=>{if(!knownPage(page))return;pageUsers.current[page]=(pageUsers.current[page]||0)+1;return()=>{pageUsers.current[page]=Math.max(0,(pageUsers.current[page]||0)-1)}},[]);
  useEffect(()=>{
   if(!allowed||preview)return;
@@ -85,27 +102,32 @@ export function PageContentProvider({children,enabled=true}){
   if(!knownPage(page)||page==='global')return false;
   const scope=[...new Set([page,...relatedPages,'global'])].filter(knownPage);
   const results=await Promise.all(scope.map(key=>load(key)));if(!results[0]?.canEdit)return false;
-  routeAtEdit.current=routeKey;setEditingPages(scope);setEditingPage(page);return true;
- },[load,routeKey]);
+  installCommands({past:[],future:[]});setCommandNotice('');routeAtEdit.current=routeKey;setEditingPages(scope);setEditingPage(page);return true;
+ },[load,routeKey,installCommands]);
  const beginWork=useCallback(()=>{const finish=app?.data?.beginPending?.();workRef.current++;setWorkCount(count=>count+1);let ended=false;return()=>{if(ended)return;ended=true;workRef.current=Math.max(0,workRef.current-1);finish?.();if(mounted.current)setWorkCount(count=>Math.max(0,count-1))}},[app?.data?.beginPending]);
- const activateSurface=useCallback((node,editorId=null)=>{setActiveEditor(editorId);const next=node?.closest?.('dialog,.card,section,.intro,footer')||node;if(activeSurface.current===next)return;activeSurface.current?.classList.remove('page-active-edit-card');activeSurface.current=next;next?.classList.add('page-active-edit-card')},[]);
+ const activateSurface=useCallback((node,editorId=null)=>{setActiveEditor(editorId);if(!node)setSelectedObject(null);const next=node?.closest?.('dialog,.card,section,.intro,footer')||node;if(activeSurface.current===next)return;activeSurface.current?.classList.remove('page-active-edit-card');activeSurface.current=next;next?.classList.add('page-active-edit-card')},[]);
  useEffect(()=>{if(!editingPage)activateSurface(null);return()=>activateSurface(null)},[editingPage,activateSurface]);
  useEffect(()=>{
   const main=document.getElementById('main');if(!editingPage||!main||typeof MutationObserver==='undefined')return;
   const observer=new MutationObserver(()=>{if(activeSurface.current?.isConnected===false)activateSurface(null)});
   observer.observe(main,{childList:true,subtree:true});return()=>observer.disconnect();
  },[editingPage,activateSurface]);
- const update=useCallback((page,change)=>{
+ useEffect(()=>{if(!editingPage)return;const settle=event=>{const target=event.target;if(!target.closest?.('#main')||target.closest('[data-card-slot],[data-page-field],.page-panel-options-entry,.page-panel-inline-controls,.page-object-tools,.page-edit-toolbar,button,a,input,textarea,select,[contenteditable="true"]'))return;activateSurface(null)};document.addEventListener('pointerdown',settle);return()=>document.removeEventListener('pointerdown',settle)},[editingPage,activateSurface]);
+ const update=useCallback((page,change,{historyLabel,historyReplay=false}={})=>{
   const before=ref.current[page];if(!allowed||!before?.canEdit)return false;
-  const draft=change(clone(before.draft||before.content));
+  const previous=before.draft||before.content,draft=change(clone(previous));
+  if(!historyReplay&&pageContentFingerprint(previous)!==pageContentFingerprint(draft)&&commandRef.current.future.length)installCommands({...commandRef.current,future:[]});
+  if(historyLabel){const command=createPageCommand(page,historyLabel,previous,draft);if(command){installCommands(recordPageCommand(commandRef.current,command));setCommandNotice('')}}
   install(page,{...before,draft,base:before.base||clone(before.content),request:null,error:'',latest:before.latest});persistDrafts();return true;
- },[allowed,install,persistDrafts]);
+ },[allowed,install,persistDrafts,installCommands]);
+ const runCommand=useCallback((direction)=>{const undo=direction==='undo',command=(undo?commandRef.current.past:commandRef.current.future).at(-1);if(!command||!editingPages.includes(command.page)||workRef.current)return false;const record=ref.current[command.page];if(!allowed||!record?.canEdit||record.status==='saving'||record.latest||record.conflicted)return false;try{const next=applyPageCommand(record.draft||record.content,command,direction);if(!update(command.page,()=>next,{historyReplay:true}))return false;installCommands(stepPageCommand(commandRef.current,direction));setCommandNotice((undo?'Undid: ':'Redid: ')+command.label+'. Changes save automatically.');return true}catch(error){setCommandNotice(error.message);return false}},[allowed,editingPages,update,installCommands]);
+ const undoCommand=useCallback(()=>runCommand('undo'),[runCommand]),redoCommand=useCallback(()=>runCommand('redo'),[runCommand]);
  const save=useCallback(async page=>{
   const before=ref.current[page];if(!allowed||!before?.canEdit||before.status==='saving')return false;
   if(!pageContentDirty(before))return true;
-  let content;try{content=validateSharedPageContent(page,pageContentPayload(before.draft))}catch(error){install(page,{...before,error:error.message});return false}
+  let content;try{content=validateSharedPageContent(page,pageContentPayload(before.draft))}catch(error){install(page,{...before,error:error.message,errorKind:'save'});return false}
   const fingerprint=JSON.stringify(content),request=before.request?.fingerprint===fingerprint?before.request:{id:crypto.randomUUID(),fingerprint};
-  install(page,{...before,status:'saving',error:'',request});persistDrafts();
+  install(page,{...before,status:'saving',error:'',errorKind:null,requestId:null,request});persistDrafts();
   const generation=epoch.current,finishWork=beginWork();
   try{
    let saved;
@@ -119,7 +141,7 @@ export function PageContentProvider({children,enabled=true}){
    }else saved=await pageContentRequest('/api/page-content/'+encodeURIComponent(page),{method:'PATCH',body:JSON.stringify({requestId:request.id,expectedRevision:before.revision,content})});
    if(generation!==epoch.current)return false;
    install(page,reconcilePageSave(page,saved,ref.current[page],pageContentFingerprint(before.draft),preview?'Saved on this device':'Saved for the family'));persistDrafts();return true;
-  }catch(error){if(generation===epoch.current){install(page,{...ref.current[page],status:'ready',error:error.status===409?'Another leader saved this page. Your draft is kept. Review the latest version before saving.':error.message,latest:error.current||null,conflicted:error.status===409});persistDrafts()}return false}finally{finishWork()}
+  }catch(error){if(generation===epoch.current){install(page,{...ref.current[page],status:'ready',errorKind:'save',requestId:error.requestId||null,error:error.status===409?'Another leader saved this page. Your draft is kept. Review the latest version before saving.':error.message,latest:error.current||null,conflicted:error.status===409});persistDrafts()}return false}finally{finishWork()}
  },[allowed,preview,install,persistDrafts,beginWork]);
  useEffect(()=>{
   if(!allowed||!editingPage||workCount||autosaveHolds)return;
@@ -129,7 +151,7 @@ export function PageContentProvider({children,enabled=true}){
   const timer=setTimeout(()=>{if(identity.current!==account)return;for(const page of pages)if(pageCanAutosave(ref.current[page]))void save(page)},900);
   return()=>clearTimeout(timer);
  },[allowed,account,editingPage,editingPages,records,workCount,autosaveHolds,save]);
- const discard=useCallback(page=>{const before=ref.current[page];if(!before||before.status==='saving')return;const latest=before.latest||before;install(page,{...before,...latest,draft:null,base:null,request:null,error:'',latest:null,conflicted:false,status:'ready'});persistDrafts()},[install,persistDrafts]);
+ const discard=useCallback(page=>{installCommands(forgetPageCommands(commandRef.current,page));const before=ref.current[page];if(!before||before.status==='saving')return;const latest=before.latest||before;install(page,{...before,...latest,draft:null,base:null,request:null,error:'',latest:null,conflicted:false,status:'ready'});persistDrafts()},[install,persistDrafts]);
  const reviewLatest=useCallback(async page=>{
   const before=ref.current[page];if(!before?.draft)return null;
   try{const latest=before.latest||await pageContentRequest('/api/page-content/'+encodeURIComponent(page));const merge=mergePageDraft(before.base||before.content,before.draft,latest.content);install(page,{...before,latest,merge});return merge}catch(error){install(page,{...before,error:error.message});return null}
@@ -149,14 +171,14 @@ export function PageContentProvider({children,enabled=true}){
    let saved;
    if(preview){const target=revision===0?sharedPageDefaults(page):previewStore.current[page]?.revisions.find(r=>r.revision===revision)?.content;if(!target)throw Error('That saved version is no longer available.');saved={page,revision:before.revision+1,content:normalizePanelContent(page,target),canEdit:true,updatedAt:new Date().toISOString()};const store={...previewStore.current,[page]:{record:saved,revisions:[{revision:saved.revision,createdAt:saved.updatedAt,editorName:'Preview leader',restoredFrom:revision,content:saved.content},...(previewStore.current[page]?.revisions||[])].slice(0,30)}};if(!writeStored(pageBrowserStorage('localStorage'),PREVIEW_KEY,store))throw Error('The preview could not be restored on this device.');previewStore.current=store}
    else saved=await pageContentRequest('/api/page-content/'+encodeURIComponent(page)+'/restore',{method:'POST',body:JSON.stringify({requestId:restoreRequest.id,expectedRevision:before.revision,revision})});
-   if(generation!==epoch.current)return false;install(page,{...initialRecord(page),...saved,status:'ready',savedNotice:'Earlier version restored'});persistDrafts();return true;
+   if(generation!==epoch.current)return false;install(page,{...initialRecord(page),...saved,status:'ready',savedNotice:'Earlier version restored'});installCommands(forgetPageCommands(commandRef.current,page));persistDrafts();return true;
   }catch(error){if(generation===epoch.current)install(page,error.status===409&&error.current?{...initialRecord(page),...error.current,status:'ready',error:'Another leader changed this page. The latest version is shown; review it before restoring again.'}:{...before,status:'ready',error:error.message,restoreRequest});return false}finally{finishWork()}
  },[preview,install,persistDrafts,beginWork]);
  const prepareReload=useCallback(()=>{if(workRef.current||Object.values(ref.current).some(row=>row.status==='saving'))return false;if(!persistDrafts())return false;reloadAllowed.current=true;return true},[persistDrafts]);
  const accountReady=allowed&&identity.current===account;
  const current=accountReady?records:{};
  const hasUnsavedDrafts=accountReady&&Object.keys(collectPageDrafts(current,draftStore.current)).length>0,pending=workCount>0||Object.values(current).some(row=>row.status==='saving'),storageSafe=!storageError;
- const value=useMemo(()=>({records:current,allowed:accountReady,preview,editingPage:accountReady?editingPage:null,editingPages,arrangingPage,setArrangingPage,pauseAutosave,activeEditor,storageError,hasUnsavedDrafts,pending,storageSafe,prepareReload,load,retainPage,begin,beginWork,activateSurface,update,save,discard,reviewLatest,rebase,history,restore,finish:()=>setEditingPage(null)}),[current,accountReady,preview,editingPage,editingPages,arrangingPage,setArrangingPage,pauseAutosave,activeEditor,storageError,hasUnsavedDrafts,pending,storageSafe,prepareReload,load,retainPage,begin,beginWork,activateSurface,update,save,discard,reviewLatest,rebase,history,restore]);
+ const value=useMemo(()=>({records:current,allowed:accountReady,preview,editingPage:accountReady?editingPage:null,editingPages,arrangingPage,setArrangingPage,pauseAutosave,activeEditor,selectedObject,setSelectedObject,objectRequest,setObjectRequest,storageError,hasUnsavedDrafts,pending,storageSafe,commandHistory,commandNotice,undoCommand,redoCommand,prepareReload,load,retainPage,begin,beginWork,activateSurface,update,save,discard,reviewLatest,rebase,history,restore,finish:()=>setEditingPage(null)}),[current,accountReady,preview,editingPage,editingPages,arrangingPage,setArrangingPage,pauseAutosave,activeEditor,selectedObject,setSelectedObject,objectRequest,setObjectRequest,storageError,hasUnsavedDrafts,pending,storageSafe,commandHistory,commandNotice,undoCommand,redoCommand,prepareReload,load,retainPage,begin,beginWork,activateSurface,update,save,discard,reviewLatest,rebase,history,restore]);
  return <PageContentContext.Provider value={value}>{children}</PageContentContext.Provider>;
 }
 
@@ -175,34 +197,39 @@ export function EditableText({page,field,as:Tag='span',children,className='',...
  const panelLocked=useContext(PagePanelLockContext),editor=usePageContent(page),definition=knownPage(page)?SHARED_PAGE_SCHEMA[page].fields[field]:null;
  const [active,setActive]=useState(false),[bounds,setBounds]=useState(null),original=useRef(''),input=useRef(null),trigger=useRef(null),id=useId();
  const stored=editor.content?.text?.[field],hasOriginal=children!==undefined,originalValue=hasOriginal&&(!editor.record?.draft&&editor.record?.revision===0||stored===definition?.default),text=originalValue?plainChildren(children):typeof stored==='string'?stored:plainChildren(children),busy=false;
- useEffect(()=>{if(!editor.editing||active&&editor.activeEditor!==id)setActive(false)},[editor.editing,editor.activeEditor,active,id]);
+ useEffect(()=>{if(!editor.editing||editor.arrangingPage||active&&editor.activeEditor!==id)setActive(false)},[editor.editing,editor.arrangingPage,editor.activeEditor,active,id]);
  useEffect(()=>{if(active){input.current?.focus();input.current?.setSelectionRange?.(0,input.current.value.length)}},[active]);
- const start=()=>{if(!editor.editing||busy)return;original.current=text;const rect=trigger.current.parentElement.getBoundingClientRect(),edge=Math.min(window.visualViewport?(window.visualViewport.offsetLeft+window.visualViewport.width):window.innerWidth,trigger.current.closest('.card,section')?.getBoundingClientRect().right||Infinity);setBounds({width:rect.width,height:rect.height,inputWidth:Math.max(rect.width,Math.min(240,edge-rect.left-12))});editor.activateSurface(trigger.current,id);setActive(true)};
+ // Centered headings can move when their edit frame mounts. Clamp using the
+ // mounted frame, rather than the preceding text's intrinsic rectangle.
+ useLayoutEffect(()=>{if(!active)return;const fit=()=>{const node=trigger.current?.parentElement;if(!node)return;const rect=node.getBoundingClientRect(),edge=Math.min(window.innerWidth,window.visualViewport?window.visualViewport.offsetLeft+window.visualViewport.width:window.innerWidth,node.closest('.card,section')?.getBoundingClientRect().right||Infinity);setBounds(current=>{if(!current)return current;const width=Math.max(0,Math.min(current.inputWidth,edge-rect.left-12));return Math.abs(width-current.inputWidth)<.5?current:{...current,inputWidth:width}})};fit();window.addEventListener('resize',fit);window.visualViewport?.addEventListener('resize',fit);return()=>{window.removeEventListener('resize',fit);window.visualViewport?.removeEventListener('resize',fit)}},[active]);
+ const start=()=>{if(!editor.editing||busy)return;if(!trigger.current?.closest('[data-card-slot]'))editor.setSelectedObject({page,label:definition.label+' · '+SHARED_PAGE_SCHEMA[page].label});original.current=text;const rect=trigger.current.parentElement.getBoundingClientRect(),edge=Math.min(window.innerWidth,window.visualViewport?(window.visualViewport.offsetLeft+window.visualViewport.width):window.innerWidth,trigger.current.closest('.card,section')?.getBoundingClientRect().right||Infinity);setBounds({width:Math.min(rect.width,Math.max(0,edge-rect.left-12)),height:rect.height,inputWidth:Math.max(0,Math.min(Math.max(rect.width+56,240),edge-rect.left-12))});editor.activateSurface(trigger.current,id);setActive(true)};
  const finish=()=>{setActive(false);requestAnimationFrame(()=>trigger.current?.focus())};
  const change=value=>editor.update(page,draft=>({...draft,text:{...draft.text,[field]:value}}));
  if(!definition||!editor.allowed)return <Tag className={className} {...props}>{children}</Tag>;
  if(definition.format==='markdown')return <EditableBodyText page={page} field={field} as={Tag} className={className} {...props}>{children}</EditableBodyText>;
  const shown=originalValue?children:typeof stored==='string'?text:children;
- if(!editor.editing||panelLocked)return <Tag className={className} {...props}><span className="page-copy-value">{shown}</span></Tag>;
+ if(!editor.editing||editor.arrangingPage||panelLocked)return <Tag className={className} {...props}><span className="page-copy-value">{shown}</span></Tag>;
  const Input=definition.type==='multiline'?'textarea':'input';
  return <Tag className={'page-editable-copy '+className} {...props} data-page-field={page+'.'+field}>
   <span className={'page-copy-frame '+(active?'is-active':'')} style={active&&bounds?{width:bounds.width,height:bounds.height,'--page-input-width':bounds.inputWidth+'px'}:undefined}>
    <span ref={trigger} className="page-copy-target" role={!active?'button':undefined} tabIndex={!active?0:undefined} aria-label={!active?'Edit '+definition.label:undefined} aria-hidden={active||undefined} onClick={start} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();start()}}}>{shown||<span className="page-empty-copy">{definition.label}</span>}</span>
-   {active&&<span className="page-copy-input-wrap"><Input ref={input} id={id} className="page-copy-input" aria-label={definition.label} maxLength={definition.maxLength} rows={definition.type==='multiline'?2:undefined} value={text} disabled={busy} onChange={e=>change(e.target.value)} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();change(original.current);finish()}else if(e.key==='Enter'&&(definition.type!=='multiline'||e.metaKey||e.ctrlKey)){e.preventDefault();finish()}}}/><Control type="button" className="page-field-done" disabled={busy} aria-label={'Finish editing '+definition.label} onClick={finish}><Glyph name="check"/></Control></span>}
+   {active&&<span className="page-copy-input-wrap"><Input ref={input} id={id} className="page-copy-input" aria-label={definition.label} maxLength={definition.maxLength} rows={definition.type==='multiline'?2:undefined} value={text} disabled={busy} onChange={e=>change(e.target.value)} onKeyDown={e=>{if(e.nativeEvent.isComposing)return;if(e.key==='Escape'){e.preventDefault();change(original.current);finish()}else if(e.key==='Enter'&&(definition.type!=='multiline'||e.metaKey||e.ctrlKey)){e.preventDefault();finish()}}}/><Control type="button" className="page-field-done" disabled={busy} aria-label={'Finish editing '+definition.label} onClick={finish}><Glyph name="check"/></Control></span>}
   </span>
  </Tag>;
 }
 function EditableBodyText({page,field,as:Tag='div',children,className='',...props}){
  const editor=usePageContent(page),locked=useContext(PagePanelLockContext),definition=SHARED_PAGE_SCHEMA[page].fields[field],stored=editor.content.text[field],format=editor.content.bodyFormats?.[field],id=useId(),trigger=useRef(null),original=useRef(null),[active,setActive]=useState(false),[initialSource,setInitialSource]=useState('');
  const originalValue=children!==undefined&&(!editor.record.draft&&editor.record.revision===0||stored===definition.default),text=originalValue?plainChildren(children):stored,busy=false,Block=['p','span'].includes(Tag)?'div':Tag;
- useEffect(()=>{if(!editor.editing||locked||active&&editor.activeEditor!==id)setActive(false)},[editor.editing,locked,active,editor.activeEditor,id]);
+ useEffect(()=>{if(!editor.editing||editor.arrangingPage||locked||active&&editor.activeEditor!==id)setActive(false)},[editor.editing,editor.arrangingPage,locked,active,editor.activeEditor,id]);
  const finish=()=>{setActive(false);requestAnimationFrame(()=>trigger.current?.focus())};
- const start=()=>{if(busy||locked)return;original.current={text:stored,format};setInitialSource(format==='markdown'?text:plainTextToMarkdown(text));editor.activateSurface(trigger.current,id);setActive(true)};
+ const start=()=>{if(busy||locked)return;if(!trigger.current?.closest('[data-card-slot]'))editor.setSelectedObject({page,label:definition.label+' · '+SHARED_PAGE_SCHEMA[page].label});original.current={text:stored,format};setInitialSource(format==='markdown'?text:plainTextToMarkdown(text));editor.activateSurface(trigger.current,id);setActive(true)};
+ const cancel=()=>{editor.update(page,draft=>{const bodyFormats={...draft.bodyFormats};if(original.current.format)bodyFormats[field]=original.current.format;else delete bodyFormats[field];return {...draft,text:{...draft.text,[field]:original.current.text},bodyFormats}});finish()};
  const change=value=>editor.update(page,draft=>({...draft,text:{...draft.text,[field]:value},bodyFormats:{...draft.bodyFormats,[field]:'markdown'}}));
  const shown=format==='markdown'?<PageMarkdownBody source={text}/>:<span className="page-copy-value">{originalValue?children:text}</span>;
- if(!editor.editing||locked)return <Block className={className} {...props}>{shown}</Block>;
+ if(!editor.editing||editor.arrangingPage||locked)return <Block className={className} {...props}>{shown}</Block>;
  return <Block className={'page-editable-copy page-editable-body '+className} {...props} data-page-field={page+'.'+field}>
-  {active?<div className="page-body-editor-wrap" onKeyDown={event=>{if(event.key==='Escape'&&!event.defaultPrevented&&!event.nativeEvent.isComposing){event.preventDefault();editor.update(page,draft=>{const bodyFormats={...draft.bodyFormats};if(original.current.format)bodyFormats[field]=original.current.format;else delete bodyFormats[field];return {...draft,text:{...draft.text,[field]:original.current.text},bodyFormats}});finish()}}}><PageMarkdownEditor value={format==='markdown'?stored:initialSource} ariaLabel={definition.label} maxLength={definition.maxLength} disabled={busy} onChange={change} onDone={finish} autoFocus/></div>:<div ref={trigger} className="page-body-edit-target" role="button" tabIndex={0} aria-label={'Edit '+definition.label} onClick={start} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();start()}}}>{shown||<span className="page-empty-copy">{definition.label}</span>}</div>}
+  <div ref={trigger} className={'page-body-edit-target'+(active?' is-active':'')} role={!active?'button':undefined} tabIndex={!active?0:undefined} aria-label={!active?'Edit '+definition.label:undefined} onClick={()=>{if(!active)start()}} onKeyDown={event=>{if(!active&&(event.key==='Enter'||event.key===' ')){event.preventDefault();start()}}}>{shown||<span className="page-empty-copy">{definition.label}</span>}</div>
+  {active&&<PageMarkdownEditor floating value={format==='markdown'?stored:initialSource} ariaLabel={definition.label} maxLength={definition.maxLength} disabled={busy} onChange={change} onDone={finish} onCancel={cancel} autoFocus/>}
  </Block>;
 }
 function EditGlyph(){return <svg className="glyph page-edit-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1 12-12a2.8 2.8 0 0 0-4-4L4 15z"/></svg>}
@@ -231,22 +258,33 @@ function PageHero({hero,preview,editing,poster}){
  </div>;
 }
 export function EditableMedia({page,field='hero',children,className='',poster,emptyLabel='Page photo or video',...props}){
- const panelLocked=useContext(PagePanelLockContext),editor=usePageContent(page),[open,setOpen]=useState(false),hero=editor.content?.hero;
- useEffect(()=>{if(!editor.editing||panelLocked)setOpen(false)},[editor.editing,panelLocked]);
+ const panelLocked=useContext(PagePanelLockContext),editor=usePageContent(page),[open,setOpen]=useState(false),[initialFrame,setInitialFrame]=useState(null),toolId=useId(),mediaBox=useRef(null),trigger=useRef(null),hero=editor.content?.hero;
+ useEffect(()=>{if(!editor.editing||editor.arrangingPage||panelLocked||open&&editor.activeEditor!==toolId)setOpen(false)},[editor.editing,editor.arrangingPage,panelLocked,open,editor.activeEditor,toolId]);
  if(!editor.valid||!editor.allowed||field!=='hero'||!SHARED_PAGE_SCHEMA[page].hero)return children||null;
  if(hero.mode==='default'&&!children&&!editor.editing)return null;
- return <div className={'page-editable-media '+className+(editor.editing&&!panelLocked?' is-editable':'')} {...props} data-page-field={page+'.hero'}>
-  <div className="page-media-content">{hero.mode==='default'?(hero.frame?frameOriginalMedia(children,hero.frame):children)||<div className="page-media-placeholder">{emptyLabel}</div>:<PageHero hero={hero} preview={editor.preview} editing={editor.editing} poster={poster||imageInChildren(children)||'tree-artwork.png'}/>}</div>
-  {editor.editing&&!panelLocked&&!open&&<Control type="button" className="page-media-edit" disabled={editor.record.status==='saving'} aria-label={'Edit '+SHARED_PAGE_SCHEMA[page].label+' page media'} onClick={event=>{editor.activateSurface(event.currentTarget);setOpen(true)}}><span><EditGlyph/>Edit</span></Control>}
-  {open&&<PageMediaPanel page={page} originalSrc={imageInChildren(children)} onClose={()=>setOpen(false)}/>}
+ const start=event=>{editor.activateSurface(event.currentTarget,toolId);const image=mediaBox.current?.querySelector('img'),src=image?.getAttribute('src'),rect=image?.getBoundingClientRect(),file=hero.media?.find(file=>safePageMediaUrl(file.url,editor.preview)===src);setInitialFrame(src&&hero.mode!=='video'&&(hero.mode==='default'||file)?{src,alt:image.alt,frame:file?.frame||hero.frame,mediaId:file?.id||null,aspect:rect?.height>0?rect.width/rect.height:1.5}:null);setOpen(true)};
+ return <div className={'page-editable-media '+className+(editor.editing&&!editor.arrangingPage&&!panelLocked?' is-editable':'')} {...props} data-page-field={page+'.hero'}>
+  <div ref={mediaBox} className="page-media-content">{hero.mode==='default'?(hero.frame?frameOriginalMedia(children,hero.frame):children)||<div className="page-media-placeholder">{emptyLabel}</div>:<PageHero hero={hero} preview={editor.preview} editing={editor.editing} poster={poster||imageInChildren(children)||'tree-artwork.png'}/>}</div>
+  {editor.editing&&!editor.arrangingPage&&!panelLocked&&<Control ref={trigger} type="button" className="page-media-edit" disabled={editor.record.status==='saving'||open} aria-label={'Edit '+SHARED_PAGE_SCHEMA[page].label+' page media'} onClick={start}><span><EditGlyph/>Edit</span></Control>}
+  {open&&<PageMediaTask page={page} initialFrame={initialFrame} originalSrc={imageInChildren(children)} returnFocus={trigger.current} onClose={()=>setOpen(false)}/>}
  </div>;
 }
-function PageMediaPanel({page,onClose,originalSrc}){
- const editor=usePageContent(page),hero=editor.content.hero,[framing,setFraming]=useState(null),[mode,setMode]=useState(hero.mode==='default'?'image':hero.mode),[uploading,setUploading]=useState(false),[progress,setProgress]=useState(''),[error,setError]=useState(''),picker=useRef(null),panel=useRef(null),alive=useRef(true),uploadLock=useRef(false);
+function PageMediaTask({page,initialFrame,originalSrc,returnFocus,onClose}){
+ const editor=usePageContent(page),imageLayout=useContext(ImageLayoutContext),baseline=useRef(clone(editor.content.hero)),baselineLayout=useRef(JSON.stringify(imageLayout?.value)),recovery=useImageEditDraft({page,object:'hero',initial:{hero:clone(editor.content.hero),layout:imageLayout?.value},validate:value=>{try{validateSharedPageContent(page,value.layout&&imageLayout?.apply?imageLayout.apply({...editor.content,hero:value.hero},value.layout):{...editor.content,hero:value.hero});return true}catch{return false}}}),hero=recovery.value.hero,layoutDraft=recovery.value.layout,setHero=change=>recovery.setValue(value=>({...value,hero:typeof change==='function'?change(value.hero):change})),setLayoutDraft=layout=>recovery.setValue(value=>({...value,layout})),[framing,setFraming]=useState(()=>{if(!recovery.recovered)return initialFrame;const file=hero.media?.find(file=>file.id===initialFrame?.mediaId)||hero.media?.[0];return hero.mode==='default'?originalSrc?{...initialFrame,src:originalSrc,frame:hero.frame,mediaId:null}:null:hero.mode==='video'?null:file?{src:safePageMediaUrl(file.url,editor.preview),alt:file.alt,frame:file.frame,mediaId:file.id,aspect:initialFrame?.aspect}:null}),[error,setError]=useState('');
+ const cancel=()=>{recovery.clear();onClose()};
+ const withFrame=(value,descriptor,frame)=>descriptor.mediaId?{...value,media:value.media.map(file=>file.id===descriptor.mediaId?{...file,frame}:file)}:{...value,frame};
+ const apply=(nextHero=hero,nextLayout=layoutDraft)=>{if(JSON.stringify(editor.content.hero)!==JSON.stringify(baseline.current)||JSON.stringify(imageLayout?.value)!==baselineLayout.current){setError('This page image changed while you were editing. Your local choices are kept here. Close and reopen the image to review the latest version.');return}const updated=editor.update(page,content=>{const next={...content,hero:nextHero};return nextLayout&&imageLayout?.apply?imageLayout.apply(next,nextLayout):next},{historyLabel:'Edit image'});if(updated){recovery.clear();onClose()}};
+ return <PageObjectTools title={'Photo · '+SHARED_PAGE_SCHEMA[page].label} fullHeight returnFocus={returnFocus} onClose={cancel}>
+  {error&&<p role="alert" className="page-editor-error">{error}</p>}{recovery.storageError&&<p role="alert">{recovery.storageError}</p>}{recovery.recovered&&<p>Recovered image edit from this tab. Apply or cancel when you’re ready.</p>}
+  <ImageLayoutContext.Provider value={imageLayout?{...imageLayout,value:layoutDraft}:null}>
+   {framing?<PhotoFramingEditor src={framing.src} alt={framing.alt||''} frame={framing.frame} aspect={framing.aspect} atomicLayout onCancel={cancel} onDraftChange={({frame,layout})=>{setHero(value=>withFrame(value,framing,frame));setLayoutDraft(layout)}} onChangeMedia={({frame,layout})=>{setHero(value=>withFrame(value,framing,frame));setLayoutDraft(layout);setFraming(null)}} changeMediaLabel="Replace media" onSave={(frame,layout)=>apply(withFrame(hero,framing,frame),layout)}/>:<PageMediaPanel page={page} hero={hero} setHero={setHero} onFrame={value=>setFraming({...value,aspect:initialFrame?.aspect||1.5})} originalSrc={originalSrc} onClose={()=>apply()} onCancel={cancel}/>}
+  </ImageLayoutContext.Provider>
+ </PageObjectTools>;
+}
+function PageMediaPanel({page,onClose,onCancel,originalSrc,onFrame,hero,setHero}){
+ const editor=usePageContent(page),[mode,setMode]=useState(hero.mode==='default'?'image':hero.mode),[uploading,setUploading]=useState(false),[progress,setProgress]=useState(''),[error,setError]=useState(''),picker=useRef(null),panel=useRef(null),alive=useRef(true),uploadLock=useRef(false);
  useEffect(()=>editor.pauseAutosave(),[editor.pauseAutosave]);
- useEffect(()=>{editor.activateSurface(panel.current)},[]);
  useEffect(()=>()=>{alive.current=false},[]);
- const setHero=value=>editor.update(page,draft=>({...draft,hero:value}));
  const max=mode==='gallery'?SHARED_CONTENT_LIMITS.maxGalleryItems:1;
  async function upload(selected){
   if(uploadLock.current||!selected.length)return;uploadLock.current=true;const finishWork=editor.beginWork();setUploading(true);setError('');
@@ -263,10 +301,10 @@ function PageMediaPanel({page,onClose,originalSrc}){
    <p className="page-editor-help">{mode==='gallery'?'Up to 10 photos, in the order you choose.':mode==='video'?'One muted, looping video. Viewers can pause it.':'One photo, shown in this page’s existing layout.'} {editor.preview?'Preview files stay on this device; 2 MB each.':'Files stay inside the signed-in family space; 20 MB each.'}</p>
    <Button secondary icon="image" disabled={uploading||editor.record.status==='saving'||mode==='gallery'&&hero.mode==='gallery'&&hero.media.length>=max} onClick={()=>picker.current?.click()}>{uploading?'Uploading…':mode==='video'?'Choose video':mode==='gallery'?'Choose photos':'Choose photo'}</Button>
    <input ref={picker} className="sr-only" type="file" aria-label={mode==='video'?'Choose page video':'Choose page photos'} accept={(mode==='video'?SHARED_VIDEO_TYPES:SHARED_IMAGE_TYPES).join(',')} multiple={mode==='gallery'} disabled={uploading} onChange={e=>{const files=[...e.target.files];e.target.value='';void upload(files)}}/>
-   {hero.mode==='default'&&originalSrc&&<><Control type="button" disabled={uploading} onClick={()=>setFraming('original')}>Adjust original photo framing</Control>{framing==='original'&&<PhotoFramingEditor src={originalSrc} frame={hero.frame} disabled={uploading} onCancel={()=>setFraming(null)} onSave={frame=>{setHero({...hero,frame});setFraming(null)}}/>}</>}
-   {hero.mode!=='default'&&<ol className="page-media-files">{hero.media.map((file,index)=><li key={file.id}><div className="page-media-file-preview">{file.type?.startsWith('video/')?<video src={safePageMediaUrl(file.url,editor.preview)} muted playsInline preload="metadata"/>:<img src={safePageMediaUrl(file.url,editor.preview)} alt="" style={photoFrameStyle(file.frame)}/>}<Control type="button" disabled={uploading} aria-label={'Remove '+(file.name||'file '+(index+1))} onClick={()=>{const media=hero.media.filter(item=>item.id!==file.id);setHero(media.length?{...hero,media}:{mode:'default',media:[]})}}><Glyph name="close"/></Control></div><div className="page-media-file-details"><span>{file.name||'Page file '+(index+1)}</span><label>Photo or video description<input value={file.alt||''} maxLength={SHARED_CONTENT_LIMITS.maxAltLength} disabled={uploading} placeholder="Describe what’s shown" onChange={e=>setHero({...hero,media:hero.media.map(item=>item.id===file.id?{...item,alt:e.target.value}:item)})}/></label>{hero.mode!=='video'&&<Control type="button" disabled={uploading} onClick={()=>setFraming(file.id)}>Adjust framing</Control>}{framing===file.id&&hero.mode!=='video'&&<PhotoFramingEditor src={safePageMediaUrl(file.url,editor.preview)} alt={file.alt||''} frame={file.frame} disabled={uploading} onCancel={()=>setFraming(null)} onSave={frame=>{setHero({...hero,media:hero.media.map(item=>item.id===file.id?{...item,frame}:item)});setFraming(null)}}/>}{hero.mode==='gallery'&&hero.media.length>1&&<div className="page-media-order"><Control type="button" disabled={uploading||index===0} aria-label={'Move photo '+(index+1)+' earlier'} onClick={()=>{const media=[...hero.media];[media[index-1],media[index]]=[media[index],media[index-1]];setHero({...hero,media})}}>Earlier</Control><Control type="button" disabled={uploading||index===hero.media.length-1} aria-label={'Move photo '+(index+1)+' later'} onClick={()=>{const media=[...hero.media];[media[index+1],media[index]]=[media[index],media[index+1]];setHero({...hero,media})}}>Later</Control></div>}</div></li>)}</ol>}
+   {hero.mode==='default'&&originalSrc&&<><Control type="button" disabled={uploading} onClick={()=>onFrame({src:originalSrc,frame:hero.frame,mediaId:null})}>Adjust original photo framing</Control></>}
+   {hero.mode!=='default'&&<ol className="page-media-files">{hero.media.map((file,index)=><li key={file.id}><div className="page-media-file-preview">{file.type?.startsWith('video/')?<video src={safePageMediaUrl(file.url,editor.preview)} muted playsInline preload="metadata"/>:<img src={safePageMediaUrl(file.url,editor.preview)} alt="" style={photoFrameStyle(file.frame)}/>}<Control type="button" disabled={uploading} aria-label={'Remove '+(file.name||'file '+(index+1))} onClick={()=>{const media=hero.media.filter(item=>item.id!==file.id);setHero(media.length?{...hero,media}:{mode:'default',media:[]})}}><Glyph name="close"/></Control></div><div className="page-media-file-details"><span>{file.name||'Page file '+(index+1)}</span><label>Photo or video description<input value={file.alt||''} maxLength={SHARED_CONTENT_LIMITS.maxAltLength} disabled={uploading} placeholder="Describe what’s shown" onChange={e=>setHero({...hero,media:hero.media.map(item=>item.id===file.id?{...item,alt:e.target.value}:item)})}/></label>{hero.mode!=='video'&&<Control type="button" disabled={uploading} onClick={()=>onFrame({src:safePageMediaUrl(file.url,editor.preview),alt:file.alt,frame:file.frame,mediaId:file.id})}>Adjust framing</Control>}{hero.mode==='gallery'&&hero.media.length>1&&<div className="page-media-order"><Control type="button" disabled={uploading||index===0} aria-label={'Move photo '+(index+1)+' earlier'} onClick={()=>{const media=[...hero.media];[media[index-1],media[index]]=[media[index],media[index-1]];setHero({...hero,media})}}>Earlier</Control><Control type="button" disabled={uploading||index===hero.media.length-1} aria-label={'Move photo '+(index+1)+' later'} onClick={()=>{const media=[...hero.media];[media[index+1],media[index]]=[media[index],media[index+1]];setHero({...hero,media})}}>Later</Control></div>}</div></li>)}</ol>}
    {progress&&<p className="page-editor-help" role="status" aria-label="Page media upload">{progress}</p>}{error&&<p className="page-editor-error" role="alert">{error}</p>}
-   <div className="page-media-panel-actions"><Control type="button" className="text-button" disabled={uploading||hero.mode==='default'} onClick={()=>setHero({mode:'default',media:[]})}>Use original media</Control><Button icon="check" disabled={uploading} onClick={onClose}>Done</Button></div>
+   <div className="page-media-panel-actions"><Control type="button" className="text-button" disabled={uploading||hero.mode==='default'} onClick={()=>setHero({mode:'default',media:[]})}>Use original media</Control><Button secondary disabled={uploading} onClick={onCancel}>Cancel</Button><Button icon="check" disabled={uploading} onClick={onClose}>Apply media</Button></div>
   </div>
  </section>;
 }
@@ -289,22 +327,25 @@ function PageHistory({page,pages=[page],onClose}){
   {confirm!==null&&<div className="page-restore-confirm" role="alert"><p>Restore {confirm===0?'the original content':'version '+confirm}?</p><div className="page-editor-actions"><Button disabled={restoring} onClick={()=>restore(confirm)}>{restoring?'Restoring…':'Restore version'}</Button><Button secondary disabled={restoring} onClick={()=>setConfirm(null)}>Keep current</Button></div></div>}
  </div></section>;
 }
-export function PageEditToolbar({page,relatedPages=[],className=''}){
- const editor=usePageContent(page),global=usePageContent('global'),[history,setHistory]=useState(false),[discarding,setDiscarding]=useState(false),[working,setWorking]=useState(false),tools=useRef(null),record=editor.record;
+export function PageEditToolbar({page,relatedPages=[],className='',placement='top'}){
+ const {state}=useApp(),editor=usePageContent(page),global=usePageContent('global'),[history,setHistory]=useState(false),[discarding,setDiscarding]=useState(false),[working,setWorking]=useState(false),tools=useRef(null),record=editor.record;
  useEffect(()=>{const close=event=>{if(tools.current?.open&&!tools.current.contains(event.target))tools.current.open=false};document.addEventListener('pointerdown',close);return()=>document.removeEventListener('pointerdown',close)},[]);
- if(!editor.valid||page==='global'||!editor.allowed)return null;
+ if(!editor.valid||page==='global'||!editor.allowed||!canAccessLeaderTools(state))return null;
  const pages=[...new Set([page,...relatedPages,...(global.valid?['global']:[])])].filter(knownPage),rows=pages.map(key=>editor.records[key]).filter(Boolean),dirty=rows.some(pageContentDirty),busy=working||editor.pending||rows.some(row=>row.status==='saving'),errors=rows.filter(row=>row.error),conflicts=rows.filter(row=>row.latest||row.conflicted);
  if(!record?.canEdit){return record?.status==='error'?<div className="page-content-load-error" role="status"><span>Page updates couldn’t load. Showing the original content.</span><Control type="button" className="text-button" onClick={()=>editor.load(page,{force:true})}>Try again</Control></div>:null}
+ if(placement==='bottom'?editor.editing:!editor.editing)return null;
  async function save(){if(busy||conflicts.length)return false;setWorking(true);try{for(const key of pages){if(pageContentDirty(editor.records[key])&&!await editor.save(key))return false}return true}finally{setWorking(false)}}
+ const commandAvailable=command=>{const row=command&&editor.records[command.page];return !!row?.canEdit&&!row.latest&&!row.conflicted&&editor.editingPages.includes(command.page)&&canApplyPageCommand(row.draft||row.content,command)};
+ const undo=editor.commandHistory.past.at(-1),redo=editor.commandHistory.future.at(-1),redoAvailable=redo&&canApplyPageCommand(editor.records[redo.page]?.draft||editor.records[redo.page]?.content,redo,'redo')&&editor.records[redo.page]?.canEdit&&!editor.records[redo.page]?.latest&&!editor.records[redo.page]?.conflicted&&editor.editingPages.includes(redo.page);
  const done=async()=>{if(busy)return;if(dirty&&!await save())return;editor.finish()};
  const discard=()=>{for(const key of pages)editor.discard(key);setDiscarding(false);editor.finish()};
- return <div className={'page-edit-toolbar '+className+(editor.editing?' is-editing':'')}>
+ return <div className={'page-edit-toolbar '+className+(editor.editing?' is-editing':' is-entry')}>
   {!editor.editing?<div className="page-edit-entry"><Control type="button" className="page-edit-entry-button" onClick={()=>editor.begin(page,relatedPages)}><EditGlyph/>{dirty?'Resume page edits':'Edit page'}</Control>{dirty&&<span>Draft kept</span>}</div>:<>
-   <div className="page-edit-modebar"><div className="page-edit-mode-label"><EditGlyph/><strong>Editing {SHARED_PAGE_SCHEMA[page].label}</strong><span role="status" aria-live="polite">{errors.length||conflicts.length?'Couldn’t save · your changes are kept':working||rows.some(row=>row.status==='saving')?'Saving…':busy?'Preparing media…':dirty?'Changes waiting to save':record.savedNotice||'Changes save automatically'}</span></div><div className="page-editor-actions"><Control type="button" className="page-arrange-toggle" disabled={busy} aria-pressed={editor.arrangingPage} onClick={()=>editor.setArrangingPage(value=>!value)}><Glyph name="settings"/>{editor.arrangingPage?'Finish arranging':'Arrange page'}</Control><Control type="button" className="page-mode-done" disabled={busy} onClick={done}>View page<Glyph name="arrow"/></Control><details ref={tools} className="page-edit-tools" onClick={event=>{const action=event.target.closest('button');if(action&&!action.disabled)event.currentTarget.open=false}} onKeyDown={event=>{if(event.key==='Escape'&&event.currentTarget.open){event.preventDefault();event.stopPropagation();event.currentTarget.open=false;event.currentTarget.querySelector('summary')?.focus()}}}><summary>Page tools</summary><div><Control type="button" className="page-history-button" disabled={busy} aria-label="View page history" onClick={()=>setHistory(true)}><Glyph name="clock"/><span>History</span></Control><Control type="button" disabled={busy||!dirty} onClick={()=>setDiscarding(true)}>Discard unsaved changes</Control></div></details></div></div>
-   <p className="page-editor-guide">{editor.arrangingPage?'Choose a section to move, resize or arrange.':'Tap text or a photo to edit it. Changes save automatically.'}{editor.preview?' This is sample content; changes stay on this device.':''}</p>
-   {editor.arrangingPage&&<PagePanelActions page={page}/>}
+   <div className="page-edit-modebar"><div className="page-edit-mode-label"><EditGlyph/><strong>Editing {SHARED_PAGE_SCHEMA[page].label}</strong><span role="status" aria-live="polite">{errors.some(row=>row.errorKind==='load')?'Couldn’t load · previous content is shown':errors.length||conflicts.length?'Couldn’t save · your changes are kept':working||rows.some(row=>row.status==='saving')?'Saving…':busy?'Preparing media…':dirty?'Changes waiting to save':record.savedNotice||'Changes save automatically'}</span></div><div className="page-editor-actions"><Control type="button" className="page-command-button" disabled={busy||!commandAvailable(undo)} aria-label={undo?'Undo '+undo.label:'Undo page change'} title={undo?'Undo '+undo.label:'No page layout changes to undo'} onClick={editor.undoCommand}>Undo</Control><Control type="button" className="page-command-button" disabled={busy||!redoAvailable} aria-label={redo?'Redo '+redo.label:'Redo page change'} title={redo?'Redo '+redo.label:'No page layout changes to redo'} onClick={editor.redoCommand}>Redo</Control><details ref={tools} className="page-edit-tools" onClick={event=>{const action=event.target.closest('button');if(action&&!action.disabled)event.currentTarget.open=false}} onKeyDown={event=>{if(event.key==='Escape'&&event.currentTarget.open){event.preventDefault();event.stopPropagation();event.currentTarget.open=false;event.currentTarget.querySelector('summary')?.focus()}}}><summary>Page tools</summary><div><Control type="button" className="page-history-button" disabled={busy} aria-label="View page history" onClick={()=>setHistory(true)}><Glyph name="clock"/><span>History</span></Control><Control type="button" className="page-arrange-toggle" disabled={busy} aria-pressed={editor.arrangingPage} onClick={()=>editor.setArrangingPage(value=>!value)}><Glyph name="settings"/>{editor.arrangingPage?'Finish arranging':'Arrange page'}</Control><Control type="button" disabled={busy||!dirty} onClick={()=>setDiscarding(true)}>Discard unsaved changes</Control></div></details><Control type="button" className="page-mode-done" disabled={busy} onClick={done}>Done<Glyph name="check"/></Control></div></div>
+   <p className="page-command-notice" role="status">{editor.commandNotice||'Undo covers completed photo edits and panel/layout actions. Text uses its own Undo; legacy Arrange has separate Cancel.'}</p><p className="page-editor-guide">{editor.arrangingPage?'Arrange layout here. Content stays read-only until you finish arranging.':'Tap text or a photo to edit it. Changes save automatically.'}{editor.preview?' This is sample content; changes stay on this device.':''}</p>
+   <PagePanelActions page={page}/><div className="page-media-tools">{pages.filter(key=>SHARED_PAGE_SCHEMA[key].hero).map(key=><div key={key} data-page-media-tools={key} data-panel-page={key}/>)}</div>{!editor.arrangingPage&&<div className="page-selected-object" aria-label="Selected object"><span title={editor.selectedObject?.label||'Select text, a photo, or Panel options.'}>{editor.selectedObject?.label||'Select text, a photo, or Panel options.'}</span></div>}
    {editor.storageError&&<p className="page-editor-error" role="alert">{editor.storageError}</p>}
-   {errors.map(row=><div key={row.page} className="page-editor-error" role="alert"><span>{SHARED_PAGE_SCHEMA[row.page].label}: {row.error}</span>{!row.latest&&!row.conflicted&&<Control type="button" disabled={busy} onClick={()=>editor.save(row.page)}>Try saving again</Control>}</div>)}
+   {errors.map(row=><div key={row.page} className="page-editor-error" role="alert"><span>{SHARED_PAGE_SCHEMA[row.page].label}: {row.error}</span>{!row.latest&&!row.conflicted&&<Control type="button" disabled={busy} onClick={()=>row.errorKind==='load'?editor.load(row.page,{force:true}):editor.save(row.page)}>{row.errorKind==='load'?'Try loading again':'Try saving again'}</Control>}</div>)}
    {conflicts.map(row=><section className="page-conflict-review" key={row.page}><strong>{SHARED_PAGE_SCHEMA[row.page].label} has a newer version</strong>{!row.merge?<Control type="button" className="text-button" onClick={()=>editor.reviewLatest(row.page)}>Review latest changes</Control>:<><p>{row.merge.conflicts.length?'Choose which values to keep for the changes below. Other changes will be combined.':'Your edits and the latest changes affect different fields. You can safely combine them.'}</p>{row.merge.conflicts.map(item=><div key={item.field} className="page-conflict-values"><strong>{item.field==='hero'?'Page media':item.field==='panelLayout'?'Panel layout and content':item.field.startsWith('cardLayout:')?'Card content arrangement':SHARED_PAGE_SCHEMA[row.page].fields[item.field].label}</strong><p>Yours: {item.mine}</p><p>Latest: {item.theirs}</p></div>)}<div className="page-editor-actions"><Button secondary onClick={()=>editor.rebase(row.page,true)}>{row.merge.conflicts.length?'Keep my edits':'Combine changes'}</Button>{!!row.merge.conflicts.length&&<Button secondary onClick={()=>editor.rebase(row.page,false)}>Use latest values</Button>}</div></>}</section>)}
    {discarding&&<div className="page-discard-prompt" role="alert"><span>Discard the changes that haven’t saved yet? Already saved changes stay in History.</span><div className="page-editor-actions"><Button secondary disabled={busy} onClick={()=>setDiscarding(false)}>Keep editing</Button><Control type="button" className="text-button" disabled={busy} onClick={discard}>Discard unsaved changes and view page</Control></div></div>}
   </>}

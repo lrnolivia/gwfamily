@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {initialTheme,initialMaterial} from '../src/material-preference.js';
+import {GW_HEADING_FONTS} from '../src/account-actions-model.js';
+test('system light and dark preferences initialize fresh visits; saved choices win',()=>{assert.equal(initialTheme(null,false),'light');assert.equal(initialTheme(null,true),'dark');assert.equal(initialTheme('light',true),'light');assert.equal(initialTheme('dark',false),'dark');assert.equal(initialTheme('invalid',false),'light');});
+test('automatic material follows Apple versus Android and desktop OS',()=>{for(const ua of ['iPhone','iPad','Macintosh'])assert.equal(initialMaterial(null,ua),'ios');for(const ua of ['Android','Windows NT 10.0','X11; Linux'])assert.equal(initialMaterial(null,ua),'android');assert.equal(initialMaterial('ios','Android'),'ios');assert.equal(initialMaterial('android','Macintosh'),'android');});
+test('both decorative font samples remain exactly lowercase gw',()=>{assert.equal(GW_HEADING_FONTS.length,2);assert.deepEqual(GW_HEADING_FONTS.map(font=>font.sample),['gw','gw']);});
+test('onboarding exposes fonts and light/dark without a material picker and keeps rehearsal isolated',()=>{const s=readFileSync(new URL('../src/enrollment-form.jsx',import.meta.url),'utf8');assert.match(s,/GW_HEADING_FONTS\.map/);assert.match(s,/Color theme/);assert.match(s,/appearance&&!draftNotice/);assert.doesNotMatch(s,/setPlatform|MaterialChoice|Interface material/);});
+test('main destinations render decorative navigation glyphs without Back actions',()=>{const s=readFileSync(new URL('../src/page-navigation.jsx',import.meta.url),'utf8');assert.match(s,/showBack=!main/);assert.match(s,/page-route-glyph/);assert.match(s,/aria-hidden="true"><Glyph name=\{mainGlyph\}/);assert.doesNotMatch(s,/showBack=!main\|\|Boolean\(previous\)/);});
+test('panel actions and You sign-out stretch without forcing glyph toolbars into full width',()=>{const s=readFileSync(new URL('../src/you-navigation.css',import.meta.url),'utf8'),v=readFileSync(new URL('../src/visual-system.css',import.meta.url),'utf8');assert.match(s,/you-account-actions.*justify-items:stretch/);assert.match(s,/you-account-actions \.sign-out\{width:100%/);assert.match(v,/form-save>\.button\{width:100%/);});

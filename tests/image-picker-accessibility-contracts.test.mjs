@@ -7,7 +7,7 @@ test('shared image chooser and native file picker have distinct truthful accessi
  assert.match(ui,/aria-label=\{\(hasImage\?'Edit ':'Choose '\)\+label\.toLowerCase\(\)\}/);
  assert.match(ui,/type="file"[^>]*aria-label=\{label\+' file picker'\}/);
  assert.doesNotMatch(ui,/type="file"[^>]*aria-hidden=/);
- assert.match(ui,/onClick=\{\(\)=>picker\.current\?\.click\(\)\}/);
+ assert.match(ui,/onChangeMedia=\{\(\)=>picker\.current\?\.click\(\)\}/);
 });
 test('profile browser checks target the actual shared action while retaining keyboard and geometry checks',async()=>{
  const recovery=await source('tests/recovery-browser.mjs'),communications=await source('tests/communications-browser.mjs');

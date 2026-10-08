@@ -8,16 +8,18 @@ import {useLiquidLens} from '@sohumsuthar/liquid-glass/hooks/useLiquidLens';
 import paths from './glyph-paths.js';
 import './member-badges.css';
 import './filter-platter.css';
+import {useFloatingPanelPosition} from './floating-panel-position.js';
 import {bindViewportBounds} from './viewport-bounds.js';
 import {bindNotificationPopoverPlacement} from './notification-popover-geometry.js';
 
 export const AppContext=createContext(null);
-const FloatingSurfaceContext=createContext(false);
+export const FloatingSurfaceContext=createContext(false);
 export const useApp=()=>useContext(AppContext);
 // The loew.fi Send control uses the same package lens, interactive gel and four
 // material layers. Keep the native button as the host so existing layout and
 // keyboard semantics survive; Android returns only the native button.
 export const Control=React.forwardRef(function Control({className='',children,glassLens,...props},forwardedRef){
+  if(/^Close\b/.test(props['aria-label']||''))className+=' quiet-close';
   const floating=useContext(FloatingSurfaceContext),app=useApp(),platform=app?.platform||'ios',ref=useRef(null),glass=!floating&&platform==='ios'&&/\b(button|send-button|icon-button|filter-trigger)\b/.test(className)&&!/\b(list-row|brand|avatar)\b/.test(className);
   const lens=glass&&(glassLens??/\b(button|send-button|icon-button|fab)\b/.test(className));
   const radius=/\b(icon-button|send-button|fab|avatar)\b/.test(className)?28:/\bbutton\b/.test(className)?25:40;
@@ -52,7 +54,15 @@ export function MemberBadges({member,interactive=false,passive=false,id}){
     {person.leader&&<span className="membership-chip membership-shield" role="img" aria-label="Family leader" title="Family leader"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 6v5c0 5-3 8-7 10-4-2-7-5-7-10V6zM8.5 11.8l2.3 2.3 4.7-4.7"/></svg></span>}
   </span>
 }
-export function Button({children,onClick,secondary=false,className='',icon,...props}){return <Control type="button" className={'button '+(secondary?'secondary ':'')+className} onClick={onClick} {...props}>{icon&&<Glyph name={icon}/>}<span>{children}</span></Control>}
+export function Button({children,onClick,secondary=false,level,className='',icon,...props}){
+ const ref=useRef(null),requested=level||(secondary?'secondary':'primary');
+ useEffect(()=>{
+  const panel=ref.current?.closest('.card,.panel');if(!panel)return;
+  const actions=[...panel.querySelectorAll('.button')].filter(button=>button.closest('.card,.panel')===panel);
+  for(const action of actions)action.dataset.buttonLevel=actions.length===1&&!action.matches('.danger,.destructive,[data-destructive]')?'primary':action.dataset.requestedLevel;
+ });
+ return <Control ref={ref} type="button" data-requested-level={requested} data-button-level={requested} className={'button '+(requested==='secondary'?'secondary ':'')+className} onClick={onClick} {...props}>{icon&&<Glyph name={icon}/>}<span>{children}</span></Control>
+}
 export function ActionRow({icon,title,detail,onClick,tourTarget}){return <Control type="button" className="list-row" data-gw-tour={tourTarget} onClick={onClick}><Glyph name={icon}/><span><strong>{title}</strong><p>{detail}</p></span><span className="arrow"><Glyph name="arrow"/></span></Control>}
 export function formatTime(ms){const d=new Date(ms),delta=Math.max(0,Date.now()-ms);if(delta<60000)return 'now';if(delta<3600000)return Math.floor(delta/60000)+'m';
   if(delta<86400000)return Math.floor(delta/3600000)+'h';if(delta<604800000)return Math.floor(delta/86400000)+'d';return new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric'}).format(d)}
@@ -104,6 +114,7 @@ export function useSheetForm({label=null,busy=false,disabled=false,dirty=false}=
 }
 export function Sheet({title,kind='normal',onClose,children,style,suppressGlobalPending=false,busy=false,completion=null}) {
  const app=useApp(),glass=app?.platform!=='android',ref=useRef(null),titleId=useId().replace(/:/g,'')+'-title';
+ const floating=useFloatingPanelPosition(ref);
  const [form,setForm]=useState(null),[confirmDiscard,setConfirmDiscard]=useState(false);
  const register=useCallback(value=>{setForm(value);return()=>setForm(current=>current?.id===value.id?null:current)},[]);
  const locked=busy||Boolean(form?.busy)||Boolean(app?.data?.pending&&!suppressGlobalPending);
@@ -112,10 +123,10 @@ export function Sheet({title,kind='normal',onClose,children,style,suppressGlobal
  const className=kind==='profile'?'profile-sheet':kind==='comments'?'comments-surface':kind==='post'?'focus-surface':kind==='composer'?'composer-surface':kind==='filter'?'filter-surface':kind==='viewer'?'focus-surface memory-sheet':'';
  const action=completion||form?.label&&{label:form.label,formId:form.id,disabled:form.disabled};
  const content=<FloatingSurfaceContext.Provider value={true}><SheetFormContext.Provider value={register}>
-  <div className="sheet-head"><Control type="button" id="close" className="icon-button sheet-close" aria-label="Close dialog" disabled={locked} onClick={close}><Glyph name="close"/></Control><h2 id={titleId}>{title}</h2>{action?<Control type={action.formId?'submit':'button'} form={action.formId} className="icon-button sheet-complete" aria-label={action.label} disabled={locked||action.disabled} onClick={action.onClick}><Glyph name="check"/></Control>:<span className="sheet-action-placeholder" aria-hidden="true"/>}</div>
+  <div className="sheet-head" {...floating.handle}>{action?<Control type={action.formId?'submit':'button'} form={action.formId} className="icon-button sheet-complete" aria-label={action.label} disabled={locked||action.disabled} onClick={action.onClick}><Glyph name="check"/></Control>:<span className="sheet-action-placeholder" aria-hidden="true"/>}<h2 id={titleId}>{title}</h2><Control type="button" id="close" className="icon-button sheet-close" aria-label="Close dialog" disabled={locked} onClick={close}><Glyph name="close"/></Control></div>
   <div id="sheet-body">{confirmDiscard?<section className="sheet-discard-confirm" role="alert"><h3>Discard unsaved changes?</h3><p>Your saved details will stay unchanged.</p><div className="row"><Button secondary onClick={()=>setConfirmDiscard(false)}>Keep editing</Button><Button onClick={()=>{setConfirmDiscard(false);onClose?.()}}>Discard changes</Button></div></section>:null}{app?.data?.error&&<p className="note" role="alert">{app.data.error}</p>}{locked&&!suppressGlobalPending&&<p role="status" className="small muted">Saving…</p>}<div inert={confirmDiscard||undefined}>{children}</div></div>
  </SheetFormContext.Provider></FloatingSurfaceContext.Provider>;
- return <dialog id="sheet" ref={ref} className={className} style={style} aria-labelledby={titleId}
+ return <dialog id="sheet" ref={ref} className={className} style={{...style,...floating.style}} aria-labelledby={titleId}
   onCancel={e=>{e.preventDefault();close()}} onClick={e=>{if(e.target===ref.current)close()}}>
   {glass?<LiquidGlass lens lensOptions={{bezel:14,refraction:1.05,dispersion:2,radius:32}} className="sheet-glass"><span className="glass-shadow" aria-hidden="true"/>{content}</LiquidGlass>:content}
  </dialog>;

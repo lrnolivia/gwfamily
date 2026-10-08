@@ -1,7 +1,7 @@
 /* The rectangular field and the existing neutral edit tokens are the visual
    authority. This toolbar is deliberately flat; it is part of the input. */
-.page-markdown-editor{display:block;min-width:0;width:100%;border:1px solid var(--line);border-radius:3px;background:var(--raised);color:var(--text);font:400 1rem/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:normal;text-transform:none;overflow:visible}
-.page-markdown-editor:focus-within{border-color:var(--control);outline:2px solid var(--control);outline-offset:2px}
+.page-markdown-editor{display:block;min-width:0;width:100%;border:1px solid var(--line);border-radius:8px;background:var(--raised);color:var(--text);font:400 1rem/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:normal;text-transform:none;overflow:visible}
+.page-markdown-editor:focus-within{border-color:var(--control);outline:0}
 .page-markdown-toolbar{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:3px 5px;border-bottom:1px solid var(--line);background:var(--surface)}
 .page-markdown-tools,.page-markdown-mode-tools{display:flex;align-items:center;gap:1px;min-width:0}
 .page-markdown-tools{flex:1 1 auto;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;scrollbar-color:var(--line) var(--surface)}
@@ -53,3 +53,39 @@
 @media(pointer:coarse){.page-markdown-tool,.page-markdown-source-toggle,.page-markdown-done,.page-markdown-footer summary{min-height:44px;min-width:44px}}
 @media(max-width:380px){.page-markdown-toolbar{padding-inline:3px}.page-markdown-source-toggle>span:last-child{display:none}.page-markdown-visual,.page-markdown-source{padding:10px}}
 @media(forced-colors:active){.page-markdown-tool[aria-pressed=true],.page-markdown-source-toggle[aria-pressed=true]{outline:2px solid Highlight}.page-markdown-editor:focus-within{outline-color:Highlight}}
+
+/* Keep the complete editor in its floating pane; page copy renders the draft. */
+.page-object-tools .page-markdown-editor{overflow:hidden;border-radius:12px}
+.page-object-tools .page-markdown-toolbar{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;min-width:0;padding:4px;border-radius:12px 12px 0 0}
+.page-object-tools .page-markdown-tools{flex:0 0 auto;flex-wrap:nowrap;overflow:visible}
+.page-object-tools .page-markdown-mode-tools{flex:0 0 auto;margin-inline-start:0}
+.page-object-tools .page-markdown-footer{border:0;padding:4px}
+.page-object-tools .page-markdown-tool,.page-object-tools .page-markdown-source-toggle{min-width:44px;min-height:44px;border-radius:8px}
+.page-object-tools .page-markdown-visual{min-height:160px;max-height:40dvh}
+
+/* Focus belongs to the outer edge; internal separators are neutral hairlines. */
+.page-markdown-editor{--editor-divider:rgb(128 128 128 / 30%)}
+html[data-theme=light] .page-markdown-editor{--editor-divider:rgb(0 0 0 / 30%)}
+html[data-theme=dark] .page-markdown-editor{--editor-divider:rgb(255 255 255 / 30%)}
+html[data-theme][data-platform] .page-markdown-toolbar{border:0;border-bottom:1px solid var(--editor-divider)!important}
+html[data-theme][data-platform] .page-markdown-mode-tools{border-inline-start:1px solid var(--editor-divider)!important}
+html[data-theme][data-platform] .page-markdown-visual-wrap{border:0!important}
+html[data-theme][data-platform] .page-markdown-footer{border:0;border-top:1px solid var(--editor-divider)!important}
+.page-object-tools .page-markdown-toolbar{overflow:hidden}
+.page-object-tools .page-markdown-tools{overflow-x:auto;scrollbar-width:thin;scrollbar-color:var(--editor-divider) transparent}
+.page-object-tools .page-markdown-tools::-webkit-scrollbar{height:4px}
+.page-object-tools .page-markdown-tools::-webkit-scrollbar-thumb{background:var(--editor-divider);border-radius:4px}
+@media(min-width:701px){.page-object-tools:has(.page-markdown-editor){width:min(620px,calc(100vw - 24px))}}
+
+html[data-theme][data-platform] .page-markdown-editor:focus-within{border-color:color-mix(in srgb,var(--control) 30%,transparent)}
+
+/* The inspector's shared :focus-visible rule also matches the editable DOM.
+   Its extra outline crossed both dividers; the editor owns the focus edge. */
+html[data-theme][data-platform] .page-markdown-editor :is(.page-markdown-visual,.page-markdown-source):is(:focus,:focus-visible){outline:0!important;border:0!important;box-shadow:none!important}
+html[data-theme][data-platform] .page-markdown-toolbar{background:color-mix(in srgb,var(--control) 12%,var(--raised));color:var(--control)}
+html[data-theme][data-platform] .page-markdown-toolbar button{color:var(--control)}
+html[data-theme][data-platform] .page-markdown-toolbar button:is([aria-pressed=true],:hover):not(:disabled){background:var(--control);color:var(--control-text)}
+html[data-theme][data-platform] .page-markdown-footer{align-items:center;padding:6px 8px;min-height:57px}
+/* A 36px surface sits inside the 44px tap target, with room on each side. */
+html[data-theme][data-platform] .page-markdown-done{position:relative;isolation:isolate;background:transparent!important;color:var(--control-text);border-radius:8px;min-height:44px;height:44px;padding:6px 12px;line-height:1.25;flex-shrink:0}
+html[data-theme][data-platform] .page-markdown-done::before{content:"";position:absolute;inset:4px 0;z-index:-1;pointer-events:none;border-radius:8px;background:var(--control)}

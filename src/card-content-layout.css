@@ -45,3 +45,81 @@
 @media(max-width:700px){.card-content-columns{grid-template-columns:minmax(0,1fr);gap:20px}.card-content-column{gap:14px}.home-hero .card-slot-content .photo,.home-hero .card-slot-content .page-hero-asset{aspect-ratio:3/2}.card-layout-toolbar>div{align-items:stretch}}
 @container(max-width:520px){.card-content-columns{grid-template-columns:minmax(0,1fr)}}
 @media(prefers-reduced-motion:reduce){.card-content-layout *{scroll-behavior:auto!important;transition:none!important}}
+
+.arrange-up{transform:rotate(-90deg)}.arrange-down{transform:rotate(90deg)}
+:is(.page-panel-inline-controls,.card-slot-controls){padding:12px;border-radius:12px;background:var(--raised);gap:8px;border:0}
+:is(.page-panel-inline-controls,.card-slot-controls) button{min-width:44px;min-height:44px;background:var(--surface);border-radius:10px}
+:is(.page-panel-inline-controls,.card-slot-controls) .glyph{width:20px;height:20px;flex:none}
+
+.card-content-column[data-card-vertical]{align-self:stretch;justify-content:center}
+.card-content-column[data-card-vertical=top]{justify-content:flex-start}
+.card-content-column[data-card-vertical=bottom]{justify-content:flex-end}
+.card-content-slot[data-card-role=image] .card-slot-content>*{width:var(--card-image-width,100%)!important;max-width:100%}
+.card-slot-controls input[type=range]{width:120px;min-height:44px;accent-color:var(--control)}
+
+.card-content-slot[data-card-image-aspect=original]{--card-image-ratio:auto}
+.card-content-slot[data-card-image-aspect=landscape]{--card-image-ratio:16/9}
+.card-content-slot[data-card-image-aspect=portrait]{--card-image-ratio:3/4}
+.card-content-slot[data-card-image-aspect=square]{--card-image-ratio:1}
+.card-content-slot[data-card-image-aspect] .card-slot-content :is(.photo,.page-hero-asset,.page-panel-photo-crop){aspect-ratio:var(--card-image-ratio)!important;height:auto!important;max-height:none!important;min-height:0!important;width:100%;object-fit:cover}
+.card-content-slot[data-card-image-aspect] .page-panel-photo-crop>img{height:100%;width:100%;object-fit:cover}
+
+
+/* A compact command strip, with column-level vertical placement stated honestly. */
+.card-slot-controls{display:grid;padding:8px;gap:8px;background:var(--raised);border:0;border-radius:12px}
+.card-slot-heading,.card-column-heading{display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-width:0}
+.card-slot-heading>.card-slot-drag{flex:1 1 100px;min-width:0;justify-content:flex-start;touch-action:none;cursor:grab;text-align:start}
+.card-slot-drag span{overflow-wrap:anywhere;line-height:1.3}
+.card-slot-order{flex:0 0 auto;flex-basis:auto;gap:0}
+.card-slot-placement,.card-image-controls{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.card-layout-choices,.card-image-size{display:inline-flex;align-items:center;gap:0;padding:2px;border-radius:12px;background:var(--surface);max-width:100%}
+.card-layout-choices button,.card-image-size button,.card-slot-order button{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:10px;border:0;box-shadow:none;background:transparent;border-radius:10px;flex:0 0 44px}
+.card-layout-choices button[aria-pressed=true]{background:var(--control);color:var(--control-text,var(--text))}
+.card-layout-choices button[aria-pressed=true]>.liquid-glass-tint{background:var(--control);opacity:1}
+.card-layout-choices button:focus-visible,.card-image-size button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.card-image-size output{min-width:48px;text-align:center;font-size:.8125rem;font-variant-numeric:tabular-nums;color:var(--text)}
+.card-column-heading{justify-content:space-between}.card-column-hint{flex-basis:100%;font-size:.6875rem;line-height:1.4;color:var(--muted)}
+.card-layout-toolbar .card-layout-finish{margin-left:auto;background:var(--control);color:var(--control-text,var(--text));padding-inline:16px;border-radius:999px}
+.card-layout-toolbar .card-layout-finish>.liquid-glass-tint{background:var(--control);opacity:1}
+.is-arranging .card-content-column[data-card-vertical]{justify-content:flex-start}
+@media(max-width:700px){.card-slot-controls{padding:8px}.card-slot-heading>.card-slot-drag{flex-basis:100px}.card-layout-toolbar .card-layout-finish{margin-left:0}.card-column-heading{align-items:flex-start}}
+
+/* Commands wrap by group, never into a clipped horizontal strip. Keep the
+   editor full-width even when the image itself is only 25% of its column. */
+.card-slot-controls,.card-slot-placement,.card-slot-heading{min-width:0}
+.card-slot-controls{grid-template-columns:minmax(0,1fr)}
+.image-layout-controls{display:grid;gap:8px;min-width:0;width:100%}
+.image-control-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;min-width:0;width:100%}
+.image-control-label{flex:1 1 72px;font-size:.75rem;line-height:1.4;color:var(--muted);text-align:start}
+.image-control-row>.card-layout-choices,.image-control-row>.card-image-size{flex:0 1 auto;min-width:0;max-width:100%;flex-wrap:wrap}
+.card-layout-choices,.card-image-size{display:inline-flex;align-items:center;gap:0;padding:2px;border-radius:12px;background:var(--surface);max-width:100%;min-width:0;flex-wrap:wrap}
+.card-layout-choices button,.card-image-size button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:44px;min-height:44px;width:auto;padding:10px;border:0;box-shadow:none;background:transparent;border-radius:10px;flex:0 0 auto}
+.card-layout-choices .glyph,.card-image-size .glyph{width:20px;height:20px;flex:none}
+.card-layout-choices button span{font-size:.8125rem;line-height:1.4}
+.card-image-size output{min-width:48px;text-align:center;font-size:.8125rem;font-variant-numeric:tabular-nums;color:var(--text)}
+.photo-framing-tools button:disabled{opacity:.5;cursor:default}
+.card-content-slot[data-card-role=image] .card-slot-content>*:has(.photo-framing-editor){width:100%!important}
+.card-slot-controls:has(+.card-slot-content .photo-framing-editor) .image-layout-controls{display:none}
+
+/* Each setting is one platter containing its label and controls. */
+.image-control-row{padding:12px;border-radius:14px;background:var(--raised);gap:8px 12px}
+.image-control-row>.card-layout-choices,.image-control-row>.card-image-size{padding:0;background:transparent}
+.image-width-settings{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}
+.image-control-label{font-size:.8125rem;color:var(--text)}
+
+/* A small corner tab belongs to the element; its touch target stays 44px. */
+.card-content-slot:has(>.card-slot-context-actions){position:relative}
+.card-slot-context-actions{position:absolute;top:-14px;right:-10px;z-index:2;width:44px;height:44px;margin:0}
+html[data-theme][data-platform] .card-slot-context-actions>.card-slot-layout{position:relative;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border:0;border-radius:10px;background:transparent;box-shadow:none;color:var(--text)}
+.card-slot-context-actions>.card-slot-layout::before{content:'';position:absolute;inset:10px;border-radius:6px;background:var(--raised);border:1px solid var(--editor-neutral-line,rgb(128 128 128 / 20%))}
+.card-slot-context-actions>.card-slot-layout>.glyph{position:relative;width:14px;height:14px}
+.card-slot-context-actions>.card-slot-layout>.liquid-glass-tint{opacity:0}
+.card-slot-context-actions>.card-slot-layout:hover::before{background:var(--surface)}
+.page-element-preview{display:grid;gap:12px;min-width:0;padding:16px;border-radius:18px;background:var(--raised);overflow:hidden}
+.page-element-preview>div{min-width:0;pointer-events:none;user-select:none;max-height:240px;overflow:hidden}
+.page-element-preview :is(img,video){max-height:200px;max-width:100%;object-fit:contain;border-radius:12px}
+.page-element-preview .card-slot-content{gap:8px;max-width:100%}
+.page-element-preview .page-copy-target,.page-element-preview .page-body-edit-target{outline:0!important;border:0!important}
+.page-element-preview-caption{font-size:.75rem;color:var(--muted)}
+
+html[data-theme][data-platform] .card-content-slot[data-object-selected=true]{outline-color:color-mix(in srgb,var(--control) 30%,transparent)}

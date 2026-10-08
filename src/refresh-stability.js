@@ -12,4 +12,4 @@ export function shareUnchangedSnapshot(previous,next){
  const result={};for(const key of keys){result[key]=shareUnchangedSnapshot(previous[key],next[key]);if(!Object.prototype.hasOwnProperty.call(previous,key)||!Object.is(result[key],previous[key]))unchanged=false}
  return unchanged?previous:result;
 }
-export function refreshingPageRecord(record){return record?.status==='ready'?{...record,refreshing:true,error:''}:{...record,status:'loading',refreshing:false,error:''}}
+export function refreshingPageRecord(record){return record?.status==='ready'?{...record,refreshing:true,error:'',errorKind:null,requestId:null}:{...record,status:'loading',refreshing:false,error:'',errorKind:null,requestId:null}}

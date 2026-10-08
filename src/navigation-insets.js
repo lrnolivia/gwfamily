@@ -41,8 +41,10 @@ export function keyboardIsOpen({mobileOS: os = 'none', editable = false, layoutH
 // Reference geometry for unit/hosted-browser assertions. The browser itself
 // resolves env() dynamically in CSS; there is no cached or guessed OS inset.
 export function navigationInsetMetrics({mobileOS: os = 'none', displayMode: mode = 'browser',
-  safeAreaBottom = 0, width = 390} = {}) {
+  safeAreaBottom = 0, width = 390, material = 'ios'} = {}) {
   const safe = Math.max(0, Number(safeAreaBottom) || 0);
+  if(material==='android'&&width>=700)return {layout:'rail',railWidth:96,top:44,bottom:0,buttonBottom:safe+12,fabHeight:56};
+  if(material==='android'&&width<700)return {bottom:0,buttonBottom:safe+8,height:64+safe,fabBottom:76+safe,fabHeight:56};
   const gap = mode === 'browser' && width >= 700 ? 18 : os === 'none' ? 4 : os === 'ios' && mode === 'browser' ? 2 : 0;
   const bottom = Math.max(gap, safe - 7);
   return {bottom, buttonBottom: bottom + 7, height: 72,
@@ -55,7 +57,7 @@ export function navigationInsetMetrics({mobileOS: os = 'none', displayMode: mode
 export function bindNavigationInsets(win = globalThis.window, doc = globalThis.document) {
   const root = doc?.documentElement;
   if (!win || !root) return () => {};
-  const keys = ['mobileOs', 'displayMode', 'keyboardOpen'];
+  const keys = ['mobileOs', 'displayMode', 'keyboardOpen', 'inputMode'];
   const previous = Object.fromEntries(keys.map(key => [key, root.dataset[key]]));
   const removers = [];
   let baselineHeight = win.innerHeight || 0;
@@ -104,6 +106,16 @@ export function bindNavigationInsets(win = globalThis.window, doc = globalThis.d
       removers.push(() => media.removeListener(schedule));
     }
   }
+  // Safari may retain :focus-visible when script focus follows a mouse click.
+  // Track the initiating input, including clicks delivered by assistive tools.
+  const pointer = () => { root.dataset.inputMode = 'pointer'; };
+  const key = event => { if (['Tab','Enter',' '].includes(event.key) || event.key.startsWith('Arrow')) root.dataset.inputMode = 'keyboard'; };
+  const click = event => { if (event.detail > 0) pointer(); };
+  for (const [event, handler] of [['pointerdown',pointer],['mousedown',pointer],['keydown',key],['click',click]]) {
+    doc.addEventListener(event, handler, true);
+    removers.push(() => doc.removeEventListener(event, handler, true));
+  }
+  root.dataset.inputMode = 'pointer';
   update();
   return () => {
     disposed = true;

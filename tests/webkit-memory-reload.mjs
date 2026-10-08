@@ -81,7 +81,7 @@ try {
   assert.equal(await page.locator('.field-memory-open').count(),before+1,name+' persists the uploaded memory after same-tab reload');
   // Reopening and dismissing must not leave a filter/observer alive on a sheet.
   await page.locator(galleryImage).click();
-  await decoded(page,'.memory-large',imageSize);
+  await decoded(page,'.photo-viewer-image',imageSize);
   await page.getByRole('button',{name:'Add or edit details',exact:true}).click();
   await decoded(page,'dialog[open] .image-upload-preview img',imageSize);
   await page.keyboard.press('Escape');

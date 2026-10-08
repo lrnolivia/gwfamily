@@ -1,5 +1,5 @@
 /* The filter surface and each control follow the active product theme. */
-.inline-filters.filter-platter{display:flex;flex-direction:column;align-items:stretch;flex:1 1 100%;gap:0;width:100%;min-width:0;padding:12px;border-radius:18px;background:var(--raised);border:1px solid var(--decorative-line,var(--line));color:var(--text)}
+.inline-filters.filter-platter{display:flex;flex-direction:column;align-items:stretch;flex:1 1 100%;gap:8px;width:100%;min-width:0;padding:12px;border-radius:12px;background:var(--raised);border:0;color:var(--text)}
 .inline-filters.filter-platter .feed-filter-toggle{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;padding:10px 13px;border-radius:12px;background:color-mix(in srgb,var(--raised) 94%,var(--text));color:var(--text);font:inherit;font-size:.875rem;text-align:left}
 .feed-filter-toggle>.glyph{width:18px;height:18px;flex:none}
 .feed-filter-toggle>.glyph:last-child{margin-left:auto;transform:rotate(90deg)}
@@ -12,3 +12,5 @@
 .inline-filters.filter-platter .filter-option[aria-pressed=true]{background:var(--control,var(--accent));color:var(--control-text,var(--ink))}
 .inline-filters.filter-platter :focus-visible{outline:3px solid var(--control,var(--accent));outline-offset:3px}
 @media(prefers-reduced-motion:reduce){.inline-filters.filter-platter .inline-filter-reveal{transition:none}}
+
+html[data-theme][data-platform] .filter-platter :is(button,input,select,.on-floating-surface),html[data-theme][data-platform] .filter-trigger.filter-trigger{border:0!important;box-shadow:none}

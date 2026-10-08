@@ -43,3 +43,10 @@ test('profile command persists crop only for its existing authorized owner and k
 test('profile command rejects another account and invalid framing without persisting profile writes',async()=>{
  const actor={id:'owner',status:'active',group:'family',roles:[]};for(const member of [{id:'other',name:'Other',photo:'/api/media/original',photoFrame:frame},{id:'owner',name:'Family',photo:'/api/media/original',photoFrame:{x:50,y:101,zoom:1}}]){const db=profileDB();await assert.rejects(()=>command(db,actor,{type:'SAVE_MEMBER',requestId:'frame-profile-denied',member}),error=>error instanceof UserError&&[400,403].includes(error.status));assert.equal(db.batches.length,0)}
 });
+
+test('stored and saved frames retain independent phone and wider positions',()=>{
+ const responsive={x:50,y:50,zoom:1,mobile:{x:25,y:75,zoom:1.5},desktop:{x:75,y:25,zoom:1.2}};
+ assert.deepEqual(storedPhotoFrame(JSON.stringify(responsive)),responsive);
+ assert.deepEqual(photoFrameForSave({photo:'/api/media/one',previousPhoto:'/api/media/one',previousFrame:JSON.stringify(responsive)}),responsive);
+ assert.throws(()=>photoFrameForSave({photo:'/api/media/one',frame:{...responsive,mobile:{x:101,y:50,zoom:1}}}));
+});

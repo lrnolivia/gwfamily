@@ -37,8 +37,8 @@
 .planning-history h3{margin-top:16px}
 
 /* Shared status semantics stay legible in both app themes and personal palettes. */
-.planning-status{--plan-todo-bg:color-mix(in srgb,var(--surface) 88%,#cfa865);--plan-todo-text:color-mix(in srgb,var(--text) 90%,#cfa865);--plan-complete-bg:color-mix(in srgb,var(--surface) 84%,var(--accent));--plan-complete-text:var(--text);--plan-pending-bg:color-mix(in srgb,var(--surface) 92%,var(--accent));--plan-pending-text:var(--text)}
-.planning-status.planning-status{max-width:100%;flex-shrink:1;gap:6px;padding:3px 7px;border-radius:6px;min-width:0;overflow-wrap:anywhere;font-size:.8125rem;line-height:1.4}
+.planning-status{--plan-todo-bg:var(--raised);--plan-todo-text:var(--text);--plan-complete-bg:var(--control);--plan-complete-text:var(--control-text);--plan-pending-bg:color-mix(in srgb,var(--surface) 92%,var(--accent));--plan-pending-text:var(--text)}
+.planning-status.planning-status{max-width:100%;flex-shrink:1;gap:6px;padding:4px 9px;border-radius:999px;min-width:0;width:fit-content;justify-self:start;align-self:start;overflow-wrap:anywhere;font-size:.8125rem;line-height:1.4}
 .planning-status>.planning-status-mark{width:1em;height:1em;flex:none}
 .planning-status.is-todo{background:var(--plan-todo-bg);color:var(--plan-todo-text);font-weight:700}
 .planning-status.is-complete{background:var(--plan-complete-bg);color:var(--plan-complete-text)}

@@ -15,7 +15,7 @@
 .calendar-manager summary{min-height:44px;display:list-item;cursor:pointer;padding-block:.6rem}
 .calendar-manager :is(input,select,textarea,summary):focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .calendar-filters,.calendar-actions{display:flex;flex-wrap:wrap;gap:.65rem;align-items:center}
-.calendar-filters [aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:2px}
+.calendar-filters [aria-pressed="true"]{outline:0}
 .calendar-agenda{padding:0;margin:0;list-style:none;display:grid;gap:0}
 .calendar-agenda>li{padding-block:1.3rem;border-bottom:1px solid var(--line);min-width:0}
 .calendar-agenda>li:first-child{border-top:1px solid var(--line)}
@@ -37,3 +37,6 @@
 .calendar-settings.card{max-width:none;padding:1.25rem}
 .calendar-settings .field-row{grid-template-columns:minmax(0,1fr)}
 .calendar-event-list.card{padding:1.25rem}
+
+.calendar-heading{min-width:0;max-width:100%}
+.calendar-heading>.button{width:auto!important;max-width:100%;flex:0 1 auto;margin:0;white-space:normal}

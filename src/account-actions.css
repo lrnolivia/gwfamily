@@ -1,17 +1,19 @@
+html[data-theme=light]{--destructive-accent:#d43943}
+html[data-theme=dark]{--destructive-accent:#d43541}
 /* One account-exit treatment, shared by Profile, You and onboarding. */
-html[data-theme][data-platform] .sign-out.sign-out{background:#c9283d!important;color:#fff!important;border:0!important;--gw-control-color:#c9283d;--gw-control-alpha:100%;box-shadow:none!important;min-height:48px;white-space:normal}
-html[data-theme][data-platform] .sign-out.sign-out>.liquid-glass-tint{background:#c9283d!important}
-html[data-theme=dark][data-platform] .sign-out.sign-out{background:#c9283d!important;color:#fff!important}
-.you-account-actions{display:grid;gap:12px;justify-items:start;margin-block:24px;min-width:0}
+html[data-theme][data-platform] .button.sign-out.sign-out{background:var(--destructive-accent,#d43943)!important;color:var(--bright-text,#fffaf0)!important;border:0!important;--gw-control-color:var(--destructive-accent,#d43943);--gw-control-alpha:100%;--button-shadow-color:color-mix(in srgb,var(--destructive-accent) 38%,#000);box-shadow:var(--gw-action-shadow)!important;min-height:48px;white-space:normal}
+html[data-theme][data-platform] .gw-optic-control.button.sign-out.sign-out>.liquid-glass-tint{background:var(--destructive-accent,#d43943)!important}
+html[data-theme=dark][data-platform] .button.sign-out.sign-out{background:var(--destructive-accent,#d43943)!important;color:var(--bright-text,#fffaf0)!important}
+.you-account-actions{display:grid;gap:12px;justify-items:stretch;margin-block:24px;min-width:0}
 .you-account-actions>.sign-out{min-width:200px;max-width:100%}
 .preview-account-actions{display:grid;gap:12px;min-width:0;align-items:start}
 .preview-account-actions.is-compact{padding-top:12px;border-top:1px solid var(--line)}
 .preview-account-actions .field-help{margin:0}
 .preview-account-actions>.button{width:100%}
-.you-account-actions .preview-account-actions{width:min(100%,420px)}
+.you-account-actions .preview-account-actions{width:100%}
 @media(max-width:699.98px){.you-account-actions{justify-items:stretch}.you-account-actions>.sign-out{width:100%;min-width:0}.you-account-actions .preview-account-actions{width:100%}}
 .heading-font-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;min-width:0}
-.heading-font-options>.heading-font-option{display:grid;gap:6px;text-align:left;justify-items:start;padding:14px;min-width:0;min-height:88px;border:1px solid var(--line);border-radius:16px;background:var(--raised);color:var(--text)}
+.heading-font-options>.heading-font-option{display:grid;gap:6px;text-align:left;justify-items:stretch;padding:14px;min-width:0;min-height:88px;border:1px solid var(--line);border-radius:16px;background:var(--raised);color:var(--text)}
 .heading-font-option[aria-pressed=true]{outline:2px solid var(--accent);outline-offset:2px}
 .heading-font-option .font-sample{font-size:1.5rem;line-height:1.2;overflow-wrap:anywhere}
 .heading-font-option small{font:500 .75rem/1.4 Inter,system-ui,sans-serif;overflow-wrap:anywhere}

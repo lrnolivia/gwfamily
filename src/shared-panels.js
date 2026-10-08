@@ -9,7 +9,7 @@ export const PANEL_PRESETS=Object.freeze([
  {id:'photo',label:'Photo above',description:'One photo above your message'},
  {id:'feature',label:'Photo beside',description:'One photo alongside your message'}
 ]);
-export const PANEL_PAGES=Object.freeze(['home','reunion','family','people','memories','tree','birthdays','shop','inbox','you','leader-calendar']);
+export const PANEL_PAGES=Object.freeze(['home','reunion','reunion-plans','reunion-calendar','family','people','memories','tree','birthdays','shop','inbox','you','leader-calendar']);
 export const HERO_FIELDS=Object.freeze({home:['heroEyebrow','heroTitle','heroBodyFallback'],reunion:['heroEyebrow','heroTitle','dateFallback','locationFallback','pricingNote'],memories:['heroEyebrow','heroTitle','heroBody'],tree:['heroTitle','heroBody']});
 const clone=value=>JSON.parse(JSON.stringify(value));
 const plain=value=>value!==null&&typeof value==='object'&&!Array.isArray(value)&&(Object.getPrototypeOf(value)===Object.prototype||Object.getPrototypeOf(value)===null);
@@ -19,17 +19,30 @@ function keys(value,allowed){if(!plain(value)||Object.keys(value).some(key=>!all
 export const NATIVE_PANEL_DEFINITIONS=Object.freeze({
  'leader-calendar':[['calendar-events','Reunion events','main',[]],['calendar-settings','Calendar settings','side',[]]],
  home:[['feed','Family feed','main',['feedTitle']],['reunion','Your reunion','side',['reunionTitle','nextRsvpTitle','nextRsvpBody','nextShirtsTitle','nextShirtsBody','nextFeesTitle','nextFeesBody']]],
+ 'reunion-plans':[['rsvp','RSVP','main',['rsvpTitle']],['merchandise','Merchandise','main',['merchandiseTitle']],['fees','Reunion fees','main',['feesTitle']],['checklist','Your reunion','side',['checklistTitle']],['history','Saved records','side',[]]],
+ 'reunion-calendar':[['events','Reunion events','main',[]],['birthdays','Family birthdays','side',[]]],
  reunion:[['plans','Your reunion','main',['plansTitle']],['schedule','Reunion schedule','side',['weekendTitle','weekendEmptyTitle','weekendEmptyBody']],['clarity','A little clarity','side',['clarityTitle','clarityBody']]],
  people:[['directory','Our people','main',['peopleTitle','noResults']],['profiles','Your family profiles','side',['profilesTitle']],['contact','Address book','side',['heading','intro','sharingNote','emptyTitle','emptyBody']],['shared-contacts','Shared contact cards','main',['sharedTitle','sharedEmptyBody']]],
  memories:[['gallery','Shared memories','main',['listTitle','emptyBody']]],
  tree:[['founders','Family founders','side',[]],['memorials','Held in our hearts','main',['memorialsTitle']],['connections','Family connections','side',['connectionsTitle','connectionsBody']]],
  birthdays:[['calendar','Family birthdays','main',['monthTitle','emptyBody','privacyNote']]],
- shop:[['products','Merchandise','main',['emptyBody']],['order','Your order','side',[]]],
+ shop:[['products','Merchandise','main',['heading','emptyBody']],['order','Your order','side',[]]],
  inbox:[['invitations','Conversation invitations','side',['invitationsTitle']],['conversations','Conversations','main',['emptyTitle','emptyBody','caughtUpTitle','caughtUpBody']]],
  you:[['profile','Your profile','side',[]],['family','Your family','main',[]],['plans','Reunion plans','main',[]],['preferences','Preferences','main',[]],['help','Help','main',[]],['leader-tools','Leader tools','side',['toolsTitle']]]
 });
 export const nativePanelDefinition=(page,id)=>(NATIVE_PANEL_DEFINITIONS[page]||[]).find(([key])=>'native-'+key===id);
-export const sharedPanelTitle=(page,panel)=>panel.kind==='hero'?'Primary hero':panel.kind==='native'?(nativePanelDefinition(page,panel.id)?.[1]||'Page panel'):panel.title||'Untitled panel';
+export function sharedPanelTitle(page,panel,content,records={}){
+ if(panel.kind==='hero')return content?.text?.heroTitle||'Page photo or video';
+ if(panel.kind!=='native')return panel.title||'Untitled panel';
+ const sharedHeading=page==='reunion-calendar'&&panel.id==='native-birthdays'?records.birthdays:page==='reunion'&&panel.id==='native-plans'?records.home:null;
+ if(sharedHeading){const value=(sharedHeading.draft||sharedHeading.content)?.text?.[page==='reunion'?'reunionTitle':'monthTitle'];if(typeof value==='string'&&value.trim())return value;}
+ const definition=nativePanelDefinition(page,panel.id),field=definition?.[3]?.find(key=>/Title$|^heading$|^monthTitle$/.test(key)),heading=field&&content?.text?.[field];
+ return typeof heading==='string'&&heading.trim()?heading:definition?.[1]||'Page panel';
+}
+export const REUNION_PANEL_PAGES=Object.freeze(['reunion','reunion-plans','reunion-calendar']);
+export function activePanelPage(page,tab){
+ return page==='family'?(tab||'people'):page==='reunion'?tab==='plans'?'reunion-plans':tab==='weekend'?'reunion-calendar':'reunion':page;
+}
 const nativeDefaults=page=>(NATIVE_PANEL_DEFINITIONS[page]||[]).map(([id,,zone])=>({id:'native-'+id,kind:'native',zone,locked:false,removed:false}));
 export function defaultPanelLayout(page){const panels=PANEL_PAGES.includes(page)?[{id:'hero',kind:'hero',zone:'main',locked:true,removed:false},...nativeDefaults(page)]:[];return {version:2,panels,desktopOrder:panels.map(p=>p.id),mobileOrder:panels.map(p=>p.id)};}
 export function migratePanelLayout(page,layout){
@@ -48,10 +61,11 @@ export function validatePanelLayout(page,value,cleanText){
  if(!PANEL_PAGES.includes(page)&&value.panels.length)throw Error('Panels are only available on shared family pages');
  const ids=new Set();
  const panels=value.panels.map(panel=>{
-  keys(panel,panel.kind!=='content'?['id','kind','zone','locked','removed']:['id','kind','zone','locked','removed','layout','title','body','secondary','media']);
+  keys(panel,panel.kind!=='content'?['id','kind','zone','locked','removed','fullWidth','hero']:['id','kind','zone','locked','removed','fullWidth','hero','layout','title','body','secondary','media']);
   if(typeof panel.id!=='string'||!/^(?:hero|native-[a-z-]{1,40}|panel-[A-Za-z0-9_-]{1,80})$/.test(panel.id)||ids.has(panel.id))throw Error('Use distinct shared panel IDs');ids.add(panel.id);
   if(!['main','side'].includes(panel.zone)||typeof panel.locked!=='boolean'||typeof panel.removed!=='boolean')throw Error('Use a valid panel location and lock state');
   const base={id:panel.id,kind:panel.kind,zone:panel.zone,locked:panel.locked,removed:panel.removed};
+  for(const flag of ['fullWidth','hero'])if(panel[flag]!==undefined){if(typeof panel[flag]!=='boolean')throw Error('Use a valid panel '+flag+' setting');base[flag]=panel[flag];}
   if(panel.kind==='native'){if(!nativePanelDefinition(page,panel.id))throw Error('Choose a built-in panel from this page');return base;}
   if(panel.kind==='hero'){if(panel.id!=='hero')throw Error('The primary hero has a fixed identity');return base;}
   if(panel.kind!=='content'||!panel.id.startsWith('panel-')||!PANEL_PRESETS.some(p=>p.id===panel.layout))throw Error('Choose a premade shared panel layout');
@@ -59,6 +73,7 @@ export function validatePanelLayout(page,value,cleanText){
   return {...base,layout:panel.layout,title:cleanText(panel.title,PANEL_LIMITS.maxTitle),body:cleanText(panel.body,PANEL_LIMITS.maxBody,true),secondary:cleanText(panel.secondary,PANEL_LIMITS.maxBody,true),media:panel.media.map(file=>{keys(file,['id','alt','frame']);if(typeof file.id!=='string'||!/^[A-Za-z0-9_-]{1,100}$/.test(file.id))throw Error('Choose an uploaded panel photo');return {id:file.id,alt:cleanText(file.alt??'',240),...photoFramePayload(file.frame)};})};
  });
  if(PANEL_PAGES.includes(page)&&!panels.some(p=>p.id==='hero'))throw Error('Keep the primary hero record; remove it recoverably instead');
+ if(panels.filter(isHeroPanel).length>1)throw Error('Choose at most one hero per page');
  const visible=panels.filter(p=>!p.removed).map(p=>p.id);
  const order=name=>{const list=value[name];if(!Array.isArray(list)||list.length!==visible.length||new Set(list).size!==list.length||list.some(id=>!visible.includes(id)))throw Error('Include every visible panel once in each order');return [...list];};
  if(panels.filter(p=>p.kind==='content').length>PANEL_LIMITS.maxCustomPanels)throw Error('Use up to 23 custom panels, including removed panels');
@@ -79,7 +94,7 @@ export function validatePanelTransition(page,before,after){
   if(panel.locked&&replacement.locked&&cardSlots(page,panel).length&&JSON.stringify(cardLayoutOf(before,page,panel))!==JSON.stringify(cardLayoutOf(after,page,replacement)))throw Error('Unlock the panel before arranging its content');
   if(panel.locked&&replacement.locked&&!panel.removed){
    for(const key of ['desktopOrder','mobileOrder']){
-    const peers=previous.panels.filter(other=>other.id!==panel.id&&!other.removed&&next.panels.some(p=>p.id===other.id&&!p.removed)&&(key==='mobileOrder'||other.zone===panel.zone&&next.panels.find(p=>p.id===other.id)?.zone===panel.zone));
+    const peers=previous.panels.filter(other=>other.id!==panel.id&&!other.removed&&next.panels.some(p=>p.id===other.id&&!p.removed)&&(key==='mobileOrder'||panel.fullWidth||other.fullWidth||other.zone===panel.zone&&next.panels.find(p=>p.id===other.id)?.zone===panel.zone));
     if(peers.some(other=>(previous[key].indexOf(other.id)<previous[key].indexOf(panel.id))!==(next[key].indexOf(other.id)<next[key].indexOf(panel.id))))throw Error('Unlock the panel before moving another panel across it');
    }
   }
@@ -98,14 +113,28 @@ export function addSharedPanel(layout,panel){
  return {...layout,panels:[...layout.panels,panel],desktopOrder:[...layout.desktopOrder,panel.id],mobileOrder:[...layout.mobileOrder,panel.id]};
 }
 export function changeSharedPanel(layout,id,change){const before=layout.panels.find(p=>p.id===id);if(!before||before.locked&&Object.keys(change).some(key=>key!=='locked'))return layout;return {...layout,panels:layout.panels.map(p=>p.id===id?{...p,...change}:p)};}
+// A presentation role never changes a source-owned panel's identity, content,
+// permissions or operational data. Width and hero prominence are independent.
+export const isHeroPanel=panel=>!panel.removed&&(panel.hero??panel.kind==='hero');
+export function setSharedPanelHero(layout,id,hero=true){
+ const panel=layout.panels.find(p=>p.id===id);if(!panel||panel.removed||panel.locked)return layout;
+ const previous=layout.panels.find(p=>p.id!==id&&isHeroPanel(p));if(hero&&previous?.locked)return layout;
+ const next={...layout,panels:layout.panels.map(p=>p.id===id?{...p,hero}:hero&&isHeroPanel(p)?{...p,hero:false}:p)};
+ return lockedOrderValid(layout,next)?next:layout;
+}
+export function panelLayoutBands(panels){
+ const bands=[];let columns=[];
+ for(const panel of panels){if(panel.fullWidth){if(columns.length)bands.push({columns});bands.push({full:panel});columns=[]}else columns.push(panel)}
+ if(columns.length)bands.push({columns});return bands;
+}
 export function removeSharedPanel(layout,id){const panel=layout.panels.find(p=>p.id===id);if(!panel||panel.locked)return layout;return {...changeSharedPanel(layout,id,{removed:true}),desktopOrder:layout.desktopOrder.filter(key=>key!==id),mobileOrder:layout.mobileOrder.filter(key=>key!==id)};}
-export function restoreSharedPanel(layout,id,placement){const panel=layout.panels.find(p=>p.id===id);if(!panel?.removed)return layout;const insert=(key,index)=>{const order=layout[key].filter(key=>key!==id);order.splice(Number.isInteger(index)?Math.min(Math.max(index,0),order.length):order.length,0,id);return order;};return {...layout,panels:layout.panels.map(p=>p.id===id?{...p,removed:false}:p),desktopOrder:insert('desktopOrder',placement?.desktop),mobileOrder:insert('mobileOrder',placement?.mobile)};}
+export function restoreSharedPanel(layout,id,placement){const panel=layout.panels.find(p=>p.id===id);if(!panel?.removed)return layout;const insert=(key,index)=>{const order=layout[key].filter(key=>key!==id);order.splice(Number.isInteger(index)?Math.min(Math.max(index,0),order.length):order.length,0,id);return order;};return {...layout,panels:layout.panels.map(p=>p.id===id?{...p,removed:false,...((p.hero??p.kind==='hero')&&layout.panels.some(isHeroPanel)?{hero:false}:{})}:p),desktopOrder:insert('desktopOrder',placement?.desktop),mobileOrder:insert('mobileOrder',placement?.mobile)};}
 export function moveSharedPanel(layout,id,{zone,beforeId=null,mobile=false}={}){
  const panel=layout.panels.find(p=>p.id===id);if(!panel||panel.locked||panel.removed||beforeId===id)return layout;
- if(!mobile&&!['main','side'].includes(zone))return layout;
- if(beforeId!==null){const target=layout.panels.find(p=>p.id===beforeId&&!p.removed);if(!target||!mobile&&target.zone!==zone)return layout;}
+ const full=zone==='full';if(!mobile&&!full&&!['main','side'].includes(zone))return layout;
+ if(beforeId!==null){const target=layout.panels.find(p=>p.id===beforeId&&!p.removed);if(!target||!mobile&&!full&&target.zone!==zone&&!target.fullWidth)return layout;}
  const key=mobile?'mobileOrder':'desktopOrder',order=layout[key].filter(key=>key!==id),at=beforeId===null?order.length:order.indexOf(beforeId);if(at<0)return layout;
- order.splice(at,0,id);const next={...layout,panels:mobile?layout.panels:layout.panels.map(p=>p.id===id?{...p,zone}:p),[key]:order};return lockedOrderValid(layout,next)?next:layout;
+ order.splice(at,0,id);const next={...layout,panels:mobile?layout.panels:layout.panels.map(p=>p.id===id?{...p,zone:full?p.zone:zone,...(full||p.fullWidth?{fullWidth:full}:{})}:p),[key]:order};return lockedOrderValid(layout,next)?next:layout;
 }
 export function stepSharedPanel(layout,id,direction,mobile=false){const panel=layout.panels.find(p=>p.id===id),key=mobile?'mobileOrder':'desktopOrder',order=layout[key].filter(key=>mobile||layout.panels.find(p=>p.id===key)?.zone===panel?.zone),index=order.indexOf(id),nextIndex=index+direction;if(!panel||panel.locked||nextIndex<0||nextIndex>=order.length)return layout;const all=[...layout[key]],a=all.indexOf(id),b=all.indexOf(order[nextIndex]);[all[a],all[b]]=[all[b],all[a]];const next={...layout,[key]:all};return lockedOrderValid(layout,next)?next:layout;}
 export function normalizePanelContent(page,content){return {...clone(content),bodyFormats:{...content.bodyFormats},cardLayouts:{...content.cardLayouts},panelLayout:panelLayoutOf(content,page)};}

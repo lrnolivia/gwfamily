@@ -10,7 +10,7 @@ import {SHARED_PAGE_SCHEMA,sharedPageDefaults,validateSharedPageContent} from '.
 
 function setup(){
  const value=database();seed(value.sqlite);
- value.sqlite.exec(`UPDATE members SET is_leader=1 WHERE id='alice';UPDATE members SET roles_json='["admin","planner","moderator"]' WHERE id='bob';`);
+ value.sqlite.exec(`UPDATE members SET is_leader=1 WHERE id='alice';UPDATE members SET roles_json='["planner","moderator"]' WHERE id='bob';`);
  const objects=new Map();
  const env={DB:value.DB,R2:{head:async key=>objects.get(key)||null,get:async key=>objects.has(key)?{body:objects.get(key).bytes}:null,put:async(key,bytes,options)=>objects.set(key,{bytes,...options}),delete:async key=>objects.delete(key)},BETTER_AUTH_SECRET:'synthetic-page-content-test-secret',AUTH_ORIGIN:'https://family.example.test'};
  const sessions=new Set(['owner','alice','bob','pending']);
@@ -46,13 +46,18 @@ test('source defaults are returned to active family without database seeds; publ
  for(const page of ['welcome','signin','profile','posts','menus','__proto__','unknown'])assert.equal((await get(page)).status,404,page);
 });
 
-test('only explicit Leaders can write or restore; admin and organizer roles never grant access',async()=>{
+test('Admins and explicit Leaders can edit shared pages; ordinary organizer roles cannot',async()=>{
  const {write,restore,call,sqlite}=setup();
  for(const user of [null,'pending','bob']){
   assert.equal((await write(copy('Blocked'),0,user)).status,user?403:401,user);
   assert.equal((await restore(0,0,user)).status,user?403:401,user);
   assert.equal((await call(user,'/api/page-content/home/revisions')).status,user?403:401,user);
  }
+ const admin=setup();admin.sqlite.exec("UPDATE members SET is_leader=0 WHERE id='owner'");
+ assert.equal((await admin.write(copy('Admin-written heading'),0,'owner')).status,200);
+ assert.equal((await admin.get('home','owner')).data.canEdit,true);
+ admin.sqlite.exec("UPDATE members SET roles_json='[\"admin\"]' WHERE id='bob';UPDATE members SET roles_json='[]' WHERE id='owner'");
+ assert.equal((await admin.write(copy('Revoked admin'),1,'owner')).status,403);
  // Alice has no administrative, planner or moderator roles, only is_leader.
  assert.equal((await write(copy('Leader-written heading'))).status,200);
  assert.equal((await call('alice','/api/page-content/home','PATCH',{requestId:crypto.randomUUID(),expectedRevision:1,content:copy('Cross origin')},{Origin:'https://evil.example'})).status,403);

@@ -10,6 +10,12 @@ const Button=createOfficialSignInButton({createElement:h});
 const button=tree=>tree.children.find(node=>node.type==='button');
 const providers=['google','microsoft','yahoo'];
 
+test('email label aligns its existing glyph with text and scales with label typography',async()=>{
+ const css=await readFile(new URL('../src/official-sign-in-button.css',import.meta.url),'utf8');
+ assert.match(css,/\.sign-in-form \.email-field-label\{display:inline-flex;align-items:center;gap:\.4em;line-height:1\.35\}/);
+ assert.match(css,/\.sign-in-form \.email-field-label>\.glyph\{inline-size:1em;block-size:1em;flex:none\}/);
+});
+
 test('all three official brands exist, and unknown or inherited providers fail closed',()=>{
  assert.deepEqual(officialProviderBrandStatus(),providers.map(id=>({id,ready:true})));
  for(const id of [undefined,null,{},'', 'apple','__proto__','constructor','toString','yahoo.com'])assert.equal(officialProviderBrand(id),null);
@@ -70,8 +76,8 @@ test('busy status preserves provider wording and original artwork',()=>{
 });
 test('styles preserve complete art ratios, adequate targets, theme choice, focus and forced-color text',async()=>{
  const css=await readFile(new URL('../src/official-sign-in-button.css',import.meta.url),'utf8');
- assert.match(css,/min-inline-size:44px;min-block-size:56px/);
- assert.match(css,/block-size:auto/);assert.match(css,/object-fit:contain/);
+ assert.match(css,/min-inline-size:44px;min-block-size:44px/);
+ assert.match(css,/inline-size:auto;block-size:44px/);assert.match(css,/object-fit:contain/);
  assert.match(css,/:focus-visible\{outline:3px solid/);
  assert.match(css,/html\[data-theme=dark\] \.gw-provider-art--dark\{display:block\}/);
  assert.match(css,/@media\(forced-colors:active\)/);assert.match(css,/\.gw-provider-fallback\{display:block/);
@@ -82,3 +88,4 @@ test('brand rendering never enables capabilities, starts authentication or injec
  assert.doesNotMatch(source,/fetch\(|\/api\/|location\.|window\.|innerHTML|dangerouslySetInnerHTML|config\./);
  assert.match(source,/if\(!state\)return null/);assert.match(source,/if\(!blocked\)onClick\(event\)/);
 });
+

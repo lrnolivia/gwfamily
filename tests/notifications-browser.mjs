@@ -145,7 +145,7 @@ async function checkNavigationClear(page){
   if(!navigation||!popover?.matches(':popover-open'))return {clear:false,hit:false,buttonsClear:false};
   const nav=navigation.getBoundingClientRect(),panel=popover.getBoundingClientRect(),hit=document.elementFromPoint(nav.left+nav.width/2,nav.top+nav.height/2);
   const buttons=[...navigation.querySelectorAll('button')];
-  return {clear:panel.bottom<=nav.top-7,hit:hit===navigation||navigation.contains(hit),buttonsClear:buttons.length>0&&buttons.every(button=>{
+  return {clear:panel.bottom<=nav.top-7||panel.top>=nav.bottom+7||panel.right<=nav.left-7||panel.left>=nav.right+7,hit:hit===navigation||navigation.contains(hit),buttonsClear:buttons.length>0&&buttons.every(button=>{
    const rect=button.getBoundingClientRect(),target=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);return target===button||button.contains(target);
   })};
  })).toEqual({clear:true,hit:true,buttonsClear:true});
@@ -236,7 +236,8 @@ try{
   // Settings navigates to a full page. Use an actual modal sheet to keep
   // the post mounted while testing background hydration under an inert root.
   const reportsBeforeSheet=requests.filter(request=>request.path==='/api/commands'&&request.payload.type==='REPORT').length;
-  await alice.locator('.detail-page .post-card').getByRole('button',{name:'•••',exact:true}).click();
+  await alice.locator('.detail-page .post-card').getByRole('button',{name:'Post options',exact:true}).click();
+  await alice.getByRole('menu',{name:'Post options',exact:true}).getByRole('menuitem',{name:'Report',exact:true}).click();
   const sheet=alice.getByRole('dialog',{name:'Report content',exact:true});await expect(sheet).toBeVisible();
   const reason=sheet.getByRole('textbox',{name:'Reason for reporting',exact:true});await reason.fill('Unsubmitted synthetic sheet draft');await selectDraft(reason);
   await refreshComments([{...comment,text:'The sheet refreshed fixture text.'},nextComment]);
@@ -425,3 +426,4 @@ async function captureFailure(){
   return result;
  }));
 }
+

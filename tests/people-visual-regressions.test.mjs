@@ -55,7 +55,7 @@ test('checklist status combines visible labels with consistent SVG icons',()=>{
  const jsx=source('src/planning-checklist.jsx');assert.match(jsx,/<Glyph name=\{statusIcons\[task.status\]/);assert.match(jsx,/<span>\{task.statusLabel\}<\/span>/);assert.match(source('src/planning-checklist.css'),/\.planning-status.is-todo\{[^}]*background:var\(--plan-todo-bg\)/);
 });
 test('full shared reunion component defaults full and Plan explicitly opts into compact',()=>{
- const jsx=source('src/reunion-plans.jsx');assert.match(jsx,/YourReunionPanel\(\{compact=false\}\)/);assert.match(jsx,/<YourReunionPanel compact\/>/);assert.match(source('src/planning-checklist.jsx'),/!compact&&next&&/);
+ const jsx=source('src/reunion-plans.jsx');assert.match(jsx,/YourReunionPanel\(\{compact=false,page='home',field='reunionTitle'\}\)/);assert.match(jsx,/<YourReunionPanel compact page="reunion-plans" field="checklistTitle"\/>/);assert.match(source('src/planning-checklist.jsx'),/!compact&&next&&/);
 });
 test('single-line controls share metrics while multiline fields remain resizable',()=>{
  const css=source('src/visual-system.css');assert.match(css,/height:var\(--field-height\);min-height:var\(--field-height\)/);assert.match(css,/textarea:not\(\.page-copy-input\)\{[^}]*resize:vertical/);assert.match(css,/textarea:not\(\.page-copy-input\)\{min-height:6.5em;height:auto/);assert.doesNotMatch(css,/overflow-x:hidden|overflow:clip/);

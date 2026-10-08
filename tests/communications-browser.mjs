@@ -1,6 +1,7 @@
 // Hosted-only authenticated communications checks. Start the isolated fixture on
 // port 4175 first. Never substitute these checks for physical-device keyboard QA.
 import {chromium, webkit, expect} from '@playwright/test';
+import {settlePointerTarget} from './browser-transition-readiness.mjs';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {mkdir, writeFile} from 'node:fs/promises';
@@ -258,6 +259,23 @@ try {
       const response = await anonymous.request.get(base + '/api/conversations');
       assert.equal(response.status(), 401);
     } finally { await anonymous.close(); }
+  });
+
+  await check('Messages has one clear action row without a redundant options panel', async () => {
+    await bob.goto(base + '/#/inbox');
+    const empty=bob.locator('.messages-empty');await expect(empty).toBeVisible();
+    await expect(bob.getByRole('complementary',{name:'Messaging options'})).toHaveCount(0);
+    await expect(bob.locator('[data-panel-id="native-invitations"]')).toHaveCount(0);
+    for(const width of [390,768,1280]){
+      await bob.setViewportSize({width,height:950});
+      await expect(bob.locator('[data-panel-page="inbox"]')).toHaveClass(width<700?/is-mobile/:/is-wide/);
+      const heading=bob.locator('.messages-heading'),primary=heading.getByRole('button',{name:'New message',exact:true}),secondary=heading.getByRole('button',{name:'New group',exact:true});
+      await expect(primary).toBeVisible();await expect(secondary).toBeVisible();await expect(primary).toHaveAttribute('data-button-level','primary');await expect(secondary).toHaveAttribute('data-button-level','secondary');
+      assert.notEqual(await primary.evaluate(e=>getComputedStyle(e).backgroundColor),await secondary.evaluate(e=>getComputedStyle(e).backgroundColor));
+      const a=await empty.boundingBox(),h=await heading.boundingBox();assert.ok(a&&h&&a.y>=h.y+h.height,'Inbox follows its heading and actions');
+      assert.ok(await bob.evaluate(()=>document.documentElement.scrollWidth-innerWidth)<=1);
+    }
+    await bob.setViewportSize({width:1280,height:950});
   });
 
   await check('DM invitation consent gates detail, message, read and typing access', async () => {
@@ -536,9 +554,16 @@ try {
     await expect(alice.getByRole('heading', {name: 'Fixture cousins planning', exact: true})).toBeVisible();
     await denied(bob, `/api/conversations/${groupId}`, {method: 'PATCH', data: {name: 'Not authorized'}});
     const bobRow = alice.locator('.conversation-member').filter({has: alice.getByText('Bob', {exact: true})});
-    await bobRow.getByRole('button', {name: 'Make manager', exact: true}).click();
+    const promote = bobRow.getByRole('button', {name: 'Make manager', exact: true});
+    await settlePointerTarget(promote);
+    const promotedResponse = alice.waitForResponse(response => response.url().startsWith(base + `/api/conversations/${groupId}/members/`) && response.request().method() === 'PATCH');
+    await promote.click();
+    const promoted = await promotedResponse;
+    assert.ok(promoted.ok(), 'Manager change is acknowledged: ' + promoted.status());
     await expect.poll(async () => (await ok(bob, `/api/conversations/${groupId}`)).conversation.myRole).toBe('manager');
-    await bobRow.getByRole('button', {name: 'Remove manager role', exact: true}).click();
+    const demote = bobRow.getByRole('button', {name: 'Remove manager role', exact: true});
+    await settlePointerTarget(demote);
+    await demote.click();
     await expect.poll(async () => (await ok(bob, `/api/conversations/${groupId}`)).conversation.myRole).toBe('member');
     await alice.locator('.page-back').click();
     await expect(alice).toHaveURL(new RegExp('#/chat/' + groupId + '$'));
@@ -561,7 +586,9 @@ try {
     await navigate(bob, 'chat', groupId);
     await expect(messageRow(bob, 'Group fixture secret before acceptance')).toHaveCount(1);
     const bobRow = alice.locator('.conversation-member').filter({has: alice.getByText('Bob', {exact: true})});
-    await bobRow.getByRole('button', {name: 'Remove', exact: true}).click();
+    const remove = bobRow.getByRole('button', {name: 'Remove', exact: true});
+    await settlePointerTarget(remove);
+    await remove.click();
     await expect(alice.getByRole('heading', {name: 'Remove Bob?', exact: true})).toBeVisible();
     await alice.getByRole('button', {name: 'Confirm removal', exact: true}).click();
     await expect(bobRow).toHaveCount(0);
@@ -686,15 +713,15 @@ try {
       })).toBeLessThanOrEqual(1);
       const surfaces=await alice.evaluate(()=>{
         const h=document.querySelector('.app>.app-header'),n=document.querySelector('.page-navigation-header');
-        const a=getComputedStyle(h,'::before'),b=getComputedStyle(n,'::before'),fade=getComputedStyle(n,'::after');
-        return {header:{background:a.backgroundColor,image:a.backgroundImage,blur:a.backdropFilter||a.webkitBackdropFilter,bottom:a.bottom,left:a.left,right:a.right},page:{background:b.backgroundColor,image:b.backgroundImage,blur:b.backdropFilter||b.webkitBackdropFilter,top:b.top,left:b.left,right:b.right},pageBackground:getComputedStyle(n).backgroundColor,fade:{height:fade.height,image:fade.backgroundImage,blur:fade.backdropFilter||fade.webkitBackdropFilter},clip:b.clipPath,bottom:b.bottom};
+        const a=getComputedStyle(h,'::before'),b=getComputedStyle(n,'::before'),fade=getComputedStyle(h,'::after');
+        return {titleHeight:n.getBoundingClientRect().height,pageLayerDisplay:b.display,header:{background:a.backgroundColor,image:a.backgroundImage,blur:a.backdropFilter||a.webkitBackdropFilter,bottom:a.bottom,left:a.left,right:a.right},page:{background:b.backgroundColor,image:b.backgroundImage,blur:b.backdropFilter||b.webkitBackdropFilter,top:b.top,left:b.left,right:b.right},pageBackground:getComputedStyle(n).backgroundColor,fade:{height:fade.height,image:fade.backgroundImage,blur:fade.backdropFilter||fade.webkitBackdropFilter,mask:fade.maskImage||fade.webkitMaskImage},clip:b.clipPath,bottom:b.bottom};
       });
-      assert.equal(surfaces.header.bottom,'-1px');assert.equal(surfaces.page.top,'-1px');
+      assert.equal(surfaces.page.top,'-1px');
       assert.equal(surfaces.header.left,surfaces.page.left);assert.equal(surfaces.header.right,surfaces.page.right);
       if(material==='ios'){
-        assert.match(surfaces.header.blur,/blur\(18px\)/);assert.match(surfaces.page.blur,/blur\(18px\)/);
-        assert.equal(surfaces.page.image,'none');assert.equal(surfaces.pageBackground,'rgba(0, 0, 0, 0)');assert.equal(surfaces.bottom,'0px');assert.equal(surfaces.clip,'inset(0px)');assert.equal(surfaces.fade.height,'24px');assert.match(surfaces.fade.image,/linear-gradient/);assert.equal(surfaces.fade.blur,'none');
-      }else{assert.equal(surfaces.header.background,surfaces.page.background);assert.equal(surfaces.page.image,'none');assert.equal(surfaces.page.blur,'none');}
+        assert.match(surfaces.header.blur,/blur\(18px\)/);assert.equal(surfaces.pageLayerDisplay,'none');assert.ok(Math.abs(parseFloat(surfaces.header.bottom)+Math.ceil(surfaces.titleHeight))<=1,'One upper backdrop covers the entire title row');
+        assert.equal(surfaces.page.image,'none');assert.equal(surfaces.pageBackground,'rgba(0, 0, 0, 0)');assert.equal(surfaces.bottom,'0px');assert.equal(surfaces.clip,'inset(0px)');assert.equal(surfaces.fade.height,'24px');assert.match(surfaces.fade.image,/linear-gradient/);assert.match(surfaces.fade.blur,/blur\(18px\)/);assert.match(surfaces.fade.mask,/linear-gradient/);
+      }else{assert.equal(surfaces.header.bottom,'-1px');assert.equal(surfaces.header.background,surfaces.page.background);assert.equal(surfaces.page.image,'none');assert.equal(surfaces.page.blur,'none');}
       await noClip(alice);await alice.screenshot({path:`${output}/connected-header-${width}-${theme}-${material}-${engineName}.png`});
     }
     await alice.evaluate(()=>{localStorage.setItem('gw-platform','ios');localStorage.setItem('gw-theme','dark')});await navigate(alice,'chat',directId);
@@ -829,6 +856,49 @@ try {
       'Choosing and removing a draft photo does not silently save appearance or birthday privacy.');
   });
 
+  await check('profile contacts and photo discussions preserve audience, export consent and cross-account saves',async()=>{
+    await navigate(alice,'edit-profile');
+    const picker=alice.getByRole('region',{name:'Profile appearance',exact:true}).locator('input[type="file"]');
+    await picker.setInputFiles({name:'photo-discussion.png',mimeType:'image/png',buffer:createTestPng()});
+    await expect(alice.getByRole('img',{name:'Alice profile photo',exact:true})).toHaveAttribute('src',/^\/api\/media\//);
+    await alice.getByRole('button',{name:'Save profile',exact:true}).click();
+    await expect(alice).toHaveURL(/#\/profile\/alice$/);
+    const savedPhoto=(await ok(alice,'/api/state')).members.find(member=>member.id==='alice').photo;assert.match(savedPhoto,/^\/api\/media\//,'Profile photo is committed before the second account reads it');
+    // This assertion is specifically the Glass edge, independent of runner OS.
+    await bob.evaluate(()=>localStorage.setItem('gw-platform','ios'));
+    await navigate(bob,'profile','alice');
+    await expect(bob.locator('html')).toHaveAttribute('data-platform','ios');
+    await expect(bob.locator('.profile-overview .profile-photo-open img')).toHaveAttribute('src',savedPhoto);
+    await bob.locator('.profile-overview').getByRole('button',{name:'View Alice profile photo',exact:true}).click();
+    await expect(bob.locator('.photo-viewer-image')).toBeVisible();
+    const photoViewport=bob.viewportSize();
+    for(const width of [390,1280]){
+      await bob.setViewportSize({width,height:844});
+      const edge=await bob.locator('.app>.app-header').evaluate(node=>{const style=getComputedStyle(node,'::after');return {display:style.display,blur:style.backdropFilter||style.webkitBackdropFilter,mask:style.maskImage||style.webkitMaskImage}});
+      assert.notEqual(edge.display,'none');assert.match(edge.blur,/blur\(18px\)/);assert.match(edge.mask,/linear-gradient/);
+      await noClip(bob);await bob.screenshot({path:`${output}/photo-glass-edge-${width}-${engineName}.png`});
+    }
+    await bob.setViewportSize(photoViewport);
+    const comment=bob.getByRole('textbox',{name:'Write a comment…',exact:true});
+    await comment.fill('A synthetic comment on this profile photo');await bob.getByRole('button',{name:'Send',exact:true}).click();
+    await expect(bob.locator('.chat-bubble').filter({hasText:'A synthetic comment on this profile photo'})).toHaveCount(1);await expect(comment).toHaveValue('');
+    await bob.locator('.photo-viewer-actions').getByRole('button',{name:'Add reaction',exact:true}).click();await bob.getByRole('button',{name:'React ❤️',exact:true}).click();
+    await expect(bob.getByRole('button',{name:'Remove your ❤️ reaction',exact:true})).toBeVisible();
+    await navigate(alice,'photo','alice');await expect(alice.locator('.chat-bubble').filter({hasText:'A synthetic comment on this profile photo'})).toHaveCount(1);
+    const photo=await ok(alice,'/api/photo-discussions/profile/alice');assert.equal(photo.comments.length,1);assert.equal(photo.reactions.length,1);
+    const bytes=await alice.request.get(base+'/api/photo-discussions/profile/alice/download');assert.equal(bytes.status(),200);assert.match(bytes.headers()['content-disposition'],/^attachment;/);assert.deepEqual(await bytes.body(),createTestPng());
+    await navigate(alice,'edit-profile');const allowPhotoSave=alice.getByRole('checkbox',{name:'Let family save my profile photo',exact:true});await settlePointerTarget(allowPhotoSave);await allowPhotoSave.uncheck();await expect(allowPhotoSave).not.toBeChecked();await alice.getByRole('button',{name:'Save profile',exact:true}).click();
+    await expect(alice).toHaveURL(/#\/profile\/alice$/);
+    assert.equal((await ok(alice,'/api/state')).members.find(member=>member.id==='alice').allowPhotoSave,false,'Photo-save preference is committed before cross-account enforcement');
+    await navigate(bob,'photo','alice');await expect(bob.getByRole('button',{name:'Save photo',exact:true})).toHaveCount(0);await expect(bob.getByText('Photo saving is turned off for this profile.',{exact:true})).toBeVisible();assert.equal((await bob.request.get(base+'/api/photo-discussions/profile/alice/download')).status(),403);
+    await ok(alice,'/api/commands',{method:'POST',data:{type:'SAVE_CONTACT',requestId:randomUUID(),contact:{name:'Alice',phone:'+1 555 0100',email:'alice@example.test',address:'1 Example Lane',website:'https://example.test',optIn:true,visibility:'Selected family members',selectedIds:['bob'],useProfile:true}}});
+    await navigate(bob,'profile','alice');await expect(bob.getByRole('link',{name:'Phone: +1 555 0100',exact:true})).toBeVisible();await expect(bob.getByRole('link',{name:'Email: alice@example.test',exact:true})).toHaveAttribute('href','mailto:alice%40example.test');
+    await bob.getByRole('button',{name:'Add to Contacts',exact:true}).click();const guide=bob.getByRole('dialog',{name:'Add to your contacts',exact:true});await expect(guide).toBeVisible();
+    const downloading=bob.waitForEvent('download');await guide.getByRole('button',{name:'Download contact card',exact:true}).click();const downloaded=await downloading,stream=await downloaded.createReadStream();assert.ok(stream);const chunks=[];for await(const chunk of stream)chunks.push(chunk);const card=Buffer.concat(chunks).toString('utf8');assert.match(card,/BEGIN:VCARD/);assert.match(card,/FN:Alice/);assert.match(card,/TEL;TYPE=CELL:\+1 555 0100/);assert.doesNotMatch(card,/PHOTO;/,'Photo optout applies to contact export too');
+    await guide.getByRole('button',{name:/^Close/}).click();await navigate(owner,'profile','alice');await expect(owner.getByRole('link',{name:'Phone: +1 555 0100',exact:true})).toHaveCount(0);await expect(owner.getByText('Contact details are private or haven’t been shared.',{exact:true})).toBeVisible();
+    await bob.screenshot({path:`${output}/profile-contact-${engineName}.png`});await alice.screenshot({path:`${output}/profile-photo-permission-${engineName}.png`});
+  });
+
   for (const {page} of sessions) await settleBrowserReads(page);
   assert.deepEqual(errors, [], 'No unhandled browser exceptions.');
 } catch (error) {
@@ -859,3 +929,4 @@ try {
   for (const {trace} of sessions) trace.log('browser-close-start', {pending: trace.snapshot().pending});
   try {await browser.close();} finally {await persist();}
 }
+

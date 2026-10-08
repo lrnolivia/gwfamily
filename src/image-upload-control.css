@@ -8,3 +8,9 @@
 @media(max-width:400px){.image-upload-preview{min-height:170px}.image-upload-avatar .image-upload-preview,.image-upload-profile .image-upload-preview{min-height:0}.image-upload-action{font-size:.8125rem}}
 @media(prefers-reduced-motion:reduce){.image-upload-choose{transition:none!important}}
 @media(prefers-contrast:more){.image-upload-action{outline:2px solid var(--text)}}
+
+/* Clear field/action hierarchy without losing the active family palette. */
+.image-upload-preview{background:var(--surface)}
+.image-upload-action{background:var(--control,var(--accent));color:var(--control-text,var(--text));border-radius:999px;box-shadow:var(--gw-action-shadow,0 3px 10px #0002)}
+.image-upload-placeholder{color:var(--muted)}
+.image-upload-frame-button{min-height:44px;width:100%;padding:10px 16px;border:0;border-radius:999px;background:var(--raised);color:var(--text)}

@@ -13,6 +13,7 @@
   --gw-nav-height: 72px;
   --gw-nav-fab-bottom: calc(var(--gw-nav-bottom) + var(--gw-nav-height) + 12px);
 }
+
 html[data-mobile-os=ios] { --gw-nav-edge-gap: 2px; }
 html[data-mobile-os=android],
 html[data-mobile-os=ios]:is([data-display-mode=standalone], [data-display-mode=fullscreen]) { --gw-nav-edge-gap: 0px; }
@@ -49,3 +50,40 @@ html[data-keyboard-open=true] .app:has(>.bottom)::after {
   visibility: hidden;
   pointer-events: none;
 }
+
+/* Flat phones use a solid full-width bar; hardware inset is padding below controls. */
+@media(max-width:699.98px){
+ html[data-platform=android]{--gw-nav-bottom:0px;--gw-nav-height:calc(64px + var(--gw-safe-bottom));--gw-nav-fab-bottom:calc(var(--gw-nav-height) + 12px)}
+ html[data-platform=android][data-mobile-os] .bottom.material-nav{width:100%;left:0;transform:none;border-radius:0!important;border:0!important;padding:8px max(8px,var(--gw-safe-right)) calc(8px + var(--gw-safe-bottom)) max(8px,var(--gw-safe-left));background:var(--surface)!important;box-shadow:none;backdrop-filter:none;gap:0;grid-template-columns:repeat(4,minmax(0,1fr))}
+ html[data-platform=android] .bottom.material-nav button{padding:0;min-width:0;min-height:48px;height:48px;gap:2px;background:transparent!important;border-radius:0;color:var(--text)!important}
+ html[data-platform=android] .bottom.material-nav button>.glyph{width:56px;height:32px;padding:4px 16px;border-radius:16px;box-sizing:border-box;stroke-width:2;background:transparent}
+ html[data-platform=android] .bottom.material-nav button[aria-current=page]>.glyph{background:var(--control)!important;color:var(--control-text)!important}
+ html[data-platform=android] .bottom.material-nav button>span{font-size:.75rem;line-height:14px;color:var(--text)}
+ html[data-platform=android] .bottom.material-nav button:focus-visible{outline:2px solid var(--text);outline-offset:-2px}
+ html[data-platform=android] .bottom.material-nav button:not([aria-current=page]):hover>.glyph{background:var(--raised)}
+}
+
+/* Flat wide screens use a Material rail with a separate top-right Post FAB. */
+@media(min-width:700px){
+ html[data-platform=android]{--gw-rail-width:calc(96px + var(--gw-safe-left));--gw-rail-top:calc(44px + env(safe-area-inset-top,0px))}
+ html[data-platform=android] .app:has(>.material-nav){box-sizing:border-box;width:calc(100% - var(--gw-rail-width));margin-inline-start:calc(var(--gw-rail-width) + max(0px,(100vw - var(--gw-rail-width) - 1040px)/2));margin-inline-end:auto}
+ html[data-platform=android] .app:has(>.material-nav)::after{display:none}
+ html[data-platform=android] .bottom.material-nav{position:fixed;inset:var(--gw-rail-top) auto 0 0;transform:none!important;width:var(--gw-rail-width)!important;height:calc(100dvh - var(--gw-rail-top));bottom:0!important;padding:0 12px max(12px,var(--gw-safe-bottom)) calc(12px + var(--gw-safe-left));box-sizing:border-box;display:flex;flex-direction:column;justify-content:flex-start;gap:4px;overflow-y:auto;border:0!important;border-radius:0!important;background:var(--surface)!important;box-shadow:none!important;z-index:30}
+ html[data-platform=android] .bottom.material-nav::before{content:'';position:fixed;inset:0 auto auto 0;width:var(--gw-rail-width);height:var(--gw-rail-top);background:var(--surface);pointer-events:none}
+ html[data-platform=android] .bottom.material-nav>button{flex:0 0 64px;min-height:64px;height:64px;width:72px;min-width:0;padding:6px 0 4px;gap:4px;border-radius:0;background:transparent!important;color:var(--text)!important}
+ html[data-platform=android] .bottom.material-nav>button>.glyph{width:56px!important;height:32px!important;padding:4px 16px!important;box-sizing:border-box;border-radius:16px;background:transparent}
+ html[data-platform=android] .bottom.material-nav>button[aria-current=page]>.glyph{background:var(--control)!important;color:var(--control-text)!important}
+ html[data-platform=android] .bottom.material-nav>button>span{font-size:.75rem;line-height:16px}
+ html[data-platform=android] .bottom.material-nav>button:not([aria-current=page]):hover>.glyph{background:var(--raised)}
+ html[data-platform=android] .bottom.material-nav>button:focus-visible{outline:2px solid var(--text);outline-offset:-2px}
+ html[data-platform=android] .material-fab{position:fixed;top:calc(var(--gw-app-header-offset,96px) + 12px);bottom:auto!important;left:auto;right:max(24px,var(--gw-safe-right));transform:none;width:56px;height:56px;border-radius:16px;z-index:31}
+}
+
+/* Selection belongs to the icon capsule, never the full destination hitbox. */
+html[data-platform=android][data-theme] .bottom.material-nav>button[aria-current=page]{background:transparent!important;border:0!important;box-shadow:none!important;color:var(--text)!important}
+html[data-platform=android][data-theme] .bottom.material-nav>button[aria-current=page]>.glyph{background:var(--control)!important;color:var(--control-text)!important}
+
+/* Pointer hover/focus must never paint the entire Flat destination rectangle.
+   Keep the keyboard outline and put the state layer inside the icon capsule. */
+html[data-platform=android][data-theme] .bottom.material-nav>button:is(:hover,:focus,:focus-visible,:active){background:transparent!important;color:var(--text)!important;box-shadow:none!important;backdrop-filter:none!important}
+html[data-platform=android][data-theme] .bottom.material-nav>button:not([aria-current=page]):is(:hover,:focus-visible)>.glyph{background:var(--raised)!important;color:var(--text)!important}

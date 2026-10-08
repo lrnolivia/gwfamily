@@ -36,9 +36,25 @@ html[data-platform] #sheet.comments-surface[open] #sheet-body{overflow:hidden;fl
 @keyframes gw-centered-sheet-enter{from{opacity:0}to{opacity:1}}
 @media(prefers-reduced-motion:reduce){html[data-platform] #sheet[open]{animation:none!important}}
 
-/* Left close and right true-completion are consistent across every Sheet. */
+/* Left true-completion and right close are consistent across every Sheet. */
 html[data-platform] #sheet[open] .sheet-head{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:12px;align-items:center}
 html[data-platform] #sheet[open] .sheet-head h2{min-width:0;overflow-wrap:anywhere;text-align:center;font-size:clamp(1.1rem,4vw,1.5rem)}
 .sheet-action-placeholder{width:44px;height:44px}
 .sheet-discard-confirm{display:grid;gap:12px;padding:16px;margin-bottom:16px;border:1px solid var(--accent);border-radius:16px;background:var(--raised)}
 .sheet-discard-confirm .row{flex-wrap:wrap}
+
+html[data-platform] #sheet[open] .sheet-head{gap:16px;margin-bottom:24px;min-height:44px}
+html[data-platform] #sheet[open] .sheet-head h2{margin:0;font-size:clamp(1.1rem,3.5vw,1.35rem);line-height:1.3}
+html[data-platform] #sheet[open] .sheet-head #close{width:44px;height:44px;min-width:44px;min-height:44px;padding:13px;border:0!important;border-radius:50%!important;background:var(--surface);box-shadow:none!important}
+html[data-platform] #sheet[open] .sheet-head #close::before,html[data-platform] #sheet[open] .sheet-head #close::after{display:none}
+html[data-platform] #sheet[open] .sheet-head #close .glyph{width:18px;height:18px}
+html[data-platform] #sheet[open] .sheet-head #close:hover{background:var(--raised)}
+html[data-platform] #sheet[open] .sheet-head #close:focus-visible{outline:2px solid var(--control);outline-offset:2px}
+
+html[data-platform] button.quiet-close{width:44px;height:44px;min-width:44px;min-height:44px;padding:13px;border:0!important;border-radius:50%!important;background:var(--surface)!important;box-shadow:none!important}
+html[data-platform] button.quiet-close::before,html[data-platform] button.quiet-close::after,button.quiet-close>.glass-shadow,button.quiet-close>.liquid-glass-effect,button.quiet-close>.liquid-glass-tint,button.quiet-close>.liquid-glass-shine{display:none!important}
+button.quiet-close .glyph{width:18px;height:18px}
+html[data-platform] button.quiet-close:hover{background:var(--raised)!important}
+button.quiet-close:focus-visible{outline:2px solid var(--control);outline-offset:2px}
+
+.sheet-head[data-movable]{cursor:grab;touch-action:none;user-select:none}.sheet-head[data-movable]:active{cursor:grabbing}.sheet-head[data-movable]:focus-visible{outline:2px solid var(--control);outline-offset:3px;border-radius:12px}

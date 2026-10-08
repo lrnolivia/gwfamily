@@ -1,15 +1,19 @@
 import {ProfileStyleEditor} from './profiles.jsx';
 import React,{useState,useEffect,useRef} from 'react';
-import {Control,Button} from './ui-core.jsx';
+import {Control,Button,useApp} from './ui-core.jsx';
+
+import {GW_HEADING_FONTS,validHeadingFont} from './account-actions-model.js';
+import {ChoiceControl} from './choice-control.jsx';
 
 // Presentation and tab-local draft only. The caller owns the explicit save.
 // This component cannot enroll, upload, authenticate, invite, or persist data.
 export function EnrollmentForm({initialName='',onSave,saveLabel='Finish joining',savingLabel='Saving your profile…',skipLabel='Skip for now',draftNotice=''}){
+ const app=useApp(),[selectedFont,setSelectedFont]=useState(()=>validHeadingFont(app?.headingFont)),[selectedTheme,setSelectedTheme]=useState(app?.theme||'light');
  const [step,setStep]=useState(1),[name,setName]=useState(initialName),[birthday,setBirthday]=useState(''),[celebrate,setCelebrate]=useState(false),[accepted,setAccepted]=useState(false),[color,setColor]=useState('#4f996c'),[file,setFile]=useState(null),[photo,setPhoto]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),saveLock=useRef(false);
  useEffect(()=>()=>{if(photo?.startsWith('blob:'))URL.revokeObjectURL(photo)},[photo]);
  async function finish(appearance=true){
   if(saveLock.current)return;saveLock.current=true;setBusy(true);setError('');
-  try{await onSave({name,birthday,privacyAccepted:accepted,birthdayCelebration:celebrate,profileColor:appearance?color:'#4f996c',file:appearance?file:null,photo:appearance?photo:null})}
+  try{await onSave({name,birthday,privacyAccepted:accepted,birthdayCelebration:celebrate,profileColor:appearance?color:'#4f996c',file:appearance?file:null,photo:appearance?photo:null});if(appearance&&!draftNotice){app?.setHeadingFont?.(selectedFont);app?.setTheme?.(selectedTheme);app?.setInterfaceAccent?.({mode:'custom',color})}}
   catch(e){setError(e.message||'Your profile could not be saved. Please try again.')}
   finally{saveLock.current=false;setBusy(false)}
  }
@@ -22,7 +26,9 @@ export function EnrollmentForm({initialName='',onSave,saveLabel='Finish joining'
    <label className="check-row"><input type="checkbox" checked={celebrate} onChange={e=>setCelebrate(e.target.checked)}/><span>Let the family celebrate my birthday.<small>Optional. Shares month and day and adds a birthday post for adults.</small></span></label>
    <label className="check-row"><input type="checkbox" required checked={accepted} onChange={e=>setAccepted(e.target.checked)}/><span>I understand this profile is for approved family members. My full birthday and household details stay private.</span></label>
    <Control type="submit" className="button form-primary">Continue</Control>
-  </>:<><div className="form-heading"><h1>Make it yours.</h1><p>Add a photo and pick your color. Both are optional.</p></div>
+  </>:<><div className="form-heading"><h1>Make it yours.</h1><p>Choose your font, color, and light or dark appearance. You can add a photo too.</p></div>
+   <fieldset className="heading-fonts"><legend>Heading style</legend><div className="heading-font-options" role="group" aria-label="GW heading fonts">{GW_HEADING_FONTS.map(font=><Control key={font.value} type="button" className="heading-font-option" aria-pressed={selectedFont===font.value} disabled={busy} onClick={()=>setSelectedFont(font.value)}><span className={'font-sample '+font.className}>{font.sample}</span><small>{font.label}</small></Control>)}</div></fieldset>
+   <ChoiceControl label="Color theme" value={selectedTheme} onChange={setSelectedTheme} disabled={busy} required options={[{value:'light',label:'Light'},{value:'dark',label:'Dark'}]}/>
    <ProfileStyleEditor name={name} photo={photo} color={color} onColor={setColor} onRemove={()=>{setFile(null);setPhoto(null)}} busy={busy} onPhoto={async next=>{
     if(!['image/jpeg','image/png','image/webp','image/gif'].includes(next.type)||next.size>10*1024*1024){setError('Choose a JPEG, PNG, WebP or GIF photo under 10 MB.');return}
     setError('');setFile(next);setPhoto(URL.createObjectURL(next));

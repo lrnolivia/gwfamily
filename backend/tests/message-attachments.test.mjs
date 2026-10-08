@@ -23,6 +23,8 @@ const stubUrl=dataModule(`
  export const invitationsEnabled=()=>false,provisionalAllowed=async()=>false,registerInvitationEntry=()=>{},registerFamilyInvitations=()=>{};
  export const registerPushRoutes=()=>{},registerNotifications=()=>{},registerPageContent=()=>{},registerHouseholdInvites=()=>{};
  export const publishedPageReferencesMedia=async()=>false,readCalendar=async()=>({});
+ // Photo target authorization has its own real-route suite; this private-message isolation boundary exposes no photo references.
+ export const registerPhotoDiscussions=()=>{},photoCommentsReferenceMedia=async()=>false;
 `);
 const attachmentSource=await readFile(new URL('message-attachments.mjs',root),'utf8');
 const attachmentUrl=dataModule(attachmentSource.replace(/from\s+(['"])\.\/(?:family-service|auth)\.mjs\1/g,`from '${stubUrl}'`));

@@ -76,10 +76,10 @@ test('hosted fixture serves only exact cropped self-hosted guide assets and deni
  assert.ok(fixture.indexOf('GW_HOSTED_BROWSER_QA')<fixture.indexOf("await import('esbuild')"));assert.ok(fixture.indexOf('GW_HOSTED_BROWSER_QA')<fixture.indexOf('.launch('));
  for(const marker of ["serviceWorkers:'block'","permissions:[]",'physicalDeviceValidation:false','actualInstallation:false','notificationDelivery:false'])assert.ok(fixture.includes(marker),marker);
 });
-test('hosted fixture covers every OS and Safari tab with synthetic privacy-preserving Back and consent flows',async()=>{
+test('hosted fixture covers iOS, Android and every Safari tab with synthetic privacy-preserving Back and consent flows',async()=>{
  const fixture=await readFile(new URL('./install-tutorial-browser.mjs',import.meta.url),'utf8');
  const osLoop=/for\(const \[name,assetCount\] of (\[\[[^\n]+?\]\])\)/.exec(fixture);assert.ok(osLoop,'Exact named OS/assets matrix must remain inspectable');
- assert.deepEqual(JSON.parse(osLoop[1].replaceAll("'",'"')),[['iPhone / iPad',3],['Android',3],['macOS',3],['Windows',4],['ChromeOS',3],['Other browser',0]]);
+ assert.deepEqual(JSON.parse(osLoop[1].replaceAll("'",'"')),[['iPhone / iPad',3],['Android',3]]);
  for(const [label,id] of [['iPhone: Compact','ios-safari-compact'],['iPhone: Top / Bottom','ios-safari-direct-share'],['iPad','ipados-safari-share']])assert.ok(fixture.includes("['"+label+"','"+id+"']"),label);
  assert.match(fixture,/getByRole\('tablist',\{name:'Instructions for'/);assert.match(fixture,/getByRole\('tablist',\{name:'Safari example'/);assert.doesNotMatch(fixture,/getByRole\('radio'/);
  for(const marker of ['An unsent synthetic update','A separate unsent synthetic draft',"window.fixture.account('fixture-b')","window.fixture.account('fixture-a')",'Progress never stores draft or content',"getByRole('button',{name:'Back',exact:true}).click()",'Preserved synthetic draft',"mockInstallPrompt('dismissed')","mockInstallPrompt('failure')",'Mock install prompt only; no device installation or notification delivery is performed.'])assert.ok(fixture.includes(marker),marker);

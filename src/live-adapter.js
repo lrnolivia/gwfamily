@@ -1,15 +1,16 @@
+import {requestReference,withRequestReference} from './request-reference.js';
 import {shareUnchangedSnapshot} from './refresh-stability.js';
 import {reunionQuery,REUNION_SCOPED_COMMANDS} from './reunion-model.js';
 import React,{useEffect,useRef,useState} from 'react';
-import {readWithRecovery} from './live-read-recovery.js';
+import {initialReadRecovery,recoverableInitialRead,readWithRecovery} from './live-read-recovery.js';
 import {initialState,loadLocalState,saveLocalState,reducer} from './data-adapter.js';
 import {mergeNotificationResource} from './notification-model.js';
 import {clearChatDrafts} from './messaging-model.js';
 import {saveLiveDrafts,readLiveDrafts,clearLiveDrafts,retainDraftAccount,hasLocalDrafts,commandFingerprint,readCommandRequests,saveCommandRequests,preserveNewerDrafts} from './draft-storage.js';
 export async function api(path,options={}){
  const response=await fetch(path,{credentials:'same-origin',cache:'no-store',...options,headers:{...(options.body instanceof FormData?{}:{'Content-Type':'application/json'}),...options.headers}});
- let value;try{value=await response.json()}catch{throw Object.assign(new Error('The service returned an unreadable response. Please try again.'),{status:response.status,ambiguous:response.ok||response.status>=500})}
- if(!response.ok){const requestId=typeof value?.requestId==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.requestId)?value.requestId:null;throw Object.assign(new Error((value?.error?.message||(typeof value?.error==='string'?value.error:null)||value?.message||'That action could not be saved.')+(requestId?' Reference: '+requestId:'')),{status:response.status,...(requestId?{requestId}:{})})}return value;
+ let value;try{value=await response.json()}catch{const requestId=requestReference(null,response);throw Object.assign(new Error(withRequestReference('The service returned an unreadable response. Please try again.',requestId)),{status:response.status,ambiguous:response.ok||response.status>=500,...(requestId?{requestId}:{})})}
+ if(!response.ok){const requestId=requestReference(value,response);throw Object.assign(new Error((value?.error?.message||(typeof value?.error==='string'?value.error:null)||value?.message||'That action could not be saved.')+(requestId?' Reference: '+requestId:'')),{status:response.status,...(requestId?{requestId}:{})})}return value;
 }
 
 // Notification requests never refetch the full feed. Every open is reauthorized
@@ -50,7 +51,7 @@ const localTypes=new Set(['SET_DRAFT','SET_DRAFT_FILES','SET_COMPOSE','SET_FEED_
 const localFields=['drafts','compose','feedFilter','peopleFilter','memoryFilters','bag'];
 export function useFamilyData(){
  const [state,setState]=useState(loadLocalState),[session,setSession]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[actionError,setError]=useState(''),[loadError,setLoadError]=useState(''),[pending,setPending]=useState(false),[draftStorageStatus,setDraftStorageStatus]=useState({ok:true}),[preview,setPreview]=useState(()=>{try{return reviewOnly||sessionStorage.getItem(modeKey)==='preview'}catch{return false}});
- const refreshRun=useRef({sequence:0,controller:null}),reunionBags=useRef({}),signOutLock=useRef(false);
+ const bootstrapRetry=useRef(false),bootstrapRecovery=useRef(null),refreshRun=useRef({sequence:0,controller:null}),reunionBags=useRef({}),signOutLock=useRef(false);
  const linkedResource=useRef(null),epoch=useRef(0),ref=useRef(state),busy=useRef(false),workCount=useRef(0),after=useRef(null),alive=useRef(true),requestBook=useRef({accountId:null,requests:{},confirmed:new Set()});ref.current=state;
  const save=next=>{
   if(ref.current.mode==='live'&&(next.mode!=='live'||next.selfId!==ref.current.selfId))reunionBags.current={};
@@ -115,10 +116,16 @@ export function useFamilyData(){
     // A revoked or signed-out session must not leave the previous account in view.
     clearChatDrafts(ref.current.selfId);retainDraftAccount(null);requestBook.current={accountId:null,requests:{},confirmed:new Set()};save(initialState());
    }
-   if(current())setLoadError('');return current()?sess:undefined;
-  }catch(e){if(current()){controller.abort();setLoadError(e.message)}}finally{if(current()){run.controller=null;setLoading(false)}}
+   if(current()){bootstrapRetry.current=false;setLoadError('')}return current()?sess:undefined;
+  }catch(e){if(current()){controller.abort();bootstrapRetry.current=recoverableInitialRead(e);setLoadError(e.message);bootstrapRecovery.current?.schedule()}}finally{if(current()){run.controller=null;setLoading(false)}}
  }
  useEffect(()=>{alive.current=true;refresh();return()=>{alive.current=false;cancelRefresh()}},[preview]);
+ useEffect(()=>{
+  if(reviewOnly||preview||session?.status==='active')return;
+  const recovery=initialReadRecovery({request:()=>refresh(),shouldRetry:()=>bootstrapRetry.current,canRun:()=>alive.current&&document.visibilityState==='visible'&&!busy.current&&!workCount.current&&!refreshRun.current.controller});
+  bootstrapRecovery.current=recovery;recovery.schedule();const wake=()=>{if(document.visibilityState==='visible')void recovery.wake()};window.addEventListener('online',wake);document.addEventListener('visibilitychange',wake);
+  return()=>{recovery.stop();if(bootstrapRecovery.current===recovery)bootstrapRecovery.current=null;window.removeEventListener('online',wake);document.removeEventListener('visibilitychange',wake)};
+ },[preview,session?.status]);
  useEffect(()=>{if(preview||session?.status!=='active')return;const tick=()=>{if(document.visibilityState==='visible'&&!busy.current&&!workCount.current&&!refreshRun.current.controller)refresh()};const timer=setInterval(tick,15000);window.addEventListener('online',tick);document.addEventListener('visibilitychange',tick);return()=>{clearInterval(timer);window.removeEventListener('online',tick);document.removeEventListener('visibilitychange',tick)}},[preview,session?.status]);
  function dispatch(action){
   if(ref.current.mode==='preview'){try{save(reducer(ref.current,action));setError('');return Promise.resolve(true)}catch(e){setError(e.message);return Promise.resolve(false)}}

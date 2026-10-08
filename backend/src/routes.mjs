@@ -1,3 +1,4 @@
+import {registerPhotoDiscussions,photoCommentsReferenceMedia} from './photo-discussions.mjs';
 import {invitationsEnabled,provisionalAllowed,registerInvitationEntry,registerFamilyInvitations} from './family-invitations.mjs';
 import {storedPhotoFrame} from './photo-framing.mjs';
 import {resolveReunion as resolveReunionRecord} from './reunions.mjs';
@@ -55,13 +56,13 @@ export function registerPublic(app,authFactory){
   try{await e.DB.batch([e.DB.prepare('INSERT INTO media(id,owner_id,object_key,name,mime_type,size_bytes) VALUES(?,?,?,?,?,?)').bind(id,session.user.id,key,'Profile photo',file.type,file.size),e.DB.prepare('UPDATE user SET image=?,updatedAt=? WHERE id=?').bind(url,Date.now(),session.user.id)])}catch(error){await e.R2.delete(key);throw error}return c.json({url},201);
  });
 }
-export function registerFamily(app){registerPushRoutes(app);registerNotifications(app);registerHouseholdInvites(app);registerFamilyInvitations(app);registerMessaging(app);registerPageContent(app);
+export function registerFamily(app){registerPhotoDiscussions(app);registerPushRoutes(app);registerNotifications(app);registerHouseholdInvites(app);registerFamilyInvitations(app);registerMessaging(app);registerPageContent(app);
  app.get('/api/calendar',async c=>{try{return c.json(await readCalendar(c.env.DB,c.get('actor'),c.req.query('reunionId')))}catch(error){if(error.status)throw new UserError(error.message,error.status);throw error}});
  app.get('/api/state',async c=>c.json(await familyState(c.env.DB,c.get('actor'),c.req.query('reunionId'))));
  app.post('/api/commands',async c=>c.json(await command(c.env.DB,c.get('actor'),await c.req.json())));
  app.get('/api/directory',async c=>{
   const actor=c.get('actor'),rows=(await c.env.DB.prepare(`SELECT m.id,u.name,u.image,p.contact_json,p.photo_frame_json FROM members m JOIN user u ON u.id=m.id JOIN profiles p ON p.member_id=m.id WHERE m.status='active'`).bind().all()).results||[];
-  const cards=rows.flatMap(m=>{const v=json(m.contact_json);if(!v.name)return [];const self=m.id===actor.id,allowed=self||(v.optIn===true&&(v.visibility==='All approved family members'||v.visibility==='Family leaders'&&actor.isLeader||v.visibility==='Selected family members'&&v.selectedIds?.includes(actor.id)));if(!allowed)return [];const {selectedIds,visibility,optIn,...card}=v;return [{memberId:m.id,...card,photo:v.useProfile?m.image:v.photo,photoFrame:v.useProfile?storedPhotoFrame(m.photo_frame_json):storedPhotoFrame(v.photoFrame),name:card.name||m.name}]});return c.json({cards});
+  const cards=rows.flatMap(m=>{const v=json(m.contact_json);if(!v.name)return [];const self=m.id===actor.id,allowed=self||(v.optIn===true&&(v.visibility==='All approved family members'||v.visibility==='Family leaders'&&actor.isLeader||v.visibility==='Selected family members'&&v.selectedIds?.includes(actor.id)));if(!allowed)return [];const {selectedIds,visibility,optIn,...card}=v;return [{memberId:m.id,...card,allowPhotoSave:v.allowPhotoSave!==false,photo:v.useProfile?m.image:v.photo,photoFrame:v.useProfile?storedPhotoFrame(m.photo_frame_json):storedPhotoFrame(v.photoFrame),name:card.name||m.name}]});return c.json({cards});
  });
  app.get('/api/manage',async c=>{
   const actor=c.get('actor');if(!can(actor,'manage_reunion')&&!can(actor,'manage_members')&&!can(actor,'confirm_fees'))throw new UserError('Planner permission required',403);
@@ -98,7 +99,9 @@ export function registerFamily(app){registerPushRoutes(app);registerNotification
   if(!allowed)allowed=!!await db.prepare('SELECT id FROM households WHERE photo_url=?').bind('/api/media/'+row.id).first();
   if(!allowed){const products=(await db.prepare('SELECT data_json FROM products WHERE active=1 AND deleted_at IS NULL').bind().all()).results;allowed=products.some(p=>json(p.data_json).photo==='/api/media/'+row.id)}
   if(!allowed)allowed=await publishedPageReferencesMedia(db,actor,row.id);
+  if(!allowed)allowed=await photoCommentsReferenceMedia(db,actor,row.id);
   if(!allowed)throw new UserError('File not found',404);const object=await c.env.R2.get(row.object_key);if(!object)throw new UserError('File not found',404);
   const inline=/^(image\/(png|jpeg|gif|webp)|video\/|audio\/)/.test(row.mime_type);return new Response(object.body,{headers:{'Content-Type':row.mime_type,'Content-Length':String(row.size_bytes),'Content-Disposition':`${inline?'inline':'attachment'}; filename*=UTF-8''${encodeURIComponent(row.name)}`,'X-Content-Type-Options':'nosniff','Cache-Control':'private, no-store','Content-Security-Policy':inline?"default-src 'none'; img-src 'self' data:; media-src 'self' blob:; style-src 'unsafe-inline'; sandbox allow-same-origin":"default-src 'none'; sandbox"}});
  });
 }
+

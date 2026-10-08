@@ -1,0 +1,39 @@
+/* One picker surface. Emoji retain clear touch/focus targets without tiles. */
+html[data-theme][data-platform] .reaction-pop{width:min(300px,calc(var(--vv-width,100vw) - 24px));padding:10px;overflow:visible}
+html[data-theme][data-platform] .reaction-pop .quick-emoji{display:flex;justify-content:space-between;flex-wrap:nowrap;gap:0;margin:0 0 6px}
+html[data-theme][data-platform] .reaction-pop input{width:100%;height:44px;min-height:44px;padding:8px 12px}
+html[data-theme][data-platform] .reaction-pop .emoji-grid{display:grid;grid-template-columns:repeat(var(--emoji-columns,6),minmax(0,1fr));gap:2px;max-height:none;height:auto;overflow:visible;padding:0;margin:8px 0 4px;overscroll-behavior:auto}
+html[data-theme][data-platform] .reaction-pop .emoji-choice{display:grid;place-items:center;min-width:44px;min-height:44px;width:100%;height:44px;padding:0;border:0!important;border-radius:10px;background:transparent!important;box-shadow:none!important;text-shadow:none;color:var(--text)!important;font-size:1.5rem;line-height:1;transform:none}
+html[data-theme][data-platform] .reaction-pop .quick-emoji .emoji-choice{width:44px;flex:0 0 44px}
+html[data-theme][data-platform] .reaction-pop .emoji-choice[aria-pressed=true]{outline:2px solid var(--accent);outline-offset:-3px}
+html[data-theme][data-platform] .reaction-pop .emoji-choice:focus-visible{outline:2px solid var(--text);outline-offset:-2px}
+html[data-theme][data-platform] .reaction-pop .emoji-choice:hover{background:color-mix(in srgb,var(--text) 8%,transparent)!important}
+html[data-theme][data-platform] .reaction-pop .emoji-pagination{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px}
+html[data-theme][data-platform] .reaction-pop .emoji-pagination>span{font-size:.75rem;color:var(--muted);font-variant-numeric:tabular-nums}
+html[data-theme][data-platform] .reaction-pop .emoji-page-control{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-width:44px;min-height:44px;padding:8px 4px;background:transparent;border:0;box-shadow:none;color:var(--text);font-size:.8125rem}
+.reaction-pop .emoji-page-control>.glyph{width:16px;height:16px}.reaction-pop .emoji-previous{transform:rotate(180deg)}
+.reaction-pop .emoji-page-control:disabled{opacity:.35;cursor:default}.reaction-pop .emoji-empty{margin:12px 4px;font-size:.875rem;color:var(--muted)}
+/* The overflow actions are menu rows, never primary-action pills. */
+html[data-theme][data-platform] .post-overflow-pop{width:224px;max-width:calc(100vw - 24px);padding:6px;border-radius:18px}
+html[data-theme][data-platform] .post-overflow-pop .post-options{display:grid;gap:0;min-width:0}
+html[data-theme][data-platform] .post-overflow-pop .post-menu-item{display:flex;align-items:center;gap:12px;width:100%;min-height:44px;margin:0;padding:10px 12px;background:transparent!important;color:var(--text)!important;border:0!important;border-radius:10px;box-shadow:none!important;text-shadow:none;font-size:.9375rem;line-height:1.4;font-weight:400;text-align:left}
+html[data-theme][data-platform] .post-overflow-pop .post-menu-item>.glyph{width:20px;height:20px;flex:0 0 20px}
+html[data-theme][data-platform] .post-overflow-pop .post-menu-item:hover{background:color-mix(in srgb,var(--text) 8%,transparent)!important}
+html[data-theme][data-platform] .post-overflow-pop .post-menu-item:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+html[data-theme][data-platform] .post-overflow-pop .post-menu-report{margin-top:4px;border-top:1px solid var(--line)!important;border-radius:0 0 10px 10px;color:var(--danger,var(--text))!important}
+.post-overflow-pop .post-copy-fallback{display:grid;gap:6px;padding:10px 12px;font-size:.8125rem}.post-overflow-pop .post-copy-fallback>input{min-width:0;width:100%}
+
+/* Management actions share a separated section; color reinforces their labels. */
+.post-overflow-pop .post-menu-section{margin-top:4px;padding-top:4px;border-top:1px solid var(--line)}
+html[data-theme][data-platform] .post-overflow-pop .post-menu-edit{color:var(--status-success)!important}
+html[data-theme][data-platform] .post-overflow-pop .post-menu-delete{color:var(--status-danger)!important}
+.comment-actions .content-options-trigger{flex:0 0 44px;width:44px;height:44px;padding:10px;margin-left:auto}
+.comment-actions{align-items:center}
+.content-change{display:grid;gap:12px;width:100%;min-width:0;text-align:left;color:var(--text);background:var(--surface);border-radius:16px;padding:12px}
+.content-change label{display:grid;gap:8px}.content-change textarea{min-width:0;width:100%;resize:vertical;box-sizing:border-box}
+.content-change p{margin:0;font-size:.875rem}.content-change-actions{display:flex;justify-content:flex-end;gap:8px}
+.content-change-actions button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:10px 14px;border-radius:14px;background:var(--raised);color:var(--text)}
+.content-change-actions .content-delete-confirm{color:var(--status-danger)}
+html[data-theme][data-platform] .comment-actions{display:flex;flex-wrap:nowrap;gap:4px;align-items:center;min-width:0}
+html[data-theme][data-platform] .comment-actions>.small-reaction-chips{display:flex;flex:1 1 auto;min-width:0;flex-wrap:nowrap;overflow-x:auto;align-items:center}
+html[data-theme][data-platform] .comment-actions .reaction-pill,html[data-theme][data-platform] .comment-actions .react-trigger{flex:0 0 auto;min-height:44px}

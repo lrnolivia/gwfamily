@@ -1,3 +1,8 @@
 .you-sections{min-width:0;gap:22px}.you-sections>.card{height:auto}.you-rows>h2{margin:0 0 8px}.you-rows .list-row{width:100%;min-height:64px}.you-rows .list-row>span{min-width:0}.you-rows .list-row p{overflow-wrap:anywhere}.you-account-actions{display:flex;justify-content:flex-start;margin-top:26px}.appearance-page,.help-page,.task-page{max-width:720px;margin-inline:auto}.appearance-page .profile-controls{padding:0}.appearance-page .text-size-controls{max-width:360px}.appearance-page .appearance-material{margin:0}.appearance-page fieldset{border:0;padding:0}.you-account-actions :focus-visible,.you-rows :focus-visible{outline:2px solid var(--accent);outline-offset:4px}
 @media(max-width:700px){.you-sections{gap:18px}.you-rows .list-row{min-height:68px}.you-account-actions .button{min-width:144px}.appearance-page,.help-page,.task-page{width:100%;min-width:0}}
 .appearance-page .choice-control{width:100%}.appearance-page .choice-chips{gap:10px}.appearance-page .profile-controls{gap:22px}
+
+/* Keep full-page Appearance choices clear of the sticky header when focused or scrolled into view. */
+.appearance-page .choice-chip{scroll-margin-block:calc(var(--gw-app-header-offset,96px) + 64px) calc(var(--gw-nav-height,72px) + 24px)}
+
+.you-account-actions{display:grid;justify-items:stretch;width:100%}.you-account-actions>.preview-account-actions,.you-account-actions>.sign-out,.you-account-actions .sign-out{width:100%;max-width:none;min-width:0}

@@ -48,3 +48,189 @@
 
 .profile-overview>.profile-cover{border-start-start-radius:inherit;border-start-end-radius:inherit}
 .planner-section>h2{margin:0 0 16px}
+
+/* Menus and mode surfaces use their material rather than decorative outlines. */
+html[data-theme][data-platform] :is(.gw-material-menu,.gw-glass-menu)[popover]{border:0!important}
+html[data-theme][data-platform] .gw-glass-menu>.liquid-glass-shine{border:0!important;box-shadow:none!important;background:none!important}
+html[data-theme][data-platform] :is(.view-switcher,.page-edit-modebar,.page-media-modes,.heading-font-option,.page-mode-done,.page-edit-tools>summary){border:0!important}
+html[data-theme][data-platform] :is(.page-media-modes,.view-switcher)>button{border:0!important;box-shadow:none!important}
+
+/* Every preset stays visible; wrapping replaces horizontal swatch scrolling. */
+.profile-colors .profile-color-options{display:grid;grid-template-columns:repeat(4,minmax(44px,1fr));align-items:start;gap:12px 8px;overflow:visible;padding:4px 0}
+.profile-color-options>.profile-swatches-scroll{display:contents;overflow:visible}
+.profile-swatches-scroll>.profile-color-swatch{justify-self:center;min-width:44px;width:44px;height:44px;margin:0}
+.profile-color-options>.profile-custom-color{justify-self:center;display:grid!important;width:44px;max-width:44px;min-width:0;gap:4px!important;padding:0;font-size:.6875rem}
+.profile-custom-color input[type=color]{width:44px!important;min-width:44px!important;max-width:44px!important;height:44px;min-height:44px}
+@media(min-width:700px){.profile-colors .profile-color-options{grid-template-columns:repeat(8,minmax(44px,1fr))}}
+
+/* Default and personal accents share white foregrounds in both materials. */
+html[data-theme][data-platform]{--control:#387b51;--control-text:#fffaf0;--control-edge:#387b51;--accent:#387b51;--ink:#fffaf0;--send-active:var(--control);--send-text:#fffaf0;--send-edge:#ffffff}
+html[data-theme][data-platform] :is(.choice-chip>input:checked+.choice-chip-face,.choice-option[aria-selected=true],.heading-font-option[aria-pressed=true]){color:var(--control-text)!important}
+html[data-theme][data-platform] .view-switcher.view-switcher>button[aria-selected=true]{color:var(--control-text)!important}
+
+/* Preserve the established wordmark; strengthen only its light-mode lettering. */
+
+/* Appearance slide-over: Custom gets its own quiet horizontal row. */
+.profile-menu[data-menu-page=appearance] .profile-colors{container-type:inline-size;container-name:appearance-accent}
+.profile-menu[data-menu-page=appearance] .profile-colors .profile-color-options{grid-template-columns:repeat(3,minmax(44px,1fr))}
+.profile-menu[data-menu-page=appearance] .profile-color-options>.profile-custom-color{grid-column:1/-1;display:flex!important;flex-direction:row-reverse;align-items:center;justify-content:space-between;justify-self:stretch;width:100%;max-width:none;min-height:64px;margin-top:4px;padding:10px 14px;border:0;border-radius:16px;background:var(--raised);color:var(--text);font-size:.875rem;font-weight:500}
+.profile-menu[data-menu-page=appearance] .profile-custom-color input[type=color]{flex:none;margin:0}
+@container appearance-accent (min-width:330px){.profile-menu[data-menu-page=appearance] .profile-colors .profile-color-options{grid-template-columns:repeat(6,minmax(44px,1fr))}}
+
+/* Compact swatch paint inside the existing touch targets. */
+.profile-swatches-scroll>.profile-color-swatch{background:transparent!important;--gw-control-color:transparent;--gw-control-alpha:0%;border:0!important;box-shadow:none!important;padding:6px;border-radius:50%}
+.profile-color-swatch>span,.profile-color-swatch>.liquid-glass-content>span{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--swatch);color:var(--bright-text,#fffaf0)}
+.profile-color-swatch .glyph{width:16px;height:16px}
+.profile-color-swatch[aria-pressed=true]>span,.profile-color-swatch[aria-pressed=true]>.liquid-glass-content>span{outline:2px solid var(--text);outline-offset:3px}
+.profile-menu[data-menu-page=appearance] .profile-colors .profile-color-options{grid-template-columns:repeat(4,minmax(44px,1fr));column-gap:4px}
+@container appearance-accent (min-width:380px){.profile-menu[data-menu-page=appearance] .profile-colors .profile-color-options{grid-template-columns:repeat(8,minmax(44px,1fr))}}
+
+.profile-swatches-scroll>.profile-color-swatch[aria-pressed=true]:not(:focus-visible){outline:0}
+.profile-color-swatch[aria-pressed=true]>span,.profile-color-swatch[aria-pressed=true]>.liquid-glass-content>span{background:var(--swatch)}
+.profile-color-swatch[aria-pressed=true] .glyph{width:20px;height:20px;padding:3px;box-sizing:border-box;border-radius:50%;background:var(--swatch-active,var(--control));color:var(--swatch-active-text,#ffffff)}
+
+/* Accent labels use a dispersed darker version of their own color. */
+html[data-theme][data-platform] :is(.button:not(.secondary),.choice-chip>input:checked+.choice-chip-face,.choice-option[aria-selected=true],.heading-font-option[aria-pressed=true],.view-switcher>button[aria-selected=true],.bottom button[aria-current=page],.material-fab,.fab-glass .fab){text-shadow:var(--accent-label-glow,none)}
+html[data-theme][data-platform] :is(.choice-chip>input:checked+.choice-chip-face,.choice-option[aria-selected=true],.heading-font-option[aria-pressed=true],.view-switcher>button[aria-selected=true],.bottom button[aria-current=page],.material-fab,.fab-glass .fab) .glyph{filter:drop-shadow(0 0 1px var(--accent-label-glow-core,transparent))}
+
+/* Post identity needs enough visual weight beside the name and audience badge. */
+.post-head :is(.member-link,.identity-avatar) .avatar{width:36px;height:36px;min-width:36px;flex:0 0 36px;align-self:center}
+
+
+/* The Custom accent has the same compact circular paint in every picker. */
+.profile-colors .profile-color-options>.profile-custom-color{grid-column:1/-1;display:flex!important;flex-direction:row-reverse;align-items:center;justify-content:space-between;justify-self:stretch;width:100%;max-width:none;min-height:64px;margin-top:4px;padding:10px 14px;border:0;border-radius:16px;background:var(--raised);color:var(--text);font-size:.875rem;font-weight:500}
+.profile-colors .profile-custom-color input[type=color]{appearance:none;-webkit-appearance:none;flex:none;box-sizing:border-box;width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;margin:0;padding:6px!important;border:0!important;border-radius:50%;background:transparent!important;box-shadow:none!important;cursor:pointer}
+.profile-custom-color input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+.profile-custom-color input[type=color]::-webkit-color-swatch{border:0!important;border-radius:50%}
+.profile-custom-color input[type=color]::-moz-color-swatch{border:0!important;border-radius:50%}
+
+.appearance-panel-heading{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:14px;padding:4px 0 12px;background:var(--surface)}
+.appearance-panel-heading h3{margin:0!important;min-width:0}
+html[data-theme][data-platform] .appearance-panel-heading .appearance-back{display:grid;place-items:center;flex:0 0 48px;width:48px;height:48px;min-height:48px;padding:12px;border-radius:50%;background:var(--raised)!important;color:var(--text)!important;border:0!important;box-shadow:none!important;--gw-control-color:var(--raised);--gw-control-alpha:100%}
+.appearance-back .glyph{width:24px;height:24px;transform:none}
+.appearance-back:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+
+/* Filled choices have no dark stroke; keyboard focus remains separate. */
+html[data-theme][data-platform] .choice-chip>input:checked+.choice-chip-face{border-color:transparent!important;box-shadow:0 4px 18px color-mix(in srgb,var(--accent-shadow-color,#174c2d) 10%,transparent)}
+html[data-platform=android] body,html[data-platform=android] :is(button,input,textarea,select){font-family:Inter,system-ui,sans-serif!important}
+html[data-platform=android][data-font=sans] :is(h1,h2,h3,h4,h5,h6,.mini-identity strong,.profile-style-preview strong,.planner-entry strong){font-family:'Momo Trust Display',sans-serif!important;font-weight:400}
+html[data-platform=android][data-font=serif] :is(h1,h2,h3,h4,h5,h6,.mini-identity strong,.profile-style-preview strong,.planner-entry strong){font-family:'DM Serif Text',Georgia,serif!important;font-weight:400}
+
+html[data-theme]{--accent-shadow-color:color-mix(in srgb,var(--accent) 38%,#000);--accent-label-glow:0 0 2px color-mix(in srgb,var(--accent-shadow-color) 10%,transparent),0 0 8px color-mix(in srgb,var(--accent-shadow-color) 10%,transparent),0 0 16px color-mix(in srgb,var(--accent-shadow-color) 10%,transparent);--gw-action-shadow:0 4px 18px color-mix(in srgb,var(--button-shadow-color,var(--accent-shadow-color)) 14%,transparent);--gw-action-glass-shadow:0 4px 22px color-mix(in srgb,var(--button-shadow-color,var(--accent-shadow-color)) 10%,transparent)}
+html[data-theme][data-platform] :is(.button,.icon-button,.filter-trigger,.fab,.heading-font-option,.page-mode-done,.page-edit-tools>summary){box-shadow:var(--gw-action-shadow)!important}
+
+/* Arrangement tools share one quiet, compact treatment after card styles. */
+html[data-theme][data-platform] :is(.page-panel-inline-controls,.card-slot-controls){padding:4px 0 8px;background:transparent;border:0;border-bottom:1px solid var(--decorative-line,var(--line));border-radius:0;gap:4px}
+html[data-theme][data-platform] :is(.page-panel-inline-controls,.card-slot-controls) button{min-width:44px;min-height:44px;height:44px;padding:8px;font-size:.8125rem;line-height:1.2;border:0;border-radius:10px;background:transparent;box-shadow:none!important}
+html[data-theme][data-platform] :is(.page-panel-inline-controls,.card-slot-controls) button:hover{background:var(--raised)}
+html[data-theme][data-platform] :is(.page-panel-inline-controls,.card-slot-controls) .glyph{width:16px;height:16px}
+html[data-theme][data-platform] .page-panel-inline-controls .page-panel-name{font-size:.8125rem;line-height:1.4}
+html[data-theme][data-platform] :is(.page-panel-inline-controls,.card-slot-controls) select{height:44px;min-height:44px;width:auto;font-size:.8125rem;line-height:1.2;padding:8px 24px 8px 10px;border:0;border-radius:10px;background:transparent;box-shadow:none;color:var(--text)}
+html[data-theme][data-platform] :is(.page-panel-inline-controls,.card-slot-controls) select:hover{background:var(--raised)}
+
+html[data-theme][data-platform] .page-editor-actions>.page-edit-tools{margin-inline-end:12px}
+html[data-theme][data-platform] .page-edit-tools>summary{background:var(--surface);min-height:44px;border:0;border-radius:12px;padding:8px 12px;font-size:.8125rem;box-shadow:var(--gw-action-shadow)!important}
+html[data-theme][data-platform] .page-edit-tools[open]>div{left:0;right:auto;max-width:calc(100vw - 32px);margin-top:8px}
+
+.post-head .identity-avatar{width:44px;height:44px;min-width:44px;min-height:44px;flex:0 0 44px}.post-head .identity-avatar .avatar:not(.avatar-photo){font-size:1rem;line-height:1}
+
+/* Post identity uses the name-and-badge block as its avatar size. */
+.post-head.row{align-items:stretch}
+.post-head .identity-info{min-height:44px;align-content:center;gap:3px}
+.post-head .identity-avatar{align-self:stretch;aspect-ratio:1;width:auto;height:auto;min-width:44px;min-height:44px;flex:0 0 auto}
+html[data-theme][data-platform] .post-head .identity-avatar .avatar{width:100%;height:100%;min-width:0;flex:none;aspect-ratio:1}
+
+/* One action leads; supporting actions sit between the accent and dark glass. */
+html[data-theme][data-platform] .button[data-button-level=primary]:not(.danger):not(.destructive):not(.sign-out):not(.membership-remove){background:var(--control,var(--accent))!important;color:var(--control-text,#fff)!important;border-color:transparent!important;text-shadow:var(--accent-label-glow);box-shadow:var(--gw-action-shadow)!important}
+html[data-theme][data-platform] .button[data-button-level=supporting]{background:color-mix(in srgb,var(--control,var(--accent)) 55%,var(--surface))!important;color:var(--bright-text,#fffaf0)!important;border-color:transparent!important;box-shadow:var(--gw-action-glass-shadow)!important}
+.page-panel-full-width{width:100%;min-width:0;margin-bottom:20px}
+.messages-heading{overflow:visible;flex-wrap:wrap;align-items:center;padding-block:8px 16px}
+.messages-heading>div{min-width:0}.messages-heading>.row{flex-shrink:0;gap:12px;padding:8px;overflow:visible;max-width:100%}
+.messages-heading>.row>.button{flex-shrink:0;min-height:44px}
+.messages-options{padding:24px;min-width:0}.messages-options h2,.messages-options p{margin:0}.messages-options>.button{width:100%}
+@media(max-width:600px){.messages-heading>.row{width:100%;padding-inline:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.messages-heading>.row>.button{min-width:0;width:100%;padding-inline:12px}}
+
+html[data-font=sans] .appearance-panel-heading :is(h2,h3){font-family:'Momo Trust Display',sans-serif!important;font-weight:400}
+html[data-font=serif] .appearance-panel-heading :is(h2,h3){font-family:'DM Serif Text',Georgia,serif!important;font-weight:400}
+html[data-theme][data-platform] .button[data-button-level=primary]:not(.sign-out):not(.membership-remove){--gw-control-color:var(--control,var(--accent));--gw-control-alpha:100%}
+html[data-theme][data-platform] .button[data-button-level=supporting]{--gw-control-color:color-mix(in srgb,var(--control,var(--accent)) 55%,var(--surface));--gw-control-alpha:100%}
+html[data-theme][data-platform] .button[data-button-level=primary]:not(.sign-out):not(.membership-remove)>.liquid-glass-tint,html[data-theme][data-platform] .button[data-button-level=supporting]>.liquid-glass-tint{background:var(--gw-control-color)!important;opacity:1!important}
+
+/* Keep the measured identity square while badges retain their intrinsic size. */
+html[data-theme][data-platform] .post-head .identity-avatar{align-self:center;width:var(--post-identity-size,44px);height:var(--post-identity-size,44px);flex:0 0 var(--post-identity-size,44px);border-radius:50%}
+.post-head .identity-info{align-self:center;justify-items:start}.post-head .identity-info>.membership-chips{align-self:start;justify-self:start;width:fit-content}
+html[data-theme][data-platform] .planning-link>.glyph{align-self:flex-start;margin-top:2px;flex-shrink:0}
+
+.family-branch{display:grid;gap:12px;margin-block:16px}.family-branch-diagram{display:grid;gap:14px;min-width:0}.tree-branch-generation{display:flex;justify-content:center;gap:8px;min-width:0}.tree-branch-generation:empty{display:none}.tree-branch-center{display:flex;justify-content:center}.tree-branch-person{position:relative;display:grid;justify-items:center;align-content:start;gap:3px;width:100%;max-width:130px;min-width:0;padding:8px 6px;border-radius:16px;background:var(--raised);color:var(--text);text-align:center}.tree-branch-person .avatar{width:32px;height:32px;min-width:32px;border-radius:50%;flex:none}.tree-branch-person strong{font-size:.75rem;line-height:1.2;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.tree-branch-person small{font-size:.6875rem;color:var(--muted)}.tree-branch-parents .tree-branch-person:after{content:'';position:absolute;bottom:-14px;left:50%;height:14px;border-left:1px solid var(--muted)}.tree-branch-children .tree-branch-person:before{content:'';position:absolute;top:-14px;left:50%;height:14px;border-left:1px solid var(--muted)}.tree-branch-person.is-focus{background:var(--control);color:var(--bright-text,#fffaf0)}.tree-branch-person.is-focus small{color:inherit}.tree-branch-siblings{padding-top:8px}.tree-branch-paging{display:flex;justify-content:space-between;align-items:center;gap:8px}.tree-branch-paging button{min-height:44px;padding:8px;background:var(--raised);color:var(--text);border-radius:12px}
+
+/* Selection changes the fill; keyboard focus retains its own visible cue. */
+html[data-theme][data-platform] .calendar-filters .button[aria-pressed=true]{--gw-control-color:color-mix(in srgb,var(--control,var(--accent)) 65%,var(--surface));--gw-control-alpha:100%;background:var(--gw-control-color)!important;color:var(--bright-text,#fffaf0)!important;border-color:transparent!important;box-shadow:var(--gw-action-shadow)!important}
+html[data-theme][data-platform] .calendar-filters .button[aria-pressed=true]>.liquid-glass-tint{background:var(--gw-control-color)!important;opacity:1!important}
+.calendar-filters .button[aria-pressed=true]:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+.messages-options.card{margin:0;align-self:start}
+.messages-page .page-panel-columns{align-items:start}
+
+
+/* Keep supporting Messages actions below the primary action in every material. */
+html[data-theme][data-platform] .messages-options .button[data-button-level=supporting]:not(:disabled){--gw-control-color:color-mix(in srgb,var(--control,var(--accent)) 22%,var(--surface));background:var(--gw-control-color)!important;color:var(--text)!important}
+html[data-theme][data-platform] .messages-options .button[data-button-level=supporting]:not(:disabled)>.liquid-glass-tint{background:var(--gw-control-color)!important;opacity:1!important}
+
+/* Panel actions occupy their section; a shared action row divides the width. */
+:is(.card,.panel,.page-shared-panel) .button,.form-save>.button{width:100%;max-width:none}
+:is(.card,.panel,.page-shared-panel) :is(.row,.action-row,.form-actions):has(>.button){display:flex;flex-wrap:wrap;width:100%;align-items:stretch}
+:is(.card,.panel,.page-shared-panel) :is(.row,.action-row,.form-actions)>.button{flex:1 1 0;min-width:0;max-width:none}
+.page-shared-panel .card-content-slot[data-card-role=action] .button{width:100%;max-width:none}
+
+/* Editor commands keep visible surfaces; legacy quiet-toolbar rules must not
+   erase pressed fills or leave their contrasting glyphs on bare backgrounds. */
+html[data-theme][data-platform] .card-content-layout .card-slot-controls button,
+html[data-theme][data-platform] .card-content-layout .card-column-heading button{background:var(--raised);color:var(--text);border:1px solid var(--decorative-line,var(--line));border-radius:10px}
+html[data-theme][data-platform] .card-content-layout .card-layout-choices button[aria-pressed=true]{background:var(--control);color:var(--control-text);border-color:transparent}
+html[data-theme][data-platform] .card-content-layout .card-layout-choices{gap:4px;background:transparent;padding:0}
+html[data-theme][data-platform] .card-content-layout .card-layout-choices button:has(>span){width:auto;flex-basis:auto;padding-inline:10px;gap:6px}
+html[data-theme][data-platform] .card-content-layout .card-layout-choices button:has(>span)>span{font-size:.75rem}
+.card-image-controls{flex-wrap:nowrap;overflow-x:auto;max-width:100%;padding-block:3px;scrollbar-width:thin;scrollbar-color:var(--muted) transparent}
+.card-image-controls>*{flex:0 0 auto}.card-image-controls .card-image-size{background:var(--surface)}
+/* A minimal inset edge supplies control separation only where the preserved
+   accent fill sits close to its new surface; the fill itself never changes. */
+html[data-theme=dark][data-platform]{--control-separation:inset 0 0 0 1px #3c7e54}
+html[data-theme=light][data-platform]{--control-separation:inset 0 0 0 0 transparent}
+html[data-theme][data-platform] .button[data-button-level=primary]:not(.danger):not(.destructive):not(.sign-out):not(.membership-remove):not(:disabled){box-shadow:var(--control-separation,inset 0 0 0 0 transparent),var(--gw-action-shadow)!important}
+
+@media(max-width:600px){.messages-heading{align-items:stretch}.messages-heading>div:first-child{width:100%;text-align:start}}
+
+/* Brand lettering follows the chosen palette without outlines or text effects. */
+html[data-theme=dark]{--wordmark-green:#f6edcf;--wordmark-amp:#f6edcf;--wordmark-white:#a0bb9b;--wordmark-family:#588f69;--text:#f5eedc;--muted:#c8bea9}
+html[data-theme=light]{--wordmark-green:#237943;--wordmark-amp:#237943;--wordmark-white:#1b5c33;--wordmark-family:#123d22;--text:#4b382b;--muted:#715b49}
+html[data-platform] .wordmark-green{color:var(--wordmark-green)!important}
+html[data-platform] .wordmark-amp{color:var(--wordmark-amp)!important}
+html[data-platform] .wordmark-white{color:var(--wordmark-white)!important}
+html[data-platform] .wordmark-bottom{color:var(--wordmark-family)!important}
+html[data-platform] :is(.wordmark-green,.wordmark-amp,.wordmark-white,.wordmark-bottom){-webkit-text-stroke:0;text-shadow:none;filter:none}
+
+.received-reactions{display:flex;flex-wrap:wrap;gap:4px;margin-block:8px 0}
+.received-reactions:empty{display:none}
+.received-reactions .reaction-pill{min-width:44px;min-height:44px;padding:10px 8px;font-size:.75rem;gap:4px;background:transparent;box-shadow:none}
+.received-reactions .reaction-pill small{font-size:.7rem}
+.received-reactions .reaction-pill[aria-pressed=true]{color:var(--text);font-weight:700}
+.post-card .post-actions{display:flex;flex-wrap:nowrap;gap:clamp(4px,1.5vw,12px);align-items:center}
+.post-card .post-actions>button{min-width:44px;padding-inline:6px;white-space:nowrap}
+.post-card .post-actions>.reaction-bar{flex:0 0 auto}
+.post-options{min-width:180px}
+
+/* Keep focus rings inside scroll-clipped modal fields. */
+#sheet-body :is(input,textarea,select):focus-visible{outline:2px solid var(--control,var(--accent));outline-offset:-2px}
+
+:root{--bright-text:#fffaf0;--near-dark-text:#171714}
+
+/* Feed identity stays compact regardless of wrapped names or badge counts. */
+html[data-theme][data-platform] .post-head .identity-avatar{width:44px;height:44px;min-width:44px;max-width:44px;min-height:44px;max-height:44px;flex:0 0 44px;align-self:center}
+.notification-badge{box-sizing:border-box;display:grid;place-items:center;width:24px;height:24px;min-width:24px;min-height:24px;padding:0;border-radius:50%;line-height:1}
+html[data-theme=dark]{--status-success:#91d6a6;--status-danger:#ff9a9e;--status-caution:#efce78}
+html[data-theme=light]{--status-success:#236b3b;--status-danger:#b32a38;--status-caution:#805c00}
+html[data-theme] .poll .poll-choice>.poll-indicator.selected{background:color-mix(in srgb,var(--status-success) 16%,var(--surface));color:var(--status-success);border-color:var(--status-success)}
+.received-reactions .reaction-pill{position:relative;border:0!important;background:transparent!important;isolation:isolate}
+.received-reactions .reaction-pill::before{content:'';position:absolute;inset:7px 0;border-radius:999px;background:var(--raised);z-index:-1}
+
+.planning-status.planning-status{--plan-complete-bg:color-mix(in srgb,var(--status-success) 16%,var(--surface));--plan-complete-text:var(--status-success);--plan-pending-bg:color-mix(in srgb,var(--status-caution) 16%,var(--surface));--plan-pending-text:var(--status-caution)}
+.received-reactions .reaction-pill{display:inline-flex;align-items:center;justify-content:center;font-size:12px;line-height:1;padding:0 8px}

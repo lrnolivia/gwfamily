@@ -59,3 +59,14 @@ test('cancel and draft reconciliation retain the saved image and saved frame unt
 test('concurrent framing edits participate in the existing explicit conflict review',()=>{
  const base=sharedPageDefaults('home'),draft=clone(base),latest=clone(base);draft.hero.frame={x:20,y:50,zoom:1};latest.hero.frame={x:80,y:50,zoom:1};const merged=mergePageDraft(base,draft,latest);assert.ok(merged.conflicts.some(conflict=>conflict.field==='hero'));assert.deepEqual(merged.content.hero.frame,draft.hero.frame);
 });
+
+test('phone and wider photo positions save independently with legacy fallback',async()=>{
+ const {photoFrameAt,updatePhotoFrame}=await import('../src/photo-framing-model.js');
+ const legacy={x:45,y:55,zoom:1.2},mobile={x:20,y:70,zoom:1.5},desktop={x:80,y:30,zoom:2};
+ const phone=updatePhotoFrame(legacy,'mobile',mobile);
+ assert.deepEqual(photoFrameAt(phone,'mobile'),mobile);assert.deepEqual(photoFrameAt(phone,'desktop'),legacy);assert.deepEqual(legacy,{x:45,y:55,zoom:1.2});
+ const both=updatePhotoFrame(phone,'desktop',desktop);assert.deepEqual(photoFrameAt(both,'mobile'),mobile);assert.deepEqual(photoFrameAt(both,'desktop'),desktop);
+ const content=sharedPageDefaults('home');content.hero.frame=both;assert.deepEqual(validateSharedPageContent('home',pageContentPayload(content)).hero.frame,both);
+ const style=photoFrameStyle(both);assert.equal(style['--gw-frame-mobile-x'],'20%');assert.equal(style['--gw-frame-desktop-x'],'80%');
+ for(const variant of [{x:101,y:0,zoom:1},{x:10,y:50,zoom:NaN},{x:10,y:50,desktop:legacy}])assert.throws(()=>validatePhotoFrame({...legacy,mobile:variant}));
+});

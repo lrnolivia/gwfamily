@@ -1,3 +1,4 @@
+import {canAccessLeaderTools} from './leader-access.js';
 import {ReunionSelector,ReunionYearManager} from './reunion-years.jsx';
 import {reunionQuery} from './reunion-model.js';
 import {CalendarEventsManager} from './calendar-events.jsx';
@@ -11,9 +12,9 @@ import {DetailsForm} from './planner.jsx';
 export function LeaderTools({section='overview'}){
  const {state,go,theme}=useApp(),preview=state.mode==='preview',caps=state.capabilities||{},canPlan=preview||caps.manageReunion,canPeople=preview||caps.manageMembers,canFees=preview||caps.treasurer,canCalendar=canManageCalendar(state);
  const [data,setData]=useState(null),[error,setError]=useState(''),[refresh,setRefresh]=useState(0);
- const allowed=canPlan||canPeople||canFees||canCalendar;
+ const allowed=canAccessLeaderTools(state)&&(canPlan||canPeople||canFees||canCalendar);
  useEffect(()=>{if(!allowed||section==='calendar'||!canPlan&&!canPeople&&!canFees)return;let alive=true;setData(null);setError('');if(preview){setData(leaderPreview(state));return}api(reunionQuery('/api/manage',state.selectedReunionId)).then(value=>{if(alive)setData(value)}).catch(e=>{if(alive)setError(e.message)});return()=>{alive=false}},[allowed,preview,refresh,section,state.selfId,state.selectedReunionId,preview?state:null]);
- if(!allowed)return <section className="stack"><h1>Leader Tools</h1><p>You don’t have access to these tools.</p><Button secondary onClick={()=>go({type:'you'})}>Back to You</Button></section>;
+ if(!allowed)return <section className="stack"><h1>Your account</h1><p>This page isn’t available for your account.</p><Button secondary onClick={()=>go({type:'you'})}>Back to You</Button></section>;
  const tabs=[['overview','Overview','grid'],canPlan&&['details','Reunion details','calendar'],canCalendar&&['calendar','Calendar & Events','calendar'],canPeople&&['members','People','people'],canPlan&&['shirts','Merchandise','shirt'],(canFees||canPlan)&&['fees','Fees','wallet']].filter(Boolean),active=!canPlan&&!canPeople&&!canFees&&canCalendar?'calendar':tabs.some(([id])=>id===section)?section:'overview';
  const open=id=>go({type:'leader-tools',section:id});const pending=data?.members.filter(m=>m.status==='pending').length||0,going=data?.rsvps.filter(r=>r.status==='Planning to come')||[],unverified=data?.fees.filter(f=>f.status==='reported').length||0,openOrders=data?.claims.filter(o=>!['delivered','cancelled'].includes(o.status)).length||0;
  const deadlines=[['Reunion',state.details?.date],['RSVP closes',state.details?.rsvpDeadline]].filter(([,date])=>date).map(([label,date])=>({label,date,days:Math.ceil((new Date(date+'T12:00:00').getTime()-Date.now())/86400000)}));

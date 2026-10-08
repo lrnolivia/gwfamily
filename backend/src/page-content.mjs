@@ -2,14 +2,14 @@ import {pageStorageSnapshots,storedPageSnapshot} from './page-content-storage.mj
 import {defaultPanelLayout,sharedPageMedia,validatePanelTransition} from '../../src/shared-panels.js';
 import {SHARED_PAGE_SCHEMA,SHARED_CONTENT_LIMITS,SHARED_IMAGE_TYPES,SHARED_VIDEO_TYPES,sharedPageDefaults,validateSharedPageContent} from '../../src/shared-content-schema.js';
 import {UserError} from './family-service.mjs';
-import {isMember} from './policy.mjs';
+import {isMember,can} from './policy.mjs';
 import {createRateStorage} from './auth.mjs';
 
-const leaderSql="EXISTS(SELECT 1 FROM members m JOIN user u ON u.id=m.id WHERE m.id=? AND m.status='active' AND m.member_group IN ('family','loved_ones') AND m.is_leader=1 AND u.emailVerified=1)";
+const leaderSql="EXISTS(SELECT 1 FROM members m JOIN user u ON u.id=m.id WHERE m.id=? AND m.status='active' AND m.member_group IN ('family','loved_ones') AND (m.is_leader=1 OR EXISTS(SELECT 1 FROM json_each(CASE WHEN json_valid(m.roles_json) THEN m.roles_json ELSE '[]' END) role WHERE role.value='admin')) AND u.emailVerified=1)";
 const rows=value=>value.results||[];
 function pageId(value){if(!Object.hasOwn(SHARED_PAGE_SCHEMA,value))throw new UserError('Shared page not found',404);return value;}
 function active(actor){if(!isMember(actor))throw new UserError('Family membership approval required',403);}
-function leader(actor){active(actor);if(actor.isLeader!==true)throw new UserError('Family Leader permission required',403);}
+function leader(actor){active(actor);if(!can(actor,'edit_pages'))throw new UserError('Family Leader permission required',403);}
 function payload(value,allowed){if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(key=>!allowed.includes(key)))throw new UserError('Unsupported shared page fields');return value;}
 function revisionNumber(value){if(!Number.isSafeInteger(value)||value<0)throw new UserError('Use a valid page revision');return value;}
 function requestId(value){if(typeof value!=='string'||!/^[A-Za-z0-9_-]{8,100}$/.test(value))throw new UserError('A valid requestId is required');return value;}
@@ -26,7 +26,7 @@ async function enrichContent(db,value){
  const enrich=file=>{const row=media.find(row=>row.id===file.id);return {...file,url:row?'/api/media/'+file.id:null,type:row?.mime_type||null,name:row?.name||'Unavailable file'};};
  return {...value,hero:{...value.hero,media:value.hero.media.map(enrich)},panelLayout:{...value.panelLayout,panels:value.panelLayout.panels.map(panel=>panel.kind!=='content'?panel:{...panel,media:panel.media.map(enrich)})}};
 }
-async function record(db,actor,page,row){return {page,revision:row?.revision||0,content:await enrichContent(db,rawContent(page,row)),canEdit:actor.isLeader===true,updatedAt:row?.created_at||null};}
+async function record(db,actor,page,row){return {page,revision:row?.revision||0,content:await enrichContent(db,rawContent(page,row)),canEdit:can(actor,'edit_pages'),updatedAt:row?.created_at||null};}
 async function receipt(db,actor,key,hash){
  const row=await db.prepare('SELECT * FROM page_content_requests WHERE member_id=? AND request_id=?').bind(actor.id,key).first();
  if(row&&row.fingerprint!==hash)throw new UserError('This requestId was already used for different changes',409);
@@ -99,7 +99,7 @@ async function write(c,restore=false){
 export async function publishedPageReferencesMedia(db,actor,id){
  active(actor);
  const current=rows(await db.prepare('SELECT p.page,r.content_json,e.extension_json,e.presentation_v2_json FROM page_content p JOIN page_content_revisions r ON r.page=p.page AND r.revision=p.revision LEFT JOIN page_content_extensions e ON e.page=r.page AND e.revision=r.revision').bind().all());
- return current.some(row=>{if(!Object.hasOwn(SHARED_PAGE_SCHEMA,row.page)||row.page==='leader-calendar'&&actor.isLeader!==true)return false;try{return sharedPageMedia(rawContent(row.page,row)).some(file=>file.id===id);}catch{return false;}});
+ return current.some(row=>{if(!Object.hasOwn(SHARED_PAGE_SCHEMA,row.page)||row.page==='leader-calendar'&&!can(actor,'edit_pages'))return false;try{return sharedPageMedia(rawContent(row.page,row)).some(file=>file.id===id);}catch{return false;}});
 }
 export function registerPageContent(app){
  app.get('/api/page-content/:page',async c=>{const actor=c.get('actor');active(actor);const page=pageId(c.req.param('page'));if(page==='leader-calendar')leader(actor);return c.json(await record(c.env.DB,actor,page,await currentRow(c.env.DB,page)));});

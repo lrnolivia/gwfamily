@@ -1,18 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {profilePalette,contrast} from '../src/profile-model.js';
+import {luminance,profilePalette,contrast} from '../src/profile-model.js';
 const css=fs.readFileSync(new URL('../dist/react-ui.css',import.meta.url),'utf8');
 test('hotfix action palette has readable text on opaque controls across personal colors',()=>{
- for(const theme of ['light','dark'])for(const color of ['#4f996c','#c9aa52','#efcf46','#d24978','#627bf0','#9a57dc','#000000','#ffffff']){
-  const p=profilePalette(color,theme);assert.ok(contrast(p['--control'],p['--surface'])>=3);assert.ok(contrast(p['--control-text'],p['--control'])>=4.5);
+ for(const theme of ['light','dark'])for(const color of ['#e64f59','#f08091','#ed8b32','#36a267','#3985e6','#a267d5','#8a8178','#000000','#fffaf0']){
+  const p=profilePalette(color,theme);assert.equal(p['--control-text'],'#fffaf0');assert.equal(p['--ink'],p['--control-text']);assert.ok(Math.max(contrast(p['--control'],p['--surface']),contrast(p['--control-edge'],p['--surface']))>=3);assert.ok(contrast(p['--control-text'],p['--control'])>=4.5);
  }
  assert.match(css,/--gw-control-alpha:100%/);
 });
 test('shared red sign out stays readable independently of profile accents',()=>{
  const accountCss=fs.readFileSync(new URL('../src/account-actions.css',import.meta.url),'utf8');
- assert.ok(contrast('#c9283d','#ffffff')>=4.5);
- assert.match(accountCss,/\.sign-out\.sign-out\{background:#c9283d!important;color:#fff!important/);
+ for(const color of ['#d43943','#d43541'])assert.ok(contrast(color,'#fffaf0')>=4.5);
+ assert.match(accountCss,/\.sign-out\.sign-out\{background:var\(--destructive-accent,#d43943\)!important;color:var\(--bright-text,#fffaf0\)!important/);
 });
 test('menu endpoints share vertical padding and desktop action is beside navigation',()=>{
  assert.match(css,/\.list-row:first-child,\.list-row:last-child[^}]*align-items:center[^}]*padding:calc\(14px/);
@@ -23,4 +23,33 @@ test('menu endpoints share vertical padding and desktop action is beside navigat
 test('custom color stays outside scrolling palette on narrow screens',()=>{
  assert.match(css,/\.profile-color-options>\.profile-swatches-scroll\{[^}]*flex:1 1 0%[^}]*overflow-x:auto/);
  assert.match(css,/\.profile-color-options>\.profile-custom-color\{[^}]*flex:0 0 58px/);
+});
+
+test('wordmark follows the accent with readable solid lettering and keeps three distinct palette colors',()=>{
+ const source=fs.readFileSync(new URL('../src/visual-system.css',import.meta.url),'utf8');
+ assert.match(source,/color:var\(--wordmark-green\)!important/);assert.match(source,/-webkit-text-stroke:0;text-shadow:none;filter:none/);
+ for(const theme of ['light','dark'])for(const accent of ['#4f996c','#c7a64a','#bc7060','#6b91b0','#936b91','#8a8178','#000000','#fffaf0']){const palette=profilePalette(accent,theme);for(const key of ['--wordmark-green','--wordmark-amp','--wordmark-white','--wordmark-family'])assert.ok(contrast(palette[key],palette['--bg'])>=4.5,key+accent+theme);}
+ for(const theme of ['light','dark']){const p=profilePalette('#387b51',theme);assert.equal(new Set([p['--wordmark-green'],p['--wordmark-white'],p['--wordmark-family']]).size,3);assert.equal(p['--wordmark-amp'],p['--wordmark-green']);}
+});
+
+test('approved yellow preserves its exact fill and warm-white lettering with a warm glow',()=>{
+ for(const theme of ['light','dark']){
+  const palette=profilePalette('#ec9d00',theme);
+  assert.equal(palette['--control'],'#ec9d00');assert.equal(palette['--control-text'],'#fffaf0');
+  assert.ok(contrast('#fffaf0',palette['--control'])<4.5,'Raw yellow alone is not a contrast pass.');
+  assert.equal(palette['--accent-label-glow'],'0 0 2px rgba(113,67,0,.1),0 0 8px rgba(113,67,0,.1),0 0 16px rgba(113,67,0,.1)');
+  assert.equal(palette['--control-edge'],'#ec9d00');
+ }
+});
+
+test('orange and coral retain saturated action colors in both themes',()=>{
+ for(const theme of ['light','dark'])for(const [raw,fill] of [['#ff7a00','#c54d00'],['#ff6685','#d23561']]){
+  const palette=profilePalette(raw,theme);assert.equal(palette['--control'],fill);assert.equal(palette['--control-text'],'#fffaf0');assert.ok(contrast(fill,'#fffaf0')>=4.5);
+ }
+});
+
+test('every accent gets a dispersed darker shadow without changing its label color',()=>{
+ for(const theme of ['light','dark'])for(const color of ['#e64f59','#ff7a00','#ec9d00','#36a267','#3985e6','#a267d5','#ff6685','#8a8178']){
+  const palette=profilePalette(color,theme);assert.equal(palette['--control-text'],'#fffaf0');assert.match(palette['--accent-label-glow'],/0 0 16px rgba/);assert.ok(luminance(palette['--accent-shadow-color'])<luminance(palette['--control']));
+ }
 });

@@ -268,7 +268,7 @@ test('Live harness gates every deliberate reload and onboarding closure with act
   assert.ok(close.indexOf('await settleBrowserReads(page);') < close.indexOf('await session.context.close();'));
   assert.match(reload, /since = trace\.lastDrained/);
   assert.match(source, /drainedThrough = trace\.sequence/);
-  assert.equal((source.match(/await reloadRoute\(alice\)/g) || []).length, 4);
+  assert.equal((source.match(/await reloadRoute\(alice\)/g) || []).length, 5);
   assert.doesNotMatch(source.slice(source.indexOf('try{')), /\.reload\(/);
   assert.match(source, /\.app:not\(\.is-onboarding\) > header/); assert.match(source, /locator\('\.onboard'\)\)\.toHaveCount\(0\)/);
   assert.match(source, /'\/api\/state'.*'\/api\/notifications'.*'\/api\/page-content\/global'/);
@@ -487,3 +487,4 @@ test('Live required-read annotations bound percent-heavy route targets without l
   assert.equal(summary.read.id, read.id); assert.equal(summary.read.epoch, 1); assert.equal(summary.current.epoch, 2);
   assert.equal(summary.checks.matchingTarget, false); assert.equal(summary.checks.replacementRead, false);
 });
+
