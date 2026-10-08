@@ -16,7 +16,7 @@ async function noOverflow(page,label){assert.ok(await page.evaluate(()=>document
 async function close(page){if(await page.getByRole('button',{name:'Close dialog',exact:true}).count())await page.getByRole('button',{name:'Close dialog',exact:true}).click();else await page.locator('.page-back').click()}
 async function openComments(page,postId){
  const action=page.locator('#post-'+postId).getByRole('button',{name:/Comments/});
- try{await action.click();await expect(page.locator('.detail-page')).toBeVisible();await expect(page.getByRole('textbox',{name:'Write a comment…'})).toBeVisible()}
+ try{await settlePointerTarget(action);await action.click();await expect(page).toHaveURL(new RegExp('#/post/'+postId+'$'));await expect(page.locator('.detail-page')).toBeVisible();await expect(page.getByRole('textbox',{name:'Write a comment…'})).toBeVisible()}
  catch(error){console.error('GW COMMENT TRANSITION '+JSON.stringify(await page.evaluate(()=>({url:location.href,mode:sessionStorage.getItem('gw-active-mode'),heading:[...document.querySelectorAll('h1,h2,h3')].map(e=>e.textContent),inputs:[...document.querySelectorAll('textarea')].map(e=>({label:e.getAttribute('aria-label'),placeholder:e.placeholder,rect:e.getBoundingClientRect().toJSON()})),dialogs:document.querySelectorAll('dialog[open]').length,body:document.body.innerText.slice(-3500)}))));throw error}
 }
 

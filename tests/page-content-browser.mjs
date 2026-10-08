@@ -993,6 +993,7 @@ try {
       const memoryControls=otherOwner.getByRole('region',{name:'Memory',exact:true});
       await memoryControls.getByRole('button',{name:'Filter & sort',exact:true}).click();
       await expect(memoryControls.getByRole('button',{name:'Filter & sort',exact:true})).toHaveAttribute('aria-expanded','true');
+      await expect(otherOwner.getByRole('dialog')).toHaveCount(0);
       const category = otherOwner.getByRole('combobox', {name: 'Category', exact: true});
       await memoryControls.getByRole('button', {name: 'Show choices for Category', exact: true}).click();
       await expect(category).toBeFocused();
@@ -1002,6 +1003,8 @@ try {
       await category.press('Escape');
       await expect(category).toHaveAttribute('aria-expanded', 'false');
       await otherOwner.screenshot({path: `${output}/family-editor-${viewport.width}x${viewport.height}-${engineName}.png`});
+      await memoryControls.locator('[data-control-menu="filters"] .work-controls-done').click();
+      await expect(memoryControls.getByRole('button',{name:'Filter & sort',exact:true})).toHaveAttribute('aria-expanded','false');
       // Media choices returned to the original content. Restore the original
       // family hero lock so each viewport starts from a clean saved snapshot.
       await togglePanelProtection(otherOwner,primaryHero(otherOwner,'family'),true);

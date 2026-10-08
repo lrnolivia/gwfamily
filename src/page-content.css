@@ -181,7 +181,8 @@ html[data-theme][data-platform] .page-copy-input-wrap .page-field-done{backgroun
 .page-edit-toolbar.is-editing .page-panel-actions>button{background:var(--raised);border-radius:12px;padding:8px 12px}
 .page-edit-toolbar.is-editing .page-panel-actions>button:hover:not(:disabled){background:var(--control);color:var(--control-text)}
 .page-edit-toolbar.is-editing .page-panel-actions>.page-editor-help{flex-basis:100%;padding:2px 0;font-size:.75rem}
-.page-edit-toolbar.is-editing .page-selected-object{min-height:44px;padding:10px 12px;border-radius:14px;background:var(--raised)}
+.page-edit-toolbar.is-editing .page-selected-object{min-height:44px;padding:10px 12px;border-radius:14px;background:var(--raised);flex-wrap:nowrap}
+.page-edit-toolbar.is-editing .page-selected-object>span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 html[data-theme][data-platform] .page-edit-toolbar.is-editing .page-command-button{background:var(--surface)}
 @media(max-width:420px){.page-edit-toolbar.is-editing{padding:10px;border-radius:20px}}
 

@@ -17,7 +17,6 @@ html[data-platform=ios] .page-back{background:color-mix(in srgb,var(--raised) 70
    fade starts below the page controls, rather than between the two headers. */
 html[data-platform=ios] .app>.app-header::before{background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);clip-path:inset(0)}
 html[data-platform=ios] .app>.app-header::after,html[data-platform=ios] .page-navigation-header::after{content:'';position:absolute;top:100%;left:-16px;right:-16px;height:24px;z-index:-1;pointer-events:none;background:linear-gradient(color-mix(in srgb,var(--bg) 90%,transparent),transparent)}
-html[data-platform=ios] .app:has(.page-navigation-header:not(.is-main-page))>.app-header::after,html[data-platform=ios] .app[data-compact=true]>.app-header::after{display:none}
 html[data-platform=ios] .page-navigation-header{background:transparent}
 html[data-platform=ios] .page-navigation-header::before{background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);clip-path:inset(0)}
 html[data-platform=android] .page-back{background:var(--raised);backdrop-filter:none;box-shadow:none}
