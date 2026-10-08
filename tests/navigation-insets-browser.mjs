@@ -20,6 +20,8 @@ const devices = [
   {name: 'iphone', os: 'ios', width: 390, height: 844, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 Version/26.0 Mobile/15E148 Safari/604.1', platform: 'iPhone', touch: 5},
   {name: 'ipad-desktop-ua', os: 'ios', width: 768, height: 1024, userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 Version/26.0 Safari/605.1.15', platform: 'MacIntel', touch: 5},
   {name: 'android', os: 'android', width: 390, height: 844, userAgent: 'Mozilla/5.0 (Linux; Android 16; Pixel 9) AppleWebKit/537.36 Chrome/140.0.0.0 Mobile Safari/537.36', platform: 'Linux armv8l', touch: 5},
+  ...[{name:'android-tablet-portrait',width:800,height:1280},{name:'android-tablet-landscape',width:1280,height:800},
+    {name:'android-tablet-narrow-window',width:699,height:1024},{name:'android-tablet-rail-boundary',width:700,height:1024}].map(device=>({...device,os:'android',userAgent:'Mozilla/5.0 (Linux; Android 16; Pixel Tablet) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36',platform:'Linux armv8l',touch:5})),
   {name: 'iphone-landscape', os: 'ios', width: 844, height: 390, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 Version/26.0 Mobile/15E148 Safari/604.1', platform: 'iPhone', touch: 5},
   {name: 'mac-desktop', os: 'none', width: 768, height: 1024, userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 Version/26.0 Safari/605.1.15', platform: 'MacIntel', touch: 0},
 ];
@@ -206,7 +208,11 @@ try {
             assert.equal(geometry.nav.x,0,`${label}: rail sits at the leading edge`);assert.equal(geometry.nav.width,expected.railWidth);assert.equal(geometry.nav.y,expected.top);
             assert.ok(geometry.main.x>=geometry.nav.right,`${label}: rail reserves content space`);
             assert.ok(geometry.buttons.every((button,index)=>index===0||button.y>=geometry.buttons[index-1].bottom),`${label}: destinations stack without overlap`);
-            assert.ok(geometry.fab.y>=geometry.header.bottom+11,`${label}: top-right FAB clears header controls`);assert.ok(geometry.fab.right<=geometry.width-23,`${label}: FAB stays in trailing margin`);
+            if(expected.fabBottom!==undefined){
+              assert.ok(Math.abs(geometry.height-geometry.fab.bottom-expected.fabBottom)<=1,`${label}: Android tablet FAB clears the bottom safe area once`);
+              assert.ok(geometry.fab.x>=geometry.nav.right+12,`${label}: bottom-right FAB stays clear of the rail`);
+            }else assert.ok(geometry.fab.y>=geometry.header.bottom+11,`${label}: top-right FAB clears header controls`);
+            assert.ok(geometry.fab.right<=geometry.width-23,`${label}: FAB stays in trailing margin`);
           }else{
             assert.ok(Math.abs(geometry.height - geometry.nav.bottom - expected.bottom) <= 1, `${label}: dock gap matches OS/display mode`);
             assert.ok(Math.abs(geometry.height - geometry.fab.bottom - expected.fabBottom) <= 1, `${label}: FAB consumes the same inset once`);

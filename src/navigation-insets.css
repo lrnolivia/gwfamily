@@ -63,7 +63,8 @@ html[data-keyboard-open=true] .app:has(>.bottom)::after {
  html[data-platform=android] .bottom.material-nav button:not([aria-current=page]):hover>.glyph{background:var(--raised)}
 }
 
-/* Flat wide screens use a Material rail with a separate top-right Post FAB. */
+/* Flat wide screens use a Material rail. Android keeps Post near the
+   bottom trailing edge; desktop keeps the existing header-adjacent action. */
 @media(min-width:700px){
  html[data-platform=android]{--gw-rail-width:calc(96px + var(--gw-safe-left));--gw-rail-top:calc(44px + env(safe-area-inset-top,0px))}
  html[data-platform=android] .app:has(>.material-nav){box-sizing:border-box;width:calc(100% - var(--gw-rail-width));margin-inline-start:calc(var(--gw-rail-width) + max(0px,(100vw - var(--gw-rail-width) - 1040px)/2));margin-inline-end:auto}
@@ -77,6 +78,7 @@ html[data-keyboard-open=true] .app:has(>.bottom)::after {
  html[data-platform=android] .bottom.material-nav>button:not([aria-current=page]):hover>.glyph{background:var(--raised)}
  html[data-platform=android] .bottom.material-nav>button:focus-visible{outline:2px solid var(--text);outline-offset:-2px}
  html[data-platform=android] .material-fab{position:fixed;top:calc(var(--gw-app-header-offset,96px) + 12px);bottom:auto!important;left:auto;right:max(24px,var(--gw-safe-right));transform:none;width:56px;height:56px;border-radius:16px;z-index:31}
+ html[data-platform=android][data-mobile-os=android] .material-fab{top:auto;bottom:max(24px,calc(var(--gw-safe-bottom) + 12px))!important;right:max(24px,calc(var(--gw-safe-right) + 12px))}
 }
 
 /* Selection belongs to the icon capsule, never the full destination hitbox. */
