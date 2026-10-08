@@ -3,6 +3,7 @@ import {shareUnchangedSnapshot} from './refresh-stability.js';
 import {reunionQuery,REUNION_SCOPED_COMMANDS} from './reunion-model.js';
 import React,{useEffect,useRef,useState} from 'react';
 import {initialReadRecovery,recoverableInitialRead,readWithRecovery} from './live-read-recovery.js';
+import {documentReadLifecycle} from './document-read-lifecycle.js';
 import {initialState,loadLocalState,saveLocalState,reducer} from './data-adapter.js';
 import {mergeNotificationResource} from './notification-model.js';
 import {clearChatDrafts} from './messaging-model.js';
@@ -45,6 +46,7 @@ export async function sendCommand(payload){
  }
 }
 const readApi=(path,signal)=>readWithRecovery(attemptSignal=>api(path,{signal:attemptSignal}),{signal});
+const refreshDocument=documentReadLifecycle();
 const reviewOnly=typeof location!=='undefined'&&location.pathname.startsWith('/__review/');
 const modeKey=reviewOnly?'gw-review-mode':'gw-active-mode';
 const localTypes=new Set(['SET_DRAFT','SET_DRAFT_FILES','SET_COMPOSE','SET_FEED_FILTER','SET_PEOPLE_FILTER','SET_MEMORY_FILTERS','BAG_ADD','BAG_REMOVE']);
@@ -92,6 +94,7 @@ export function useFamilyData(){
  }
  function cancelRefresh(){const run=refreshRun.current;run.sequence++;run.controller?.abort();run.controller=null}
  async function refresh({previewMode=preview,reunionId}={}){
+  if(!refreshDocument.canRead())return;
   if(reviewOnly){setConfig({configured:false,email:false,providers:[]});setSession(null);setLoading(false);return}
   cancelRefresh();const run=refreshRun.current,sequence=run.sequence,controller=new AbortController();run.controller=controller;
   const generation=epoch.current,current=()=>alive.current&&generation===epoch.current&&sequence===refreshRun.current.sequence;
@@ -119,10 +122,11 @@ export function useFamilyData(){
    if(current()){bootstrapRetry.current=false;setLoadError('')}return current()?sess:undefined;
   }catch(e){if(current()){controller.abort();bootstrapRetry.current=recoverableInitialRead(e);setLoadError(e.message);bootstrapRecovery.current?.schedule()}}finally{if(current()){run.controller=null;setLoading(false)}}
  }
+ useEffect(()=>refreshDocument.subscribe({pause:cancelRefresh,resume:()=>{if(alive.current&&!busy.current&&!workCount.current)refresh()}}),[preview]);
  useEffect(()=>{alive.current=true;refresh();return()=>{alive.current=false;cancelRefresh()}},[preview]);
  useEffect(()=>{
   if(reviewOnly||preview||session?.status==='active')return;
-  const recovery=initialReadRecovery({request:()=>refresh(),shouldRetry:()=>bootstrapRetry.current,canRun:()=>alive.current&&document.visibilityState==='visible'&&!busy.current&&!workCount.current&&!refreshRun.current.controller});
+  const recovery=initialReadRecovery({request:()=>refresh(),shouldRetry:()=>bootstrapRetry.current,canRun:()=>alive.current&&refreshDocument.canRead()&&document.visibilityState==='visible'&&!busy.current&&!workCount.current&&!refreshRun.current.controller});
   bootstrapRecovery.current=recovery;recovery.schedule();const wake=()=>{if(document.visibilityState==='visible')void recovery.wake()};window.addEventListener('online',wake);document.addEventListener('visibilitychange',wake);
   return()=>{recovery.stop();if(bootstrapRecovery.current===recovery)bootstrapRecovery.current=null;window.removeEventListener('online',wake);document.removeEventListener('visibilitychange',wake)};
  },[preview,session?.status]);

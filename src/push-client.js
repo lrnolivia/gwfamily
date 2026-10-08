@@ -37,7 +37,7 @@ export function createDevicePushController({Notification,registration,save,revok
     if(operation!==epoch||currentAccountId()!==expectedAccountId)throw new Error('Account changed');
     const result=await save({subscription:subscription.toJSON(),expectedAccountId,keyVersion:config.keyVersion});
     if(operation!==epoch||currentAccountId()!==expectedAccountId){await revoke({id:result.id,expectedAccountId});throw new Error('Account changed')}
-    device={id:result.id,accountId:expectedAccountId};return {enabled:true};
+    device={id:result.id,accountId:expectedAccountId};return {enabled:true,deviceId:result.id};
    }catch(error){if(subscription)await subscription.unsubscribe().catch(()=>{});throw error}finally{busy=false}
   },
   async disable(){epoch++;const owned=device;try{if(owned)await revoke({id:owned.id,expectedAccountId:owned.accountId});device=null}finally{const sub=await registration.pushManager.getSubscription();if(sub)await sub.unsubscribe()}return {enabled:false}},

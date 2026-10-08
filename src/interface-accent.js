@@ -1,4 +1,6 @@
 // Device appearance only; profile identity colors remain in the member record.
+// Hide only Appearance's free-form color picker; preset accents stay available.
+export const CUSTOM_ACCENT_PICKER_ENABLED=false;
 export const INTERFACE_ACCENT_KEY='gw-interface-accent:v1';
 export const validAccentColor=value=>typeof value==='string'&&/^#[0-9a-f]{6}$/i.test(value);
 export function readInterfaceAccent(storage){

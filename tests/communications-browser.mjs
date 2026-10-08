@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {mkdir, writeFile} from 'node:fs/promises';
 import {createTestPng} from './png-fixtures.mjs';
+import {checkConfigPollLifecycle} from './config-poll-lifecycle-browser-check.mjs';
 import {diagnosticUrl, installCommunicationsLifecycle, observeCommunicationsPage} from './communications-browser-diagnostics.mjs';
 
 if (!process.env.CI && process.env.GW_HOSTED_BROWSER_QA !== '1') {
@@ -916,6 +917,7 @@ try {
     await bob.screenshot({path:`${output}/profile-contact-${engineName}.png`});await alice.screenshot({path:`${output}/profile-photo-permission-${engineName}.png`});
   });
 
+  await check('config polls stop during document departure and resume after pageshow',()=>checkConfigPollLifecycle(browser,base));
   for (const {page} of sessions) await settleBrowserReads(page);
   assert.deepEqual(errors, [], 'No unhandled browser exceptions.');
 } catch (error) {

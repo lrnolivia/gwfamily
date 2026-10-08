@@ -1,3 +1,4 @@
+import {memorialCommand,memorialPermissions} from './memorials.mjs';
 import {photoCommandStatements} from './photo-discussions.mjs';
 import {MEMBERSHIP_COMMANDS,membershipCommand} from './membership.mjs';
 import {photoFrameForSave,storedPhotoFrame} from './photo-framing.mjs';
@@ -55,7 +56,7 @@ export async function familyState(db,actor,reunionId){
  const memories=list(await db.prepare('SELECT * FROM memories WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 200').bind().all());
  const products=list(await db.prepare('SELECT * FROM products WHERE reunion_id=? AND active=1 AND deleted_at IS NULL ORDER BY name').bind(reunion.id).all());
  const reports=can(actor,'moderate')?list(await db.prepare('SELECT * FROM moderation_reports ORDER BY created_at DESC LIMIT 100').bind().all()):[];
- const memorials=list(await db.prepare('SELECT id,name,maiden_name,founder,story FROM memorials').bind().all());
+ const memorials=list(await db.prepare('SELECT * FROM memorials').bind().all()),memorialAccess=await memorialPermissions(db,actor);
  const relationships=list(await db.prepare('SELECT from_id,to_id,kind FROM family_relationships').bind().all());
  const birthdayCalendar=await publicBirthdays(db);
  const announcementViews=list(await db.prepare('SELECT post_id FROM announcement_views WHERE member_id=?').bind(actor.id).all()).map(v=>v.post_id);
@@ -66,7 +67,7 @@ export async function familyState(db,actor,reunionId){
  comments:Object.fromEntries(posts.map(p=>[p.id,comments.filter(c=>c.post_id===p.id).map(c=>({id:c.id,parentId:c.parent_id,authorId:c.author_id,text:c.body,files:json(c.files_json,[]),createdAt:stamp(c.created_at)}))])),
  reactions:{},reactionCounts:{},reactionMembers:{},pollSelections:Object.fromEntries(votes.filter(v=>v.member_id===actor.id).map(v=>[v.post_id,json(v.options_json,[])])),
  memories:memories.map(m=>({...json(m.data_json),id:m.id,authorId:m.author_id})),products:products.map(p=>({...json(p.data_json),id:p.id,name:p.name,description:p.description})),
- memorials:memorials.map(m=>({id:m.id,name:m.name,maidenName:m.maiden_name,founder:!!m.founder,story:m.story})),relationships:relationships.map(r=>({from:r.from_id,to:r.to_id,type:r.kind})),
+ memorialAccess,memorials:memorials.map(m=>({id:m.id,name:m.name,maidenName:m.maiden_name,founder:!!m.founder,story:m.story,...json(m.profile_json),sourceMemberId:m.source_member_id,createdBy:m.created_by,canEdit:can(actor,'manage_members')||actor.isLeader===true||m.created_by===actor.id})),relationships:relationships.map(r=>({from:r.from_id,to:r.to_id,type:r.kind})),
  notifications:notices,readNotices:notices.filter(n=>n.readAt).map(n=>n.id),notificationUnreadCount:inbox.unreadCount,notificationSettings:inbox.settings,notificationReadAllCutoff:inbox.readAllCutoff,
  notificationScope:prefs?.scope==='loved_ones'?'loved':prefs?.scope||'leaders',selectedNotificationIds:json(prefs?.selected_ids_json,[]),
  favorites:saved.map(s=>s.target_id),contact:json(me?.contact_json),drafts:{post:'',comments:{},replies:{},files:{}},compose:{},bag:[],order:claim?{id:claim.id,status:claim.status,items:json(claim.lines_json,[]),trackingUrl:claim.tracking_url,claimedAt:stamp(claim.created_at)}:null,
@@ -76,6 +77,7 @@ export async function familyState(db,actor,reunionId){
  const featured=list(await db.prepare('SELECT f.* FROM featured_memories f JOIN memories m ON m.id=f.memory_id WHERE m.deleted_at IS NULL ORDER BY f.is_primary DESC,f.approved_at DESC').bind().all());
  state.featuredPhotos=featured.flatMap(f=>{const m=state.memories.find(m=>m.id===f.memory_id&&m.image===f.media_url);return m?[m]:[]});state.featuredMemoryIds=state.featuredPhotos.map(m=>m.id);state.primaryMemoryId=featured.find(f=>f.is_primary&&state.featuredMemoryIds.includes(f.memory_id))?.memory_id||null;
  Object.assign(state,await householdState(db,actor));
+ for(const m of state.memorials)if(!m.canEdit)m.canEdit=state.households.some(h=>h.canManage&&h.heritage.some(e=>e.personKind==='ancestor'&&e.personId===m.id));
  return state;
 }
 
@@ -228,7 +230,7 @@ export async function command(db,actor,input){
  case 'MODERATE':{
   requireCan(actor,'moderate');const report=await db.prepare('SELECT * FROM moderation_reports WHERE id=?').bind(input.id).first();if(!report)throw new UserError('Report not found',404);if(!['removed','dismissed'].includes(input.status))throw new UserError('Choose a moderation decision');q('UPDATE moderation_reports SET status=?,resolved_by=? WHERE id=?',input.status,actor.id,report.id);if(input.status==='removed'){q('UPDATE posts SET deleted_at=CURRENT_TIMESTAMP WHERE id=?',report.target_id);q('UPDATE comments SET deleted_at=CURRENT_TIMESTAMP WHERE id=?',report.target_id);q('UPDATE photo_comments SET deleted_at=? WHERE id=?',Date.now(),report.target_id);q('UPDATE memories SET deleted_at=CURRENT_TIMESTAMP WHERE id=?',report.target_id)}audit('moderation-'+input.status,report.target_id);break;
  }
- default:{try{const h=await householdCommand(db,actor,input,q,audit);if(!h)throw new UserError('This action is not supported');Object.assign(result,h)}catch(e){if(e instanceof UserError)throw e;if(e.status)throw new UserError(e.message,e.status);throw e}break;}
+ default:{try{const h=await memorialCommand(db,actor,input,q,audit)||await householdCommand(db,actor,input,q,audit);if(!h)throw new UserError('This action is not supported');Object.assign(result,h)}catch(e){if(e instanceof UserError)throw e;if(e.status)throw new UserError(e.message,e.status);throw e}break;}
  }
  q('INSERT INTO command_receipts(member_id,request_id,result_json,operation,fingerprint) VALUES(?,?,?,?,?)',actor.id,input.requestId,JSON.stringify(result),input.type,fingerprint);
  try{await db.batch(sql)}catch(error){const completed=await db.prepare('SELECT * FROM command_receipts WHERE member_id=? AND request_id=?').bind(actor.id,input.requestId).first();if(completed){if(completed.fingerprint&&(completed.fingerprint!==fingerprint||completed.operation!==input.type))throw new UserError('This request identifier was already used for different content',409);return json(completed.result_json)}if(String(error.message).includes('valid=1'))throw new UserError(contentWrite?'This content changed while you were editing. Reopen it before trying again.':REUNION_SCOPED_COMMANDS.has(input.type)||REUNION_LIFECYCLE_COMMANDS.has(input.type)?'The reunion changed while you were editing. Refresh and try again.':'Notification settings changed on another device. Refresh and try again.',409);throw error}

@@ -83,8 +83,8 @@ export function validatePanelLayout(page,value,cleanText){
  return layout;
 }
 export function sharedPageMedia(content,{includeRemoved=false}={}){
- const layout=content.panelLayout,hero=layout?.panels.find(p=>p.id==='hero');
- return [...(!hero?.removed||includeRemoved?content.hero.media.map(file=>({...file,mediaMode:content.hero.mode})):[]),...(layout?.panels||[]).filter(p=>p.kind==='content'&&(!p.removed||includeRemoved)).flatMap(p=>p.media.map(file=>({...file,mediaMode:'image'}))),...(layout?.panels||[]).filter(p=>!p.removed||includeRemoved).flatMap(p=>(p.elements||[]).flatMap(element=>(element.media||[]).map(file=>({...file,mediaMode:'image'}))))];
+ const layout=content.panelLayout,hero=layout?.panels.find(p=>p.id==='hero'),visible=(panel,id)=>includeRemoved||!content.cardLayouts?.[panel?.id]?.hidden?.includes(id);
+ return [...((!hero?.removed||includeRemoved)&&visible(hero,'media')?content.hero.media.map(file=>({...file,mediaMode:content.hero.mode})):[]),...(layout?.panels||[]).filter(p=>p.kind==='content'&&(!p.removed||includeRemoved)&&visible(p,'media')).flatMap(p=>p.media.map(file=>({...file,mediaMode:'image'}))),...(layout?.panels||[]).filter(p=>!p.removed||includeRemoved).flatMap(p=>(p.elements||[]).filter(element=>visible(p,element.id)).flatMap(element=>(element.media||[]).map(file=>({...file,mediaMode:'image'}))))];
 }
 export function validatePanelTransition(page,before,after){
  const previous=panelLayoutOf(before,page),next=panelLayoutOf(after,page);
