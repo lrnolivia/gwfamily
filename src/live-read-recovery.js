@@ -29,3 +29,13 @@ export async function readWithRecovery(request,{signal,timeoutMs=20000,retryDela
   await pause(retryDelayMs,signal);
  }
 }
+
+export const recoverableInitialRead=error=>transientReadError(error)||error?.status===500;
+// A failed config/session bootstrap cannot depend on an active session poll.
+// Three delayed reads are enough for recovery without an unbounded retry loop.
+export function initialReadRecovery({request,canRun,shouldRetry,delayMs=15000,maxAttempts=3,setTimer=setTimeout,clearTimer=clearTimeout}){
+ let stopped=false,timer=null,attempts=0,running=false;
+ const schedule=()=>{if(stopped||timer!==null||running||attempts>=maxAttempts||!shouldRetry())return;timer=setTimer(tick,delayMs)};
+ const tick=async()=>{timer=null;if(stopped||running||attempts>=maxAttempts||!shouldRetry())return;attempts++;if(!canRun()){schedule();return}running=true;try{await request()}finally{running=false;schedule()}};
+ return {schedule,wake(){if(stopped)return;attempts=0;if(timer!==null){clearTimer(timer);timer=null}return tick()},stop(){stopped=true;if(timer!==null)clearTimer(timer);timer=null}};
+}

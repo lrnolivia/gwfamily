@@ -903,7 +903,7 @@ try {
   await check('menus, individual profiles and user posts are never shared-page edit targets or altered by page saves', async () => {
     fixturePost = await ok(alice, '/api/posts', {method: 'POST', data: {body: 'Synthetic member post, outside shared-page editing'}});
     await navigate(owner, 'home');
-    const navCopy = await owner.getByRole('navigation', {name: 'Main navigation', exact: true}).innerText();
+    const navCopy = await owner.getByRole('navigation', {name: 'Main navigation', exact: true}).textContent();
     await edit(owner);
     await expect(owner.locator('header [data-page-field], nav [data-page-field], .post-card [data-page-field]')).toHaveCount(0);
     await expect(owner.getByText('Synthetic member post, outside shared-page editing', {exact: true})).toBeVisible();
@@ -912,7 +912,8 @@ try {
     await owner.getByRole('button', {name: 'Profile and appearance', exact: true}).click();
     await expect(owner.locator('.profile-menu [data-page-field]')).toHaveCount(0);
     await owner.getByRole('button', {name: 'Profile and appearance', exact: true}).click();
-    assert.equal(await owner.getByRole('navigation', {name: 'Main navigation', exact: true}).innerText(), navCopy);
+    await expect(owner.getByRole('navigation', {name: 'Main navigation', exact: true})).toBeHidden();
+    assert.equal(await owner.getByRole('navigation', {name: 'Main navigation', exact: true,includeHidden:true}).textContent(), navCopy);
     await navigate(owner, 'profile', 'alice');
     await assertNoPageEditor(owner);
     await expect(owner.locator('[data-page-field]')).toHaveCount(0);

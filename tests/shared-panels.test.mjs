@@ -85,3 +85,13 @@ test('Full drag crosses areas, Full width is independent, Mobile order remains i
 test('Full width bands preserve layout order and both Main/Side lanes',()=>{
  const cards=[{id:'a',zone:'main'},{id:'b',zone:'side'},{id:'c',fullWidth:true},{id:'d',zone:'main'}];assert.deepEqual(panelLayoutBands(cards),[{columns:cards.slice(0,2)},{full:cards[2]},{columns:[cards[3]]}]);
 });
+
+test('dropping at a Main or Side band end inserts before the next Full width boundary',()=>{
+ let before=sample();before=changeSharedPanel(before,'panel-one',{fullWidth:true});
+ const next=moveSharedPanel(before,'panel-two',{zone:'main',beforeId:'panel-one'});
+ assert.equal(panel(next,'panel-two').zone,'main');assert.equal(!!panel(next,'panel-two').fullWidth,false);
+ assert.equal(next.desktopOrder.indexOf('panel-two')+1,next.desktopOrder.indexOf('panel-one'));
+ assert.deepEqual(next.mobileOrder,before.mobileOrder);
+ const protectedBoundary=changeSharedPanel(before,'panel-one',{locked:true});
+ assert.equal(moveSharedPanel(protectedBoundary,'panel-two',{zone:'main',beforeId:'panel-one'}),protectedBoundary);
+});

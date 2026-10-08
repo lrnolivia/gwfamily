@@ -8,3 +8,11 @@ test('brand lettering and warm body copy remain readable across every palette',(
 
 test('light wordmark hierarchy is brightest green, middle white, deepest family',()=>{for(const color of ['#387b51',...Object.keys(baseline.light)]){const p=profilePalette(color,'light');assert.ok(luminance(p['--wordmark-green'])>luminance(p['--wordmark-white']));assert.ok(luminance(p['--wordmark-white'])>luminance(p['--wordmark-family']));}});
 test('text tokens avoid pure black and white including action labels',()=>{for(const theme of ['light','dark'])for(const color of ['#387b51',...Object.keys(baseline[theme])]){const p=profilePalette(color,theme);for(const key of ['--text','--muted','--control-text','--ink','--send-text'])assert.ok(!['#ffffff','#000000'].includes(p[key]),key);}});
+
+test('the brightest light surface retains the selected accent hue instead of returning to cream',()=>{
+ const rgb=hex=>hex.slice(1).match(/../g).map(x=>parseInt(x,16));
+ for(const [color,channel] of [['#d43662',0],['#3985e6',2],['#ff7a00',0]]){
+  const values=rgb(profilePalette(color,'light')['--raised']);assert.ok(values[channel]>Math.min(...values),color);
+  if(channel===2)assert.ok(values[2]>values[0],color);else assert.ok(values[0]>values[1],color);
+ }
+});

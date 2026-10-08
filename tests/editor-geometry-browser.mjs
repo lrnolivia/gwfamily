@@ -1,5 +1,6 @@
 // Hosted, synthetic fixture only. Screenshots establish rendered geometry;
 // they do not establish physical-device acceptance or production persistence.
+import {createTestPng} from './png-fixtures.mjs';
 import {chromium,webkit,expect} from '@playwright/test';
 import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
@@ -17,7 +18,7 @@ const saved=()=>expect(toolbar().locator('.page-edit-mode-label').getByRole('sta
 const begin=async()=>{await toolbar().getByRole('button',{name:/^(Edit page|Resume page edits)$/}).click();await expect(page.locator('html')).toHaveAttribute('data-page-edit-mode','true')};
 const finish=async()=>{await saved();await toolbar().locator('.page-mode-done').click();await expect(page.locator('html')).not.toHaveAttribute('data-page-edit-mode','true')};
 const read=async()=>{const response=await page.request.get(base+'/api/page-content/home');assert.equal(response.status(),200);return response.json()};
-const snapshot=locator=>locator.evaluate(node=>{const r=node.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}});
+const snapshot=(locator,viewport=false)=>locator.evaluate((node,viewport)=>{const r=node.getBoundingClientRect();return {x:r.x+(viewport?0:scrollX),y:r.y+(viewport?0:scrollY),width:r.width,height:r.height}},viewport);
 const stable=(before,after)=>{for(const key of ['x','y','width','height'])assert.ok(Math.abs(before[key]-after[key])<=1,JSON.stringify({before,after,key}))};
 try{
  await page.goto(base+'/__test/signin?user=owner');
@@ -26,7 +27,7 @@ try{
   await page.setViewportSize({width,height:900});await begin();
   await expect(page.getByRole('navigation',{name:'Main navigation',exact:true})).toBeHidden();
   const heading=page.locator('[data-page-field="home.feedTitle"]');
-  const before=await snapshot(heading);
+  await heading.scrollIntoViewIfNeeded();const before=await snapshot(heading);
   await heading.getByRole('button',{name:'Edit Feed heading',exact:true}).click();
   const input=heading.getByRole('textbox',{name:'Feed heading',exact:true});
   const geometry=await input.evaluate(node=>{const r=node.getBoundingClientRect(),style=getComputedStyle(node),canvas=document.createElement('canvas'),drawing=canvas.getContext('2d');drawing.font=style.font;return {left:r.left,right:r.right,width:node.clientWidth,text:drawing.measureText(node.value).width,font:style.font,scroll:document.documentElement.scrollWidth,viewport:innerWidth}});
@@ -37,7 +38,7 @@ try{
   await heading.getByRole('button',{name:'Finish editing Feed heading',exact:true}).click();
   const body=page.locator('[data-page-field="home.nextRsvpBody"]');
   const panel=body.locator('xpath=ancestor::section[@data-panel-id][1]');
-  const panelBefore=await snapshot(panel);
+  await body.scrollIntoViewIfNeeded();const panelBefore=await snapshot(panel);
   await body.getByRole('button',{name:'Edit RSVP next-step copy',exact:true}).click();
   await expect(tools().getByRole('textbox',{name:'RSVP next-step copy',exact:true})).toBeVisible();
   await expect(body.getByRole('textbox')).toHaveCount(0);
@@ -75,8 +76,8 @@ try{
  await hero.getByRole('button',{name:'Edit Home page media',exact:true}).click();
  await expect(tools()).toBeVisible();assert.equal(await tools().evaluate(node=>node.matches(':modal')),false);
  stable(canvasBefore,await snapshot(hero));
- const inspectorBefore=await snapshot(tools()),handle=tools().locator('.page-object-tools-heading');await handle.focus();await page.keyboard.press('ArrowLeft');const moved=await snapshot(tools());assert.ok(moved.x<inspectorBefore.x);await page.keyboard.press('Home');stable(inspectorBefore,await snapshot(tools()));
- const bar=await handle.boundingBox();await page.mouse.move(bar.x+20,bar.y+20);await page.mouse.down();await page.mouse.move(25,25,{steps:5});await page.mouse.up();const dragged=await snapshot(tools());assert.ok(dragged.x>=11&&dragged.y>=11&&dragged.x+dragged.width<=1281&&dragged.y+dragged.height<=901);await handle.focus();await page.keyboard.press('Home');
+ const inspectorBefore=await snapshot(tools(),true),handle=tools().locator('.page-object-tools-heading');await handle.focus();await page.keyboard.press('ArrowLeft');const moved=await snapshot(tools(),true);assert.ok(moved.x<inspectorBefore.x);await page.keyboard.press('Home');stable(inspectorBefore,await snapshot(tools(),true));
+ const bar=await handle.boundingBox();await page.mouse.move(bar.x+20,bar.y+20);await page.mouse.down();await page.mouse.move(25,25,{steps:5});await page.mouse.up();const dragged=await snapshot(tools(),true);assert.ok(dragged.x>=11&&dragged.y>=11&&dragged.x+dragged.width<=1281&&dragged.y+dragged.height<=901);await handle.focus();await page.keyboard.press('Home');
  await expect(tools().getByRole('button',{name:'Full',exact:true})).toBeVisible();await expect(tools().getByRole('button',{name:'Mobile',exact:true})).toBeVisible();
  for(const label of ['Placement','Alignment','Image size','Shape','Zoom','Position'])await expect(tools().locator('.image-control-label').filter({hasText:new RegExp('^'+label+'$')})).toBeVisible();
  await expect(tools().getByRole('button',{name:'Reset frame',exact:true})).toBeVisible();await expect(tools().getByRole('button',{name:'Replace media',exact:true})).toBeVisible();
@@ -105,6 +106,38 @@ try{
  await toolbar().getByRole('button',{name:'Redo Add panel',exact:true}).click();await saved();
  assert.equal((await read()).content.panelLayout.panels.find(row=>row.id===added.id)?.removed,false);
  results.push('New panel Undo/Redo remains a revisioned edit');
+ await saved();
+ let failedReads=0,patches=0;
+ const requestId='01234567-89ab-cdef-0123-456789abcdef';
+ const failedRead=route=>{if(route.request().method()==='PATCH'){patches++;return route.continue()}if(route.request().method()==='GET'&&failedReads++===0)return route.fulfill({status:500,json:{error:'Synthetic load failure',requestId}});return route.continue()};
+ await page.route('**/api/page-content/home',failedRead);
+ await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+ const retry=toolbar().getByRole('button',{name:'Try loading again',exact:true});await expect(retry).toBeVisible();
+ await expect(toolbar()).toContainText(requestId);await retry.click();await saved();
+ assert.ok(failedReads>=2);assert.equal(patches,0,'A failed clean GET retry never becomes a save.');
+ await page.unroute('**/api/page-content/home',failedRead);
+ results.push('Failed clean page read retries GET and retains its support reference');
+ await finish();
+ // Isolated metadata only: no email, payment or notification operation.
+ await page.evaluate(()=>{localStorage.setItem('gw-theme','light');localStorage.setItem('gw-interface-accent:v1',JSON.stringify({mode:'custom',color:'#d43662'}))});
+ await page.goto(base+'/#/family?tab=memories');
+ await page.locator('input[aria-label="Add memory files"]').setInputFiles({name:'synthetic-memory.png',mimeType:'image/png',buffer:createTestPng(160,100)});
+ const memory=page.getByRole('dialog',{name:'Memory details',exact:true});await expect(memory).toBeVisible();
+ const caption=memory.locator('.form-image-fields input').first();await caption.fill('Synthetic memory caption');
+ await memory.getByRole('button',{name:'Add event details',exact:true}).click();
+ for(const width of [390,1280]){
+  await page.setViewportSize({width,height:900});
+  await expect(memory.getByRole('button',{name:'Replace media',exact:true})).toBeVisible();
+  await expect(memory.getByRole('button',{name:'Change image',exact:true})).toHaveCount(0);
+  const geometry=await memory.locator('.memory-details-form').evaluate(node=>{const form=node.getBoundingClientRect(),photo=node.querySelector('.image-upload-preview').getBoundingClientRect(),fields=node.querySelector('.form-image-fields').getBoundingClientRect(),event=node.querySelector('.memory-details-disclosure:last-of-type').getBoundingClientRect();return {form:form.toJSON(),photo:photo.toJSON(),fields:fields.toJSON(),event:event.toJSON(),scroll:document.documentElement.scrollWidth,viewport:innerWidth}});
+  assert.ok(geometry.scroll<=width+1,JSON.stringify(geometry));
+  assert.ok(geometry.fields.right<=geometry.form.right+1,JSON.stringify(geometry));
+  if(width===1280)assert.ok(Math.abs(geometry.photo.top-geometry.fields.top)<36,JSON.stringify(geometry));
+  await page.screenshot({path:`${output}/${engine}-memory-details-light-${width}.png`});
+ }
+ await memory.getByRole('button',{name:'Close dialog',exact:true}).click();
+ const discard=page.getByRole('button',{name:/Discard/});if(await discard.count())await discard.first().click();
+ results.push('Memory details photo/action grouping and responsive light accent surfaces');
  assert.deepEqual(errors,[]);
 }finally{
  await writeFile(`${output}/${engine}-results.json`,JSON.stringify({engine,source:process.env.GW_SOURCE_SHA,results,errors},null,2));

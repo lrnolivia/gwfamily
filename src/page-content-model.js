@@ -1,3 +1,4 @@
+import {requestReference,withRequestReference} from './request-reference.js';
 import {cardLayoutsPayload} from './card-content-layout-model.js';
 import {photoFramePayload} from './photo-framing-model.js';
 import {panelPayload,normalizePanelContent} from './shared-panels.js';
@@ -7,7 +8,7 @@ export const PREVIEW_KEY='gw-shared-pages-preview:v1';
 export const DRAFT_PREFIX='gw-shared-page-drafts:v1:';
 export const clone=value=>JSON.parse(JSON.stringify(value));
 export const knownPage=page=>typeof page==='string'&&Object.hasOwn(SHARED_PAGE_SCHEMA,page);
-export const initialRecord=page=>({page,revision:0,content:sharedPageDefaults(page),canEdit:false,updatedAt:null,status:'idle',error:'',draft:null,base:null,request:null});
+export const initialRecord=page=>({page,revision:0,content:sharedPageDefaults(page),canEdit:false,updatedAt:null,status:'idle',error:'',errorKind:null,requestId:null,draft:null,base:null,request:null});
 
 // Never round-trip a server URL, MIME type or filename as authority to publish media.
 export function pageContentPayload(content){return {text:{...content.text},bodyFormats:{...content.bodyFormats},cardLayouts:cardLayoutsPayload(content.cardLayouts),hero:{mode:content.hero.mode,...photoFramePayload(content.hero.frame),media:content.hero.media.map(({id,alt='',frame})=>({id,alt,...photoFramePayload(frame)}))},...(content.panelLayout?{panelLayout:panelPayload(content.panelLayout)}:{})}}
@@ -65,8 +66,8 @@ export async function pageContentRequest(path,{fetchImpl=globalThis.fetch,timeou
   let response;
   try{response=await fetchImpl(path,{...options,signal:controller.signal,credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json',...options.headers}})}
   catch(error){throw Object.assign(new Error(error.name==='AbortError'?'The page request timed out. Your draft is still here. Try again.':'Couldn’t reach the page service. Your draft is still here. Check your connection and try again.'),{ambiguous:true})}
-  let value;try{value=await response.json()}catch{throw Object.assign(new Error('The page service did not respond clearly. Your draft is still here. Try saving again.'),{status:response.status,ambiguous:true})}
-  if(!response.ok)throw Object.assign(new Error(value.error?.message||value.error||'That page change could not be saved. Your draft is still here.'),{status:response.status,current:value.current});
+  let value;try{value=await response.json()}catch{throw Object.assign(new Error(withRequestReference('The page service did not respond clearly. Your draft is still here. Try again.',requestReference(null,response))),{status:response.status,ambiguous:true,requestId:requestReference(null,response)})}
+  if(!response.ok){const requestId=requestReference(value,response);throw Object.assign(new Error(withRequestReference(value.error?.message||(typeof value.error==='string'?value.error:null)||'The page service could not complete this request. Your draft is still here.',requestId)),{status:response.status,current:value.current,requestId});}
   return value;
  }finally{clearTimeout(timer);options.signal?.removeEventListener('abort',abort)}
 }

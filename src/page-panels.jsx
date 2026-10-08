@@ -29,7 +29,7 @@ function usePanelDrag({disabled,onMove,onKeyMove}){
  const [dragging,setDragging]=useState(null),[over,setOver]=useState(null),gesture=useRef(null),root=useRef(null);
  const reset=()=>{gesture.current?.node?.style.removeProperty('transform');gesture.current=null;setDragging(null);setOver(null);};
  useEffect(()=>{if(disabled)reset()},[disabled]);
- const targetAt=(x,y)=>{const node=document.elementFromPoint(x,y)?.closest('[data-panel-drop]');if(!node||!root.current?.contains(node))return null;const panel=node.closest('[data-panel-id]');return {zone:node.dataset.panelDrop,beforeId:panel?.dataset.panelId||null};};
+ const targetAt=(x,y)=>{const node=document.elementFromPoint(x,y)?.closest('[data-panel-drop]');if(!node||!root.current?.contains(node))return null;const panel=node.closest('[data-panel-id]');return {zone:node.dataset.panelDrop,beforeId:node.dataset.panelDropBefore||panel?.dataset.panelId||null};};
  const commit=target=>{const id=gesture.current?.id||dragging;if(id&&target)onMove(id,target);reset();};
  const handle=(panel)=>({
   draggable:!disabled&&!panel.locked,
@@ -43,7 +43,7 @@ function usePanelDrag({disabled,onMove,onKeyMove}){
   onKeyDown:event=>{if(event.key==='Escape'){event.preventDefault();reset();return}if(event.target!==event.currentTarget)return;if(!disabled&&!panel.locked&&['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(event.key)){event.preventDefault();onKeyMove?.(panel.id,event.key)}}
  });
  const drop=(zone,beforeId=null)=>({
-  'data-panel-drop':zone,
+  'data-panel-drop':zone,'data-panel-drop-before':beforeId||undefined,
   onDragOver:event=>{if(!dragging||disabled)return;event.preventDefault();event.stopPropagation();event.dataTransfer.dropEffect='move';setOver({zone,beforeId});},
   onDrop:event=>{if(!dragging||disabled)return;event.preventDefault();event.stopPropagation();commit({zone,beforeId});},
   'data-drop-active':!!dragging&&over?.zone===zone&&over?.beforeId===beforeId||undefined
@@ -65,6 +65,7 @@ function MobilePanelOrder({page:initialPage,onClose}){
  const narrow=useNarrow(),[page,setPage]=useState(initialPage),[target,setTarget]=useState(()=>narrow?'mobile':'desktop'),editor=useLayoutEditor(page),[notice,setNotice]=useState(''),mobile=target==='mobile',scope=mobile?'Mobile':'Full';
  const moved=(change,id)=>{const ok=editor.change(change,'Move panel');setNotice(ok?title(editor.layout.panels.find(p=>p.id===id),page,editor.content,editor.records)+' moved in '+scope+' layout.':'Unlock protected cards before moving them or moving across them.');};
  const drag=usePanelDrag({disabled:editor.busy,onKeyMove:(id,key)=>moved(layout=>keyboardSharedPanel(layout,id,key,mobile),id),onMove:(id,drop)=>moved(layout=>moveSharedPanel(layout,id,{beforeId:drop.beforeId,zone:mobile?undefined:drop.zone,mobile}),id)}),panels=editor.layout[mobile?'mobileOrder':'desktopOrder'].map(id=>editor.layout.panels.find(p=>p.id===id));
+ const bands=panelLayoutBands(panels);
  const card=panel=>{const name=title(panel,page,editor.content,editor.records),hero=isHeroPanel(panel),previous=editor.layout.panels.find(p=>p.id!==panel.id&&isHeroPanel(p));return <article key={panel.id} className="page-order-card" tabIndex={0} role="group" aria-label={name+' layout card'} aria-description="Drag this card to move it. Arrow keys move it; left and right change area in Full layout." data-panel-id={panel.id} data-hero={hero||undefined} data-dragging={drag.dragging===panel.id||undefined} data-locked={panel.locked||undefined} {...drag.handle(panel)} {...drag.drop(mobile?'mobile':panel.fullWidth?'full':panel.zone,panel.id)}>
   <div className="page-order-card-preview" aria-hidden="true">{panel.kind==='hero'?<Glyph name="image"/>:panel.kind==='content'?<LayoutGlyph layout={panel.layout}/>:<Glyph name="layout"/>}</div><strong>{name}</strong><small>{hero?'Hero · ':''}{panel.fullWidth?'Full width':zoneLabel(panel.zone)}{panel.locked?' · Protected':''}</small>
   <div className="page-order-card-actions"><Control type="button" disabled={editor.busy||!canRelockPanel(page,editor.record.base||editor.record.content,editor.content,panel.id)} aria-label={(panel.locked?'Unlock ':'Lock ')+name} aria-pressed={panel.locked} onClick={()=>editor.change(layout=>changeSharedPanel(layout,panel.id,{locked:!panel.locked}),panel.locked?'Unlock panel':'Protect panel')}><LockGlyph locked={panel.locked}/>{panel.locked?'Unlock':'Protect'}</Control>
@@ -76,7 +77,7 @@ function MobilePanelOrder({page:initialPage,onClose}){
   {REUNION_PANEL_PAGES.includes(initialPage)&&<label>Reunion tab<select aria-label="Reunion tab to reorder" value={page} disabled={editor.busy} onChange={event=>{drag.reset();setPage(event.target.value);setNotice('')}}>{REUNION_PANEL_PAGES.map(key=><option key={key} value={key}>{key==='reunion'?'Dashboard':key==='reunion-plans'?'Plan':'Calendar'}</option>)}</select></label>}
   <p className="page-editor-help">{mobile?'Drag cards into the order you want on Mobile. Full layout stays unchanged.':'Drag cards between Main, Side and Full width. Mobile order stays unchanged. Full width and Hero are separate options; each page has at most one Hero.'}</p>
   {mobile?<section className="page-order-lane is-mobile" aria-label="Mobile layout" {...drag.drop('mobile')}>{panels.map(card)}<div className="page-order-drop-end" {...drag.drop('mobile')}>Drop at end</div></section>:<div className="page-order-full-map">
-   {panelLayoutBands(panels).map((band,index)=>band.full?<div key={band.full.id} className="page-order-full-row">{card(band.full)}</div>:<div key={'band-'+index} className="page-order-columns">{['main','side'].map(zone=><section key={zone} className={'page-order-lane is-'+zone} aria-label={zoneLabel(zone)} {...drag.drop(zone)}><h3>{zone==='main'?'Main':'Side'}</h3>{band.columns.filter(p=>p.zone===zone).map(card)}<div className="page-order-drop-end" {...drag.drop(zone)}>Drop in {zone}</div></section>)}</div>)}
+   {bands.map((band,index)=>band.full?<div key={band.full.id} className="page-order-full-row">{card(band.full)}</div>:<div key={'band-'+index} className="page-order-columns">{['main','side'].map(zone=><section key={zone} className={'page-order-lane is-'+zone} aria-label={zoneLabel(zone)} {...drag.drop(zone,bands[index+1]?.full?.id||null)}><h3>{zone==='main'?'Main':'Side'}</h3>{band.columns.filter(p=>p.zone===zone).map(card)}<div className="page-order-drop-end" {...drag.drop(zone,bands[index+1]?.full?.id||null)}>Drop in {zone}</div></section>)}</div>)}
    {!panels.some(p=>!p.fullWidth)&&<div className="page-order-columns">{['main','side'].map(zone=><section key={zone} className="page-order-lane" aria-label={zoneLabel(zone)} {...drag.drop(zone)}><h3>{zone==='main'?'Main':'Side'}</h3><div className="page-order-drop-end" {...drag.drop(zone)}>Drop in {zone}</div></section>)}</div>}
    <div className="page-order-drop-end is-full" {...drag.drop('full')}>Drop a full width card here</div>
   </div>}

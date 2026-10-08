@@ -94,7 +94,7 @@ export function validatePanelTransition(page,before,after){
   if(panel.locked&&replacement.locked&&cardSlots(page,panel).length&&JSON.stringify(cardLayoutOf(before,page,panel))!==JSON.stringify(cardLayoutOf(after,page,replacement)))throw Error('Unlock the panel before arranging its content');
   if(panel.locked&&replacement.locked&&!panel.removed){
    for(const key of ['desktopOrder','mobileOrder']){
-    const peers=previous.panels.filter(other=>other.id!==panel.id&&!other.removed&&next.panels.some(p=>p.id===other.id&&!p.removed)&&(key==='mobileOrder'||other.zone===panel.zone&&next.panels.find(p=>p.id===other.id)?.zone===panel.zone));
+    const peers=previous.panels.filter(other=>other.id!==panel.id&&!other.removed&&next.panels.some(p=>p.id===other.id&&!p.removed)&&(key==='mobileOrder'||panel.fullWidth||other.fullWidth||other.zone===panel.zone&&next.panels.find(p=>p.id===other.id)?.zone===panel.zone));
     if(peers.some(other=>(previous[key].indexOf(other.id)<previous[key].indexOf(panel.id))!==(next[key].indexOf(other.id)<next[key].indexOf(panel.id))))throw Error('Unlock the panel before moving another panel across it');
    }
   }
@@ -132,7 +132,7 @@ export function restoreSharedPanel(layout,id,placement){const panel=layout.panel
 export function moveSharedPanel(layout,id,{zone,beforeId=null,mobile=false}={}){
  const panel=layout.panels.find(p=>p.id===id);if(!panel||panel.locked||panel.removed||beforeId===id)return layout;
  const full=zone==='full';if(!mobile&&!full&&!['main','side'].includes(zone))return layout;
- if(beforeId!==null){const target=layout.panels.find(p=>p.id===beforeId&&!p.removed);if(!target||!mobile&&!full&&target.zone!==zone)return layout;}
+ if(beforeId!==null){const target=layout.panels.find(p=>p.id===beforeId&&!p.removed);if(!target||!mobile&&!full&&target.zone!==zone&&!target.fullWidth)return layout;}
  const key=mobile?'mobileOrder':'desktopOrder',order=layout[key].filter(key=>key!==id),at=beforeId===null?order.length:order.indexOf(beforeId);if(at<0)return layout;
  order.splice(at,0,id);const next={...layout,panels:mobile?layout.panels:layout.panels.map(p=>p.id===id?{...p,zone:full?p.zone:zone,...(full||p.fullWidth?{fullWidth:full}:{})}:p),[key]:order};return lockedOrderValid(layout,next)?next:layout;
 }

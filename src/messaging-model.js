@@ -32,3 +32,16 @@ export function clearChatDrafts(accountId,storage){
  try{storage=storage===undefined?globalThis.sessionStorage:storage;const prefix=`gwfamily:chat-draft:v1:${encodeURIComponent(accountId)}:`;for(let i=storage.length-1;i>=0;i--){const key=storage.key(i);if(key?.startsWith(prefix))storage.removeItem(key)}}catch{}
 }
 export function hasChatDrafts(accountId,storage){try{storage=storage===undefined?globalThis.sessionStorage:storage;const prefix=`gwfamily:chat-draft:v1:${encodeURIComponent(accountId)}:`;for(let i=0;i<storage.length;i++){if(storage.key(i)?.startsWith(prefix))return true}}catch{}return false}
+
+// Polls share one in-flight index read per account. Cancellation invalidates
+// late success and failure, even when a transport ignores its abort signal.
+export function conversationIndexReads(){
+ let active=null,generation=0;
+ const cancel=()=>{generation++;active?.controller.abort();active=null};
+ return {cancel,run(key,request,success,failure){
+  if(active?.key===key)return active.promise;
+  cancel();const epoch=generation,controller=new AbortController(),entry={key,controller,promise:null};active=entry;
+  entry.promise=Promise.resolve().then(()=>request(controller.signal)).then(value=>{if(active===entry&&generation===epoch)success(value)},error=>{if(active===entry&&generation===epoch&&!controller.signal.aborted)failure(error)}).finally(()=>{if(active===entry)active=null});
+  return entry.promise;
+ }};
+}
