@@ -112,6 +112,8 @@ try{
   const caseLabel=width+'-'+material+'-'+theme;
   phase='fixture bootstrap '+caseLabel;
   const context=await browser.newContext({userAgent:material==='ios'?(width===320?'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X)':'Mozilla/5.0 (Macintosh; Intel Mac OS X)'):(width===320?'Mozilla/5.0 (Linux; Android 16; Pixel) Mobile':'Mozilla/5.0 (Linux; Android 16; Pixel Tablet)'),viewport:{width,height:900},reducedMotion:'reduce',serviceWorkers:'block',permissions:[],acceptDownloads:false});
+  // Playwright UA strings do not replace Chromium UA Client Hints; keep synthetic identity consistent.
+  if(material==='android')await context.addInitScript(mobile=>Object.defineProperty(navigator,'userAgentData',{get:()=>({mobile,platform:'Android'})}),width===320);
   if(material==='ios'&&width===1280)await context.addInitScript(()=>{Object.defineProperty(navigator,'platform',{get:()=> 'MacIntel'});Object.defineProperty(navigator,'maxTouchPoints',{get:()=>5})});
   const page=await context.newPage();lastPage=page;page.setDefaultTimeout(12000);
   // Capture failures before navigation or any locator wait.
@@ -303,7 +305,7 @@ try{
    const v=window.visualViewport;
    return {step:step||null,viewport:{width:v?.width??innerWidth,height:v?.height??innerHeight,left:v?.offsetLeft??0,top:v?.offsetTop??0},target:numericRect(targetName?document.querySelector('[data-gw-tour="'+targetName+'"]'):null),coach:numericRect(document.querySelector('.tour-coach')),spotlight:numericRect(document.querySelector('.tour-spotlight')),state:tour?.dataset.tourGeometry||null,stableFrames:Number(tour?.dataset.tourStableFrames)||0,nextDisabled:document.querySelector('.tour-next')?.disabled??null};
   }).catch(e=>({error:e.message})),2500);
-  diagnostics.dom=await bounded(lastPage.evaluate(()=>({url:location.href,readyState:document.readyState,title:document.title,rootChildren:document.getElementById('root')?.childElementCount,bodyText:document.body.innerText.slice(0,4000),tourStep:document.querySelector('.contextual-tour')?.dataset.tourStep,dialogs:[...document.querySelectorAll('dialog')].map(el=>({open:el.open,label:el.getAttribute('aria-labelledby')})),buttons:[...document.querySelectorAll('button')].slice(0,40).map(el=>({text:el.textContent.slice(0,100),label:el.getAttribute('aria-label'),disabled:el.disabled}))})).catch(e=>({error:e.message})),2500);
+  diagnostics.dom=await bounded(lastPage.evaluate(()=>({url:location.href,readyState:document.readyState,title:document.title,navigator:{userAgent:navigator.userAgent,platform:navigator.platform,maxTouchPoints:navigator.maxTouchPoints,userAgentDataMobile:navigator.userAgentData?.mobile??null},rootChildren:document.getElementById('root')?.childElementCount,bodyText:document.body.innerText.slice(0,4000),tourStep:document.querySelector('.contextual-tour')?.dataset.tourStep,dialogs:[...document.querySelectorAll('dialog')].map(el=>({open:el.open,label:el.getAttribute('aria-labelledby')})),buttons:[...document.querySelectorAll('button')].slice(0,40).map(el=>({text:el.textContent.slice(0,100),label:el.getAttribute('aria-label'),disabled:el.disabled}))})).catch(e=>({error:e.message})),2500);
   await lastPage.screenshot({path:output+'/'+(process.env.GW_BROWSER||'chromium')+'-failure.png',fullPage:true,timeout:4000}).catch(()=>{});
  }
  await writeFile(output+'/'+(process.env.GW_BROWSER||'chromium')+'-failure.json',JSON.stringify(diagnostics,null,2));
