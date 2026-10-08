@@ -114,14 +114,14 @@ export async function command(db,actor,input){
   if(input.type==='UPDATE_DEPENDENT'){const current=await db.prepare('SELECT id FROM dependents WHERE id=? AND guardian_id=? AND deleted_at IS NULL').bind(m.id||'',actor.id).first();if(!current)throw new UserError('Household member not found',404);q('UPDATE dependents SET name=?,birthday=?,gender=? WHERE id=? AND guardian_id=?',name,m.birthday,gender,m.id,actor.id)}else{result.id=uuid();q('INSERT INTO dependents(id,guardian_id,name,birthday,gender) VALUES(?,?,?,?,?)',result.id,actor.id,name,m.birthday,gender)}break;
  }
  case 'ADD_POST':{
-  requireCan(actor,'post');const p=input.post||{},body=text(p.text||'',3000),files=await ownedFiles(db,actor,p.files||[]);const backgroundMedia=p.backgroundMedia?(await ownedFiles(db,actor,[p.backgroundMedia]))[0]:null;
+  requireCan(actor,'post');const p=input.post||{};if(p.textFormat!==undefined&&!['plain','markdown'].includes(p.textFormat))throw new UserError('Unsupported post text format');const body=text(p.text||'',3000),files=await ownedFiles(db,actor,p.files||[]);const backgroundMedia=p.backgroundMedia?(await ownedFiles(db,actor,[p.backgroundMedia]))[0]:null;
   let poll=null;if(p.poll){const options=p.poll.options;if(!Array.isArray(options)||options.length<2||options.length>12||!['single','multiple'].includes(p.poll.mode))throw new UserError('A poll needs two to twelve choices');poll={question:text(p.poll.question,160,true),options:options.map(x=>text(x,120,true)),mode:p.poll.mode,votes:{}}}
   if(!body&&!files.length&&!poll)throw new UserError('Write something or add an attachment');
   if(p.groupId&&!await db.prepare('SELECT member_id FROM family_group_members WHERE group_id=? AND member_id=?').bind(p.groupId,actor.id).first())throw new UserError('Group membership required',403);
   const memberIds=await directorySelection(db,p.memberIds??[],{ancestors:true});
   const asLeader=p.asLeader===true;if((asLeader||p.pinned||p.firstView)&&!actor.isLeader)throw new UserError('Only leaders can publish leader announcements',403);if((p.pinned||p.firstView)&&!asLeader)throw new UserError('Choose Post as Leader to pin or announce this post');
   const background=typeof p.background==='string'&&p.background.length<100&&/^[a-zA-Z0-9#|, .()-]*$/.test(p.background)?p.background:null;
-  result.id=uuid();q('INSERT INTO posts(id,author_id,group_id,body,metadata_json) VALUES(?,?,?,?,?)',result.id,actor.id,p.groupId||null,body,JSON.stringify({files,poll,background,backgroundMedia,memberIds,asLeader,pinned:asLeader&&p.pinned===true,firstView:asLeader&&p.firstView===true}));break;
+  result.id=uuid();q('INSERT INTO posts(id,author_id,group_id,body,metadata_json) VALUES(?,?,?,?,?)',result.id,actor.id,p.groupId||null,body,JSON.stringify({...(p.textFormat==='markdown'?{textFormat:'markdown'}:{}),files,poll,background,backgroundMedia,memberIds,asLeader,pinned:asLeader&&p.pinned===true,firstView:asLeader&&p.firstView===true}));break;
  }
  case 'EDIT_POST':case 'DELETE_POST':case 'EDIT_COMMENT':case 'DELETE_COMMENT':{
   contentWrite=true;

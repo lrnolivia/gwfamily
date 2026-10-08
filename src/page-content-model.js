@@ -80,7 +80,12 @@ export function resetPageContentPreview(storage){
 export function readStored(storage,key,fallback){try{const value=JSON.parse(storage?.getItem(key)||'null');return value&&typeof value==='object'&&!Array.isArray(value)?value:fallback}catch{return fallback}}
 export function writeStored(storage,key,value){try{if(!storage)return false;storage.setItem(key,JSON.stringify(value));return true}catch{return false}}
 export function validRestoredDraft(page,value){try{validateSharedPageContent(page,pageContentPayload(value));return normalizePanelContent(page,value)}catch{return null}}
-export function withOutputMedia(content,submitted){const files=new Map([...submitted.hero.media,...(submitted.panelLayout?.panels||[]).flatMap(panel=>panel.media||[])].map(file=>[file.id,file]));const enrich=file=>({...files.get(file.id),...file});return {...content,hero:{...content.hero,media:content.hero.media.map(enrich)},panelLayout:{...content.panelLayout,panels:content.panelLayout.panels.map(panel=>panel.kind!=='content'?panel:{...panel,media:panel.media.map(enrich)})}}}
+export function withOutputMedia(content,submitted){
+ const files=new Map([...submitted.hero.media,...(submitted.panelLayout?.panels||[]).flatMap(panel=>[...(panel.media||[]),...(panel.elements||[]).flatMap(element=>element.media||[])])].map(file=>[file.id,file]));
+ const enrich=file=>({...files.get(file.id),...file});
+ const panels=content.panelLayout.panels.map(panel=>({...panel,...(panel.media?{media:panel.media.map(enrich)}:{}),...(panel.elements?{elements:panel.elements.map(element=>({...element,...(element.media?{media:element.media.map(enrich)}:{})}))}:{})}));
+ return {...content,hero:{...content.hero,media:content.hero.media.map(enrich)},panelLayout:{...content.panelLayout,panels}};
+}
 
 export function reconcilePageRecord(page,result,freshest,stored){
  result={...result,content:normalizePanelContent(page,result.content)};

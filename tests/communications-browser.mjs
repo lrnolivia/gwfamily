@@ -571,8 +571,11 @@ try {
     await alice.getByRole('button', {name: 'Conversation details', exact: true}).click();
     const picker = alice.getByRole('combobox', {name: /^Invite family members/});
     await picker.fill('Owner');
-    await alice.getByRole('option', {name: 'Owner', exact: true}).click();
-    await alice.getByRole('button', {name: 'Send invitations', exact: true}).click();
+    const ownerOption=alice.getByRole('option', {name: 'Owner', exact: true});
+    await settlePointerTarget(ownerOption);await ownerOption.click();
+    await expect(alice.getByRole('button', {name: 'Remove Owner', exact: true})).toBeVisible();
+    const sendInvitations=alice.getByRole('button', {name: 'Send invitations', exact: true});
+    await expect(sendInvitations).toBeEnabled();await sendInvitations.click();
     await expect(alice.locator('.conversation-member').filter({has: alice.getByText('Owner', {exact: true})})).toContainText('Invited');
     await assertAccessDenied(owner, groupId);
     await inbox(owner);
@@ -876,6 +879,17 @@ try {
       await bob.setViewportSize({width,height:844});
       const edge=await bob.locator('.app>.app-header').evaluate(node=>{const style=getComputedStyle(node,'::after');return {display:style.display,blur:style.backdropFilter||style.webkitBackdropFilter,mask:style.maskImage||style.webkitMaskImage}});
       assert.notEqual(edge.display,'none');assert.match(edge.blur,/blur\(18px\)/);assert.match(edge.mask,/linear-gradient/);
+      const photoComposer=bob.locator('.photo-viewer-content .conversation-composer');
+      await expect(photoComposer).toBeVisible();
+      // A viewport resize is asynchronous: wait for the actual visible frame,
+      // preserving the containment assertions instead of sampling old --vv-*.
+      await expect.poll(()=>photoComposer.evaluate(node=>{const r=node.getBoundingClientRect(),v=window.visualViewport;return r.left>=0&&r.right<=(v?.width||innerWidth)&&r.bottom<=(v?.offsetTop||0)+(v?.height||innerHeight)}),{message:'Photo composer follows the resized visual viewport'}).toBe(true);
+      for(const focus of [false,true]){
+        if(focus)await photoComposer.getByRole('textbox').focus();
+        const box=await photoComposer.evaluate(node=>{const rect=node.getBoundingClientRect(),field=node.querySelector('textarea').getBoundingClientRect(),v=window.visualViewport;return {position:getComputedStyle(node).position,left:rect.left,right:rect.right,bottom:rect.bottom,top:rect.top,fieldTop:field.top,fieldBottom:field.bottom,width:v?.width||innerWidth,viewportBottom:(v?.offsetTop||0)+(v?.height||innerHeight)}});
+        assert.equal(box.position,'fixed');assert.ok(box.left>=0&&box.right<=box.width&&box.bottom<=box.viewportBottom&&box.fieldTop>=box.top&&box.fieldBottom<=box.bottom,JSON.stringify(box));
+      }
+      await bob.getByRole('heading',{name:'Comments',exact:true}).click();
       await noClip(bob);await bob.screenshot({path:`${output}/photo-glass-edge-${width}-${engineName}.png`});
     }
     await bob.setViewportSize(photoViewport);
@@ -893,7 +907,10 @@ try {
     await navigate(bob,'photo','alice');await expect(bob.getByRole('button',{name:'Save photo',exact:true})).toHaveCount(0);await expect(bob.getByText('Photo saving is turned off for this profile.',{exact:true})).toBeVisible();assert.equal((await bob.request.get(base+'/api/photo-discussions/profile/alice/download')).status(),403);
     await ok(alice,'/api/commands',{method:'POST',data:{type:'SAVE_CONTACT',requestId:randomUUID(),contact:{name:'Alice',phone:'+1 555 0100',email:'alice@example.test',address:'1 Example Lane',website:'https://example.test',optIn:true,visibility:'Selected family members',selectedIds:['bob'],useProfile:true}}});
     await navigate(bob,'profile','alice');await expect(bob.getByRole('link',{name:'Phone: +1 555 0100',exact:true})).toBeVisible();await expect(bob.getByRole('link',{name:'Email: alice@example.test',exact:true})).toHaveAttribute('href','mailto:alice%40example.test');
-    await bob.getByRole('button',{name:'Add to Contacts',exact:true}).click();const guide=bob.getByRole('dialog',{name:'Add to your contacts',exact:true});await expect(guide).toBeVisible();
+    await navigate(alice,'profile','alice');await alice.getByRole('button',{name:'Profile options',exact:true}).click();const ownOptions=alice.getByRole('menu',{name:'Profile options',exact:true});await expect(ownOptions.getByRole('menuitem',{name:'Add to Contacts',exact:true})).toHaveCount(0);await expect(ownOptions.getByRole('menuitem',{name:'Edit profile',exact:true})).toBeVisible();await expect(ownOptions.getByRole('menuitem',{name:'Your contact card',exact:true})).toBeVisible();await alice.keyboard.press('Escape');
+    const profileViewport=bob.viewportSize();for(const width of [390,1280]){await bob.setViewportSize({width,height:844});const portrait=await bob.locator('.profile-page .profile-overview-head .avatar').boundingBox();assert.ok(portrait.width>=144&&Math.abs(portrait.width-portrait.height)<=1,'Full profile portrait is large and circular');await noClip(bob);await bob.screenshot({path:`${output}/profile-avatar-${width}-${engineName}.png`})}await bob.setViewportSize(profileViewport);
+    await bob.getByRole('button',{name:'Phone options',exact:true}).click();const contactMenu=bob.getByRole('menu',{name:'Phone options',exact:true});const copyPhone=contactMenu.getByRole('menuitem',{name:'Copy phone',exact:true});await expect(copyPhone).toBeVisible();const copyBox=await copyPhone.boundingBox();assert.ok(copyBox.height>=44&&copyBox.height<=48,'Copy contact is a compact menu row');await expect(copyPhone.locator('svg')).toBeVisible();await bob.screenshot({path:`${output}/contact-menu-${engineName}.png`});await bob.keyboard.press('Escape');
+    await bob.getByRole('button',{name:'Profile options',exact:true}).click();await bob.getByRole('menuitem',{name:'Add to Contacts',exact:true}).click();const guide=bob.getByRole('dialog',{name:'Add to your contacts',exact:true});await expect(guide).toBeVisible();
     const downloading=bob.waitForEvent('download');await guide.getByRole('button',{name:'Download contact card',exact:true}).click();const downloaded=await downloading,stream=await downloaded.createReadStream();assert.ok(stream);const chunks=[];for await(const chunk of stream)chunks.push(chunk);const card=Buffer.concat(chunks).toString('utf8');assert.match(card,/BEGIN:VCARD/);assert.match(card,/FN:Alice/);assert.match(card,/TEL;TYPE=CELL:\+1 555 0100/);assert.doesNotMatch(card,/PHOTO;/,'Photo optout applies to contact export too');
     await guide.getByRole('button',{name:/^Close/}).click();await navigate(owner,'profile','alice');await expect(owner.getByRole('link',{name:'Phone: +1 555 0100',exact:true})).toHaveCount(0);await expect(owner.getByText('Contact details are private or haven’t been shared.',{exact:true})).toBeVisible();
     await bob.screenshot({path:`${output}/profile-contact-${engineName}.png`});await alice.screenshot({path:`${output}/profile-photo-permission-${engineName}.png`});

@@ -75,7 +75,7 @@ export function useViewport(){
   useEffect(()=>bindViewportBounds(),[]);
 }
 export function Popover({open,onClose,anchor,children,kind='menu',className='',style}) {
-  const glass=useApp()?.platform!=='android';
+  const glass=useApp()?.platform!=='android'&&['top-menu','notifications'].includes(kind);
   const id=useId().replace(/:/g,'');
   useEffect(()=>{
     const el=document.getElementById(id);if(!el||!open)return;
@@ -113,7 +113,7 @@ export function useSheetForm({label=null,busy=false,disabled=false,dirty=false}=
  return id;
 }
 export function Sheet({title,kind='normal',onClose,children,style,suppressGlobalPending=false,busy=false,completion=null}) {
- const app=useApp(),glass=app?.platform!=='android',ref=useRef(null),titleId=useId().replace(/:/g,'')+'-title';
+ const app=useApp(),ref=useRef(null),titleId=useId().replace(/:/g,'')+'-title';
  const floating=useFloatingPanelPosition(ref);
  const [form,setForm]=useState(null),[confirmDiscard,setConfirmDiscard]=useState(false);
  const register=useCallback(value=>{setForm(value);return()=>setForm(current=>current?.id===value.id?null:current)},[]);
@@ -128,6 +128,6 @@ export function Sheet({title,kind='normal',onClose,children,style,suppressGlobal
  </SheetFormContext.Provider></FloatingSurfaceContext.Provider>;
  return <dialog id="sheet" ref={ref} className={className} style={{...style,...floating.style}} aria-labelledby={titleId}
   onCancel={e=>{e.preventDefault();close()}} onClick={e=>{if(e.target===ref.current)close()}}>
-  {glass?<LiquidGlass lens lensOptions={{bezel:14,refraction:1.05,dispersion:2,radius:32}} className="sheet-glass"><span className="glass-shadow" aria-hidden="true"/>{content}</LiquidGlass>:content}
+  {content}
  </dialog>;
 }

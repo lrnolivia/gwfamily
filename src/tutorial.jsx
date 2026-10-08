@@ -1,6 +1,5 @@
 import React,{createContext,useContext,useEffect,useId,useMemo,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
-import {LiquidGlass} from '@sohumsuthar/liquid-glass';
 import {Button,Control,Glyph,useApp} from './ui-core.jsx';
 import {ViewSwitcher} from './view-switcher.jsx';
 import {contextualTopic,tutorialTopics} from './tutorial-model.js';
@@ -49,10 +48,10 @@ export function TutorialProvider({enabled=true,children}){
   if(session&&!sameRoute(app.route,session.steps[session.index].route))stop('paused',{restore:false});
  },[app?.route,session?.index,account,enabled]);
  const value={enabled:enabled&&!!account,start,saved:savedIdentity===account?saved:readTourProgress(guideStorage(),account),storageError:savedIdentity===account&&storageError,launchError};
- return <TutorialContext.Provider value={value}>{children}{enabled&&session&&session.account===account&&<ContextualTour key={account+':'+session.steps[session.index].id} step={session.steps[session.index]} index={session.index} count={session.steps.length} busy={!!app?.data?.pending} storageError={storageError} platform={app?.platform} back={()=>move(session.index-1)} next={()=>session.index===session.steps.length-1?stop('completed'):move(session.index+1)} skip={()=>stop('skipped')} explore={()=>stop('paused',{restore:false})}/>}</TutorialContext.Provider>;
+ return <TutorialContext.Provider value={value}>{children}{enabled&&session&&session.account===account&&<ContextualTour key={account+':'+session.steps[session.index].id} step={session.steps[session.index]} index={session.index} count={session.steps.length} busy={!!app?.data?.pending} storageError={storageError} back={()=>move(session.index-1)} next={()=>session.index===session.steps.length-1?stop('completed'):move(session.index+1)} skip={()=>stop('skipped')} explore={()=>stop('paused',{restore:false})}/>}</TutorialContext.Provider>;
 }
 
-function ContextualTour({step,index,count,busy,storageError,platform,back,next,skip,explore}){
+function ContextualTour({step,index,count,busy,storageError,back,next,skip,explore}){
  const panel=useRef(null),target=useRef(null),overlay=useRef(null),callbacks=useRef({back,next,skip,explore,busy}),focusedStep=useRef(null),id=useId().replace(/:/g,''),descriptionId='gw-tour-description-'+id,titleId='gw-tour-title-'+id;
  const [position,setPosition]=useState(null),[missing,setMissing]=useState(false),[finding,setFinding]=useState(true),[geometryReady,setGeometryReady]=useState(false);
  callbacks.current={back,next,skip,explore,busy,finding:finding||!geometryReady};
@@ -115,7 +114,7 @@ function ContextualTour({step,index,count,busy,storageError,platform,back,next,s
   {hole&&<div className="tour-spotlight" style={{left:hole.left,top:hole.top,width:hole.width,height:hole.height}} aria-hidden="true"/>}
   {arrow&&<svg className="tour-pointer" aria-hidden="true"><defs><marker id={'gw-tour-arrow-'+id} markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L6 3.5 L0 7"/></marker></defs><path d={`M${arrow.start.x} ${arrow.start.y} L${arrow.end.x} ${arrow.end.y}`} markerEnd={`url(#gw-tour-arrow-${id})`}/></svg>}
   <section ref={panel} className="tour-coach" role="dialog" aria-modal="false" aria-labelledby={titleId} aria-describedby={descriptionId} tabIndex={-1} style={coach?{left:coach.left,top:coach.top,width:coach.width,maxHeight:coach.maxHeight}:{left:12,top:12,width:'min(356px, calc(100% - 24px))',visibility:'hidden'}}>
-   {platform==='ios'?<LiquidGlass className="tour-card" lens lensOptions={{bezel:14,refraction:1.05,dispersion:2,radius:16}}>{content}</LiquidGlass>:<div className="tour-card tour-card-flat">{content}</div>}
+   <div className="tour-card tour-card-flat">{content}</div>
   </section>
  </div>,document.body);
 }

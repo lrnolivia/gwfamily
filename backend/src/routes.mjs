@@ -1,3 +1,4 @@
+import {requestDiagnosticContext} from './error-diagnostics.mjs';
 import {registerPhotoDiscussions,photoCommentsReferenceMedia} from './photo-discussions.mjs';
 import {invitationsEnabled,provisionalAllowed,registerInvitationEntry,registerFamilyInvitations} from './family-invitations.mjs';
 import {storedPhotoFrame} from './photo-framing.mjs';
@@ -20,15 +21,15 @@ export function registerPublic(app,authFactory){
  app.get('/api/config',c=>{const e=authEnvironment(c.env);return c.json({...publicAuthConfig(e,authReady(e)),familyInvitations:invitationsEnabled(e),familyInvitationEmail:invitationsEnabled(e)&&Boolean(e.EMAIL)})});
  app.get('/api/session',async c=>{
   const e=authEnvironment(c.env);if(!authReady(e))return c.json({signedIn:false,configured:false,canRehearseFirstLoad:false});
-  const session=await authFactory(e).api.getSession({headers:c.req.raw.headers});if(!session)return c.json({signedIn:false,configured:true,canRehearseFirstLoad:false});
+  const session=await authFactory(e,requestDiagnosticContext(c,'auth.session.initial')).api.getSession({headers:c.req.raw.headers});if(!session)return c.json({signedIn:false,configured:true,canRehearseFirstLoad:false});
   if(!session.user.emailVerified)return c.json({signedIn:true,verified:false,status:'unverified',canRehearseFirstLoad:false});
-  const member=await e.DB.prepare('SELECT status,removed_at FROM members WHERE id=?').bind(session.user.id).first();
+  c.set('diagnosticStage','membership');const member=await e.DB.prepare('SELECT status,removed_at FROM members WHERE id=?').bind(session.user.id).first();
   return c.json({signedIn:true,verified:true,user:{id:session.user.id,name:session.user.name,email:session.user.email},status:member?.status||'new',membershipRemoved:Boolean(member?.removed_at),provisionalAccess:await provisionalAllowed(e,session.user,member),canRehearseFirstLoad:canRehearseFirstLoad(e,session,member)});
  });
  app.post('/api/enroll',async c=>{
   const e=authEnvironment(c.env);if(!authReady(e))throw new UserError('Sign-in is not configured',503);
   if(c.req.header('Origin')!==e.AUTH_ORIGIN)throw new UserError('Invalid request origin',403);
-  const session=await authFactory(e).api.getSession({headers:c.req.raw.headers});if(!session?.user.emailVerified)throw new UserError('Verify your email before joining',401);
+  const session=await authFactory(e,requestDiagnosticContext(c,'auth.session.initial')).api.getSession({headers:c.req.raw.headers});if(!session?.user.emailVerified)throw new UserError('Verify your email before joining',401);c.set('diagnosticStage','request.handler');
   const existing=await e.DB.prepare('SELECT removed_at FROM members WHERE id=?').bind(session.user.id).first();if(existing?.removed_at)throw new UserError('An admin must restore your removed membership for review.',403);
   const value=await c.req.json();if(typeof value.name!=='string'||!value.name.trim()||value.name.length>80||!validDate(value.birthday)||value.privacyAccepted!==true)throw new UserError('Enter your name and birthday, then confirm the privacy notice');
   if(value.birthdayCelebration===true&&!adultOn(value.birthday))throw new UserError('Public birthday celebrations are available for adult profiles only');
@@ -39,15 +40,15 @@ export function registerPublic(app,authFactory){
    e.DB.prepare('UPDATE user SET name=?,updatedAt=? WHERE id=?').bind(value.name.trim(),Date.now(),session.user.id),
    e.DB.prepare('INSERT INTO profiles(member_id,birthday,completed,birthday_celebration,profile_color) VALUES(?,?,1,?,?) ON CONFLICT(member_id) DO UPDATE SET birthday=excluded.birthday,completed=1,birthday_celebration=excluded.birthday_celebration,profile_color=excluded.profile_color,updated_at=CURRENT_TIMESTAMP').bind(session.user.id,value.birthday,value.birthdayCelebration===true?1:0,profileColor)
   ]);
-  const member=await e.DB.prepare('SELECT status,removed_at FROM members WHERE id=?').bind(session.user.id).first();return c.json({status:member.status});
+  c.set('diagnosticStage','membership');const member=await e.DB.prepare('SELECT status,removed_at FROM members WHERE id=?').bind(session.user.id).first();return c.json({status:member.status});
  });
 
 
  app.post('/api/onboarding/photo',async c=>{
   const e=authEnvironment(c.env);if(!authReady(e)||!e.R2)throw new UserError('Photo storage is not configured',503);
   if(c.req.header('Origin')!==e.AUTH_ORIGIN)throw new UserError('Invalid request origin',403);
-  const session=await authFactory(e).api.getSession({headers:c.req.raw.headers});if(!session?.user.emailVerified)throw new UserError('Sign in before adding a photo',401);
-  const member=await e.DB.prepare('SELECT status,removed_at FROM members WHERE id=?').bind(session.user.id).first();if(!member||!['active','pending'].includes(member.status))throw new UserError('Complete your details before adding a photo',403);
+  const session=await authFactory(e,requestDiagnosticContext(c,'auth.session.initial')).api.getSession({headers:c.req.raw.headers});if(!session?.user.emailVerified)throw new UserError('Sign in before adding a photo',401);
+  c.set('diagnosticStage','membership');const member=await e.DB.prepare('SELECT status,removed_at FROM members WHERE id=?').bind(session.user.id).first();if(!member||!['active','pending'].includes(member.status))throw new UserError('Complete your details before adding a photo',403);
   const rate=await createRateStorage(e.DB).consume('onboarding-photo:'+session.user.id,{window:3600,max:6});if(!rate.allowed)throw new UserError('Photo upload limit reached. Try again later.',429);
   const form=await c.req.formData(),file=form.get('file');if(!file||typeof file.arrayBuffer!=='function'||!file.size||file.size>10*1024*1024||!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type))throw new UserError('Choose a JPEG, PNG, WebP or GIF under 10 MB');
   const bytes=await file.arrayBuffer(),head=new Uint8Array(bytes,0,Math.min(16,bytes.byteLength)),sig=String.fromCharCode(...head);

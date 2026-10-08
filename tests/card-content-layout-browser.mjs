@@ -3,18 +3,17 @@ import {chromium,webkit,expect} from '@playwright/test';
 import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {pageContentPayload} from '../src/page-content-model.js';
+import {authenticatedReadNavigation} from './browser-read-readiness.mjs';
 if(!process.env.CI&&process.env.GW_HOSTED_BROWSER_QA!=='1')throw Error('Run only in the authorized hosted shared-page fixture.');
 const base=process.env.GW_PAGE_CONTENT_URL||'http://127.0.0.1:4176';
 assert.match(base,/^http:\/\/(127\.0\.0\.1|localhost):(4176|4179)$/);
 const engine=process.env.GW_BROWSER==='webkit'?'webkit':'chromium',browser=await (engine==='webkit'?webkit:chromium).launch({headless:true});
 const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'}),page=await context.newPage(),errors=[],results=[];
-const pendingReads=new Set(),network=[];
-page.on('request',request=>{if(request.url().startsWith(base+'/api/')&&request.method()==='GET'){pendingReads.add(request);network.push({event:'start',url:request.url(),at:Date.now()})}});
-for(const event of ['requestfinished','requestfailed'])page.on(event,request=>{pendingReads.delete(request);network.push({event,url:request.url(),at:Date.now(),failure:request.failure()?.errorText});if(network.length>100)network.shift()});
+const network=[];
+page.on('request',request=>{if(request.url().startsWith(base+'/api/')&&request.method()==='GET'){network.push({event:'start',url:request.url(),at:Date.now()})}});
+for(const event of ['requestfinished','requestfailed'])page.on(event,request=>{network.push({event,url:request.url(),at:Date.now(),failure:request.failure()?.errorText});if(network.length>100)network.shift()});
 page.on('pageerror',error=>{errors.push(error.message);network.push({event:'pageerror',message:error.message,stack:error.stack,at:Date.now()})});
-const settleReads=async()=>{await expect.poll(()=>pendingReads.size,{timeout:20000,message:'Owner API reads complete before deliberate document navigation'}).toBe(0)};
-const navigate=async url=>{await settleReads();await page.goto(url)};
-const reload=async()=>{await settleReads();await page.reload()};
+const {navigate,reload,settle}=authenticatedReadNavigation(page,base);
 await page.addInitScript(()=>{localStorage.setItem('gw-platform','android');localStorage.setItem('gw-install-dismissed','true')});
 const output='docs/card-content-qa',hero=()=>page.locator('[data-panel-page="home"] [data-panel-id="hero"]'),card=()=>hero().locator('[data-card-layout="hero"]'),toolbar=()=>page.locator('.page-edit-toolbar');
 const read=async()=>{const response=await page.request.get(base+'/api/page-content/home');assert.equal(response.status(),200);return response.json()};
@@ -89,6 +88,19 @@ try{
   const member=await browser.newContext({viewport:{width:1280,height:900}}),view=await member.newPage();try{await view.goto(base+'/__test/signin?user=bob');await expect(view.locator('[data-panel-page="home"] [data-card-layout="hero"]')).toBeVisible();await expect(view.getByRole('button',{name:'Arrange card content',exact:true})).toHaveCount(0);const denied=await member.request.patch(base+'/api/page-content/home',{data:{requestId:'denied-card-write',expectedRevision:(await read()).revision,content:pageContentPayload((await read()).content)},headers:{Origin:base}});assert.equal(denied.status(),403)}finally{await member.close()}
   const anonymous=await browser.newContext();try{assert.equal((await anonymous.request.get(base+'/api/page-content/home')).status(),401)}finally{await anonymous.close()}
  });
+ await check('Content plus adds a plain text area that edits, arranges and persists with standard header actions',async()=>{
+  await page.setViewportSize({width:1280,height:900});await navigate(base+'/#/home');await reload();
+  const edit=toolbar().getByRole('button',{name:/^(Edit page|Resume page edits)$/});await expect(edit).toBeVisible();await edit.click();
+  await hero().getByRole('button',{name:/^Panel options for/}).click();let pane=page.locator('.page-object-tools[open]');
+  const unlock=pane.getByRole('button',{name:/^Unlock /});if(await unlock.count())await unlock.click();
+  await pane.getByRole('button',{name:'Add element',exact:true}).click();const menu=pane.getByRole('menu',{name:'Add panel element',exact:true});
+  for(const name of ['Eyebrow','Heading','Date detail','Button','Media','Text area'])await expect(menu.getByRole('menuitem',{name,exact:true})).toBeVisible();
+  await menu.getByRole('menuitem',{name:'Text area',exact:true}).click();await pane.getByRole('button',{name:'Done editing',exact:true}).click();
+  await card().getByRole('button',{name:'Edit added text area',exact:true}).click();pane=page.locator('.page-object-tools[open]');await pane.getByRole('textbox',{name:'Added text area',exact:true}).fill('Synthetic added plain text area');await pane.getByRole('button',{name:'Done editing',exact:true}).click();await save();
+  const element=card().locator('[data-card-slot^="element-"]');await expect(element).toContainText('Synthetic added plain text area');await expect(element.getByRole('button',{name:'Layout for Text area',exact:true})).toBeVisible();
+  const boxes=await hero().evaluate(node=>{const panel=node.querySelector('.page-panel-options-entry').getBoundingClientRect();return [...node.querySelectorAll('.card-slot-context-actions')].map(item=>{const field=item.getBoundingClientRect();return Math.max(0,Math.min(panel.right,field.right)-Math.max(panel.left,field.left))*Math.max(0,Math.min(panel.bottom,field.bottom)-Math.max(panel.top,field.top))})});assert.ok(boxes.every(area=>area===0),JSON.stringify(boxes));
+  await page.screenshot({path:`${output}/${engine}-added-text-area.png`,fullPage:true});await toolbar().locator('.page-mode-done').click();await reload();await expect(card()).toContainText('Synthetic added plain text area');
+ });
  assert.deepEqual(errors,[],JSON.stringify({network}));await writeFile(`${output}/${engine}-card-content-results.json`,JSON.stringify({browser:engine,sourceSha:process.env.GW_SOURCE_SHA||null,results,errors},null,2));
-}finally{await context.close();await browser.close()}
+}finally{await settle();await context.close();await browser.close()}
 

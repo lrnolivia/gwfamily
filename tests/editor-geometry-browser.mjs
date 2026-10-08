@@ -26,6 +26,17 @@ try{
  for(const width of [320,390,768,1280]){
   await page.setViewportSize({width,height:900});await begin();
   await expect(page.getByRole('navigation',{name:'Main navigation',exact:true})).toBeHidden();
+  for(const id of ['hero','native-reunion']){
+   const attached=page.locator('[data-panel-page="home"] [data-panel-id="'+id+'"]');
+   if(!await attached.count())continue;
+   const corner=await attached.evaluate(panel=>{
+    const entry=panel.querySelector(':scope > .page-panel-options-entry'),surface=panel.querySelector(':scope > .card,:scope > .home-hero,:scope > .page-arrange-content-preview > .card');
+    if(!entry||!surface)return null;
+    const e=entry.getBoundingClientRect(),s=surface.getBoundingClientRect();return {position:getComputedStyle(entry).position,top:e.top-s.top,right:s.right-e.right,bottom:e.bottom-s.bottom};
+   });
+   assert.ok(corner,'Panel options must belong to the visible platter: '+id);
+   assert.equal(corner.position,'absolute');assert.ok(corner.top>=0&&corner.top<=12&&corner.right>=0&&corner.right<=12&&corner.bottom<=0,JSON.stringify(corner));
+  }
   const heading=page.locator('[data-page-field="home.feedTitle"]');
   await heading.scrollIntoViewIfNeeded();const before=await snapshot(heading);
   await heading.getByRole('button',{name:'Edit Feed heading',exact:true}).click();
@@ -45,7 +56,7 @@ try{
   const buttons=await tools().locator('.page-markdown-toolbar button').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().top));assert.ok(Math.max(...buttons)-Math.min(...buttons)<=1);
   await expect(tools().getByRole('button',{name:'Bold',exact:true})).toBeVisible();
   stable(panelBefore,await snapshot(panel));
-  const layer=await tools().locator('.liquid-glass-content').evaluate(node=>({display:getComputedStyle(node).display,z:getComputedStyle(node).zIndex,effect:getComputedStyle(node.parentElement.querySelector('.liquid-glass-effect')).zIndex}));assert.notEqual(layer.display,'contents');assert.ok(Number(layer.z)>Number(layer.effect));
+  await expect(tools().locator('.liquid-glass')).toHaveCount(0);const layer=await tools().evaluate(node=>({background:getComputedStyle(node).backgroundColor,filter:getComputedStyle(node).backdropFilter}));assert.notEqual(layer.background,'rgba(0, 0, 0, 0)');assert.ok(!layer.filter||layer.filter==='none');
   const textbox=tools().getByRole('textbox',{name:'RSVP next-step copy',exact:true});await textbox.fill('Live formatting preview');await expect(body).toContainText('Live formatting preview');
   await tools().getByRole('button',{name:'Undo formatting or typing',exact:true}).click();await expect(body).not.toContainText('Live formatting preview');
   const editorStyle=await tools().locator('.page-markdown-editor').evaluate(root=>{

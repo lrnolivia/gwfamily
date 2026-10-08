@@ -1,3 +1,4 @@
+import {addCardElement} from '../../src/card-content-layout-model.js';
 import {defaultPanelLayout,HERO_FIELDS} from '../../src/shared-panels.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -204,4 +205,12 @@ test('additive content migration preserves all existing family and messaging row
  sqlite.exec(readFileSync(new URL('../migrations/0011_page_content.sql',import.meta.url),'utf8'));
  for(const table of tables)assert.deepEqual(sqlite.prepare('SELECT * FROM '+table).all(),before[table],table);
  for(const table of ['page_content','page_content_revisions','page_content_requests'])assert.equal(sqlite.prepare('SELECT count(*) n FROM '+table).get().n,0,table);
+});
+
+test('added element photos enforce private upload ownership and hydrate only authorized files',async()=>{
+ const {upload,write,get,sqlite}=setup();try{
+  const mine=upload('element-owned'),other=upload('element-private','bob');let content=sharedPageDefaults('home');content.panelLayout.panels[0].locked=false;content=addCardElement(content,'home','hero','media','element-media');content.panelLayout.panels[0].elements[0].media=[mine];
+  assert.equal((await write(content)).status,200);const result=await get('home','bob');assert.equal(result.data.content.panelLayout.panels[0].elements[0].media[0].url,'/api/media/element-owned');
+  content.panelLayout.panels[0].elements[0].media=[other];assert.equal((await write(content,1)).status,400);assert.equal((await get('home')).data.revision,1);
+ }finally{sqlite.close()}
 });

@@ -95,8 +95,28 @@
 @media(max-width:700px){.page-panel-layout.has-side>.page-panel-columns{grid-template-columns:minmax(0,1fr)}}
 
 /* Panel options stay inside their panel as a compact corner glyph. */
-.page-panel-options-entry{position:absolute;top:8px;right:8px;z-index:4;margin:0;width:44px;height:44px}
+html[data-theme][data-platform] .page-panel-options-entry{position:absolute;top:8px;right:8px;z-index:4;margin:0;width:44px;height:44px}
 html[data-theme][data-platform] .page-panel-options-entry>button{position:relative;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;box-shadow:none}
 .page-panel-options-entry>button::before{content:'';position:absolute;inset:8px;border-radius:8px;background:var(--raised)}
 .page-panel-options-entry>button>.glyph{position:relative;width:16px;height:16px}
 .page-panel-options-entry>button>.liquid-glass-tint{opacity:0}
+
+/* Reserve the panel corner so its control cannot collide with a field tab. */
+html[data-theme][data-platform] .page-shared-panel.is-panel-editing:has(>.page-panel-options-entry){padding-top:68px}
+/* Native platters own their surface; reserve its corner inside that surface. */
+html[data-theme][data-platform] :is(.page-primary-hero,.page-native-panel).is-panel-editing:has(>.page-panel-options-entry){padding-top:0}
+html[data-theme][data-platform] .page-primary-hero.is-panel-editing:has(>.page-panel-options-entry)>:is(.card,.home-hero,.memories-hero),
+html[data-theme][data-platform] .page-native-panel.is-panel-editing:has(>.page-panel-options-entry)>.page-arrange-content-preview>:is(.card,.home-hero,.memories-hero):first-child{padding-top:68px}
+html[data-theme][data-platform] .page-native-panel.is-panel-editing:has(>.page-panel-options-entry)>.page-arrange-content-preview>:is(h2,h3):first-child{padding-inline-end:52px}
+.page-content-platter-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px 8px 16px}
+.page-content-platter-heading h3{margin:0;font-size:1rem}
+html[data-theme][data-platform] .page-content-platter-heading>button{display:grid;place-items:center;width:44px;height:44px;min-height:44px;padding:10px;border-radius:12px;background:var(--surface);color:var(--control)}
+.page-add-element-menu{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:8px 12px 12px;border-bottom:1px solid var(--line)}
+.page-add-element-menu>button{display:flex;align-items:center;gap:8px;padding:10px;min-height:44px;text-align:start;border-radius:12px;background:var(--surface);font-size:.8125rem}
+.page-added-copy{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;display:block;max-width:100%;text-align:inherit;font:inherit}
+button.page-added-copy{padding:0;min-height:44px;background:transparent;width:100%}
+.page-added-heading{font-size:1.75rem;font-weight:700;line-height:1.25}
+.page-added-eyebrow{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.page-added-date{font-size:.875rem;color:var(--muted)}
+html[data-theme][data-platform] button.page-added-button{padding:10px 16px;border-radius:999px;background:var(--control);color:var(--control-text);font-weight:650}
+.page-added-media>img{width:100%;height:auto;object-fit:contain;border-radius:16px}

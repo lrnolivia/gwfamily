@@ -303,7 +303,7 @@ async function expectStep(page,step,material,expect){
  await expect(page.locator('.contextual-tour')).toHaveAttribute('data-tour-geometry','ready');
  assert.equal(await target.evaluate(node=>node.tagName),'BUTTON','Highlight is a real native button');
  const description=await coach.getAttribute('aria-describedby');await expect(target).toHaveAttribute('aria-describedby',new RegExp(description));
- await expect(coach.locator(material==='ios'?'.tour-card.liquid-glass':'.tour-card-flat')).toBeVisible();
+ await expect(coach.locator('.tour-card-flat')).toBeVisible();await expect(coach.locator('.tour-card.liquid-glass')).toHaveCount(0);assert.notEqual(await coach.locator('.tour-card').evaluate(node=>getComputedStyle(node).backgroundColor),'rgba(0, 0, 0, 0)','Guide panel remains opaque in both materials');
  const geometry=await page.evaluate(targetName=>{const panel=document.querySelector('.tour-coach').getBoundingClientRect(),node=document.querySelector('[data-gw-tour="'+targetName+'"]'),r=node.getBoundingClientRect(),hole=document.querySelector('.tour-spotlight');return {panel:{left:panel.left,top:panel.top,right:panel.right,bottom:panel.bottom},target:{left:r.left,top:r.top,right:r.right,bottom:r.bottom},hasHole:!!hole,width:innerWidth,height:innerHeight,actualTarget:!node.closest('.contextual-tour')&&!node.closest('[inert]')}},step.target);
  assert.ok(geometry.actualTarget,'Target stays interactive outside the coach');
  assert.ok(geometry.panel.left>=0&&geometry.panel.top>=0&&geometry.panel.right<=geometry.width+1&&geometry.panel.bottom<=geometry.height+1,'Coach fits visible viewport');
