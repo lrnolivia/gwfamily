@@ -858,7 +858,10 @@ try {
     await alice.getByRole('button',{name:'Save profile',exact:true}).click();
     await expect(alice).toHaveURL(/#\/profile\/alice$/);
     const savedPhoto=(await ok(alice,'/api/state')).members.find(member=>member.id==='alice').photo;assert.match(savedPhoto,/^\/api\/media\//,'Profile photo is committed before the second account reads it');
+    // This assertion is specifically the Glass edge, independent of runner OS.
+    await bob.evaluate(()=>localStorage.setItem('gw-platform','ios'));
     await navigate(bob,'profile','alice');
+    await expect(bob.locator('html')).toHaveAttribute('data-platform','ios');
     await expect(bob.locator('.profile-overview .profile-photo-open img')).toHaveAttribute('src',savedPhoto);
     await bob.locator('.profile-overview').getByRole('button',{name:'View Alice profile photo',exact:true}).click();
     await expect(bob.locator('.photo-viewer-image')).toBeVisible();

@@ -7,7 +7,8 @@ import {PhotoFramingEditor,photoFrameStyle} from './photo-framing.jsx';
 import {InlineDisclosure} from './inline-disclosure.jsx';
 import {ImageUploadControl} from './image-upload-control.jsx';
 import {PageMarkdownEditor,PageMarkdownBody} from './page-markdown.jsx';
-import React,{useContext,useEffect,useId,useRef,useState} from 'react';
+import React,{useContext,useEffect,useId,useLayoutEffect,useRef,useState} from 'react';
+import {createPortal} from 'react-dom';
 import {Button,Control,Glyph,Sheet,useApp} from './ui-core.jsx';
 import {usePageContent,PagePanelLockContext,safePageMediaUrl} from './page-content.jsx';
 import {readPreviewFile} from './uploads.js';
@@ -87,6 +88,8 @@ function MobilePanelOrder({page:initialPage,onClose}){
 
 export function SharedPagePanels({page,children,mediaOnly=false,mainTail=null,sideTail=null,wideHero=false,afterPrimary=null,nativePanels={}}){
  const editor=useLayoutEditor(page),viewportNarrow=useNarrow(),presentation=useRef(viewportNarrow);
+ const [mediaTools,setMediaTools]=useState(null);
+ useLayoutEffect(()=>{setMediaTools(mediaOnly&&editor.editing?document.querySelector('[data-page-media-tools="'+page+'"]'):null)},[page,mediaOnly,editor.editing]);
  // Reparenting a panel tears down its open task and draft. Adapt the floating
  // surface immediately, but defer canvas reparenting until that task closes.
  if(!editor.activeEditor)presentation.current=viewportNarrow;
@@ -114,9 +117,9 @@ export function SharedPagePanels({page,children,mediaOnly=false,mainTail=null,si
  // Keep the media editor in its ordered panel while uploads change hero mode.
  // Moving it from a separate optional slot into the grid mid-upload loses its
  // progress state, focus and in-flight lock after the first completed file.
- const renderInPlace=panel=>mediaOnly&&editor.editing&&panel.kind==='hero'?<OptionalPageMedia key={panel.id} initialOpen={editor.content.hero.mode!=='default'}><summary>{editor.content.hero.mode==='default'?'Add page photo or video':'Page photo or video'}</summary>{render(panel)}</OptionalPageMedia>:render(panel);
+ const renderInPlace=panel=>{if(!mediaOnly||!editor.editing||panel.kind!=='hero')return render(panel);const empty=editor.content.hero.mode==='default',entry=<OptionalPageMedia key={panel.id} initialOpen={!empty}><summary><Glyph name="image"/>{empty?'Add '+SHARED_PAGE_SCHEMA[page].label+' photo or video':'Page photo or video'}</summary>{render(panel)}</OptionalPageMedia>;return empty&&mediaTools?createPortal(entry,mediaTools,panel.id):entry};
  const hasSide=!!sideTail||visible.some(p=>p.zone==='side'),bands=panelLayoutBands(ordered);
- return <div ref={drag.root} className={'page-panel-layout '+(narrow?'is-mobile':'is-wide')+(hasSide?' has-side':'')+(editor.editing?' is-editing':'')} data-panel-page={page}>
+ return <div ref={drag.root} className={'page-panel-layout '+(narrow?'is-mobile':'is-wide')+(hasSide?' has-side':'')+(editor.editing?' is-editing':'')} data-panel-page={page} data-empty-media-tools={mediaOnly&&editor.editing&&editor.content.hero.mode==='default'&&!!mediaTools||undefined}>
   {ordered.length>0||mainTail||sideTail? <>{narrow?<div className="page-panel-mobile-stack">{ordered.map(panel=><React.Fragment key={panel.id}>{renderInPlace(panel)}{panel.kind==='hero'&&afterPrimary}</React.Fragment>)}{mainTail}{sideTail}</div>:<>{bands.map((band,index)=>band.full?<div key={band.full.id} className="page-panel-full-width">{renderInPlace(band.full)}{band.full.kind==='hero'&&afterPrimary}</div>:<div key={'band-'+index} className="page-panel-columns">{['main','side'].map(zone=><div key={zone} className={'page-panel-zone page-panel-zone-'+zone} {...drag.drop(zone)}>{ordered.filter(panel=>band.columns.includes(panel)&&panel.zone===zone).map(panel=><React.Fragment key={panel.id}>{renderInPlace(panel)}{panel.kind==='hero'&&afterPrimary}</React.Fragment>)}{index===bands.length-1&&(zone==='main'?mainTail:sideTail)}</div>)}</div>)}{(!bands.length||bands.at(-1).full)&&(mainTail||sideTail)&&<div className="page-panel-columns"><div className="page-panel-zone">{mainTail}</div><div className="page-panel-zone">{sideTail}</div></div>}</>}</>:null}
 
   {editor.editing&&!editor.arrangingPage&&selectedPanel&&editor.activeEditor===toolId&&<PageObjectTools title={'Panel · '+title(selectedPanel,page,editor.content,editor.records)} returnFocus={toolTrigger.current} onClose={()=>{setToolPanel(null);editor.activateSurface(null)}}>

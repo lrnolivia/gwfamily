@@ -929,6 +929,7 @@ try {
     await otherOwner.emulateMedia({reducedMotion: 'reduce'});
     for (const viewport of [{width: 390, height: 844}, {width: 768, height: 1024}, {width: 844, height: 390}]) {
       await otherOwner.setViewportSize(viewport);
+      await expect.poll(()=>otherOwner.evaluate(()=>Math.round(parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--vv-width'))))).toBe(viewport.width);
       await navigate(otherOwner, 'family');
       await edit(otherOwner);
       await field(otherOwner, 'family.heading').getByRole('button', {name: 'Edit Page heading', exact: true}).click();

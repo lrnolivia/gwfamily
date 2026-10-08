@@ -170,3 +170,27 @@ html[data-theme][data-platform] .page-copy-input-wrap .page-field-done{backgroun
 /* The focused field and its Done action sit above both corner tool targets. */
 .page-copy-frame.is-active{z-index:6}
 .card-content-slot:has(.page-copy-frame.is-active,.page-panel-text-edit:focus-within){z-index:5}
+
+/* Custom heading fields also own their stacking layer while being edited. */
+.page-panel-text-edit{z-index:6}
+
+/* One editor surface connects guidance, page actions and the selected field. */
+.page-edit-toolbar.is-editing{padding:12px;border-radius:24px;background:var(--surface)}
+.page-edit-toolbar.is-editing :is(.page-command-notice,.page-editor-guide){margin:12px 4px;font-size:.75rem}
+.page-edit-toolbar.is-editing .page-panel-actions{padding:8px 4px 12px;gap:8px}
+.page-edit-toolbar.is-editing .page-panel-actions>button{background:var(--raised);border-radius:12px;padding:8px 12px}
+.page-edit-toolbar.is-editing .page-panel-actions>button:hover:not(:disabled){background:var(--control);color:var(--control-text)}
+.page-edit-toolbar.is-editing .page-panel-actions>.page-editor-help{flex-basis:100%;padding:2px 0;font-size:.75rem}
+.page-edit-toolbar.is-editing .page-selected-object{min-height:44px;padding:10px 12px;border-radius:14px;background:var(--raised)}
+html[data-theme][data-platform] .page-edit-toolbar.is-editing .page-command-button{background:var(--surface)}
+@media(max-width:420px){.page-edit-toolbar.is-editing{padding:10px;border-radius:20px}}
+
+.page-media-tools{display:flex;align-items:start;flex-wrap:wrap;gap:8px;margin:0 4px 12px}
+.page-media-tools:empty,.page-media-tools:not(:has(.page-optional-media)){display:none}
+.page-media-tools>div:empty{display:none}
+.page-media-tools .page-optional-media{margin:0;min-width:0}
+.page-media-tools .page-optional-media>summary{display:flex;align-items:center;gap:8px;min-height:44px;padding:10px 12px;border-radius:12px;background:var(--raised);font-size:.8125rem;list-style:none;cursor:pointer}
+.page-media-tools .page-optional-media>summary::-webkit-details-marker{display:none}
+.page-media-tools .page-optional-media>summary .glyph{width:18px;height:18px}
+.page-media-tools .page-optional-media[open]{width:100%}
+.page-panel-layout[data-empty-media-tools=true]{margin:0}

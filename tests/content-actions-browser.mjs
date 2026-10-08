@@ -12,7 +12,7 @@ try{
   await page.goto(base+'/__test/signin?user=alice');await expect(page.getByRole('navigation',{name:'Main navigation'})).toBeVisible();
   const post=await command(page,{type:'ADD_POST',post:{text:'Synthetic editable post '+width}}),comment=await command(page,{type:'ADD_COMMENT',targetId:post.id,text:'Synthetic editable comment'});
   await command(page,{type:'ADD_COMMENT',targetId:post.id,parentId:comment.id,text:'Synthetic reply kept after deletion'});
-  await page.goto(base+'/#/post/'+post.id);const card=page.locator('.detail-page .post-card');await expect(card).toContainText('Synthetic editable post');
+  await page.goto(base+'/?qa='+randomUUID()+'#/post/'+post.id);const card=page.locator('.detail-page .post-card');await expect(card).toContainText('Synthetic editable post');
   await card.getByRole('button',{name:'Post options',exact:true}).click();let menu=page.getByRole('menu',{name:'Post options',exact:true});await expect(menu).toBeVisible();await expect(menu.getByRole('menuitem',{name:'Focus View',exact:true})).toHaveCount(0);
   await expect(menu.getByRole('group',{name:'Edit and delete',exact:true})).toBeVisible();await expect(menu.getByRole('menuitem',{name:'Share post',exact:true})).toBeVisible();
   const colors=await menu.locator('.post-menu-edit,.post-menu-delete').evaluateAll(nodes=>nodes.map(node=>getComputedStyle(node).color));assert.notEqual(colors[0],colors[1]);

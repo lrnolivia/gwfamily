@@ -132,6 +132,8 @@ try{
  await memory.getByRole('button',{name:'Add event details',exact:true}).click();
  for(const width of [390,1280]){
   await page.setViewportSize({width,height:900});
+  // Visual-viewport CSS updates on the next frame; inspect the settled surface.
+  await expect.poll(()=>page.evaluate(()=>Math.round(parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--vv-width'))))).toBe(width);
   await expect(memory.getByRole('button',{name:'Replace media',exact:true})).toBeVisible();
   await expect(memory.getByRole('button',{name:'Change image',exact:true})).toHaveCount(0);
   const geometry=await memory.locator('.memory-details-form').evaluate(node=>{const form=node.getBoundingClientRect(),photo=node.querySelector('.image-upload-preview').getBoundingClientRect(),fields=node.querySelector('.form-image-fields').getBoundingClientRect(),event=node.querySelector('.memory-details-disclosure:last-of-type').getBoundingClientRect();return {form:form.toJSON(),photo:photo.toJSON(),fields:fields.toJSON(),event:event.toJSON(),scroll:document.documentElement.scrollWidth,viewport:innerWidth}});
