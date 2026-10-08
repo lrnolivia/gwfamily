@@ -88,7 +88,7 @@ export async function command(db,actor,input){
  const rate=await createRateStorage(db).consume('write:'+actor.id,{window:60,max:90});if(!rate.allowed)throw new UserError('Please wait a minute before trying again',429);
  const sql=[],result={ok:true};const q=(query,...args)=>sql.push(db.prepare(query).bind(...args));
  const audit=(action,id)=>q('INSERT INTO audit_log(id,actor_id,action,subject_id) VALUES(?,?,?,?)',uuid(),actor.id,action,id);
- let reunion;try{if(REUNION_SCOPED_COMMANDS.has(input.type)){reunion=await resolveReunion(db,input.reunionId,{write:true});guardReunionWrite(q,reunion.id,input.requestId,reunion.year)}}catch(e){throw new UserError(e.message,e.status||400)}
+ let contentWrite=false;let reunion;try{if(REUNION_SCOPED_COMMANDS.has(input.type)){reunion=await resolveReunion(db,input.reunionId,{write:true});guardReunionWrite(q,reunion.id,input.requestId,reunion.year)}}catch(e){throw new UserError(e.message,e.status||400)}
  if(REUNION_LIFECYCLE_COMMANDS.has(input.type)){try{Object.assign(result,await reunionCommand(db,actor,input,q,audit))}catch(e){throw new UserError(e.message,e.status||400)}}else
  switch(input.type){
  case 'SET_BIRTHDAY_CELEBRATION':{
@@ -122,6 +122,22 @@ export async function command(db,actor,input){
   const asLeader=p.asLeader===true;if((asLeader||p.pinned||p.firstView)&&!actor.isLeader)throw new UserError('Only leaders can publish leader announcements',403);if((p.pinned||p.firstView)&&!asLeader)throw new UserError('Choose Post as Leader to pin or announce this post');
   const background=typeof p.background==='string'&&p.background.length<100&&/^[a-zA-Z0-9#|, .()-]*$/.test(p.background)?p.background:null;
   result.id=uuid();q('INSERT INTO posts(id,author_id,group_id,body,metadata_json) VALUES(?,?,?,?,?)',result.id,actor.id,p.groupId||null,body,JSON.stringify({files,poll,background,backgroundMedia,memberIds,asLeader,pinned:asLeader&&p.pinned===true,firstView:asLeader&&p.firstView===true}));break;
+ }
+ case 'EDIT_POST':case 'DELETE_POST':case 'EDIT_COMMENT':case 'DELETE_COMMENT':{
+  contentWrite=true;
+  if(input.photoTarget){const prepared=await photoCommandStatements(db,actor,input);sql.push(...prepared.sql);Object.assign(result,prepared.result);break;}
+  const comment=input.type.endsWith('COMMENT'),deleting=input.type.startsWith('DELETE'),table=comment?'comments':'posts';
+  const item=comment?await db.prepare('SELECT * FROM comments WHERE id=? AND deleted_at IS NULL').bind(input.id||'').first():await readPost(db,actor,input.id);
+  if(!item||comment&&!await readPost(db,actor,item.post_id))throw new UserError(comment?'Comment not found':'Post not found',404);
+  if(!can(actor,'manage_content',{authorId:item.author_id}))throw new UserError('You do not have permission to change this content',403);
+  if(typeof input.expectedText!=='string'||input.expectedText!==item.body)throw new UserError('This content changed while you were editing. Reopen it before trying again.',409);
+  const body=deleting?null:text(input.text||'',comment?1500:3000),meta=comment?json(item.files_json,[]):json(item.metadata_json);
+  if(!deleting&&!body&&!(comment?meta.length:meta.files?.length||meta.poll))throw new UserError('Write something or keep an attachment');
+  const guard=uuid();
+  q(`INSERT INTO notification_setting_guards(token,valid) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM ${table} WHERE id=? AND deleted_at IS NULL AND body=?) THEN 1 ELSE 0 END`,guard,item.id,input.expectedText);
+  if(deleting)q(`UPDATE ${table} SET deleted_at=CURRENT_TIMESTAMP WHERE id=?`,item.id);else q(`UPDATE ${table} SET body=? WHERE id=?`,body,item.id);
+  q('DELETE FROM notification_setting_guards WHERE token=?',guard);
+  audit(input.type.toLowerCase().replace('_','-'),item.id);break;
  }
  case 'MARK_ANNOUNCEMENT_SEEN':{const post=await readPost(db,actor,input.id);if(!post||!json(post.metadata_json).firstView)throw new UserError('Announcement not found',404);q('INSERT OR IGNORE INTO announcement_views(post_id,member_id) VALUES(?,?)',post.id,actor.id);break;}
  case 'ADD_COMMENT':{
@@ -206,15 +222,16 @@ export async function command(db,actor,input){
   const value={title:text(m.title||'',120),image:files[0].url,mediaType:files[0].type,...(files[0].type.startsWith('image/')?{photoFrame:commandPhotoFrame({frame:m.photoFrame,photo:files[0].url,previousPhoto:oldMemory?json(oldMemory.data_json).image:null,previousFrame:oldMemory?json(oldMemory.data_json).photoFrame:undefined})}:{}),capturedDate,dateStatus:['suggested','confirmed','approximate'].includes(m.dateStatus)?m.dateStatus:'unknown',dateSource:text(m.dateSource||'',60),category:text(m.category||'',60),event:text(m.event||'',100),year:text(m.year||'',4),milestone:text(m.milestone||'',100),tags:Array.isArray(m.tags)?m.tags.slice(0,20).map(x=>text(x,40)):[],memberIds};result.id=m.id||uuid();if(input.type==='ADD_MEMORY'){q('INSERT INTO memories(id,author_id,data_json) VALUES(?,?,?)',result.id,actor.id,JSON.stringify(value));q('INSERT INTO posts(id,author_id,body,metadata_json) VALUES(?,?,?,?)',result.id,actor.id,value.title||'Shared a memory',JSON.stringify({files,memoryId:result.id,memberIds}))}else{q('UPDATE memories SET data_json=? WHERE id=?',JSON.stringify(value),result.id);q('UPDATE posts SET body=?,metadata_json=? WHERE id=?',value.title||'Shared a memory',JSON.stringify({files,memoryId:result.id,memberIds}),result.id);if(!sameImage)q('DELETE FROM featured_memories WHERE memory_id=?',result.id)}break;
  }
  case 'REPORT':{
+  if(input.photoTarget){const prepared=await photoCommandStatements(db,actor,input);sql.push(...prepared.sql);Object.assign(result,prepared.result);break;}
   if(!await accessibleTarget(db,actor,input.targetId))throw new UserError('Item not found',404);result.id=uuid();q('INSERT INTO moderation_reports(id,reporter_id,target_id,reason) VALUES(?,?,?,?)',result.id,actor.id,input.targetId,text(input.reason,1000,true));break;
  }
  case 'MODERATE':{
-  requireCan(actor,'moderate');const report=await db.prepare('SELECT * FROM moderation_reports WHERE id=?').bind(input.id).first();if(!report)throw new UserError('Report not found',404);if(!['removed','dismissed'].includes(input.status))throw new UserError('Choose a moderation decision');q('UPDATE moderation_reports SET status=?,resolved_by=? WHERE id=?',input.status,actor.id,report.id);if(input.status==='removed'){q('UPDATE posts SET deleted_at=CURRENT_TIMESTAMP WHERE id=?',report.target_id);q('UPDATE comments SET deleted_at=CURRENT_TIMESTAMP WHERE id=?',report.target_id);q('UPDATE memories SET deleted_at=CURRENT_TIMESTAMP WHERE id=?',report.target_id)}audit('moderation-'+input.status,report.target_id);break;
+  requireCan(actor,'moderate');const report=await db.prepare('SELECT * FROM moderation_reports WHERE id=?').bind(input.id).first();if(!report)throw new UserError('Report not found',404);if(!['removed','dismissed'].includes(input.status))throw new UserError('Choose a moderation decision');q('UPDATE moderation_reports SET status=?,resolved_by=? WHERE id=?',input.status,actor.id,report.id);if(input.status==='removed'){q('UPDATE posts SET deleted_at=CURRENT_TIMESTAMP WHERE id=?',report.target_id);q('UPDATE comments SET deleted_at=CURRENT_TIMESTAMP WHERE id=?',report.target_id);q('UPDATE photo_comments SET deleted_at=? WHERE id=?',Date.now(),report.target_id);q('UPDATE memories SET deleted_at=CURRENT_TIMESTAMP WHERE id=?',report.target_id)}audit('moderation-'+input.status,report.target_id);break;
  }
  default:{try{const h=await householdCommand(db,actor,input,q,audit);if(!h)throw new UserError('This action is not supported');Object.assign(result,h)}catch(e){if(e instanceof UserError)throw e;if(e.status)throw new UserError(e.message,e.status);throw e}break;}
  }
  q('INSERT INTO command_receipts(member_id,request_id,result_json,operation,fingerprint) VALUES(?,?,?,?,?)',actor.id,input.requestId,JSON.stringify(result),input.type,fingerprint);
- try{await db.batch(sql)}catch(error){const completed=await db.prepare('SELECT * FROM command_receipts WHERE member_id=? AND request_id=?').bind(actor.id,input.requestId).first();if(completed){if(completed.fingerprint&&(completed.fingerprint!==fingerprint||completed.operation!==input.type))throw new UserError('This request identifier was already used for different content',409);return json(completed.result_json)}if(String(error.message).includes('valid=1'))throw new UserError(REUNION_SCOPED_COMMANDS.has(input.type)||REUNION_LIFECYCLE_COMMANDS.has(input.type)?'The reunion changed while you were editing. Refresh and try again.':'Notification settings changed on another device. Refresh and try again.',409);throw error}
+ try{await db.batch(sql)}catch(error){const completed=await db.prepare('SELECT * FROM command_receipts WHERE member_id=? AND request_id=?').bind(actor.id,input.requestId).first();if(completed){if(completed.fingerprint&&(completed.fingerprint!==fingerprint||completed.operation!==input.type))throw new UserError('This request identifier was already used for different content',409);return json(completed.result_json)}if(String(error.message).includes('valid=1'))throw new UserError(contentWrite?'This content changed while you were editing. Reopen it before trying again.':REUNION_SCOPED_COMMANDS.has(input.type)||REUNION_LIFECYCLE_COMMANDS.has(input.type)?'The reunion changed while you were editing. Refresh and try again.':'Notification settings changed on another device. Refresh and try again.',409);throw error}
  return result;
 }
 

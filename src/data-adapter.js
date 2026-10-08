@@ -1,3 +1,4 @@
+import {canManageContent} from './content-actions-model.js';
 import {previewMembershipCommand} from './membership-model.js';
 import {normalizePayment} from './payment-model.js';
 import {ensurePreviewReunions,previewReunionCommand,REUNION_SCOPED_COMMANDS,REUNION_LIFECYCLE_COMMANDS,reunionArchived} from './reunion-model.js';
@@ -110,6 +111,14 @@ function reduceState(state,action){
         drafts:{...state.drafts,files:{...state.drafts.files,[(action.parentId?'replies:':'comments:')+(action.parentId||action.targetId)]:[]},[action.parentId?'replies':'comments']:
           {...state.drafts[action.parentId?'replies':'comments'],[action.parentId||action.targetId]:''}},
         lastId:state.lastId+1};
+    }
+    case 'EDIT_POST':case 'DELETE_POST':{
+      const item=state.posts.find(post=>post.id===action.id);if(!canManageContent(state,item)||item.text!==action.expectedText)return state;
+      return {...state,posts:action.type==='DELETE_POST'?state.posts.filter(post=>post.id!==action.id):state.posts.map(post=>post.id===action.id?{...post,text:action.text.trim()}:post)};
+    }
+    case 'EDIT_COMMENT':case 'DELETE_COMMENT':{
+      const items=state.comments[action.targetId]||[],item=items.find(comment=>comment.id===action.id);if(!canManageContent(state,item)||item.text!==action.expectedText)return state;
+      return {...state,comments:{...state.comments,[action.targetId]:action.type==='DELETE_COMMENT'?items.filter(comment=>comment.id!==action.id):items.map(comment=>comment.id===action.id?{...comment,text:action.text.trim()}:comment)}};
     }
     case 'TOGGLE_REACTION':{
       const current=state.reactions[action.targetId]||[];

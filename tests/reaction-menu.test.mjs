@@ -28,7 +28,8 @@ test('search trims case, supports native glyphs and keeps empty results empty',(
 });
 test('post menu retains every action and keyboard semantics without primary buttons',()=>{
  const source=readFileSync(new URL('../src/conversation.jsx',import.meta.url),'utf8'),menu=source.slice(source.indexOf('function PostMoreMenu('),source.indexOf('export function PostCard('));
- assert.equal((menu.match(/role="menuitem"/g)||[]).length,4);
+ assert.equal((menu.match(/role="menuitem"/g)||[]).length,6);
+ assert.ok(menu.includes('!comment&&!focused'));assert.ok(menu.includes('post-menu-section'));assert.ok(menu.includes('canManageContent'));
  for(const glyph of ['focus','share','copy','flag'])assert.ok(menu.includes('name="'+glyph+'"'));
  assert.ok(menu.includes("['ArrowDown','ArrowUp','Home','End']"));assert.ok(menu.includes("event.key==='Escape'"));
  assert.doesNotMatch(menu,/className="button/);assert.ok(menu.includes('navigator.clipboard.writeText'));assert.ok(menu.includes('navigator.share'));

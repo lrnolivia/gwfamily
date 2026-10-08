@@ -40,6 +40,20 @@ export async function photoCommandStatements(db,actor,input){
   if(typeof input.text!=='string'||input.text.length>1500)throw new UserError('Keep comments under 1,500 characters');const text=input.text.trim(),files=await ownedFiles(db,actor,input.files||[]);if(!text&&!files.length)throw new UserError('Write a comment or add an attachment');
   if(input.parentId&&!await db.prepare('SELECT id FROM photo_comments WHERE id=? AND thread_key=? AND deleted_at IS NULL').bind(input.parentId,t.key).first())throw new UserError('Reply not found',404);
   result.id=crypto.randomUUID();sql.push(db.prepare('INSERT INTO photo_comments(id,thread_key,target_kind,target_id,photo_index,author_id,parent_id,body,files_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(result.id,t.key,t.kind,t.id,t.index,actor.id,input.parentId||null,text,JSON.stringify(files),Date.now()));
+ }else if(['EDIT_COMMENT','DELETE_COMMENT'].includes(input.type)){
+  const item=await db.prepare('SELECT * FROM photo_comments WHERE id=? AND thread_key=? AND deleted_at IS NULL').bind(input.id||'',t.key).first();
+  if(!item)throw new UserError('Comment not found',404);
+  if(!can(actor,'manage_content',{authorId:item.author_id}))throw new UserError('You do not have permission to change this comment',403);
+  if(typeof input.expectedText!=='string'||input.expectedText!==item.body)throw new UserError('This comment changed while you were editing. Reopen it before trying again.',409);
+  const deleting=input.type==='DELETE_COMMENT';if(!deleting&&(typeof input.text!=='string'||input.text.length>1500||!input.text.trim()&&!json(item.files_json,[]).length))throw new UserError('Write a comment or keep an attachment');
+  const guard=crypto.randomUUID();sql.push(db.prepare('INSERT INTO notification_setting_guards(token,valid) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM photo_comments WHERE id=? AND thread_key=? AND deleted_at IS NULL AND body=?) THEN 1 ELSE 0 END').bind(guard,item.id,t.key,input.expectedText));
+  sql.push(deleting?db.prepare('UPDATE photo_comments SET deleted_at=? WHERE id=?').bind(Date.now(),item.id):db.prepare('UPDATE photo_comments SET body=? WHERE id=?').bind(input.text.trim(),item.id));
+  sql.push(db.prepare('DELETE FROM notification_setting_guards WHERE token=?').bind(guard));
+  sql.push(db.prepare('INSERT INTO audit_log(id,actor_id,action,subject_id) VALUES(?,?,?,?)').bind(crypto.randomUUID(),actor.id,input.type.toLowerCase().replace('_','-'),item.id));
+ }else if(input.type==='REPORT'){
+  if(!await db.prepare('SELECT id FROM photo_comments WHERE id=? AND thread_key=? AND deleted_at IS NULL').bind(input.targetId||'',t.key).first())throw new UserError('Comment not found',404);
+  if(typeof input.reason!=='string'||!input.reason.trim()||input.reason.length>1000)throw new UserError('Tell the moderators what needs attention');
+  result.id=crypto.randomUUID();sql.push(db.prepare('INSERT INTO moderation_reports(id,reporter_id,target_id,reason) VALUES(?,?,?,?)').bind(result.id,actor.id,input.targetId,input.reason.trim()));
  }else if(input.type==='TOGGLE_REACTION'){
   if(typeof input.emoji!=='string'||input.emoji.length>32||!(/\p{Extended_Pictographic}|\p{Regional_Indicator}|[0-9#*]\uFE0F?\u20E3/u.test(input.emoji))||typeof input.photoSelected!=='boolean')throw new UserError('Choose a reaction');
   const commentId=input.targetId==='photo:'+t.key?'':input.targetId;if(typeof commentId!=='string'||commentId.length>100)throw new UserError('Comment not found',404);

@@ -38,12 +38,12 @@ export function People(){
  const address=<section className="card family-people-contact"><EditableText page="people" field="heading" as="h2">Address book</EditableText><EditableText page="people" field="intro" as="p" className="muted address-intro">A trusted place for the details each person chooses to share.</EditableText><EditableText page="people" field="sharingNote" as="p" className="field-help">Contact cards are opt-in. Sharing a detail is your choice.</EditableText>{contact.name?<div className="directory-empty"><Avatar member={contactIdentity} size="contact-summary-avatar"/><h3>{contact.name}</h3><p className="muted small">{contact.optIn?'Opted in for family sharing':'Private by default'}</p><Button onClick={()=>go({type:'contact'})}>Edit my contact card</Button></div>:<div className="directory-empty"><Glyph name="people"/><EditableText page="people" field="emptyTitle" as="h3">Start with your own card.</EditableText><EditableText page="people" field="emptyBody" as="p" className="muted small">Add your details, then choose who can see them. No contact information is shared yet.</EditableText><Button onClick={()=>go({type:'contact'})}>Set up my contact card <Glyph name="arrow"/></Button></div>}</section>;
  return <div className="stack family-people-section"><SharedPagePanels page="people" mediaOnly nativePanels={{'native-directory':<FamilyDirectory/>,'native-profiles':profiles,'native-contact':address,'native-shared-contacts':state.mode==='live'?<ContactDirectory/>:null}}><EditableMedia page="people" field="hero"/></SharedPagePanels></div>;
 }
-export function ReportForm({targetId}){
+export function ReportForm({targetId,photoTarget}){
  const {dispatch,openSheet}=useApp(),[reason,setReason]=useState(''),[saving,setSaving]=useState(false),[error,setError]=useState(''),reasonId=useId(),saveLock=useRef(false);
  async function submit(event){
   event.preventDefault();if(saveLock.current||!reason.trim())return;
   saveLock.current=true;setSaving(true);setError('');
-  try{if(await dispatch({type:'REPORT',targetId,reason:reason.trim()}))openSheet(null);else setError('Your report could not be saved. Your reason is still here; try again.')}
+  try{if(await dispatch({type:'REPORT',targetId,reason:reason.trim(),...(photoTarget?{photoTarget}:{})}))openSheet(null);else setError('Your report could not be saved. Your reason is still here; try again.')}
   catch{setError('Your report could not be saved. Your reason is still here; try again.')}
   finally{saveLock.current=false;setSaving(false)}
  }

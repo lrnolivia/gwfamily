@@ -106,6 +106,12 @@ jobs:
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4188/api/config && break; sleep 1; done
           curl -fsS http://127.0.0.1:4188/api/config
           CI=true node scripts/ci-test-summary.mjs editor-geometry-browser --browser tests/editor-geometry-browser.mjs
+      - name: Post and comment management browser checks
+        if: ${{ !cancelled() && steps.frontend_build.outcome == 'success' && steps.backend_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          curl -fsS http://127.0.0.1:4188/api/config
+          CI=true node scripts/ci-test-summary.mjs content-actions-browser --browser tests/content-actions-browser.mjs
       - name: Card content arrangement browser checks
         if: ${{ !cancelled() && steps.frontend_build.outcome == 'success' && steps.backend_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 10
@@ -166,6 +172,7 @@ jobs:
             docs/help-qa
             docs/notifications-qa
             docs/editor-geometry-qa
+            docs/content-actions-qa
             backend/build/worker.mjs
             backend/build/worker-provenance.json
             backend/build/site-worker.mjs
