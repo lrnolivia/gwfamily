@@ -36,7 +36,7 @@ html[data-platform] #sheet.comments-surface[open] #sheet-body{overflow:hidden;fl
 @keyframes gw-centered-sheet-enter{from{opacity:0}to{opacity:1}}
 @media(prefers-reduced-motion:reduce){html[data-platform] #sheet[open]{animation:none!important}}
 
-/* Left close and right true-completion are consistent across every Sheet. */
+/* Left true-completion and right close are consistent across every Sheet. */
 html[data-platform] #sheet[open] .sheet-head{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:12px;align-items:center}
 html[data-platform] #sheet[open] .sheet-head h2{min-width:0;overflow-wrap:anywhere;text-align:center;font-size:clamp(1.1rem,4vw,1.5rem)}
 .sheet-action-placeholder{width:44px;height:44px}
@@ -56,3 +56,5 @@ html[data-platform] button.quiet-close::before,html[data-platform] button.quiet-
 button.quiet-close .glyph{width:18px;height:18px}
 html[data-platform] button.quiet-close:hover{background:var(--raised)!important}
 button.quiet-close:focus-visible{outline:2px solid var(--control);outline-offset:2px}
+
+.sheet-head[data-movable]{cursor:grab;touch-action:none;user-select:none}.sheet-head[data-movable]:active{cursor:grabbing}.sheet-head[data-movable]:focus-visible{outline:2px solid var(--control);outline-offset:3px;border-radius:12px}

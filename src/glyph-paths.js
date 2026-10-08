@@ -19,4 +19,6 @@ paths.focus='M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5';
 paths.share='M12 16V3m-4 4 4-4 4 4M5 12v9h14v-9';
 paths.copy='M9 9h12v12H9ZM15 5V3H3v12h2';
 paths.flag='M5 21V3m0 1c5-4 9 4 15 0v10c-6 4-10-4-15 0';
+paths.layout='M3 4h18v16H3ZM3 10h18M11 10v10';
+paths.hero='m12 3 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3L12 17.4l-5.6 3 1.1-6.3L3 9.6l6.3-.9Z';
 export default paths;

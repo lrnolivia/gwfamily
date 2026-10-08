@@ -317,7 +317,7 @@ async function mediaPanel(page, key = 'home') {
   await field(page, key + '.hero').getByRole('button', {name: 'Edit ' + SHARED_PAGE_SCHEMA[key].label + ' page media', exact: true}).click();
   const imageEditor = page.locator('.page-object-tools').getByRole('region', {name: 'Photo framing', exact: true});
   await expect(imageEditor.or(page.getByRole('region', {name: 'Page media', exact: true}))).toBeVisible();
-  if (await imageEditor.count()) await imageEditor.getByRole('button', {name: 'Replace or media options', exact: true}).click();
+  if (await imageEditor.count()) await imageEditor.getByRole('button', {name: 'Replace media', exact: true}).click();
   const panel = page.getByRole('region', {name: 'Page media', exact: true});
   await expect(panel).toBeVisible();
   await expect(page.locator('.page-object-tools'), 'Media has one protected image task outside the canvas.').toHaveCount(1);
@@ -511,7 +511,8 @@ try {
     }
     await navigate(owner, 'home');
     await edit(owner);
-    await owner.getByRole('navigation', {name: 'Main navigation', exact: true}).getByRole('button', {name: 'Family', exact: true}).click();
+    await expect(owner.getByRole('navigation', {name:'Main navigation',exact:true})).toBeHidden();
+    await owner.evaluate(()=>{location.hash='/family'});
     await expect(owner).toHaveURL(/#\/family/);
     await expect(owner.locator('html')).not.toHaveAttribute('data-page-edit-mode', 'true');
   });
@@ -528,11 +529,11 @@ try {
       const before=(await record(owner,key)).content.text[titleField];await editText(owner,key+'.'+titleField,before+' Synthetic edit');await save(owner);
       assert.equal((await record(owner,key)).content.text[titleField],before+' Synthetic edit');
       await toolbar(owner).locator('.page-edit-tools > summary').click();await toolbar(owner).getByRole('button',{name:'Arrange page',exact:true}).click();
-      await panel.getByRole('combobox',{name:/^Location for /}).selectOption('side');await save(owner);
+      await panel.getByRole('button',{name:/^Side for /}).click();await save(owner);
       assert.equal((await record(owner,key)).content.panelLayout.panels.find(row=>row.id===panelId).zone,'side');
       await toolbar(owner).getByRole('button',{name:'Reorder panels',exact:true}).click();
       const reorder=owner.getByRole('dialog',{name:'Reorder panels',exact:true}),picker=reorder.getByRole('combobox',{name:'Reunion tab to reorder',exact:true});
-      await reorder.getByRole('button',{name:'Phone',exact:true}).click();await expect(picker).toHaveValue(key);
+      await reorder.getByRole('button',{name:'Mobile',exact:true}).click();await expect(picker).toHaveValue(key);
       if(tab==='Plan')await expect(reorder.locator(`[data-panel-id="${panelId}"] strong`)).toHaveText(before+' Synthetic edit');
       for(const [target,id] of [['reunion','native-plans'],['reunion-plans','native-rsvp'],['reunion-calendar','native-events']]){
         await picker.selectOption(target);await expect(reorder.locator(`[data-panel-id="${id}"]`)).toBeVisible();
@@ -540,14 +541,14 @@ try {
       await picker.selectOption(key);
       const originalMobile=(await record(owner,key)).content.panelLayout.mobileOrder;
       const row=reorder.locator(`[data-panel-id="${panelId}"]`);
-      await row.getByRole('button',{name:/ later on Phone$/}).click();await save(owner);
+      await row.focus();await owner.keyboard.press('ArrowDown');await save(owner);
       assert.notDeepEqual((await record(owner,key)).content.panelLayout.mobileOrder,originalMobile);
-      await row.getByRole('button',{name:/ earlier on Phone$/}).click();await save(owner);
+      await row.focus();await owner.keyboard.press('ArrowUp');await save(owner);
       assert.deepEqual((await record(owner,key)).content.panelLayout.mobileOrder,originalMobile);
       await reorder.getByRole('button',{name:'Done',exact:true}).click();
       await owner.screenshot({path:`${output}/${key}-editable-sidebar-${engineName}.png`});
-      await panel.getByRole('combobox',{name:/^Location for /}).selectOption('main');await save(owner);
-      await editText(owner,key+'.'+titleField,before);await save(owner);await togglePanelProtection(owner,panel,true);await save(owner);await modeDone(owner).click();
+      await panel.getByRole('button',{name:/^Main for /}).click();await save(owner);
+      await toolbar(owner).locator('.page-edit-tools > summary').click();await toolbar(owner).getByRole('button',{name:'Finish arranging',exact:true}).click();await editText(owner,key+'.'+titleField,before);await save(owner);await togglePanelProtection(owner,panel,true);await save(owner);await modeDone(owner).click();
       await owner.reload();await expect(owner.getByRole('tab',{name:tab,exact:true})).toHaveAttribute('aria-selected','true');
       assert.equal((await record(owner,key)).content.text[titleField],before);
     }
@@ -684,7 +685,8 @@ try {
 
       await expect(owner.getByRole('alert').filter({hasText: 'Synthetic shared-page save failure'})).toBeVisible();
       assert.equal((await record(bob)).content.text.heading, firstText);
-      await owner.getByRole('navigation', {name: 'Main navigation', exact: true}).getByRole('button', {name: 'Family', exact: true}).click();
+      await expect(owner.getByRole('navigation', {name:'Main navigation',exact:true})).toBeHidden();
+    await owner.evaluate(()=>{location.hash='/family'});
       await owner.getByRole('navigation', {name: 'Main navigation', exact: true}).getByRole('button', {name: 'Home', exact: true}).click();
       await expect(toolbar(owner).getByRole('button', {name: 'Resume page edits', exact: true})).toBeVisible();
       browserReads.get(owner).beginNavigation(owner.url());

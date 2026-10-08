@@ -64,7 +64,7 @@ test('additive presentation storage keeps rollback-readable old content and exte
 });
 test('UI source supplies labelled keyboard/touch alternatives and no arbitrary rendering or publishing',()=>{
  const jsx=readFileSync(new URL('../src/card-content-layout.jsx',import.meta.url),'utf8'),css=readFileSync(new URL('../src/card-content-layout.css',import.meta.url),'utf8');
- for(const marker of ['onPointerCancel','onLostPointerCapture',"event.key==='Escape'",'Cancel arrangement','Finish arranging','aria-live="polite"','aria-describedby={helpId}',"inert={arranging&&definition.role!=='image'?true:undefined}"])assert.ok(jsx.includes(marker),marker);
+ for(const marker of ['onPointerCancel','onLostPointerCapture',"event.key==='Escape'",'Cancel arrangement','Finish arranging','aria-live="polite"','aria-describedby={helpId}',"inert={editor.arrangingPage?true:undefined}"])assert.ok(jsx.includes(marker),marker);
  assert.doesNotMatch(jsx,/dangerouslySetInnerHTML|fetch\(|editor\.save\(/);assert.match(css,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);assert.match(css,/@media\(max-width:700px\)/);assert.match(css,/@container\(max-width:520px\)/);assert.match(css,/touch-action:none/);assert.match(css,/min-height:44px/);
 });
 

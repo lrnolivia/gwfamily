@@ -71,3 +71,22 @@
 .page-mobile-reorder li .page-mobile-drag-label{font-size:.875rem;line-height:1.4}
 .page-order-options{grid-column:2/-1;min-width:0}.page-order-options>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font:.8125rem/1.4 system-ui,sans-serif;color:var(--muted)}.page-order-options>div{display:grid;gap:12px;padding-block:8px}.page-order-options>div>button{width:auto!important;min-width:44px}.page-order-options label{display:grid;gap:4px;font-size:.8125rem;margin:0}.page-order-options select{max-width:100%;min-height:44px;padding:8px;font:inherit}.page-order-options>summary:focus-visible{outline:2px solid var(--control);outline-offset:2px}
 .page-mobile-drag-label{touch-action:pan-y;cursor:default}.page-mobile-drag-label:active{cursor:default}
+
+/* Reorder is a map of the page: whole cards, separate Full/Mobile order. */
+.page-layout-reorder{display:grid;gap:16px;min-width:0}.page-layout-reorder>p{margin:0}.page-order-full-map{display:grid;gap:14px;overflow-x:auto;overscroll-behavior-x:contain;padding:3px}
+.page-order-columns{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px;min-width:460px}.page-order-lane{display:grid;align-content:start;gap:12px;min-width:0;padding:12px;background:var(--raised);border-radius:16px}.page-order-lane.is-mobile{background:transparent;padding:0}.page-order-lane h3{margin:0;font:650 .8125rem/1.4 system-ui,sans-serif;color:var(--muted)}
+.page-order-full-row{min-width:460px}.page-order-card{display:grid;align-content:start;gap:8px;min-width:0;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:14px;cursor:grab;touch-action:none;user-select:none}.page-order-card:active{cursor:grabbing}.page-order-card:focus-visible{outline:2px solid var(--control);outline-offset:3px}.page-order-card[data-dragging=true]{z-index:10;position:relative;pointer-events:none;box-shadow:0 12px 32px #0004}.page-order-card[data-locked=true]{cursor:default;touch-action:pan-y}.page-order-card strong{font:.875rem/1.4 system-ui,sans-serif;overflow-wrap:anywhere;font-weight:650}.page-order-card small{font:.75rem/1.4 system-ui,sans-serif;color:var(--muted)}
+.page-order-card-preview{display:flex;align-items:center;justify-content:center;min-height:52px;background:var(--raised);border-radius:8px}.page-order-card-preview>svg{width:48px;height:34px}.page-order-card[data-hero=true] .page-order-card-preview{min-height:80px}
+.page-order-card-actions{display:flex;align-items:center;flex-wrap:wrap;gap:4px}.page-order-card-actions>button{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:44px;min-width:44px;padding:8px;border-radius:9px;background:var(--raised);font:650 .75rem/1.4 system-ui,sans-serif;touch-action:manipulation}.page-order-card-actions>button[aria-pressed=true]{background:var(--control);color:var(--control-text)}.page-order-card-actions .glyph{width:18px;height:18px}.page-order-card-actions>button:disabled{opacity:.5}
+.page-order-drop-end{display:grid;place-items:center;min-height:64px;padding:12px;border:1px dashed var(--line);border-radius:12px;font:.75rem/1.4 system-ui,sans-serif;color:var(--muted)}.page-order-drop-end.is-full{min-width:460px}.page-panel-full-width{margin-block:18px}.page-featured-panel :is(.page-panel-live-copy>h2,.page-panel-content h2,.card>h2){font-size:clamp(1.5rem,3vw,2.25rem)}
+
+/* Arrange commands stay on one quiet surface. Narrow columns scroll the strip
+   rather than spilling buttons onto a second line or shrinking touch targets. */
+.page-panel-arrange-bar{display:grid;gap:8px;min-width:0;margin-bottom:16px}
+.page-panel-arrange-bar>.page-panel-name{font-size:.8125rem;line-height:1.4}
+.page-panel-arrange-bar>.page-panel-inline-controls{display:flex;flex-wrap:nowrap;gap:4px;padding:6px;border:0;border-radius:16px;background:var(--raised);overflow-x:auto;max-width:100%;margin:0;scroll-padding:6px}
+.page-panel-arrange-bar>.page-panel-inline-controls>button{flex:0 0 44px;min-width:44px;min-height:44px;padding:10px;background:var(--surface);border-radius:11px;box-shadow:none}
+.page-panel-arrange-bar>.page-panel-inline-controls>button[aria-pressed=true]{background:var(--control);color:var(--control-text,var(--text))}
+.page-panel-arrange-bar>.page-panel-inline-controls>button[aria-pressed=true]>.liquid-glass-tint{background:var(--control);opacity:1}
+.page-panel-arrange-bar>.page-panel-inline-controls .glyph{width:20px;height:20px}
+.page-arrange-content-preview[inert]{pointer-events:none;user-select:none}

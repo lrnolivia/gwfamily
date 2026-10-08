@@ -61,17 +61,19 @@ export function validatePanelLayout(page,value,cleanText){
  if(!PANEL_PAGES.includes(page)&&value.panels.length)throw Error('Panels are only available on shared family pages');
  const ids=new Set();
  const panels=value.panels.map(panel=>{
-  keys(panel,panel.kind!=='content'?['id','kind','zone','locked','removed',...(panel.kind==='hero'?['fullWidth']:[])]:['id','kind','zone','locked','removed','layout','title','body','secondary','media']);
+  keys(panel,panel.kind!=='content'?['id','kind','zone','locked','removed','fullWidth','hero']:['id','kind','zone','locked','removed','fullWidth','hero','layout','title','body','secondary','media']);
   if(typeof panel.id!=='string'||!/^(?:hero|native-[a-z-]{1,40}|panel-[A-Za-z0-9_-]{1,80})$/.test(panel.id)||ids.has(panel.id))throw Error('Use distinct shared panel IDs');ids.add(panel.id);
   if(!['main','side'].includes(panel.zone)||typeof panel.locked!=='boolean'||typeof panel.removed!=='boolean')throw Error('Use a valid panel location and lock state');
   const base={id:panel.id,kind:panel.kind,zone:panel.zone,locked:panel.locked,removed:panel.removed};
+  for(const flag of ['fullWidth','hero'])if(panel[flag]!==undefined){if(typeof panel[flag]!=='boolean')throw Error('Use a valid panel '+flag+' setting');base[flag]=panel[flag];}
   if(panel.kind==='native'){if(!nativePanelDefinition(page,panel.id))throw Error('Choose a built-in panel from this page');return base;}
-  if(panel.kind==='hero'){if(panel.id!=='hero')throw Error('The primary hero has a fixed identity');if(panel.fullWidth!==undefined&&typeof panel.fullWidth!=='boolean')throw Error('Use a valid hero width');return {...base,...(panel.fullWidth!==undefined?{fullWidth:panel.fullWidth}:{})};}
+  if(panel.kind==='hero'){if(panel.id!=='hero')throw Error('The primary hero has a fixed identity');return base;}
   if(panel.kind!=='content'||!panel.id.startsWith('panel-')||!PANEL_PRESETS.some(p=>p.id===panel.layout))throw Error('Choose a premade shared panel layout');
   if(!Array.isArray(panel.media)||panel.media.length>1||!['photo','feature'].includes(panel.layout)&&panel.media.length)throw Error('This layout accepts at most one photo');
   return {...base,layout:panel.layout,title:cleanText(panel.title,PANEL_LIMITS.maxTitle),body:cleanText(panel.body,PANEL_LIMITS.maxBody,true),secondary:cleanText(panel.secondary,PANEL_LIMITS.maxBody,true),media:panel.media.map(file=>{keys(file,['id','alt','frame']);if(typeof file.id!=='string'||!/^[A-Za-z0-9_-]{1,100}$/.test(file.id))throw Error('Choose an uploaded panel photo');return {id:file.id,alt:cleanText(file.alt??'',240),...photoFramePayload(file.frame)};})};
  });
  if(PANEL_PAGES.includes(page)&&!panels.some(p=>p.id==='hero'))throw Error('Keep the primary hero record; remove it recoverably instead');
+ if(panels.filter(isHeroPanel).length>1)throw Error('Choose at most one hero per page');
  const visible=panels.filter(p=>!p.removed).map(p=>p.id);
  const order=name=>{const list=value[name];if(!Array.isArray(list)||list.length!==visible.length||new Set(list).size!==list.length||list.some(id=>!visible.includes(id)))throw Error('Include every visible panel once in each order');return [...list];};
  if(panels.filter(p=>p.kind==='content').length>PANEL_LIMITS.maxCustomPanels)throw Error('Use up to 23 custom panels, including removed panels');
@@ -111,14 +113,28 @@ export function addSharedPanel(layout,panel){
  return {...layout,panels:[...layout.panels,panel],desktopOrder:[...layout.desktopOrder,panel.id],mobileOrder:[...layout.mobileOrder,panel.id]};
 }
 export function changeSharedPanel(layout,id,change){const before=layout.panels.find(p=>p.id===id);if(!before||before.locked&&Object.keys(change).some(key=>key!=='locked'))return layout;return {...layout,panels:layout.panels.map(p=>p.id===id?{...p,...change}:p)};}
+// A presentation role never changes a source-owned panel's identity, content,
+// permissions or operational data. Width and hero prominence are independent.
+export const isHeroPanel=panel=>!panel.removed&&(panel.hero??panel.kind==='hero');
+export function setSharedPanelHero(layout,id,hero=true){
+ const panel=layout.panels.find(p=>p.id===id);if(!panel||panel.removed||panel.locked)return layout;
+ const previous=layout.panels.find(p=>p.id!==id&&isHeroPanel(p));if(hero&&previous?.locked)return layout;
+ const next={...layout,panels:layout.panels.map(p=>p.id===id?{...p,hero}:hero&&isHeroPanel(p)?{...p,hero:false}:p)};
+ return lockedOrderValid(layout,next)?next:layout;
+}
+export function panelLayoutBands(panels){
+ const bands=[];let columns=[];
+ for(const panel of panels){if(panel.fullWidth){if(columns.length)bands.push({columns});bands.push({full:panel});columns=[]}else columns.push(panel)}
+ if(columns.length)bands.push({columns});return bands;
+}
 export function removeSharedPanel(layout,id){const panel=layout.panels.find(p=>p.id===id);if(!panel||panel.locked)return layout;return {...changeSharedPanel(layout,id,{removed:true}),desktopOrder:layout.desktopOrder.filter(key=>key!==id),mobileOrder:layout.mobileOrder.filter(key=>key!==id)};}
-export function restoreSharedPanel(layout,id,placement){const panel=layout.panels.find(p=>p.id===id);if(!panel?.removed)return layout;const insert=(key,index)=>{const order=layout[key].filter(key=>key!==id);order.splice(Number.isInteger(index)?Math.min(Math.max(index,0),order.length):order.length,0,id);return order;};return {...layout,panels:layout.panels.map(p=>p.id===id?{...p,removed:false}:p),desktopOrder:insert('desktopOrder',placement?.desktop),mobileOrder:insert('mobileOrder',placement?.mobile)};}
+export function restoreSharedPanel(layout,id,placement){const panel=layout.panels.find(p=>p.id===id);if(!panel?.removed)return layout;const insert=(key,index)=>{const order=layout[key].filter(key=>key!==id);order.splice(Number.isInteger(index)?Math.min(Math.max(index,0),order.length):order.length,0,id);return order;};return {...layout,panels:layout.panels.map(p=>p.id===id?{...p,removed:false,...((p.hero??p.kind==='hero')&&layout.panels.some(isHeroPanel)?{hero:false}:{})}:p),desktopOrder:insert('desktopOrder',placement?.desktop),mobileOrder:insert('mobileOrder',placement?.mobile)};}
 export function moveSharedPanel(layout,id,{zone,beforeId=null,mobile=false}={}){
  const panel=layout.panels.find(p=>p.id===id);if(!panel||panel.locked||panel.removed||beforeId===id)return layout;
- if(!mobile&&!['main','side'].includes(zone))return layout;
- if(beforeId!==null){const target=layout.panels.find(p=>p.id===beforeId&&!p.removed);if(!target||!mobile&&target.zone!==zone)return layout;}
+ const full=zone==='full';if(!mobile&&!full&&!['main','side'].includes(zone))return layout;
+ if(beforeId!==null){const target=layout.panels.find(p=>p.id===beforeId&&!p.removed);if(!target||!mobile&&!full&&target.zone!==zone)return layout;}
  const key=mobile?'mobileOrder':'desktopOrder',order=layout[key].filter(key=>key!==id),at=beforeId===null?order.length:order.indexOf(beforeId);if(at<0)return layout;
- order.splice(at,0,id);const next={...layout,panels:mobile?layout.panels:layout.panels.map(p=>p.id===id?{...p,zone}:p),[key]:order};return lockedOrderValid(layout,next)?next:layout;
+ order.splice(at,0,id);const next={...layout,panels:mobile?layout.panels:layout.panels.map(p=>p.id===id?{...p,zone:full?p.zone:zone,...(full||p.fullWidth?{fullWidth:full}:{})}:p),[key]:order};return lockedOrderValid(layout,next)?next:layout;
 }
 export function stepSharedPanel(layout,id,direction,mobile=false){const panel=layout.panels.find(p=>p.id===id),key=mobile?'mobileOrder':'desktopOrder',order=layout[key].filter(key=>mobile||layout.panels.find(p=>p.id===key)?.zone===panel?.zone),index=order.indexOf(id),nextIndex=index+direction;if(!panel||panel.locked||nextIndex<0||nextIndex>=order.length)return layout;const all=[...layout[key]],a=all.indexOf(id),b=all.indexOf(order[nextIndex]);[all[a],all[b]]=[all[b],all[a]];const next={...layout,[key]:all};return lockedOrderValid(layout,next)?next:layout;}
 export function normalizePanelContent(page,content){return {...clone(content),bodyFormats:{...content.bodyFormats},cardLayouts:{...content.cardLayouts},panelLayout:panelLayoutOf(content,page)};}

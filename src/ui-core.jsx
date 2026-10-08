@@ -8,6 +8,7 @@ import {useLiquidLens} from '@sohumsuthar/liquid-glass/hooks/useLiquidLens';
 import paths from './glyph-paths.js';
 import './member-badges.css';
 import './filter-platter.css';
+import {useFloatingPanelPosition} from './floating-panel-position.js';
 import {bindViewportBounds} from './viewport-bounds.js';
 import {bindNotificationPopoverPlacement} from './notification-popover-geometry.js';
 
@@ -113,6 +114,7 @@ export function useSheetForm({label=null,busy=false,disabled=false,dirty=false}=
 }
 export function Sheet({title,kind='normal',onClose,children,style,suppressGlobalPending=false,busy=false,completion=null}) {
  const app=useApp(),glass=app?.platform!=='android',ref=useRef(null),titleId=useId().replace(/:/g,'')+'-title';
+ const floating=useFloatingPanelPosition(ref);
  const [form,setForm]=useState(null),[confirmDiscard,setConfirmDiscard]=useState(false);
  const register=useCallback(value=>{setForm(value);return()=>setForm(current=>current?.id===value.id?null:current)},[]);
  const locked=busy||Boolean(form?.busy)||Boolean(app?.data?.pending&&!suppressGlobalPending);
@@ -121,10 +123,10 @@ export function Sheet({title,kind='normal',onClose,children,style,suppressGlobal
  const className=kind==='profile'?'profile-sheet':kind==='comments'?'comments-surface':kind==='post'?'focus-surface':kind==='composer'?'composer-surface':kind==='filter'?'filter-surface':kind==='viewer'?'focus-surface memory-sheet':'';
  const action=completion||form?.label&&{label:form.label,formId:form.id,disabled:form.disabled};
  const content=<FloatingSurfaceContext.Provider value={true}><SheetFormContext.Provider value={register}>
-  <div className="sheet-head"><Control type="button" id="close" className="icon-button sheet-close" aria-label="Close dialog" disabled={locked} onClick={close}><Glyph name="close"/></Control><h2 id={titleId}>{title}</h2>{action?<Control type={action.formId?'submit':'button'} form={action.formId} className="icon-button sheet-complete" aria-label={action.label} disabled={locked||action.disabled} onClick={action.onClick}><Glyph name="check"/></Control>:<span className="sheet-action-placeholder" aria-hidden="true"/>}</div>
+  <div className="sheet-head" {...floating.handle}>{action?<Control type={action.formId?'submit':'button'} form={action.formId} className="icon-button sheet-complete" aria-label={action.label} disabled={locked||action.disabled} onClick={action.onClick}><Glyph name="check"/></Control>:<span className="sheet-action-placeholder" aria-hidden="true"/>}<h2 id={titleId}>{title}</h2><Control type="button" id="close" className="icon-button sheet-close" aria-label="Close dialog" disabled={locked} onClick={close}><Glyph name="close"/></Control></div>
   <div id="sheet-body">{confirmDiscard?<section className="sheet-discard-confirm" role="alert"><h3>Discard unsaved changes?</h3><p>Your saved details will stay unchanged.</p><div className="row"><Button secondary onClick={()=>setConfirmDiscard(false)}>Keep editing</Button><Button onClick={()=>{setConfirmDiscard(false);onClose?.()}}>Discard changes</Button></div></section>:null}{app?.data?.error&&<p className="note" role="alert">{app.data.error}</p>}{locked&&!suppressGlobalPending&&<p role="status" className="small muted">Saving…</p>}<div inert={confirmDiscard||undefined}>{children}</div></div>
  </SheetFormContext.Provider></FloatingSurfaceContext.Provider>;
- return <dialog id="sheet" ref={ref} className={className} style={style} aria-labelledby={titleId}
+ return <dialog id="sheet" ref={ref} className={className} style={{...style,...floating.style}} aria-labelledby={titleId}
   onCancel={e=>{e.preventDefault();close()}} onClick={e=>{if(e.target===ref.current)close()}}>
   {glass?<LiquidGlass lens lensOptions={{bezel:14,refraction:1.05,dispersion:2,radius:32}} className="sheet-glass"><span className="glass-shadow" aria-hidden="true"/>{content}</LiquidGlass>:content}
  </dialog>;

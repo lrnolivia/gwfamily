@@ -10,8 +10,8 @@ test('context tools live outside canvas geometry with adaptive native dialog sem
  const source=read('page-object-tools.jsx'),css=read('page-object-tools.css');
  assert.match(source,/createPortal/);assert.match(source,/document.body/);assert.match(source,/if\(compact&&modalOnCompact\|\|protectedTask\)dialog.showModal\(\);else dialog.show\(\)/);assert.match(source,/aria-modal=\{compact&&modalOnCompact\|\|protectedTask\|\|undefined\}/);assert.match(source,/prior\?\.isConnected/);assert.match(css,/position:fixed/);assert.match(css,/min-width:44px;min-height:44px/);assert.doesNotMatch(read('page-panels.css'),/is-editing.is-wide>\.page-panel-columns/);
 });
-test('internal columns and shared image layout have explicit scope; image alignment uses object glyphs',()=>{
- const source=read('image-edit-controls.jsx');assert.match(source,/Within this panel/);assert.match(source,/Layout changes affect all screen sizes/);assert.doesNotMatch(source,/id==='left'\?'Main'/);for(const key of ['objectStart','objectCenter','objectEnd','objectFill'])assert.ok(source.includes(key));
+test('familiar image tools keep explicit shared layout scope and visible placement labels',()=>{
+ const source=read('image-edit-controls.jsx');assert.match(source,/Placement/);assert.match(source,/Layout changes affect all screen sizes/);for(const label of ['Main','Side','Alignment','Image size','Shape'])assert.ok(source.includes(label));
 });
 test('plain field completion does not interpret IME composition as Enter or Escape',()=>{
  assert.match(read('page-content.jsx'),/onKeyDown=\{e=>\{if\(e.nativeEvent.isComposing\)return;if\(e.key==='Escape'\)/);assert.match(read('page-panels.jsx'),/onKeyDown=\{event=>\{if\(event.nativeEvent.isComposing\)return;if\(event.key==='Enter'\)/);
@@ -19,10 +19,10 @@ test('plain field completion does not interpret IME composition as Enter or Esca
 
 test('image transactions retain the original canvas and commit crop, source and layout through one owner',()=>{
  const source=read('page-content.jsx'),panels=read('page-panels.jsx'),photo=read('photo-framing.jsx');
- assert.match(source,/function PageMediaTask/);assert.match(source,/const next=\{\.\.\.content,hero:nextHero\};return nextLayout&&imageLayout\?\.apply\?imageLayout.apply\(next,nextLayout\):next/);assert.match(source,/JSON.stringify\(editor.content.hero\)!==JSON.stringify\(baseline.current\)/);assert.match(source,/hero=\{hero\} setHero=\{setHero\}/);assert.match(panels,/function PanelPhotoTask/);assert.match(panels,/if\(alive.current\)setDraft\(\{\.\.\.output/);assert.match(photo,/Framing target/);assert.match(photo,/Reset \{target\} framing/);assert.match(photo,/Photo position/);assert.match(photo,/frames,layoutDraft/);assert.match(photo,/!atomicLayout/);
+ assert.match(source,/function PageMediaTask/);assert.match(source,/const next=\{\.\.\.content,hero:nextHero\};return nextLayout&&imageLayout\?\.apply\?imageLayout.apply\(next,nextLayout\):next/);assert.match(source,/JSON.stringify\(editor.content.hero\)!==JSON.stringify\(baseline.current\)/);assert.match(source,/hero=\{hero\} setHero=\{setHero\}/);assert.match(panels,/function PanelPhotoTask/);assert.match(panels,/if\(alive.current\)setDraft\(\{\.\.\.output/);assert.match(photo,/Framing target/);assert.match(photo,/aria-label="Reset frame"/);assert.match(photo,/\[\['desktop','Full'\],\['mobile','Mobile'\]\]/);assert.match(photo,/Photo position/);assert.match(photo,/frames,layoutDraft/);assert.match(photo,/!atomicLayout/);
 });
 
-test('reorder overview states an explicit saved order and has handle, button, destination and protection routes',()=>{
+test('reorder overview states an explicit saved order and has whole-card drag, Full/Mobile areas and protection routes',()=>{
  const panels=read('page-panels.jsx'),card=read('card-content-layout.jsx');
- assert.match(panels,/Panel order target/);assert.match(panels,/\[mobile\?'mobileOrder':'desktopOrder'\]/);assert.match(panels,/Move before/);assert.match(panels,/Protected panels must be unlocked/);assert.match(panels,/Content in this panel/);assert.match(panels,/setObjectRequest\(\{page,cardId:selectedPanel.id,slotId:slot.id\}\)/);assert.match(card,/Reset panel layout/);assert.match(card,/editor.objectRequest/);
+ assert.match(panels,/Panel order target/);assert.match(panels,/\[mobile\?'mobileOrder':'desktopOrder'\]/);assert.match(panels,/className="page-order-card"/);assert.match(panels,/Unlock protected cards/);assert.match(panels,/page-order-columns/);assert.match(panels,/setSharedPanelHero/);assert.match(panels,/setObjectRequest\(\{page,cardId:selectedPanel.id,slotId:slot.id\}\)/);assert.match(card,/Reset panel layout/);assert.match(card,/editor.objectRequest/);
 });
