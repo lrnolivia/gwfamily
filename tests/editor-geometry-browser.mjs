@@ -84,6 +84,15 @@ try{
  await hero.getByRole('button',{name:'Layout for Heading',exact:true}).click();
  await expect(tools().getByRole('img',{name:'Preview of Heading',exact:true})).toContainText('More time');
  await expect(tools().getByRole('img',{name:'Preview of Heading',exact:true}).locator('[contenteditable=true],input,textarea')).toHaveCount(0);
+ await tools().getByRole('button',{name:'Remove element',exact:true}).click();await saved();await expect(hero.getByRole('button',{name:'Edit Hero heading',exact:true})).toHaveCount(0);
+ await page.reload();await expect(toolbar().getByRole('button',{name:/^(Edit page|Resume page edits)$/})).toBeVisible();await begin();
+ await expect(hero.getByRole('button',{name:'Edit Hero heading',exact:true})).toHaveCount(0);
+ await hero.getByRole('button',{name:/^Panel options for /}).click();
+ const removedHeading=tools().locator('.page-editor-element-row').filter({hasText:'Heading'});await expect(removedHeading).toContainText('Removed · Restore');await removedHeading.getByRole('button').first().click();await saved();
+ await expect(hero.getByRole('button',{name:'Edit Hero heading',exact:true})).toBeVisible();
+ await tools().getByRole('button',{name:'Remove Heading',exact:true}).click();await saved();await expect(hero.getByRole('button',{name:'Edit Hero heading',exact:true})).toHaveCount(0);
+ await removedHeading.getByRole('button').first().click();await saved();await expect(hero.getByRole('button',{name:'Edit Hero heading',exact:true})).toBeVisible();
+ results.push('Layout Options and Edit Panel remove/restore elements across reload without deleting content');
  await tools().getByRole('button',{name:'Close object tools',exact:true}).click();
  await toolbar().locator('.page-edit-tools > summary').click();await toolbar().getByRole('button',{name:'Arrange page',exact:true}).click();
  await expect(hero.getByRole('button',{name:'Edit Hero heading',exact:true})).toHaveCount(0);await expect(hero.getByRole('button',{name:'Edit Home page media',exact:true})).toHaveCount(0);

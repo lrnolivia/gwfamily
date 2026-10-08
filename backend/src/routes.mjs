@@ -99,6 +99,7 @@ export function registerFamily(app){registerPhotoDiscussions(app);registerPushRo
   }
   if(!allowed)allowed=!!await db.prepare('SELECT id FROM households WHERE photo_url=?').bind('/api/media/'+row.id).first();
   if(!allowed){const products=(await db.prepare('SELECT data_json FROM products WHERE active=1 AND deleted_at IS NULL').bind().all()).results;allowed=products.some(p=>json(p.data_json).photo==='/api/media/'+row.id)}
+  if(!allowed)allowed=!!await db.prepare("SELECT id FROM memorials WHERE json_extract(profile_json,'$.photo')=?").bind('/api/media/'+row.id).first();
   if(!allowed)allowed=await publishedPageReferencesMedia(db,actor,row.id);
   if(!allowed)allowed=await photoCommentsReferenceMedia(db,actor,row.id);
   if(!allowed)throw new UserError('File not found',404);const object=await c.env.R2.get(row.object_key);if(!object)throw new UserError('File not found',404);

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {CARD_COLUMNS,cardSlots,defaultCardLayout,cardLayoutOf,validateCardLayouts,moveCardSlot,stepCardSlot,alignCardSlot,sizeCardImage,cardColumnVertical,alignCardColumn,keyboardCardSlot,updateCardLayout} from '../src/card-content-layout-model.js';
+import {CARD_COLUMNS,cardSlots,defaultCardLayout,cardLayoutOf,validateCardLayouts,moveCardSlot,stepCardSlot,alignCardSlot,sizeCardImage,cardColumnVertical,alignCardColumn,keyboardCardSlot,updateCardLayout,setCardSlotRemoved} from '../src/card-content-layout-model.js';
 import {sharedPageDefaults,validateSharedPageContent} from '../src/shared-content-schema.js';
 import {createSharedPanel,addSharedPanel,changeSharedPanel,validatePanelTransition} from '../src/shared-panels.js';
 import {pageContentPayload,pageContentFingerprint,mergePageDraft,validRestoredDraft,collectPageDrafts,reconcilePageRecord,initialRecord} from '../src/page-content-model.js';
@@ -97,4 +97,13 @@ test('Messages empty invitations do not create a phantom sidebar row and birthda
  const jsx=readFileSync(new URL('../src/messaging.jsx',import.meta.url),'utf8'),app=readFileSync(new URL('../src/react-app.jsx',import.meta.url),'utf8');
  assert.match(jsx,/'native-invitations':Boolean\(view.invitations.length>0\|\|paging.invitationCursor\)&&/);
  assert.match(app,/'native-birthdays':<Birthdays\/>/);assert.doesNotMatch(app,/'native-birthdays':<section[^>]*><Birthdays/);
+});
+
+test('removing and restoring content preserves slot data, ordering, lock boundaries and reload',()=>{
+ const base=unlocked(),draft=updateCardLayout(base,'home','hero',layout=>setCardSlotRemoved(layout,'title'));
+ assert.deepEqual(draft.cardLayouts.hero.hidden,['title']);assert.deepEqual(draft.text,base.text);assert.deepEqual(all(draft.cardLayouts.hero),all(defaultCardLayout('home',hero)));
+ const saved=validateSharedPageContent('home',pageContentPayload(draft));assert.deepEqual(saved.cardLayouts.hero.hidden,['title']);
+ const restored=updateCardLayout(saved,'home','hero',layout=>setCardSlotRemoved(layout,'title',false));assert.equal(restored.cardLayouts.hero.hidden,undefined);assert.deepEqual(all(restored.cardLayouts.hero),all(draft.cardLayouts.hero));
+ assert.equal(updateCardLayout(sharedPageDefaults('home'),'home','hero',layout=>setCardSlotRemoved(layout,'title')).cardLayouts.hero,undefined);
+ for(const hidden of [['unknown'],['title','title'],'title'])assert.throws(()=>validateCardLayouts('home',base.panelLayout,{hero:{...defaultCardLayout('home',hero),hidden}}),/supported content/);
 });

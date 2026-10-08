@@ -95,3 +95,12 @@ test('dropping at a Main or Side band end inserts before the next Full width bou
  const protectedBoundary=changeSharedPanel(before,'panel-one',{locked:true});
  assert.equal(moveSharedPanel(protectedBoundary,'panel-two',{zone:'main',beforeId:'panel-one'}),protectedBoundary);
 });
+
+test('removed individual media slots retain recovery bytes without granting shared visibility',async()=>{
+ const {updateCardLayout,setCardSlotRemoved}=await import('../src/card-content-layout-model.js');
+ let content=sharedPageDefaults('home');content.panelLayout=changeSharedPanel(content.panelLayout,'hero',{locked:false});content.hero={mode:'image',media:[{id:'hidden-photo',alt:'Retained photo'}]};
+ content=updateCardLayout(content,'home','hero',layout=>setCardSlotRemoved(layout,'media'));
+ assert.equal(sharedPageMedia(content).some(m=>m.id==='hidden-photo'),false);
+ assert.equal(sharedPageMedia(content,{includeRemoved:true}).some(m=>m.id==='hidden-photo'),true);
+ content=updateCardLayout(content,'home','hero',layout=>setCardSlotRemoved(layout,'media',false));assert.equal(sharedPageMedia(content).some(m=>m.id==='hidden-photo'),true);
+});

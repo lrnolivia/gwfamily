@@ -5,7 +5,7 @@ html[data-theme][data-platform] .post-compose-field:focus-within{border-color:va
 html[data-theme][data-platform] .post-compose-field.formatting-open{padding-top:0}
 /* The composer owns the top edge; background art must not inset its toolbar. */
 html[data-theme][data-platform] .poster-preview:has(>.post-compose-field){padding:0}
-html[data-theme][data-platform] .post-format-toggle{position:absolute;top:5px;left:8px;display:inline-flex;align-items:center;gap:5px;min-height:44px;padding:6px 10px;border-radius:999px;background:color-mix(in srgb,var(--control) 12%,var(--raised));color:var(--control);font-size:.75rem;font-weight:650;z-index:2}
+html[data-theme][data-platform] .post-format-toggle{position:absolute;top:5px;left:8px;display:inline-flex;align-items:center;gap:5px;height:32px;min-height:32px;padding:4px 10px;border-radius:10px;background:var(--control);color:var(--control-text);font-size:.75rem;font-weight:650;z-index:2}
 html[data-theme][data-platform] .post-format-toggle .glyph{width:15px;height:15px}
 html[data-theme][data-platform] .post-compose-field .page-markdown-editor{border:0;background:transparent;outline:0;box-shadow:none;border-radius:20px}
 html[data-theme][data-platform] .post-compose-field .page-markdown-toolbar{border-radius:0;flex-wrap:nowrap;min-width:0;animation:post-tools-in 140ms ease-out}
@@ -53,3 +53,25 @@ html[data-theme][data-platform] .background-custom input[type=color]{appearance:
 .post-body.page-markdown-body{white-space:normal}
 @keyframes post-tools-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){html[data-theme][data-platform] .post-compose-field .page-markdown-toolbar{animation:none}}
+
+.post-compose-options{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8px}
+.post-compose-options>.inline-disclosure{display:contents}
+.post-compose-options .inline-disclosure-content{grid-column:1/-1;grid-row:2}
+.post-compose-options>.post-leader-toggle{grid-column:2;grid-row:1}
+.post-compose-options .inline-disclosure-trigger{width:100%;min-width:0;grid-column:1;grid-row:1}
+html[data-theme][data-platform] .post-compose-options .inline-disclosure-trigger,
+html[data-theme][data-platform] .post-leader-toggle{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:44px;min-height:44px;margin:0;padding:8px;border:0;border-radius:14px;background:var(--raised);color:var(--text);font-size:.8125rem;font-weight:650;white-space:nowrap;box-shadow:none}
+.post-compose-options .glyph{width:18px;height:18px;flex:none}
+.post-toggle-track{display:inline-flex;align-items:center;width:30px;height:18px;padding:2px;border-radius:99px;background:color-mix(in srgb,var(--text) 30%,transparent)}
+.post-toggle-track>span{display:block;width:14px;height:14px;border-radius:50%;background:var(--surface);transition:transform 140ms ease-out}
+.post-leader-toggle[aria-checked=true] .post-toggle-track{background:var(--control)}
+.post-leader-toggle[aria-checked=true] .post-toggle-track>span{transform:translateX(12px);background:var(--control-text)}
+@media(prefers-reduced-motion:reduce){.post-toggle-track>span{transition:none}}
+
+html[data-theme][data-platform] .post-compose-prompt{position:absolute;inset:0;display:grid;place-items:center;padding:54px 28px;pointer-events:none;user-select:none;text-align:center;text-wrap:balance;font-size:1.125rem;line-height:1.35;font-weight:500;color:var(--text);opacity:.2;z-index:1}
+html[data-theme][data-platform] .poster-preview .post-compose-prompt{color:var(--poster-text);font-size:1.75rem;font-weight:700}
+html[data-theme][data-platform] .poster-preview:has(.poster-media) .post-compose-prompt{color:#fff}
+
+html[data-theme][data-platform] .poster-preview :is(.post-compose-field>textarea,.page-markdown-visual,.page-markdown-source,.post-body){text-shadow:0 1px 3px color-mix(in srgb,var(--poster-shadow) 85%,transparent),0 3px 14px color-mix(in srgb,var(--poster-shadow) 65%,transparent)}
+
+html[data-theme][data-platform] .profile-menu .appearance-full-width{width:100%;align-self:stretch;justify-content:center}

@@ -15,3 +15,7 @@
 .guided-help .install-guide-note{font-size:.875rem;line-height:1.55}
 @media(max-width:500px){.install-visual-group{padding-left:0}.install-native-visual,.install-layout-choices{width:100%}.install-source-links{padding-left:0;gap:8px 14px}.install-native-visual figcaption{font-size:.875rem}}
 @media(forced-colors:active){.install-native-frame{outline:1px solid CanvasText}.install-source-links>a{color:LinkText}}
+
+.is-mobile-guide{padding-left:0}.install-mobile-visual{width:100%;max-width:430px}.install-mobile-visual>.install-native-frame{background:transparent;border-radius:0;overflow:visible}
+
+.install-inline-control{display:inline-flex;align-items:center;vertical-align:middle;margin-inline:4px;pointer-events:none}.install-inline-control>svg{display:block;width:1.25em;height:1.25em;fill:none}.install-inline-control>img{display:block;width:auto;height:1.75em;object-fit:contain}

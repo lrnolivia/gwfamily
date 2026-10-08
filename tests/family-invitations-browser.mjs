@@ -18,6 +18,24 @@ try{
   await view.goto(base+'/'+new URL(link).hash);await view.getByRole('button',{name:'Accept invitation',exact:true}).click();await expect(view.getByRole('status').filter({hasText:'Invitation recorded.'})).toBeVisible();
   await expect(view.getByText('Fictional read-only family update',{exact:true})).toHaveCount(0);assert.equal((await pending.request.get(base+'/api/state')).status(),403);
  }finally{await pending.close()}
+ await dialog.getByRole('button',{name:'Close dialog',exact:true}).click();
+ await page.goto(base+'/#/invitations');await expect(page.getByRole('heading',{name:'Invitations',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Create your invitation link',exact:true}).click();
+ const reusable=page.getByLabel('Your reusable invitation link',{exact:true});await expect(reusable).toBeVisible();const original=await reusable.inputValue();assert.match(original,/#\/family-invite\/[a-f0-9]{64}$/);
+ await page.reload();await expect(reusable).toHaveValue(original);
+ await page.getByRole('button',{name:'Replace link',exact:true}).click();await page.getByRole('button',{name:'Keep current link',exact:true}).click();await expect(reusable).toHaveValue(original);
+ await page.getByRole('button',{name:'Replace link',exact:true}).click();await page.getByRole('button',{name:'Replace invitation link',exact:true}).click();await expect(reusable).not.toHaveValue(original);
+ const replacement=await reusable.inputValue();await page.reload();await expect(reusable).toHaveValue(replacement);
+ await mkdir('docs/invitation-qa',{recursive:true});await page.screenshot({path:`docs/invitation-qa/${engine}-reusable-link.png`,fullPage:true});
+ await page.goto(base+'/__test/signin?user=owner');await page.goto(base+'/#/family?tab=tree');await page.getByRole('button',{name:'Add memorial profile',exact:true}).click();
+ const memorial=page.getByRole('dialog',{name:'Remembering family',exact:true});await expect(memorial).toBeVisible();
+ await memorial.getByRole('textbox',{name:'Name',exact:true}).fill('Fictional QA ancestor');await memorial.getByRole('textbox',{name:'Birth year · If known',exact:true}).fill('1870');await memorial.getByRole('textbox',{name:'Year of passing · If known',exact:true}).fill('1940');await memorial.getByRole('textbox',{name:'Family story · Optional',exact:true}).fill('An isolated test story.');
+ await memorial.locator('form').getByRole('button',{name:'Save memorial profile',exact:true}).click();await expect(memorial).toHaveCount(0);
+ await page.reload();await page.getByRole('button',{name:/Fictional QA ancestor.*In loving memory/}).click();await expect(memorial).toContainText('1870 – 1940');
+ await memorial.getByRole('button',{name:'Edit memorial profile',exact:true}).click();await memorial.getByRole('textbox',{name:'Family story · Optional',exact:true}).fill('An updated isolated test story.');await memorial.locator('form').getByRole('button',{name:'Save memorial profile',exact:true}).click();await expect(memorial).toHaveCount(0);
+ await page.reload();await page.getByRole('button',{name:/Fictional QA ancestor.*In loving memory/}).click();await expect(memorial).toContainText('An updated isolated test story.');await page.screenshot({path:`docs/invitation-qa/${engine}-memorial.png`,fullPage:true});await memorial.getByRole('button',{name:'Close dialog',exact:true}).click();
+ await page.goto(base+'/#/about');await expect(page.getByRole('heading',{name:'About Green & White',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'Open-source software',exact:true})).toBeVisible();await page.locator('.about-notice').filter({hasText:'react 19.2.0'}).first().locator('summary').click();await expect(page.locator('.about-notice[open] pre')).toBeVisible();
+ await page.goto(base+'/__test/signin?user=bob');await page.goto(base+'/#/family?tab=tree');await expect(page.getByRole('button',{name:'Add memorial profile',exact:true})).toHaveCount(0);
  await page.setViewportSize({width:1024,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth)<=1);assert.deepEqual(errors,[]);
  await mkdir('docs/invitation-qa',{recursive:true});await page.screenshot({path:`docs/invitation-qa/${engine}-invitation.png`,fullPage:true});await writeFile(`docs/invitation-qa/${engine}-results.json`,JSON.stringify({sourceSha:process.env.GW_SOURCE_SHA,engine,result:'pass',synthetic:true,errors},null,2));
 }finally{await context.close();await browser.close()}

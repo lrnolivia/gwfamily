@@ -20,3 +20,6 @@ html[data-theme=dark][data-platform] .button.sign-out.sign-out{background:var(--
 .heading-fonts{padding:0;margin:0;border:0;min-width:0}
 .heading-fonts legend{margin-bottom:10px;font-weight:650}
 @media(max-width:359px){.heading-font-options{grid-template-columns:minmax(0,1fr)}}
+
+.page-panel-zone-side>.you-account-actions{width:100%;margin:0}
+.page-panel-zone-side>.you-account-actions>.sign-out{width:100%;max-width:none;min-width:0}
