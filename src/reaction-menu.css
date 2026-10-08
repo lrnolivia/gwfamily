@@ -37,3 +37,9 @@ html[data-theme][data-platform] .post-overflow-pop .post-menu-delete{color:var(-
 html[data-theme][data-platform] .comment-actions{display:flex;flex-wrap:nowrap;gap:4px;align-items:center;min-width:0}
 html[data-theme][data-platform] .comment-actions>.small-reaction-chips{display:flex;flex:1 1 auto;min-width:0;flex-wrap:nowrap;overflow-x:auto;align-items:center}
 html[data-theme][data-platform] .comment-actions .reaction-pill,html[data-theme][data-platform] .comment-actions .react-trigger{flex:0 0 auto;min-height:44px}
+
+/* The hit area stays 44px. The pill itself is a compact 28px surface. */
+html[data-theme][data-platform] .comment-actions :is(.reaction-pill,.react-trigger){position:relative;isolation:isolate;display:inline-flex;align-items:center;justify-content:center;height:44px;min-height:44px;min-width:36px;padding:0 8px;border:0!important;border-radius:999px;background:transparent!important;box-shadow:none!important;line-height:1;font-size:.875rem}
+html[data-theme][data-platform] .comment-actions :is(.reaction-pill,.react-trigger)::before{content:'';position:absolute;inset:8px 0;z-index:-1;pointer-events:none;border-radius:999px;background:var(--raised)}
+html[data-theme][data-platform] .comment-actions .reaction-pill[aria-pressed=true]::before{background:color-mix(in srgb,var(--control) 16%,var(--raised))}
+html[data-theme][data-platform] .comment-actions .react-trigger .glyph{width:16px;height:16px}

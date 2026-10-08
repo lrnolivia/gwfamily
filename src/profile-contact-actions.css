@@ -8,5 +8,17 @@
 .profile-contact-row .contact-more{flex:none;width:44px;min-height:44px;margin-inline-end:4px;background:transparent;color:var(--muted);font-size:1.25rem}
 .profile-contact-private{display:flex;align-items:center;gap:10px;color:var(--muted);padding:16px;border-radius:16px;background:var(--raised)}
 .profile-contact-private>.glyph{width:20px;height:20px;flex:none}
-.profile-contact-details>.button{width:100%}
 .profile-contact-row :focus-visible{outline:2px solid var(--text);outline-offset:-3px;border-radius:14px}
+
+/* Profile actions belong to the profile; exported contacts are never offered on self. */
+html[data-theme][data-platform] .profile-overview .profile-options-trigger{position:absolute;top:12px;right:12px;width:44px;height:44px;min-height:44px;padding:10px;border:0;border-radius:50%;background:var(--raised);color:var(--text);z-index:2;margin:0}
+.profile-options-trigger .glyph{width:20px;height:20px}
+/* The full profile gives the portrait the same prominence as its name. */
+html[data-theme][data-platform] .profile-page .profile-overview-head{gap:24px;margin-top:-72px;align-items:center}
+html[data-theme][data-platform] .profile-page .profile-overview-head .large-avatar{width:clamp(144px,18vw,192px);height:clamp(144px,18vw,192px);flex:none;outline:5px solid var(--surface);font-size:3.5rem}
+html[data-theme][data-platform] .profile-page .profile-overview-head>.profile-photo-open{flex:none;width:auto;height:auto;padding:0;border:0;background:transparent;border-radius:50%;box-shadow:none}
+html[data-theme][data-platform] .profile-page .profile-overview-head>div{padding-top:48px}
+@media(max-width:600px){
+ html[data-theme][data-platform] .profile-page .profile-overview-head{flex-direction:column;align-items:flex-start;gap:18px}
+ html[data-theme][data-platform] .profile-page .profile-overview-head>div{padding-top:0}
+}

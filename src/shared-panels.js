@@ -1,3 +1,4 @@
+import {validatePageElements,elementPayload} from './page-elements-model.js';
 import {cardSlots,cardLayoutOf} from './card-content-layout-model.js';
 import {photoFramePayload} from './photo-framing-model.js';
 // Shared presentation only. Native slots contain allowlisted layout identities,
@@ -53,7 +54,7 @@ export function migratePanelLayout(page,layout){
  return {...layout,version:2,panels:[...layout.panels,...missing],desktopOrder:append('desktopOrder'),mobileOrder:append('mobileOrder')};
 }
 export function panelLayoutOf(content,page){return migratePanelLayout(page,content.panelLayout);}
-export function panelPayload(layout){return {...layout,panels:layout.panels.map(panel=>panel.kind!=='content'?{...panel}:{...panel,media:panel.media.map(({id,alt='',frame})=>({id,alt,...photoFramePayload(frame)}))})};}
+export function panelPayload(layout){return {...layout,panels:layout.panels.map(panel=>({...panel,...(panel.media?{media:panel.media.map(({id,alt='',frame})=>({id,alt,...photoFramePayload(frame)}))}:{}),...(panel.elements?{elements:panel.elements.map(elementPayload)}:{})}))};}
 export function validatePanelLayout(page,value,cleanText){
  if(value===undefined)return defaultPanelLayout(page);
  keys(value,['version','panels','desktopOrder','mobileOrder']);
@@ -61,10 +62,10 @@ export function validatePanelLayout(page,value,cleanText){
  if(!PANEL_PAGES.includes(page)&&value.panels.length)throw Error('Panels are only available on shared family pages');
  const ids=new Set();
  const panels=value.panels.map(panel=>{
-  keys(panel,panel.kind!=='content'?['id','kind','zone','locked','removed','fullWidth','hero']:['id','kind','zone','locked','removed','fullWidth','hero','layout','title','body','secondary','media']);
+  keys(panel,panel.kind!=='content'?['id','kind','zone','locked','removed','fullWidth','hero','elements']:['id','kind','zone','locked','removed','fullWidth','hero','layout','title','body','secondary','media','elements']);
   if(typeof panel.id!=='string'||!/^(?:hero|native-[a-z-]{1,40}|panel-[A-Za-z0-9_-]{1,80})$/.test(panel.id)||ids.has(panel.id))throw Error('Use distinct shared panel IDs');ids.add(panel.id);
   if(!['main','side'].includes(panel.zone)||typeof panel.locked!=='boolean'||typeof panel.removed!=='boolean')throw Error('Use a valid panel location and lock state');
-  const base={id:panel.id,kind:panel.kind,zone:panel.zone,locked:panel.locked,removed:panel.removed};
+  const elements=validatePageElements(panel.elements,cleanText),base={id:panel.id,kind:panel.kind,zone:panel.zone,locked:panel.locked,removed:panel.removed,...(elements?{elements}:{})};if(panel.kind==='native'&&elements?.length)throw Error('Add content elements to a hero or custom content panel');
   for(const flag of ['fullWidth','hero'])if(panel[flag]!==undefined){if(typeof panel[flag]!=='boolean')throw Error('Use a valid panel '+flag+' setting');base[flag]=panel[flag];}
   if(panel.kind==='native'){if(!nativePanelDefinition(page,panel.id))throw Error('Choose a built-in panel from this page');return base;}
   if(panel.kind==='hero'){if(panel.id!=='hero')throw Error('The primary hero has a fixed identity');return base;}
@@ -83,7 +84,7 @@ export function validatePanelLayout(page,value,cleanText){
 }
 export function sharedPageMedia(content,{includeRemoved=false}={}){
  const layout=content.panelLayout,hero=layout?.panels.find(p=>p.id==='hero');
- return [...(!hero?.removed||includeRemoved?content.hero.media.map(file=>({...file,mediaMode:content.hero.mode})):[]),...(layout?.panels||[]).filter(p=>p.kind==='content'&&(!p.removed||includeRemoved)).flatMap(p=>p.media.map(file=>({...file,mediaMode:'image'})))];
+ return [...(!hero?.removed||includeRemoved?content.hero.media.map(file=>({...file,mediaMode:content.hero.mode})):[]),...(layout?.panels||[]).filter(p=>p.kind==='content'&&(!p.removed||includeRemoved)).flatMap(p=>p.media.map(file=>({...file,mediaMode:'image'}))),...(layout?.panels||[]).filter(p=>!p.removed||includeRemoved).flatMap(p=>(p.elements||[]).flatMap(element=>(element.media||[]).map(file=>({...file,mediaMode:'image'}))))];
 }
 export function validatePanelTransition(page,before,after){
  const previous=panelLayoutOf(before,page),next=panelLayoutOf(after,page);
