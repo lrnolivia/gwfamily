@@ -320,7 +320,7 @@ async function mediaPanel(page, key = 'home') {
   if (await imageEditor.count()) await imageEditor.getByRole('button', {name: 'Replace media', exact: true}).click();
   const panel = page.getByRole('region', {name: 'Page media', exact: true});
   await expect(panel).toBeVisible();
-  await expect(page.locator('.page-object-tools'), 'Media has one protected image task outside the canvas.').toHaveCount(1);
+  await expect(page.locator('.page-object-tools'), 'Media has one image task outside the canvas.').toHaveCount(1);
   return panel;
 }
 async function togglePanelProtection(page, panel, locked) {
@@ -384,8 +384,8 @@ async function closeEditorPanel(page, name) {
 }
 async function editorPanelFits(page, panel) {
   await expect(panel).toBeVisible();
-  const surface=await panel.evaluate(element=>({media:element.getAttribute('aria-label')==='Page media',inMain:!!element.closest('main'),tools:!!element.closest('dialog.page-object-tools'),modal:element.closest('dialog')?.matches(':modal')||false}));
-  if(surface.media){assert.equal(surface.inMain,false,'Media edits stay outside the canvas.');assert.equal(surface.tools,true,'Media uses the shared object-tools surface.');assert.equal(surface.modal,true,'The image task protects its unsaved media draft.')}
+  const surface=await panel.evaluate(element=>({media:element.getAttribute('aria-label')==='Page media',inMain:!!element.closest('main'),tools:!!element.closest('dialog.page-object-tools')}));
+  if(surface.media){assert.equal(surface.inMain,false,'Media edits stay outside the canvas.');assert.equal(surface.tools,true,'Media uses the shared object-tools surface.');const compact=await page.evaluate(()=>innerWidth<=700);await expect.poll(()=>panel.evaluate(element=>element.closest('dialog')?.matches(':modal')||false),{message:'Media uses a protected Mobile sheet and a movable Full pane.'}).toBe(compact)}
   else assert.equal(surface.inMain&&!surface.tools,true,'History retains its ordinary inline page surface.');
   const geometry = await panel.evaluate(element => ({box: element.getBoundingClientRect().toJSON(), width: innerWidth}));
   assert.ok(geometry.box.width > 0 && geometry.box.left >= -1 && geometry.box.right <= geometry.width + 1,
