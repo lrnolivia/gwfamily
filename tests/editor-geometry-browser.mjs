@@ -26,6 +26,24 @@ try{
  for(const width of [320,390,768,1280]){
   await page.setViewportSize({width,height:900});await begin();
   await expect(page.getByRole('navigation',{name:'Main navigation',exact:true})).toBeHidden();
+  const reunionPanel=page.locator('[data-panel-page="home"] [data-panel-id="native-reunion"]');
+  const panelOptions=reunionPanel.getByRole('button',{name:/^Panel options for /});
+  const panelTitle=(await panelOptions.getAttribute('aria-label')).replace('Panel options for ','');
+  await panelOptions.click();
+  const order=tools().locator('.page-editor-order');
+  const earlier=order.getByRole('button',{name:'Move '+panelTitle+' earlier',exact:true});
+  const later=order.getByRole('button',{name:'Move '+panelTitle+' later',exact:true});
+  for(const control of [earlier,later]){
+   await expect(control).toBeVisible();await expect(control).toBeEnabled();
+   assert.equal((await control.textContent()).trim(),'','Inspector ordering is arrow-only.');
+   await expect(control.locator('svg[aria-hidden="true"]')).toHaveCount(1);
+   assert.equal(await control.getAttribute('title'),await control.getAttribute('aria-label'));
+   const rect=await control.boundingBox();assert.ok(rect.width>=44&&rect.height>=44,JSON.stringify(rect));
+  }
+  await earlier.focus();await page.keyboard.press('Tab');await expect(later).toBeFocused();
+  await tools().getByRole('button',{name:'Close object tools',exact:true}).click();await expect(panelOptions).toBeFocused();
+  results.push('Arrow-only named inspector controls, 44px targets and keyboard focus at '+width+'px');
+
   for(const id of ['hero','native-reunion']){
    const attached=page.locator('[data-panel-page="home"] [data-panel-id="'+id+'"]');
    if(!await attached.count())continue;
