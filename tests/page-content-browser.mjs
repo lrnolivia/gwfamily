@@ -866,7 +866,7 @@ try {
     browserReads.get(anonymous).beginNavigation(anonymous.url());
     await anonymous.reload({waitUntil: 'domcontentloaded'});
     await expect(anonymous.locator('.onboard')).toBeVisible();
-    await expect(anonymous.getByText('Good to see you.', {exact: true})).toBeVisible();
+    await expect(anonymous.getByRole('heading', {name: 'Come on in.', exact: true})).toBeVisible();
     await expect(anonymous.locator('footer')).toContainText('Green & White. Same roots. New memories.');
     await expect(anonymous.getByText(updated.text.footerTagline, {exact: true})).toHaveCount(0);
     await expect(anonymous.getByText((await record(owner)).content.text.heading, {exact: true})).toHaveCount(0);

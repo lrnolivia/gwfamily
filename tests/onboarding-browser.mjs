@@ -17,6 +17,9 @@ try{
  await page.addInitScript(()=>{localStorage.setItem('gw-font','serif');localStorage.setItem('gw-theme','light');localStorage.setItem('gw-platform','ios')});
  for(const [width,height]of [[430,780],[1280,1000],[375,600]]){
   await page.setViewportSize({width,height});await page.goto(base+'/');await expect(page.getByRole('button',{name:'Email me a code',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Come on in.',exact:true})).toBeVisible();
+  await expect(page.locator('footer')).toContainText('Green & White. Same roots. New memories.');
+  await expect(page.locator('img[src^="/api/media/"], video[src^="/api/media/"], [data-page-field]')).toHaveCount(0);
   await expect(page.getByRole('heading',{name:'Good to see you',exact:true})).toHaveCount(0);for(const provider of ['Google','Microsoft','Yahoo'])await expect(page.getByRole('button',{name:'Sign up with '+provider,exact:true})).toBeVisible();
   const geometry=await page.evaluate(()=>{
    const frame=document.querySelector('.onboarding-frame'),card=frame?.querySelector(':scope > .onboard.card'),preview=frame?.querySelector(':scope > .onboarding-more'),mark=card?.querySelector('.wordmark'),form=card?.querySelector('.sign-in-form');
