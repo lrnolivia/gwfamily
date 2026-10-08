@@ -881,6 +881,9 @@ try {
       assert.notEqual(edge.display,'none');assert.match(edge.blur,/blur\(18px\)/);assert.match(edge.mask,/linear-gradient/);
       const photoComposer=bob.locator('.photo-viewer-content .conversation-composer');
       await expect(photoComposer).toBeVisible();
+      // A viewport resize is asynchronous: wait for the actual visible frame,
+      // preserving the containment assertions instead of sampling old --vv-*.
+      await expect.poll(()=>photoComposer.evaluate(node=>{const r=node.getBoundingClientRect(),v=window.visualViewport;return r.left>=0&&r.right<=(v?.width||innerWidth)&&r.bottom<=(v?.offsetTop||0)+(v?.height||innerHeight)}),{message:'Photo composer follows the resized visual viewport'}).toBe(true);
       for(const focus of [false,true]){
         if(focus)await photoComposer.getByRole('textbox').focus();
         const box=await photoComposer.evaluate(node=>{const rect=node.getBoundingClientRect(),field=node.querySelector('textarea').getBoundingClientRect(),v=window.visualViewport;return {position:getComputedStyle(node).position,left:rect.left,right:rect.right,bottom:rect.bottom,top:rect.top,fieldTop:field.top,fieldBottom:field.bottom,width:v?.width||innerWidth,viewportBottom:(v?.offsetTop||0)+(v?.height||innerHeight)}});

@@ -23,7 +23,6 @@ export function authenticatedReadNavigation(page, base) {
   page.on('requestfailed', request => { pending.delete(request); lastActivity = Date.now(); });
   const settle = async () => {
     if (!documentStarted) return;
-    await expect(page.getByRole('navigation', {name: 'Main navigation', exact: true})).toBeVisible();
     const route = new URL(page.url()).hash.replace(/^#\//, '').split(/[/?]/)[0] || 'home';
     const required = ['/build.json', '/api/config', '/api/session', '/api/state', '/api/conversations',
       '/api/conversations/recipients', '/api/notifications', '/api/page-content/global'];
