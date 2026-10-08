@@ -47,7 +47,7 @@ function ToolIcon({name}){
  return <svg className="glyph" viewBox="0 0 24 24" aria-hidden="true"><path d={paths[name]}/></svg>;
 }
 
-export function PageMarkdownEditor({value='',onChange,maxLength=12000,disabled=false,onDone,ariaLabel='Page text',autoFocus=false,className='',floating=false,onCancel,placeholder='Write something for the family…'}){
+export function PageMarkdownEditor({value='',onChange,maxLength=12000,disabled=false,onDone,ariaLabel='Page text',autoFocus=false,className='',floating=false,onCancel,compact=false,controlsVisible=true,placeholder='Write something for the family…'}){
  const [initial]=useState(()=>analyzePageMarkdown(value,displayManager)),[source,setSource]=useState(value),[mode,setMode]=useState(initial.editable?'visual':'source'),[error,setError]=useState(''),[linkOpen,setLinkOpen]=useState(false),[linkValue,setLinkValue]=useState(''),[composing,setComposing]=useState(false),[,refresh]=useState(0);
  const id=useId(),textarea=useRef(null),linkInput=useRef(null),sourceRef=useRef(value),syncing=useRef(false),composition=useRef(false),visualSource=useRef(initial.editable?value:null),selection=useRef(null),sourceSelection=useRef({start:0,end:0}),latest=useRef({onChange,maxLength,disabled}),alive=useRef(true);
  latest.current={onChange,maxLength,disabled};
@@ -121,25 +121,26 @@ export function PageMarkdownEditor({value='',onChange,maxLength=12000,disabled=f
     <Control type="button" className="page-markdown-tool" aria-label="Undo formatting or typing" title="Undo" disabled={locked||!editor?.can().undo()} onMouseDown={event=>event.preventDefault()} onClick={()=>run(chain=>chain.undo())}><ToolIcon name="undo"/></Control>
     <Control type="button" className="page-markdown-tool" aria-label="Redo formatting or typing" title="Redo" disabled={locked||!editor?.can().redo()} onMouseDown={event=>event.preventDefault()} onClick={()=>run(chain=>chain.redo())}><ToolIcon name="redo"/></Control>
    </div>
-   <div className="page-markdown-mode-tools">
+   <div className="page-markdown-mode-tools">{compact&&onDone&&<Control type="button" className="post-format-done" title="Done formatting" aria-label="Done formatting" disabled={disabled||composing} onMouseDown={event=>event.preventDefault()} onClick={()=>{setLinkOpen(false);onDone()}}><Glyph name="check"/></Control>}
     <Control type="button" className="page-markdown-source-toggle" aria-label={inSource?'Switch to formatted editing':'Edit Markdown source'} aria-pressed={inSource} disabled={disabled||composing||!editor} onMouseDown={event=>event.preventDefault()} onClick={switchMode}><span aria-hidden="true">{'</>'}</span><span>{inSource?'Source':'Markdown'}</span></Control>
    </div>
   </div>
   {linkOpen&&<div className="page-markdown-link" id={id+'-link'}><label htmlFor={id+'-url'}>Link address</label><div><input ref={linkInput} id={id+'-url'} type="url" inputMode="url" autoComplete="off" value={linkValue} placeholder="https://…" disabled={disabled} onChange={event=>setLinkValue(event.target.value)} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();event.stopPropagation();applyLink()}}}/><Control type="button" disabled={disabled} onClick={()=>applyLink()}>Apply</Control>{editor?.isActive('link')&&<Control type="button" disabled={disabled} onClick={()=>applyLink(true)}>Remove</Control>}<Control type="button" disabled={disabled} onClick={()=>{setLinkOpen(false);editor?.commands.focus()}}>Cancel</Control></div></div>}
  </>;
  const feedback=<>
+  {compact&&<span className="sr-only" id={id+'-help'}>Use the formatting toolbar to style your post. Done hides the tools and keeps your draft.</span>}
   {!analysis.editable&&<p className="page-markdown-notice" role="status">{analysis.reason}</p>}
   {error&&<p className="page-markdown-error" role="alert">{error}</p>}
-  <div className="page-markdown-footer"><details id={id+'-help'}><summary>Formatting help</summary><p>{PAGE_MARKDOWN_HELP} Source spelling is preserved when switching modes. Pasted text keeps its words; use the toolbar to format it.</p></details>{onDone&&<Control type="button" className="page-markdown-done" disabled={disabled||composing} onClick={onDone}><Glyph name="check"/>Done</Control>}</div>
+  {!compact&&<div className="page-markdown-footer"><details id={id+'-help'}><summary>Formatting help</summary><p>{PAGE_MARKDOWN_HELP} Source spelling is preserved when switching modes. Pasted text keeps its words; use the toolbar to format it.</p></details>{onDone&&<Control type="button" className="page-markdown-done" disabled={disabled||composing} onClick={onDone}><Glyph name="check"/>Done</Control>}</div>}
  </>;
- const field=<div className={'page-markdown-editor '+className} data-mode={mode} aria-busy={!editor} onKeyDown={event=>{
+ const field=<div className={'page-markdown-editor '+(compact?'is-post-compact ':'')+className} data-mode={mode} aria-busy={!editor} onKeyDown={event=>{
   if(event.nativeEvent.isComposing||composition.current||event.keyCode===229)return;
   if(event.key==='Escape'&&linkOpen){event.preventDefault();event.stopPropagation();setLinkOpen(false);editor?.commands.focus()}
   else if(event.key==='Escape'&&onCancel){event.preventDefault();event.stopPropagation();onCancel()}
   else if(event.key==='Enter'&&(event.metaKey||event.ctrlKey)&&!disabled){event.preventDefault();onDone?.()}
   else if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'&&!inSource){event.preventDefault();showLink()}
  }}>
-  {toolbar}
+  {controlsVisible&&toolbar}
   <div hidden={inSource} className={'page-markdown-visual-wrap'+(editor?.isEmpty?' is-empty':'')}><EditorContent editor={editor}/></div>
   <textarea ref={textarea} hidden={!inSource} className="page-markdown-source" aria-label={ariaLabel+' Markdown source'} aria-describedby={id+'-help'} defaultValue={value} disabled={disabled} maxLength={maxLength} rows={5} spellCheck={false} placeholder={placeholder} onCompositionStart={()=>{composition.current=true;setComposing(true)}} onCompositionEnd={event=>{composition.current=false;setComposing(false);publish(event.currentTarget.value)}} onChange={event=>publish(event.target.value)} onSelect={event=>{sourceSelection.current={start:event.currentTarget.selectionStart,end:event.currentTarget.selectionEnd}}}/>
   {feedback}

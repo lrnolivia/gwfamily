@@ -29,3 +29,9 @@ html[data-font=serif] .page-object-tools :is(h2,h3){font-family:'DM Serif Text',
 
 /* Keep the glass rim while making overlapping page copy recede behind tools. */
 html[data-platform=ios] .page-object-glass>.liquid-glass-tint{background:color-mix(in srgb,var(--surface) 96%,transparent);opacity:1}
+
+/* Match task-sheet completion/exit controls without changing the editor body. */
+html[data-theme][data-platform] .page-object-tools-heading{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:12px;padding:16px 16px 12px}
+html[data-theme][data-platform] .page-object-tools-heading h2{text-align:center;font-size:1.125rem}
+html[data-theme][data-platform] .page-object-tools-heading>button{width:44px;height:44px;min-height:44px;padding:10px;border-radius:50%;background:var(--raised);color:var(--text)}
+html[data-theme][data-platform] .page-object-tools-heading>button.page-object-complete{background:var(--control);color:var(--control-text)}

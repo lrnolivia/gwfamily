@@ -100,3 +100,18 @@ html[data-theme][data-platform] .page-panel-options-entry>button{position:relati
 .page-panel-options-entry>button::before{content:'';position:absolute;inset:8px;border-radius:8px;background:var(--raised)}
 .page-panel-options-entry>button>.glyph{position:relative;width:16px;height:16px}
 .page-panel-options-entry>button>.liquid-glass-tint{opacity:0}
+
+/* Reserve the panel corner so its control cannot collide with a field tab. */
+html[data-theme][data-platform] .page-shared-panel.is-panel-editing:has(>.page-panel-options-entry){padding-top:68px}
+.page-content-platter-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px 8px 16px}
+.page-content-platter-heading h3{margin:0;font-size:1rem}
+html[data-theme][data-platform] .page-content-platter-heading>button{display:grid;place-items:center;width:44px;height:44px;min-height:44px;padding:10px;border-radius:12px;background:var(--surface);color:var(--control)}
+.page-add-element-menu{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:8px 12px 12px;border-bottom:1px solid var(--line)}
+.page-add-element-menu>button{display:flex;align-items:center;gap:8px;padding:10px;min-height:44px;text-align:start;border-radius:12px;background:var(--surface);font-size:.8125rem}
+.page-added-copy{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;display:block;max-width:100%;text-align:inherit;font:inherit}
+button.page-added-copy{padding:0;min-height:44px;background:transparent;width:100%}
+.page-added-heading{font-size:1.75rem;font-weight:700;line-height:1.25}
+.page-added-eyebrow{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.page-added-date{font-size:.875rem;color:var(--muted)}
+html[data-theme][data-platform] button.page-added-button{padding:10px 16px;border-radius:999px;background:var(--control);color:var(--control-text);font-weight:650}
+.page-added-media>img{width:100%;height:auto;object-fit:contain;border-radius:16px}

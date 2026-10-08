@@ -1,7 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {MeshGradient} from '@paper-design/shaders-react';
 export const backgroundColors=[['Ivory','#f4ecda'],['Cream','#e8d8b8'],['Sand','#ceb18b'],['Taupe','#a18c7d'],['Warm gray','#777169'],['Cocoa','#715042'],['Espresso','#382b27'],['Red','#a83540'],['Orange','#c2652b'],['Yellow','#e8bf42'],['Green','#286849'],['Blue','#285b96'],['Indigo','#4d458d'],['Violet','#874f91'],['Rose','#ad647a'],['Forest','#143d2b']];
-export const backgroundDesigns=[['solid','Solid'],['gradient','Gradient'],['mesh','Mesh flow'],['dots','Dots'],['stripes','Stripes'],['roots','Roots']];
+export const backgroundDesigns=[['solid','Solid'],['gradient','Gradient'],['mesh','Mesh flow'],['dots','Dots'],['stripes','Stripes'],['roots','Roots'],['aurora','Aurora'],['waves','Soft waves'],['petals','Petals'],['linen','Linen']];
 const legacy={forest:['solid','#143d2b'],cream:['solid','#e8d8b8'],sage:['gradient','#6a9274'],sunset:['gradient','#ad647a'],pattern:['dots','#286849'],media:['solid','#143d2b']};
 export function parseBackground(value){if(legacy[value])return legacy[value];const [kind,color]=(value||'').split('|');return [backgroundDesigns.some(([k])=>k===kind)?kind:'solid',/^#[0-9a-f]{6}$/i.test(color||'')?color:'#143d2b'];}
 const blend=(hex,amount)=>{const n=parseInt(hex.slice(1),16);return '#'+[n>>16,(n>>8)&255,n&255].map(v=>Math.round(amount>0?v+(255-v)*amount:v*(1+amount))).map(v=>v.toString(16).padStart(2,'0')).join('')};

@@ -1,4 +1,5 @@
 // Presentation identities only. Nodes, actions, URLs and data stay source-owned.
+import {elementSlots,PAGE_ELEMENT_TYPES,MAX_PAGE_ELEMENTS} from './page-elements-model.js';
 export const CARD_COLUMNS=Object.freeze(['left','right']);
 export const CARD_ALIGNMENTS=Object.freeze(['start','center','end','stretch']);
 const slot=(id,label,role,column='left',align='start')=>Object.freeze({id,label,role,column,align});
@@ -13,9 +14,20 @@ const MEDIA_ONLY_PAGES=new Set(['reunion-plans','reunion-calendar','family','peo
 const plain=value=>value!==null&&typeof value==='object'&&!Array.isArray(value)&&(Object.getPrototypeOf(value)===Object.prototype||Object.getPrototypeOf(value)===null);
 function keys(value,allowed){if(!plain(value)||Object.keys(value).some(key=>!allowed.includes(key)))throw Error('Unsupported card content layout fields');}
 export function cardSlots(page,panel){
- if(panel?.kind==='hero')return HERO_CARD_SLOTS[page]||(MEDIA_ONLY_PAGES.has(page)?[slot('media','Photo or video','image','left','stretch')]:[]);
+ const extra=elementSlots(panel);
+ if(panel?.kind==='hero')return [...(HERO_CARD_SLOTS[page]||(MEDIA_ONLY_PAGES.has(page)?[slot('media','Photo or video','image','left','stretch')]:[])),...extra];
  if(panel?.kind!=='content')return [];
- return [...(panel.layout==='photo'?[slot('media','Photo','image','left','stretch')]:[]),slot('title','Panel heading','text'),slot('body','Body text','text'),...(panel.layout==='columns'?[slot('secondary','Second text','text','right')]:[]),...(panel.layout==='feature'?[media]:[])];
+ return [...(panel.layout==='photo'?[slot('media','Photo','image','left','stretch')]:[]),slot('title','Panel heading','text'),slot('body','Body text','text'),...(panel.layout==='columns'?[slot('secondary','Second text','text','right')]:[]),...(panel.layout==='feature'?[media]:[]),...extra];
+}
+export function addCardElement(content,page,id,kind,elementId){
+ const panel=content.panelLayout?.panels.find(panel=>panel.id===id);
+ if(!panel||panel.locked||panel.removed||!['hero','content'].includes(panel.kind))return content;
+ if(!PAGE_ELEMENT_TYPES.some(([value])=>value===kind)||!/^element-[A-Za-z0-9_-]{1,80}$/.test(elementId))throw Error('Choose a supported element');
+ if((panel.elements||[]).length>=MAX_PAGE_ELEMENTS)throw Error('This panel has 12 added elements. Reuse an existing element.');
+ const element={id:elementId,kind,text:kind==='text'?'Your text here':kind==='media'?'':PAGE_ELEMENT_TYPES.find(([value])=>value===kind)[1],...(kind==='button'?{destination:'reunion'}:{}),...(kind==='media'?{media:[]}:{} )};
+ const before=cardLayoutOf(content,page,panel),definition=elementSlots({elements:[element]})[0];
+ const next={...content,panelLayout:{...content.panelLayout,panels:content.panelLayout.panels.map(panel=>panel.id===id?{...panel,elements:[...(panel.elements||[]),element]}:panel)},cardLayouts:{...content.cardLayouts,[id]:{...before,left:[...before.left,{id:elementId,align:definition.align}]}}};
+ validateCardLayouts(page,next.panelLayout,next.cardLayouts);return next;
 }
 export function defaultCardLayout(page,panel){const slots=cardSlots(page,panel);return {version:1,...Object.fromEntries(CARD_COLUMNS.map(column=>[column,slots.filter(slot=>slot.column===column).map(({id,align})=>({id,align}))]))};}
 export function cardLayoutOf(content,page,panel){return content.cardLayouts?.[panel.id]||defaultCardLayout(page,panel);}

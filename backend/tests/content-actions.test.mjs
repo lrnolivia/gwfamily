@@ -37,3 +37,14 @@ test('photo comments use the same permissions, receipts, report and soft delete 
  const report=await s.send(actor('alice'),{type:'REPORT',photoTarget:photoTargetSpec,targetId:c.id,reason:'Synthetic fixture report'});await s.send(actor('owner',{roles:['moderator']}),{type:'MODERATE',id:report.id,status:'removed'});
  assert.ok(s.sqlite.prepare('SELECT deleted_at FROM photo_comments WHERE id=?').get(c.id).deleted_at);s.sqlite.close();
 });
+
+test('optional formatted posts roundtrip natively and edits retain the format; legacy text stays literal',async()=>{
+ const s=await setup();try{
+  const plain=await s.send(actor('alice'),{type:'ADD_POST',post:{text:'**Literal stars**'}});
+  const rich=await s.send(actor('alice'),{type:'ADD_POST',post:{text:'**Family news**',textFormat:'markdown'}});
+  let state=await familyState(s.DB,actor('bob'));assert.equal(state.posts.find(p=>p.id===rich.id).textFormat,'markdown');assert.equal(state.posts.find(p=>p.id===plain.id).textFormat,undefined);assert.equal(state.posts.find(p=>p.id===plain.id).text,'**Literal stars**');
+  await s.send(actor('alice'),{type:'EDIT_POST',id:rich.id,expectedText:'**Family news**',text:'**Updated** family news'});
+  state=await familyState(s.DB,actor('bob'));assert.equal(state.posts.find(p=>p.id===rich.id).textFormat,'markdown');assert.equal(state.posts.find(p=>p.id===rich.id).text,'**Updated** family news');
+  for(const textFormat of ['html','unknown',null,{}])await assert.rejects(s.send(actor('alice'),{type:'ADD_POST',post:{text:'Bad format',textFormat}}),/Unsupported post text format/);
+ }finally{s.sqlite.close()}
+});

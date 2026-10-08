@@ -1,3 +1,4 @@
+import {PageAddedElement} from './page-elements.jsx';
 import React,{useContext,useEffect,useId,useRef,useState} from 'react';
 import {PageElementPreview} from './page-element-preview.jsx';
 import {PageObjectTools} from './page-object-tools.jsx';
@@ -60,7 +61,7 @@ export function CardContentLayout({page,cardId='hero',items,hidden=[],className=
      </div>}
 
      {editable&&!editor.arrangingPage&&<div className="card-slot-context-actions"><Control type="button" className="card-slot-layout" disabled={busy} aria-label={'Layout for '+definition.label} title={'Layout for '+definition.label} onClick={event=>{event.stopPropagation();editor.setSelectedObject({page,panelId:cardId,slotId:item.id,label:objectLabel(definition)});openLayout(item.id)}}><Glyph name="layout"/></Control></div>}
-     <div className="card-slot-content" inert={editor.arrangingPage?true:undefined}><ImageLayoutContext.Provider value={definition.role==='image'&&editable?{value:{...item,column},label:definition.label,disabled:busy,apply:(content,settings)=>updateCardLayout(content,page,cardId,value=>applyCardImageSettings(value,item.id,settings)),commit:settings=>change(value=>applyCardImageSettings(value,item.id,settings),item.id)}:null}>{items[item.id]}</ImageLayoutContext.Provider>{arranging&&hidden.includes(item.id)&&<p className="card-slot-placeholder">{definition.label} appears here when available.</p>}</div>
+     <div className="card-slot-content" inert={editor.arrangingPage?true:undefined}><ImageLayoutContext.Provider value={definition.role==='image'&&editable?{value:{...item,column},label:definition.label,disabled:busy,apply:(content,settings)=>updateCardLayout(content,page,cardId,value=>applyCardImageSettings(value,item.id,settings)),commit:settings=>change(value=>applyCardImageSettings(value,item.id,settings),item.id)}:null}>{panel.elements?.some(element=>element.id===item.id)?<PageAddedElement page={page} panelId={cardId} element={panel.elements.find(element=>element.id===item.id)} editable={editable&&!editor.arrangingPage}/>:items[item.id]}</ImageLayoutContext.Provider>{arranging&&hidden.includes(item.id)&&<p className="card-slot-placeholder">{definition.label} appears here when available.</p>}</div>
     </div>})}
     {arranging&&<div className="card-column-drop-end" data-card-drop-column={column}>Drop content here</div>}
    </div>)}

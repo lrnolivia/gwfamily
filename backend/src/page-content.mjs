@@ -24,7 +24,7 @@ async function enrichContent(db,value){
  const ids=[...new Set(sharedPageMedia(value,{includeRemoved:true}).map(file=>file.id))];if(!ids.length)return value;
  const media=rows(await db.prepare(`SELECT id,name,mime_type FROM media WHERE id IN (${ids.map(()=>'?').join(',')}) AND deleted_at IS NULL`).bind(...ids).all());
  const enrich=file=>{const row=media.find(row=>row.id===file.id);return {...file,url:row?'/api/media/'+file.id:null,type:row?.mime_type||null,name:row?.name||'Unavailable file'};};
- return {...value,hero:{...value.hero,media:value.hero.media.map(enrich)},panelLayout:{...value.panelLayout,panels:value.panelLayout.panels.map(panel=>panel.kind!=='content'?panel:{...panel,media:panel.media.map(enrich)})}};
+ return {...value,hero:{...value.hero,media:value.hero.media.map(enrich)},panelLayout:{...value.panelLayout,panels:value.panelLayout.panels.map(panel=>({...panel,...(panel.media?{media:panel.media.map(enrich)}:{}),...(panel.elements?{elements:panel.elements.map(element=>({...element,...(element.media?{media:element.media.map(enrich)}:{})}))}:{})}))}};
 }
 async function record(db,actor,page,row){return {page,revision:row?.revision||0,content:await enrichContent(db,rawContent(page,row)),canEdit:can(actor,'edit_pages'),updatedAt:row?.created_at||null};}
 async function receipt(db,actor,key,hash){
