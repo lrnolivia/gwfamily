@@ -18,6 +18,37 @@ test('legacy layout migration is nondestructive and idempotent with custom order
 test('legacy removed hero remains recoverable without being resurrected',()=>{
  const old={version:1,panels:[{id:'hero',kind:'hero',zone:'main',locked:false,removed:true}],desktopOrder:[],mobileOrder:[]},next=migratePanelLayout('reunion',old);assert.ok(next.panels[0].removed);assert.ok(!next.desktopOrder.includes('hero'));assert.doesNotThrow(()=>validatePanelLayout('reunion',next,clean));
 });
+test('pre-invitations version 2 Family and You layouts gain only the new native panel',()=>{
+ for(const page of ['family','you']){
+  const content=sharedPageDefaults(page);
+  delete content.text.inviteTitle;delete content.text.inviteBody;
+  let old=content.panelLayout;
+  old.panels=old.panels.filter(panel=>panel.id!=='native-invitations');
+  for(const key of ['desktopOrder','mobileOrder'])old[key]=old[key].filter(id=>id!=='native-invitations');
+  old=addSharedPanel(old,createSharedPanel('panel-kept','side','text'));
+  old.panels.find(panel=>panel.id==='panel-kept').body='Keep my saved family copy';
+  old=removeSharedPanel(old,'panel-kept');
+  old.mobileOrder=[...old.mobileOrder].reverse();
+  const before=clone(old),next=migratePanelLayout(page,old);
+  assert.deepEqual(old,before,'Migration does not mutate saved input');
+  assert.deepEqual(next.panels.slice(0,-1),before.panels);
+  for(const key of ['desktopOrder','mobileOrder'])assert.deepEqual(next[key],[...before[key],'native-invitations']);
+  assert.deepEqual(next.panels.at(-1),{id:'native-invitations',kind:'native',zone:'side',locked:false,removed:false});
+  assert.equal(migratePanelLayout(page,next),next,'Migration is idempotent');
+  assert.deepEqual(validateSharedPageContent(page,{...content,panelLayout:old}).panelLayout,next);
+ }
+});
+test('saved invitation removal and ordering are never reset by additive normalization',()=>{
+ for(const page of ['family','you']){
+  const old=removeSharedPanel(defaultPanelLayout(page),'native-invitations');
+  assert.equal(migratePanelLayout(page,old),old);
+  assert.ok(validateSharedPageContent(page,{...sharedPageDefaults(page),panelLayout:old}).panelLayout.panels.find(panel=>panel.id==='native-invitations').removed);
+ }
+ const incomplete=defaultPanelLayout('you');
+ incomplete.panels=incomplete.panels.filter(panel=>panel.id!=='native-profile');
+ for(const key of ['desktopOrder','mobileOrder'])incomplete[key]=incomplete[key].filter(id=>id!=='native-profile');
+ assert.throws(()=>validateSharedPageContent('you',{...sharedPageDefaults('you'),panelLayout:incomplete}),/recoverable/,'Existing native slots cannot be silently dropped');
+});
 test('pointer, ordinary buttons and keyboard reorder the same individual card',()=>{
  const layout=unlocked('reunion'),pointer=moveSharedPanel(layout,'native-plans',{zone:'main',beforeId:'hero'}),button=stepSharedPanel(layout,'native-plans',-1),keyboard=keyboardSharedPanel(layout,'native-plans','ArrowUp');assert.deepEqual(pointer,button);assert.deepEqual(pointer,keyboard);assert.deepEqual(layout.desktopOrder,['hero','native-plans','native-schedule','native-clarity']);
 });

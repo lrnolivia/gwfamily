@@ -49,8 +49,13 @@ const nativeDefaults=page=>(NATIVE_PANEL_DEFINITIONS[page]||[]).map(([id,,zone])
 export function defaultPanelLayout(page){const panels=PANEL_PAGES.includes(page)?[{id:'hero',kind:'hero',zone:'main',locked:true,removed:false},...nativeDefaults(page)]:[];return {version:2,panels,desktopOrder:panels.map(p=>p.id),mobileOrder:panels.map(p=>p.id)};}
 export function migratePanelLayout(page,layout){
  if(!layout)return defaultPanelLayout(page);
- if(layout.version!==1)return layout;
- const missing=nativeDefaults(page).filter(panel=>!layout.panels.some(p=>p.id===panel.id&&p.kind==='native'));
+ const legacy=layout.version===1;
+ if(!legacy&&layout.version!==2)return layout;
+ // Invitations became native after version 2 shipped. Add only that new slot
+ // to old Family/You snapshots; every existing slot and saved removed state stays intact.
+ const additions=page==='family'||page==='you'?['native-invitations']:[];
+ const missing=nativeDefaults(page).filter(panel=>(legacy||additions.includes(panel.id))&&!layout.panels.some(p=>p.id===panel.id&&p.kind==='native'));
+ if(!legacy&&!missing.length)return layout;
  const append=key=>{const order=[...layout[key]];for(const panel of missing){if(page==='reunion'&&panel.id==='native-plans'){const hero=order.indexOf('hero');order.splice(hero<0?order.length:hero+1,0,panel.id);}else order.push(panel.id);}return order;};
  return {...layout,version:2,panels:[...layout.panels,...missing],desktopOrder:append('desktopOrder'),mobileOrder:append('mobileOrder')};
 }

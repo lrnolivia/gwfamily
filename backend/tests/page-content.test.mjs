@@ -1,5 +1,5 @@
 import {addCardElement} from '../../src/card-content-layout-model.js';
-import {defaultPanelLayout,HERO_FIELDS} from '../../src/shared-panels.js';
+import {defaultPanelLayout,HERO_FIELDS,addSharedPanel,createSharedPanel,removeSharedPanel} from '../../src/shared-panels.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
@@ -45,6 +45,36 @@ test('source defaults are returned to active family without database seeds; publ
  assert.equal((await get('home','alice')).data.canEdit,true);
  for(const user of [null,'pending'])for(const path of ['/api/page-content/home','/api/page-content/global','/api/page-content/home/revisions'])assert.equal((await call(user,path)).status,user?403:401,path);
  for(const page of ['welcome','signin','profile','posts','menus','__proto__','unknown'])assert.equal((await get(page)).status,404,page);
+});
+
+test('persisted pre-invitations Family and You layouts read, save and restore without rewriting history',async()=>{
+ for(const page of ['family','you']){
+  const {write,get,restore,sqlite}=setup(),content=sharedPageDefaults(page);
+  content.text.intro='Synthetic saved '+page+' introduction';
+  content.panelLayout=addSharedPanel(content.panelLayout,createSharedPanel('panel-archived','side','text'));
+  content.panelLayout.panels.at(-1).body='Keep this archived family text';
+  content.panelLayout=removeSharedPanel(content.panelLayout,'panel-archived');
+  assert.equal((await write(content,0,'alice',page)).status,200);
+  // Recreate the exact saved v2 shape from before invitation panels existed.
+  const row=sqlite.prepare('SELECT presentation_v2_json FROM page_content_extensions WHERE page=? AND revision=1').get(page);
+  const previous=JSON.parse(row.presentation_v2_json);
+  previous.panelLayout.panels=previous.panelLayout.panels.filter(panel=>panel.id!=='native-invitations');
+  for(const key of ['desktopOrder','mobileOrder'])previous.panelLayout[key]=previous.panelLayout[key].filter(id=>id!=='native-invitations');
+  previous.panelLayout.mobileOrder.reverse();
+  const historicalBytes=JSON.stringify(previous);
+  sqlite.prepare('UPDATE page_content_extensions SET presentation_v2_json=? WHERE page=? AND revision=1').run(historicalBytes,page);
+  const read=await get(page);assert.equal(read.status,200,JSON.stringify(read.data));assert.equal(read.data.revision,1);
+  assert.equal(read.data.content.text.intro,content.text.intro);
+  assert.deepEqual(read.data.content.panelLayout.panels.slice(0,-1),previous.panelLayout.panels);
+  for(const key of ['desktopOrder','mobileOrder'])assert.deepEqual(read.data.content.panelLayout[key],[...previous.panelLayout[key],'native-invitations']);
+  const stored=()=>sqlite.prepare('SELECT presentation_v2_json FROM page_content_extensions WHERE page=? AND revision=1').get(page).presentation_v2_json;
+  assert.equal(stored(),historicalBytes,'Reading does not rewrite stored family content');
+  const edited=structuredClone(read.data.content);edited.text.intro+=' with an unrelated edit';
+  assert.equal((await write(edited,1,'alice',page)).status,200);
+  const restored=await restore(1,2,'alice',page);assert.equal(restored.status,200);assert.equal(restored.data.revision,3);
+  assert.deepEqual(restored.data.content,read.data.content);
+  assert.equal(stored(),historicalBytes,'Save and restore retain the original historical bytes');
+ }
 });
 
 test('Admins and explicit Leaders can edit shared pages; ordinary organizer roles cannot',async()=>{
