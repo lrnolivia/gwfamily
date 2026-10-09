@@ -1,0 +1,24 @@
+/* Several memories at once: one platter row per file, honest status, and a
+   retry on exactly the rows that need it. */
+.memory-batch{gap:12px}
+.memory-batch .memory-upload-status{margin:0;font-weight:600}
+.memory-batch-list{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.memory-batch-row{display:flex;align-items:center;gap:12px;min-height:60px;padding:10px 12px;border-radius:14px;background:var(--raised);min-width:0}
+.memory-batch-thumb{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:10px;object-fit:cover;background:var(--surface);color:var(--muted)}
+.memory-batch-copy{display:grid;gap:2px;flex:1 1 auto;min-width:0}
+.memory-batch-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.memory-batch-copy small{color:var(--muted);font-size:.8125rem;overflow-wrap:anywhere}
+.memory-batch-row:is(.is-upload-failed,.is-save-failed) .memory-batch-copy small{color:var(--status-danger)}
+.memory-batch-row.is-saved .memory-batch-thumb>.glyph{color:var(--status-success,var(--accent))}
+.memory-batch-row>.button{flex:none;margin:0}
+.memory-batch-actions{display:flex;flex-wrap:wrap;gap:10px}
+.memory-batch-actions>.button{flex:1 1 140px;margin:0;justify-content:center}
+.memory-wizard{gap:14px}
+.memory-wizard-progress{display:grid;gap:8px}
+.memory-wizard-progress p{margin:0}
+.memory-wizard-progress ol{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.memory-wizard-progress li>button{display:grid;place-items:center;width:44px;height:44px;padding:0;border-radius:10px;overflow:hidden;background:var(--raised);border:2px solid transparent;opacity:.6}
+.memory-wizard-progress li.is-done>button{opacity:.9}
+.memory-wizard-progress li.is-current>button{opacity:1;border-color:var(--accent)}
+.memory-wizard-progress img{width:100%;height:100%;object-fit:cover}
+@media(forced-colors:active){.memory-wizard-progress li.is-current>button{border-color:Highlight}}
