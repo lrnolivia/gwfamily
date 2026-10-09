@@ -49,6 +49,12 @@ export function patchNotificationSettings(value,patch={}){
  }
  return normalizeNotificationSettings({...current,...patch,categories,channels});
 }
+// Disabling a saving native checkbox can move keyboard focus to the document.
+// Restore only that lost focus; never take it from a newer control or overlay.
+export function restoreNotificationSettingFocus(input,document=input?.ownerDocument||globalThis.document){
+ if(!input?.isConnected||input.disabled||input.closest?.('[inert],[hidden]')||!document||![document.body,document.documentElement].includes(document.activeElement))return false;
+ input.focus({preventScroll:true});return true;
+}
 export function notificationCategory(notice){
  if(NOTIFICATION_CATEGORIES.some(x=>x.id===notice.category))return notice.category;
  const kind=notice.kind||'';

@@ -5,7 +5,7 @@ import {Button,Control,Glyph,useApp,formatTime} from './ui-core.jsx';
 import {ChoiceControl} from './choice-control.jsx';
 import {MemberPicker} from './member-picker.jsx';
 import {ActivityDots} from './activity.jsx';
-import {NOTIFICATION_CATEGORIES,NOTIFICATION_SCOPES,NOTIFICATION_DELIVERY_CHANNELS} from './notification-model.js';
+import {NOTIFICATION_CATEGORIES,NOTIFICATION_SCOPES,NOTIFICATION_DELIVERY_CHANNELS,restoreNotificationSettingFocus} from './notification-model.js';
 export {useNotifications} from './use-notifications.js';
 import './notifications.css';
 
@@ -44,7 +44,19 @@ export function Notifications({active=true}){
  </section>;
 }
 export function NotificationSettings(){
- const {state,notifications:n}=useApp();if(!n)return null;const settings=n.settings,disabled=n.busy||n.loading||!n.ready;
+ const {state,notifications:n}=useApp(),pendingFocus=useRef(null);
+ useEffect(()=>{
+  const pending=pendingFocus.current;if(!pending||n?.busy)return;
+  pendingFocus.current=null;
+  if(pending.account===state.selfId&&pending.mode===state.mode)restoreNotificationSettingFocus(pending.input);
+ },[n?.busy,n?.ready,n?.settings?.revision,state.selfId,state.mode]);
+ if(!n)return null;const settings=n.settings,disabled=n.busy||n.loading||!n.ready;
+ function saveChannel(event,category,channel){
+  // Keyboard/screen-reader activation has no pointer click detail. A pointer
+  // edit does not create a focus-restoration request.
+  pendingFocus.current=event.nativeEvent?.detail===0?{input:event.currentTarget,account:state.selfId,mode:state.mode}:null;
+  return n.saveSettings({channels:{[category]:{[channel]:event.target.checked}}});
+ }
  return <section className="notification-settings stack" aria-label="Notification choices">
   <p className="notification-settings-intro">Choose the activity you want to hear about. Tags, replies, and private status updates have their own choices.</p>
   <PreviewDisclosure notifications={n}/><Failure notifications={n}/>{n.loading&&<ActivityDots label="Loading notification choices"/>}
@@ -54,7 +66,7 @@ export function NotificationSettings(){
   <section className="notification-settings-section"><h2>Following</h2><ChoiceControl label="Whose posts and memories?" value={settings.scope==='off'?'leaders':settings.scope} onChange={scope=>n.saveSettings({scope})} disabled={disabled||settings.globalOff} options={NOTIFICATION_SCOPES.filter(option=>option.value!=='off')} help="Following applies to general posts and memories. Your direct replies, tags, and private updates use the categories below." variant="chips"/>{settings.scope==='selected'&&<MemberPicker label="People to follow" multiple value={settings.selectedIds} onChange={selectedIds=>n.saveSettings({selectedIds})} disabled={disabled||settings.globalOff} filter={member=>member.id!==state.selfId&&!member.managedBy&&member.origin!=='dependent'} help="Choose registered family members. Private children’s records and ancestors are never notification recipients."/>}</section>
   <section className="notification-settings-section"><h2>Activity categories</h2><p className="small muted" id="notification-channel-help">Choose where each kind of update appears. Email requires email updates to be on; push requires an enabled device. These choices never turn either on.{settings.globalOff?' All channels are paused while activity is off.':''}</p><div className="notification-category-options">{NOTIFICATION_CATEGORIES.map(category=><div className="notification-category-choice" role="group" aria-labelledby={'notification-category-'+category.id} aria-describedby={'notification-detail-'+category.id} key={category.id}>
    <div className="notification-category-copy"><strong id={'notification-category-'+category.id}>{category.label}</strong><span id={'notification-detail-'+category.id}>{category.detail}</span></div>
-   <div className="notification-channel-choices">{NOTIFICATION_DELIVERY_CHANNELS.map(channel=><label className="notification-channel-choice" key={channel.id}><input type="checkbox" aria-label={category.label+': '+channel.label} aria-describedby="notification-channel-help" checked={settings.channels[category.id][channel.id]} disabled={disabled||settings.globalOff} onChange={event=>n.saveSettings({channels:{[category.id]:{[channel.id]:event.target.checked}}})}/><span>{channel.label}</span></label>)}</div>
+   <div className="notification-channel-choices">{NOTIFICATION_DELIVERY_CHANNELS.map(channel=><label className="notification-channel-choice" key={channel.id}><input type="checkbox" aria-label={category.label+': '+channel.label} aria-describedby="notification-channel-help" checked={settings.channels[category.id][channel.id]} disabled={disabled||settings.globalOff} onChange={event=>saveChannel(event,category.id,channel.id)}/><span>{channel.label}</span></label>)}</div>
   </div>)}</div><p className="small muted">Each change is saved automatically. Turning a channel off cancels its queued updates; an update already sent cannot be recalled.</p></section>
   {n.busy&&<ActivityDots label="Saving notification choices"/>}
  </section>;

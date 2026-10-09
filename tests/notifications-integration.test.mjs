@@ -29,3 +29,8 @@ test('hosted controlled-settings checks use real clicks and verify pending, comm
  assert.ok(accountSwitch.indexOf('await expect.poll(()=>started).toBe(true)')<accountSwitch.indexOf("viewer.id='bob'"),'The server account changes only after the outgoing Alice request is captured');
  assert.match(file,/async function chooseRadio\(radio\)\{await expect\(radio\)\.toBeEnabled\(\);await radio\.locator\('\.\.'\)\.click\(\);await expect\(radio\)\.toBeChecked\(\);await expect\(radio\)\.toBeEnabled\(\);\}/);
 });
+
+test('recovery fixture follows the actual all-channel master-control name',async()=>{
+ const [ui,recovery]=await Promise.all([readFile(new URL('../src/notifications.jsx',import.meta.url),'utf8'),readFile(new URL('./recovery-browser.mjs',import.meta.url),'utf8')]);
+ const label=/ChoiceControl label="([^"]+)" value=\{settings\.globalOff/.exec(ui)?.[1];assert.equal(label,'All activity');assert.ok(recovery.includes("getByRole('group',{name:'"+label+"',exact:true})"));assert.doesNotMatch(recovery,/getByRole\('group',\{name:'In-app activity'/);
+});

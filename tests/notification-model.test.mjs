@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {initialState,reducer,loadLocalState,PREVIEW_KEY} from '../src/data-adapter.js';
 import {SHARED_PAGE_SCHEMA,sharedPageDefaults,validateSharedPageContent} from '../src/shared-content-schema.js';
-import {DEFAULT_NOTIFICATION_CATEGORIES,normalizeNotificationSettings,notificationCategory,notificationTargetRoute,mergeNotificationPages,mergeNotificationResource,previewNotificationPage,previewOpenNotification,createNotificationChannel,isNotificationInvalidation,NOTIFICATION_INVALIDATION} from '../src/notification-model.js';
+import {DEFAULT_NOTIFICATION_CATEGORIES,normalizeNotificationSettings,restoreNotificationSettingFocus,notificationCategory,notificationTargetRoute,mergeNotificationPages,mergeNotificationResource,previewNotificationPage,previewOpenNotification,createNotificationChannel,isNotificationInvalidation,NOTIFICATION_INVALIDATION} from '../src/notification-model.js';
 const source=file=>fs.readFileSync(new URL('../src/'+file,import.meta.url),'utf8');
 const settings=(state,patch)=>reducer(state,{type:'SET_NOTIFICATION_SETTINGS',patch,revision:state.notificationSettings.revision});
 
@@ -157,4 +157,15 @@ test('channel rows have category-specific labels, grouped native inputs, explici
 
 test('device information uses a quiet inherited surface while preserving disclosure and visible status/error semantics',()=>{
  const ui=source('push-device.jsx'),css=source('notifications.css');assert.match(ui,/<div className="notification-device-details" id=\{informationId\} hidden=\{!informationOpen\}/);assert.match(ui,/aria-expanded=\{informationOpen\} aria-controls=\{informationId\}/);assert.match(ui,/<p role="status">\{reason\}<\/p>/);assert.match(ui,/\{error&&<p role="alert">\{error\}<\/p>\}/);assert.match(css,/\.notification-device-details\{min-width:0;padding:16px;border-radius:14px;background:var\(--surface\)\}/);assert.match(css,/\.notification-device-status \[hidden\]\{display:none\}/);
+});
+
+test('saving checkbox keyboard focus returns only when focus was lost to the document',()=>{
+ const document={body:{},documentElement:{}},calls=[],input={isConnected:true,disabled:false,ownerDocument:document,closest:()=>null,focus:options=>calls.push(options)};document.activeElement=document.body;
+ assert.equal(restoreNotificationSettingFocus(input),true);assert.deepEqual(calls,[{preventScroll:true}]);
+ document.activeElement={id:'newer-control'};assert.equal(restoreNotificationSettingFocus(input),false);assert.equal(calls.length,1);
+ document.activeElement=document.body;input.disabled=true;assert.equal(restoreNotificationSettingFocus(input),false);input.disabled=false;input.isConnected=false;assert.equal(restoreNotificationSettingFocus(input),false);input.isConnected=true;input.closest=()=>({inert:true});assert.equal(restoreNotificationSettingFocus(input),false);assert.equal(calls.length,1);
+});
+
+test('keyboard focus restoration stays with the initiating account and never runs for a pointer edit',()=>{
+ const ui=source('notifications.jsx');assert.match(ui,/event\.nativeEvent\?\.detail===0\?\{input:event\.currentTarget,account:state\.selfId,mode:state\.mode\}:null/);assert.match(ui,/pending\.account===state\.selfId&&pending\.mode===state\.mode/);assert.match(ui,/if\(!pending\|\|n\?\.busy\)return/);assert.match(ui,/pendingFocus\.current=null/);
 });
