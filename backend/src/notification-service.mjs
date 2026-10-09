@@ -1,12 +1,12 @@
 import {UserError,json} from './family-service.mjs';
 import {directorySelection} from './member-directory.mjs';
 import {can} from './policy.mjs';
-import {CATEGORIES,DEFAULT_CATEGORIES,eligibleMemberSql,resourceAccessSql,followingSql} from './notification-policy.mjs';
-// Email and push can be switched off per category; anything not stored is on.
+import {CATEGORIES,DEFAULT_CATEGORIES,channelDefault,eligibleMemberSql,resourceAccessSql,followingSql} from './notification-policy.mjs';
+// Email and push are per category; a stored choice wins, otherwise channelDefault.
 const CHANNELS=['inApp','email','push'];
 const EXTERNAL_CHANNELS=['email','push'];
-const channelChoices=(stored,categories)=>Object.fromEntries(CATEGORIES.map(k=>[k,{inApp:categories[k],...Object.fromEntries(EXTERNAL_CHANNELS.map(c=>[c,stored?.[k]?.[c]!==false]))}]));
-const storedChannels=channels=>Object.fromEntries(Object.entries(channels).map(([k,v])=>[k,Object.fromEntries(EXTERNAL_CHANNELS.filter(c=>v[c]===false).map(c=>[c,false]))]).filter(([,v])=>Object.keys(v).length));
+const channelChoices=(stored,categories)=>Object.fromEntries(CATEGORIES.map(k=>[k,{inApp:categories[k],...Object.fromEntries(EXTERNAL_CHANNELS.map(c=>[c,typeof stored?.[k]?.[c]==='boolean'?stored[k][c]:channelDefault(k,c)]))}]));
+const storedChannels=channels=>Object.fromEntries(Object.entries(channels).map(([k,v])=>[k,Object.fromEntries(EXTERNAL_CHANNELS.filter(c=>typeof v[c]==='boolean'&&v[c]!==channelDefault(k,c)).map(c=>[c,v[c]]))]).filter(([,v])=>Object.keys(v).length));
 const rows=r=>r.results||[];
 const stamp=v=>v?Date.parse(/Z$|[+-]\d\d:\d\d$/.test(v)?v:v.replace(' ','T')+'Z'):null;
 const titles={
@@ -33,7 +33,7 @@ const authorized=`n.recipient_id=? AND n.dismissed_at IS NULL AND ${eligibleMemb
 const visible=`${authorized} AND COALESCE(json_extract(s.categories_json,'$.'||n.category),1)=1`;
 // A delivered link can open while In app is off. The recipient, resource,
 // Following, expiry and global-off policy is identical to the inbox policy.
-const openable=`${authorized} AND (COALESCE(json_extract(s.categories_json,'$.'||n.category),1)=1 OR COALESCE(json_extract(s.channels_json,'$.'||n.category||'.email'),1)=1 OR COALESCE(json_extract(s.channels_json,'$.'||n.category||'.push'),1)=1)`;
+const openable=`${authorized} AND (COALESCE(json_extract(s.categories_json,'$.'||n.category),1)=1 OR COALESCE(json_extract(s.channels_json,'$.'||n.category||'.email'),CASE WHEN n.category IN ('following','mentions','replies','messages') THEN 0 ELSE 1 END)=1 OR COALESCE(json_extract(s.channels_json,'$.'||n.category||'.push'),CASE WHEN n.category IN ('following','mentions') THEN 0 ELSE 1 END)=1)`;
 export async function notificationSettings(db,actor){
  // Read Following and its revision in one database snapshot. Split reads can
  // pair a stale scope with a newer revision and defeat a revisionless save's CAS.

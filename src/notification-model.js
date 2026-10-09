@@ -20,6 +20,9 @@ export const NOTIFICATION_SCOPES=Object.freeze([
  {value:'leaders',label:'Leaders'}, {value:'off',label:'Off'}
 ]);
 export const NOTIFICATION_DELIVERY_CHANNELS=Object.freeze([{id:'inApp',label:'In app'},{id:'email',label:'Email'},{id:'push',label:'Push'}]);
+// Unset external channels (keep in step with the Worker and migration 0028).
+export const CHANNEL_DEFAULT_OFF=Object.freeze({email:Object.freeze(['following','mentions','replies','messages']),push:Object.freeze(['following','mentions'])});
+export const channelDefault=(category,channel)=>!CHANNEL_DEFAULT_OFF[channel]?.includes(category);
 export const DEFAULT_NOTIFICATION_CATEGORIES=Object.freeze(Object.fromEntries(NOTIFICATION_CATEGORIES.map(x=>[x.id,true])));
 export const NOTIFICATION_INVALIDATION=Object.freeze({type:'invalidate',version:1});
 export const NOTIFICATION_CHANNEL='gw-notifications:v1';
@@ -29,7 +32,7 @@ export function normalizeNotificationSettings(value={},fallback={}){
  const categories=Object.fromEntries(NOTIFICATION_CATEGORIES.map(x=>[x.id,typeof value.categories?.[x.id]==='boolean'?value.categories[x.id]:typeof value.channels?.[x.id]?.inApp==='boolean'?value.channels[x.id].inApp:true]));
  // Old saved preview categories were all-channel switches. Keep those offs
  // until each channel is explicitly changed; normalization has no side effects.
- const channels=Object.fromEntries(NOTIFICATION_CATEGORIES.map(({id})=>[id,{inApp:categories[id],...Object.fromEntries(['email','push'].map(channel=>[channel,typeof value.channels?.[id]?.[channel]==='boolean'?value.channels[id][channel]:categories[id]]))}]));
+ const channels=Object.fromEntries(NOTIFICATION_CATEGORIES.map(({id})=>[id,{inApp:categories[id],...Object.fromEntries(['email','push'].map(channel=>[channel,typeof value.channels?.[id]?.[channel]==='boolean'?value.channels[id][channel]:categories[id]&&channelDefault(id,channel)]))}]));
  return {scope,globalOff:typeof value.globalOff==='boolean'?value.globalOff:raw==='off',
   selectedIds:[...new Set((Array.isArray(value.selectedIds)?value.selectedIds:fallback.selectedNotificationIds||[]).filter(safeId))],
   categories,channels,
