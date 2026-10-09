@@ -156,7 +156,7 @@ try{
  assert.deepEqual((await read()).content.cardLayouts,applied.cardLayouts);
  results.push('Photo platters, stable canvas and autosaved compensating Undo/Redo');
  await toolbar().getByRole('button',{name:'Add Panel',exact:true}).click();
- const sheet=page.getByRole('dialog',{name:'Add Panel',exact:true});const dismiss=await sheet.getByRole('button',{name:'Close dialog',exact:true}).boundingBox(),title=await sheet.locator('.sheet-head h2').boundingBox();assert.ok(dismiss.x>title.x+title.width);
+ const sheet=page.getByRole('dialog',{name:'Add Panel',exact:true});const dismiss=await sheet.getByRole('button',{name:'Close dialog',exact:true}).boundingBox(),title=await sheet.locator('.sheet-head h2').boundingBox();assert.ok(dismiss.x+dismiss.width<title.x,'Close sits left of the title');
  await sheet.getByRole('button',{name:'Add main panel',exact:true}).click();await saved();
  const added=(await read()).content.panelLayout.panels.find(row=>row.kind==='content');assert.ok(added);
  await toolbar().getByRole('button',{name:'Undo Add panel',exact:true}).click();await saved();

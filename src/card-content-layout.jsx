@@ -2,7 +2,7 @@ import {PageAddedElement} from './page-elements.jsx';
 import React,{useContext,useEffect,useId,useRef,useState} from 'react';
 import {PageElementPreview} from './page-element-preview.jsx';
 import {PageObjectTools} from './page-object-tools.jsx';
-import {sharedPanelTitle,removeSharedPanel} from './shared-panels.js';
+import {sharedPanelTitle} from './shared-panels.js';
 import {Control,Glyph} from './ui-core.jsx';
 import {PagePanelLockContext,usePageContent} from './page-content.jsx';
 import {CARD_COLUMNS,cardSlots,cardLayoutOf,defaultCardLayout,moveCardSlot,stepCardSlot,alignCardSlot,applyCardImageSettings,cardColumnVertical,alignCardColumn,keyboardCardSlot,updateCardLayout,setCardSlotRemoved} from './card-content-layout-model.js';
@@ -68,14 +68,12 @@ export function CardContentLayout({page,cardId='hero',items,hidden=[],className=
   </div>
   {editable&&!arranging&&selected&&selectedDefinition&&editor.activeEditor===toolId&&<PageObjectTools title={objectLabel(selectedDefinition)} returnFocus={root.current?.querySelector('[data-card-slot="'+selected.id+'"] .card-slot-layout')} onClose={()=>{setToolSlot(null);editor.activateSurface(root.current)}}>
    <PageElementPreview sourceRoot={root} slotId={selected.id} label={selectedDefinition.label} revision={editor.content}/>
-   <p>Layout changes affect all screen sizes.</p>
    {selectedDefinition.role==='image'?<ImageLayoutControls label={selectedDefinition.label} value={selected} disabled={busy} onChange={settings=>change(value=>applyCardImageSettings(value,selected.id,settings))}/>:<div className="page-object-tools-group"><ImageControlRow label="Within this panel"><LayoutChoices label={selectedDefinition.label+' column'} showLabels value={selected.column} disabled={busy} options={[["left","Left"],["right","Right"]]} onChange={column=>change(value=>moveCardSlot(value,selected.id,{column}))}/></ImageControlRow><ImageControlRow label="Alignment"><LayoutChoices label={selectedDefinition.label+' alignment'} value={selected.align} disabled={busy} options={[["start","Left"],["center","Center"],["end","Right"],["stretch","Full width"]]} onChange={align=>change(value=>alignCardSlot(value,selected.id,align))}/></ImageControlRow></div>}
    <div className="page-object-tools-group"><h3>Move within panel</h3><div className="page-object-tools-actions"><Control type="button" disabled={busy||layout[selected.column][0]?.id===selected.id} onClick={()=>change(value=>stepCardSlot(value,selected.id,-1))}>Move earlier</Control><Control type="button" disabled={busy||layout[selected.column].at(-1)?.id===selected.id} onClick={()=>change(value=>stepCardSlot(value,selected.id,1))}>Move later</Control></div></div>
    <div className="page-object-tools-group"><h3>{selected.column==='left'?'Left':'Right'} column alignment</h3><p>Moves all content in this column.</p><LayoutChoices label={(selected.column==='left'?'Left':'Right')+' column vertical alignment'} value={cardColumnVertical(layout,selected.column)} disabled={busy} options={[["top","Top"],["center","Middle","middle"],["bottom","Bottom"]]} onChange={vertical=>change(value=>alignCardColumn(value,selected.column,vertical))}/></div>
    <div className="page-object-tools-actions"><Control type="button" disabled={busy} onClick={()=>change(defaultCardLayout(page,panel),null,'Original layout restored for this panel only.')}>Reset panel layout</Control></div>
-   <div className="page-editor-destructive-group"><Control type="button" className="page-editor-remove" disabled={busy} onClick={()=>{change(value=>setCardSlotRemoved(value,selected.id),null,selectedDefinition.label+' removed. Undo is available.');setToolSlot(null);editor.activateSurface(root.current)}}><Glyph name="close"/>Remove element</Control></div>
-   <div className="page-editor-destructive-group"><Control type="button" className="page-editor-remove" disabled={busy} onClick={()=>editor.update(page,content=>({...content,panelLayout:removeSharedPanel(content.panelLayout,cardId)}),{historyLabel:'Remove panel'})}><Glyph name="close"/>Remove panel</Control></div>
    <p role="status">{notice||'Changes save automatically.'}</p>
+   <div className="page-editor-destructive-group sheet-footer"><Control type="button" className="page-editor-remove" disabled={busy} onClick={()=>{change(value=>setCardSlotRemoved(value,selected.id),null,selectedDefinition.label+' removed. Undo is available.');setToolSlot(null);editor.activateSurface(root.current)}}><Glyph name="close"/>Remove element</Control></div>
   </PageObjectTools>}
   <p className="sr-only" role="status" aria-live="polite">{notice}</p>
  </div>;
