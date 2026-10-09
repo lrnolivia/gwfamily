@@ -6,7 +6,7 @@ import {gzipSync} from 'node:zlib';
 import assert from 'node:assert/strict';
 import {workerBuildOptions} from './worker-build-options.mjs';
 import {CORE_ASSET_PATHS} from '../src/core-assets.mjs';
-const sha256=value=>createHash('sha256').update(value).digest('hex'),types={'index.html':'text/html; charset=utf-8','react-app.js':'application/javascript; charset=utf-8','react-app.css':'text/css; charset=utf-8','build.json':'application/json; charset=utf-8'},assets={},identities={};
+const sha256=value=>createHash('sha256').update(value).digest('hex'),types={'index.html':'text/html; charset=utf-8','react-app.js':'application/javascript; charset=utf-8','react-app.css':'text/css; charset=utf-8','build.json':'application/json; charset=utf-8','sw.js':'application/javascript; charset=utf-8'},assets={},identities={};
 for(const [name,type]of Object.entries(types)){const bytes=await readFile('../dist/'+name),compressed=gzipSync(bytes,{level:9,mtime:0});assets[name]={gzip:compressed.toString('base64'),type};identities[name]={sha256:sha256(bytes),bytes:bytes.length,gzipBytes:compressed.length,type};}
 const frontend=JSON.parse(await readFile('../dist/build.json','utf8')).version;
 assert.match(frontend,/^[a-f0-9]{20}$/);assert.ok((await readFile('../dist/index.html','utf8')).includes('content="'+frontend+'"'));

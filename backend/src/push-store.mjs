@@ -1,7 +1,8 @@
 import {eligibleMemberSql,resourceAccessSql,followingSql} from './notification-policy.mjs';
-import {assertAccount,validateSubscription,genericPayload,retryOutcome} from './push-policy.mjs';
+import {assertAccount,validateSubscription,deliveryPayload,retryOutcome} from './push-policy.mjs';
 const access=resourceAccessSql({kind:'n.resource_kind',id:'n.resource_id',container:'n.container_id',member:'n.recipient_id',revision:'e.resource_revision'});
 const allowed=`d.revoked_at IS NULL AND d.generation=o.generation AND ss.userId=d.member_id AND ss.expiresAt>? AND n.recipient_id=d.member_id AND n.read_at IS NULL AND n.dismissed_at IS NULL AND ${eligibleMemberSql('n.recipient_id')} AND (${access}) AND (e.expires_at IS NULL OR e.expires_at>CURRENT_TIMESTAMP) AND COALESCE(p.scope,'leaders')!='off' AND COALESCE(s.global_off,0)=0 AND COALESCE(json_extract(s.channels_json,'$.'||n.category||'.push'),1)=1 AND (n.category!='following' OR ${followingSql('n.recipient_id','e.actor_id',"COALESCE(p.scope,'leaders')",'p.selected_ids_json')})`;
+const previewAllowed="d.preview_enabled=1 AND d.preview_confirmed_at IS NOT NULL AND e.kind='message.created' AND n.resource_kind='conversation' AND EXISTS(SELECT 1 FROM notification_sequence nq WHERE nq.notification_id=n.id AND nq.sequence>d.preview_after_sequence)";
 const joined=`FROM push_outbox o JOIN push_devices d ON d.id=o.device_id JOIN session ss ON ss.id=d.session_id JOIN notifications n ON n.id=o.notification_id JOIN notification_events e ON e.id=n.event_id LEFT JOIN notification_settings s ON s.member_id=n.recipient_id LEFT JOIN notification_preferences p ON p.member_id=n.recipient_id`;
 // These internal primitives are not registered as routes. Call only after normal
 // auth/verified membership/same-Origin/CSRF gates, explicit device opt-in and readiness.
@@ -33,7 +34,10 @@ export async function claimDelivery(db,now=Date.now()){
  return db.prepare(`UPDATE push_outbox SET state='leased',lease_token=?,lease_until=?,attempts=attempts+1 WHERE id=(SELECT id FROM push_outbox WHERE expires_at>? AND attempts<8 AND ((state='pending' AND next_at<=?) OR (state='leased' AND lease_until<=?)) ORDER BY next_at,id LIMIT 1) AND (SELECT enabled FROM push_control WHERE id=1)=1 RETURNING *`).bind(token,now+60000,now,now,now).first();
 }
 export async function authorizedDelivery(db,row,now){
- return db.prepare(`SELECT d.endpoint,d.p256dh,d.auth,d.key_version,o.notification_id ${joined} WHERE o.id=? AND o.state='leased' AND o.lease_token=? AND o.lease_until>? AND o.expires_at>? AND (SELECT enabled FROM push_control WHERE id=1)=1 AND ${allowed}`).bind(row.id,row.lease_token,now,now,now).first();
+ return db.prepare(`SELECT d.endpoint,d.p256dh,d.auth,d.key_version,o.notification_id,n.category,e.kind,d.preview_enabled,d.preview_revision,
+  (${previewAllowed}) AS preview_allowed,
+  CASE WHEN ${previewAllowed} THEN (SELECT u.name FROM messages pm JOIN user u ON u.id=pm.author_id WHERE pm.id=json_extract(e.data_json,'$.messageId') AND pm.conversation_id=n.resource_id AND pm.author_id=e.actor_id) END AS preview_sender,
+  CASE WHEN ${previewAllowed} THEN (SELECT CASE WHEN pm.attachment_only=1 THEN 'Sent an attachment' ELSE pm.body END FROM messages pm WHERE pm.id=json_extract(e.data_json,'$.messageId') AND pm.conversation_id=n.resource_id AND pm.author_id=e.actor_id) END AS preview_text ${joined} WHERE o.id=? AND o.state='leased' AND o.lease_token=? AND o.lease_until>? AND o.expires_at>? AND (SELECT enabled FROM push_control WHERE id=1)=1 AND ${allowed}`).bind(row.id,row.lease_token,now,now,now).first();
 }
 export async function finishDelivery(db,row,result,now){
  const statements=[];
@@ -51,7 +55,7 @@ export async function drainWithInjectedSender(db,{sender,now=()=>Date.now(),max=
   const row=await claimDelivery(db,now());if(!row)break;
   const delivery=await authorizedDelivery(db,row,now());
   if(!delivery){await finishDelivery(db,row,{state:'cancelled',status:'not-authorized'},now());continue}
-  let response;try{attempted++;response=await sender({subscription:{endpoint:delivery.endpoint,keys:{p256dh:delivery.p256dh,auth:delivery.auth}},keyVersion:delivery.key_version,payload:genericPayload(delivery.notification_id,row.expires_at),ttl:Math.max(1,Math.floor((row.expires_at-now())/1000)),timeoutMs:10000})}catch{response={status:0}}
-  const result=retryOutcome(response.status,row.attempts,now(),row.expires_at,response.retryAfter,jitter());await finishDelivery(db,row,result,now());if(result.halt)break;
+  let response;try{attempted++;response=await sender({subscription:{endpoint:delivery.endpoint,keys:{p256dh:delivery.p256dh,auth:delivery.auth}},keyVersion:delivery.key_version,payload:deliveryPayload(delivery,row.expires_at),authorize:async()=>{const fresh=await authorizedDelivery(db,row,now());return !!fresh&&fresh.preview_revision===delivery.preview_revision&&fresh.preview_enabled===delivery.preview_enabled&&fresh.preview_allowed===delivery.preview_allowed&&fresh.preview_sender===delivery.preview_sender&&fresh.preview_text===delivery.preview_text},ttl:Math.max(1,Math.floor((row.expires_at-now())/1000)),timeoutMs:10000})}catch{response={status:0}}
+  const result=response.cancelled?{state:'cancelled',status:'not-authorized'}:retryOutcome(response.status,row.attempts,now(),row.expires_at,response.retryAfter,jitter());await finishDelivery(db,row,result,now());if(result.halt)break;
  }return {attempted};
 }

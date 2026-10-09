@@ -1,3 +1,4 @@
+import {pushActivity,pushCopy,boundedPushText} from '../../src/push-presentation.js';
 // Delivery still requires explicit deployment, schema and database control gates.
 export const PUSH_IMPLEMENTATION_READY = true;
 export function assertAccount(actor,expectedAccountId){if(!actor?.id||actor.id!==expectedAccountId)throw new Error('Account changed; refresh before changing this device')}
@@ -26,9 +27,18 @@ export function validateSubscription(value){
  if(key(keys?.p256dh,65).charCodeAt(0)!==4)throw new Error('Invalid browser key');key(keys?.auth,16);
  return {endpoint,keys:{p256dh:keys.p256dh,auth:keys.auth}};
 }
-export function genericPayload(id,expiresAt){
+export function genericPayload(id,expiresAt,{category,kind}={}){
  if(typeof id!=='string'||!/^[a-zA-Z0-9_-]{1,100}$/.test(id)||!Number.isSafeInteger(expiresAt))throw new Error('Invalid push identity');
- return {v:1,title:'Green & White Family',body:'You have a new update. Open GW to see it.',noticeId:id,expiresAt,url:'/?gwNotice='+encodeURIComponent(id),tag:'gw-activity'};
+ const activity=pushActivity(category,kind);
+ return {v:1,presentationVersion:2,...pushCopy(activity),activity,noticeId:id,expiresAt,url:'/?gwNotice='+encodeURIComponent(id),tag:'gw-notice-'+id};
+}
+export function deliveryPayload(delivery,expiresAt){
+ const payload=genericPayload(delivery.notification_id,expiresAt,delivery);
+ if(payload.activity==='message'&&delivery.preview_enabled===1&&delivery.preview_allowed===1){
+  const sender=boundedPushText(delivery.preview_sender,80),text=boundedPushText(delivery.preview_text,160);
+  if(sender&&text)payload.preview={consent:true,sender,text};
+ }
+ return payload;
 }
 export function retryOutcome(status,attempt,now,expiresAt,retryAfter=null,jitter=0.5){
  if(now>=expiresAt)return {state:'expired',status:'expired'};

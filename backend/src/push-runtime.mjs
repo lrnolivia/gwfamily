@@ -9,15 +9,18 @@ export function runtimeReady(env){
  return validKey(env.PUSH_VAPID_PRIVATE_KEY,32)&&validKey(env.PUSH_VAPID_PUBLIC_KEY,65)&&/^[A-Za-z0-9_-]{1,32}$/.test(env.PUSH_KEY_VERSION||'')&&((subject.protocol==='mailto:'&&/^[^\s@]+@[^\s@]+$/.test(subject.pathname))||(subject.protocol==='https:'&&!!subject.hostname&&!subject.username&&!subject.password));
 }
 export function createPushSender(env,{load=()=>import('web-push'),fetcher=globalThis.fetch}={}){
- return async({subscription,keyVersion,payload,ttl,timeoutMs=10000})=>{
+ return async({subscription,keyVersion,payload,ttl,timeoutMs=10000,authorize})=>{
   if(!runtimeReady(env)||keyVersion!==env.PUSH_KEY_VERSION)return {status:403};
   const safe=validateSubscription(subscription),imported=await load(),library=imported.default||imported;
   if(typeof library.generateRequestDetails!=='function')throw new Error('Push sender unavailable');
-  const details=library.generateRequestDetails(safe,JSON.stringify(payload),{TTL:Math.max(1,Math.min(86400,ttl)),contentEncoding:'aes128gcm',urgency:'normal',topic:'gw-activity',vapidDetails:{subject:env.PUSH_SUBJECT,publicKey:env.PUSH_VAPID_PUBLIC_KEY,privateKey:env.PUSH_VAPID_PRIVATE_KEY}});
+  const details=library.generateRequestDetails(safe,JSON.stringify(payload),{TTL:Math.max(1,Math.min(86400,ttl)),contentEncoding:'aes128gcm',urgency:'normal',topic:payload?.noticeId?Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(payload.noticeId)))).slice(0,16).map(byte=>byte.toString(16).padStart(2,'0')).join(''):'gw-test',vapidDetails:{subject:env.PUSH_SUBJECT,publicKey:env.PUSH_VAPID_PUBLIC_KEY,privateKey:env.PUSH_VAPID_PRIVATE_KEY}});
+  // Recheck consent, recipient/resource/mute/session eligibility and the lease
+  // after encryption, immediately before provider transmission.
+  if(authorize&&!await authorize())return {status:0,cancelled:true};
   return transmitPreparedPush(details,safe.endpoint,{fetcher,timeoutMs});
  };
 }
-export async function drainPush(env){if(!runtimeReady(env))return {attempted:0,disabled:true};return drainWithInjectedSender(env.DB,{sender:createPushSender(env)})}
+export async function drainPush(env,{max=20}={}){if(!runtimeReady(env))return {attempted:0,disabled:true};return drainWithInjectedSender(env.DB,{sender:createPushSender(env),max})}
 
 export async function transmitPreparedPush(details,expectedEndpoint,{fetcher=globalThis.fetch,timeoutMs=10000}={}){
  // Equality prevents library retargeting; it is not a destination trust check.

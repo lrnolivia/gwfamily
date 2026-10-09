@@ -58,7 +58,7 @@ test('active routes retain auth, member, origin, account, DB control, session an
  assert.equal((await call('bob','/api/me/push/devices/'+device.id,'DELETE',{expectedAccountId:'bob'})).status,200);
  assert.equal((await (await call('bob','/api/me/push')).json()).pushEnabled,false);
 });
-test('real pinned web-push encrypts and signs only the generic payload; provider transport is injected offline',async()=>{
+test('real pinned web-push encrypts and signs payloads; provider transport is injected offline',async()=>{
  const {createECDH}=await import('node:crypto');const webpush=(await import('web-push')).default;
  // Ephemeral fictional test keys only. Production staged keys are never loaded or regenerated.
  const keys=webpush.generateVAPIDKeys(),browser=createECDH('prime256v1');browser.generateKeys();
@@ -71,7 +71,7 @@ test('test notification is restricted to current-account current-session device 
  const {Hono}=await import('hono');const {registerPushRoutes}=await import('../src/push-routes.mjs');const {UserError}=await import('../src/family-service.mjs');
  const {DB,sqlite}=setup();sqlite.exec("INSERT INTO session(id,expiresAt,token,createdAt,updatedAt,userId) VALUES('fictional-session',9999999999999,'fictional-offline-session',0,0,'bob');UPDATE push_control SET enabled=1;INSERT INTO push_devices(id,member_id,session_id,endpoint,p256dh,auth,key_version,created_at,confirmed_at) VALUES('device','bob','fictional-session','https://web.push.apple.com/fictional-offline-only','','','fixture-v1',0,0)");
  let sent=0;const app=new Hono();app.use('*',async(c,next)=>{c.set('actor',{id:'bob'});c.set('sessionId','fictional-session');await next()});app.onError((e,c)=>c.json({error:'safe'},e instanceof UserError?e.status:500));
- registerPushRoutes(app,{sender:()=>async input=>{sent++;assert.deepEqual(Object.keys(input.payload).sort(),['expiresAt','test','v']);assert.equal(input.payload.test,true);return {status:201}}});
+ registerPushRoutes(app,{sender:()=>async input=>{sent++;assert.deepEqual(Object.keys(input.payload).sort(),['expiresAt','presentationVersion','test','v']);assert.equal(input.payload.test,true);return {status:201}}});
  const call=(id,account='bob')=>app.request('https://fictional.example.test/api/me/push/devices/'+id+'/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedAccountId:account})},{...readyConfig,DB});
  assert.equal((await call('device','alice')).status,409);assert.equal((await call('unknown')).status,404);assert.equal(sent,0);
  const response=await call('device');assert.equal(response.status,200);assert.deepEqual(await response.json(),{accountId:'bob',accepted:true});assert.equal(sent,1);
@@ -97,4 +97,12 @@ test('test provider rejection returns bounded status evidence; expired subscript
  const call=()=>app.request('https://fictional.example.test/api/me/push/devices/device/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedAccountId:'bob'})},{...readyConfig,DB});
  let response=await call();assert.equal(response.status,503);let body=await response.json();assert.equal(body.providerStatus,403);assert.equal(body.code,'push-provider-rejected');assert.ok(body.requestId);assert.ok(!JSON.stringify(body).includes('private-provider-body'));assert.equal(sqlite.prepare('SELECT revoked_at FROM push_devices').get().revoked_at,null);
  providerStatus=410;response=await call();assert.equal(response.status,410);body=await response.json();assert.equal(body.code,'push-subscription-expired');assert.ok(sqlite.prepare('SELECT revoked_at FROM push_devices').get().revoked_at);assert.equal((await call()).status,404);assert.equal(sent,2);
+});
+
+test('delivery authorizes again after encryption and never transmits if consent or access changed',async()=>{
+ const order=[],topics=[],payload={v:1,presentationVersion:2,noticeId:'fixture-private-notice',activity:'message',preview:{consent:true,sender:'Fictional Alice',text:'fixture-message'}};
+ const sender=createPushSender(readyConfig,{load:async()=>({generateRequestDetails(sub,text,options){order.push('encrypt');topics.push(options.topic);assert.equal(JSON.parse(text).preview.text,'fixture-message');return {endpoint:sub.endpoint,method:'POST',headers:{},body:'fictional-encrypted-bytes'}}}),fetcher:async()=>{order.push('transmit');return new Response(null,{status:201})}});
+ assert.deepEqual(await sender({subscription,keyVersion:'fixture-v1',payload,ttl:60,authorize:async()=>{order.push('authorize');return false}}),{status:0,cancelled:true});assert.deepEqual(order,['encrypt','authorize']);
+ order.length=0;await sender({subscription,keyVersion:'fixture-v1',payload,ttl:60,authorize:async()=>{order.push('authorize');return true}});assert.deepEqual(order,['encrypt','authorize','transmit']);assert.match(topics[0],/^[a-f0-9]{32}$/);assert.equal(topics[0],topics[1]);
+ await sender({subscription,keyVersion:'fixture-v1',payload:{...payload,noticeId:'fixture-different-notice'},ttl:60,authorize:async()=>false});assert.notEqual(topics[0],topics[2]);
 });
