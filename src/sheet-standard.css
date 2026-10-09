@@ -10,10 +10,12 @@
 /* One sticky action row at the bottom of its sheet. */
 .sheet-footer{position:sticky;bottom:0;z-index:3;display:flex;flex-wrap:wrap;gap:12px;margin:0;padding:12px 0 calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(to bottom,transparent,var(--surface) 12px);border:0}
 .sheet-footer>:is(.button,button,.page-editor-remove){flex:1 1 0;min-width:0;justify-content:center;margin:0}
-/* Chromium and WebKit pin a bottom:0 sticky row above the scroller's bottom padding (and the
-   home-indicator inset), leaving a strip where scrolled content shows through.
-   Paint the surface below the row so it always reads as flush to the edge. */
-.sheet-footer::after{content:"";position:absolute;left:0;right:0;top:100%;height:max(48px,calc(24px + env(safe-area-inset-bottom,0px)));background:var(--surface);pointer-events:none}
+/* Chromium and WebKit pin a bottom:0 sticky row above the scroller's bottom
+   padding (and the home-indicator inset), leaving a strip where scrolled content
+   shows through. Two surface-colored shadow copies paint that strip; a shadow is
+   used because some footers clip their own overflow. Rows are taller than 40px,
+   so the copies overlap and cover up to 80px below the row. */
+html .sheet-footer{box-shadow:0 40px 0 0 var(--surface),0 80px 0 0 var(--surface)}
 .page-object-tools-body>.sheet-footer{margin-bottom:-20px}
 /* Destructive actions sit side by side on a danger-tinted surface. */
 .sheet-footer.page-editor-destructive-group{border-top:0;margin-top:0;padding-top:12px}
