@@ -33,6 +33,8 @@ try{
   let saved=await stored(page);assert.equal(saved.memories.length,2);
   // Retrying the oversized file stays honest and never duplicates the others.
   await panel.getByRole('button',{name:'Retry fixture-too-large.png',exact:true}).click();
+  // The summary reads the same before and after the retry, so wait for the retry itself to finish.
+  await expect(panel).toHaveAttribute('aria-busy','false');await expect(panel.locator('.memory-batch-row.is-upload-failed')).toHaveCount(1);
   await expect(panel.getByRole('status')).toHaveText('2 of 3 memories added. 1 needs a retry below.');
   saved=await stored(page);assert.equal(saved.memories.length,2,'no duplicates after retry');
   await page.screenshot({path:`${output}/${engine}-${width}-batch.png`,fullPage:true});
