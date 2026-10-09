@@ -7,7 +7,7 @@ import {buildDisplacementLUT,renderDisplacementMap} from '@sohumsuthar/liquid-gl
 import {useLiquidGlassEffects} from '@sohumsuthar/liquid-glass/hooks';
 import {useLiquidLens} from '@sohumsuthar/liquid-glass/hooks/useLiquidLens';
 import paths from './glyph-paths.js';
-import {householdBadge} from './household-badges.js';
+import {householdBadges} from './household-badges.js';
 import './member-badges.css';
 import './filter-platter.css';
 import {useFloatingPanelPosition} from './floating-panel-position.js';
@@ -42,18 +42,21 @@ export const Control=React.forwardRef(function Control({className='',children,gl
 export function Glyph({name,className=''}){return <svg className={'glyph '+className} viewBox="0 0 24 24" aria-hidden="true"><path d={paths[name]||paths.arrow}/></svg>}
 export function Avatar({member,size}){return member?.photo?<span className={'avatar avatar-photo '+(size||'')}><img src={member.photo} style={photoFrameStyle(member.photoFrame)} alt=""/></span>:
   <span className={'avatar '+(size||'')}>{member?.name?.slice(0,1)||'?'}</span>}
-export function MemberBadges({member,interactive=false,passive=false,compact=false,id}){
+export function MemberBadges({member,interactive=false,passive=false,showCircle=false,id}){
   const {state,go}=useApp();
   // Never build membership or leader metadata from a management fallback record
   // or an ancestor. The existing member state is the authorized identity source.
   const person=member?.personKind==='ancestor'?null:(state.members||[]).find(p=>p.id===member?.id);
   if(!person)return null;
-  const badge=householdBadge(state,person.id,{compact}),household=badge?.household,group=(state.groups||[]).find(g=>g.id===person.groupId),destination=household?{type:'household',id:household.id}:group?{type:'group',id:group.id}:null,groupName=badge?.label||group?.name,groupLabel=(household?'Household: '+household.name:'Family group: '+groupName)+(badge?.more?'. Also in '+badge.others.join(', '):'');
+  // Up to two full household names, then +N. Family/Loved Ones shows only on a
+  // person's profile and mini profile card (showCircle).
+  const badges=householdBadges(state,person.id),group=!badges.shown.length&&(state.groups||[]).find(g=>g.id===person.groupId);
+  const chips=badges.shown.length?badges.shown.map(h=>({key:h.id,name:h.name,label:'Household: '+h.name,destination:{type:'household',id:h.id}})):group?[{key:group.id,name:group.name,label:'Family group: '+group.name,destination:{type:'group',id:group.id}}]:[];
   const canOpen=interactive&&!passive,circleName=person.circle==='loved'?'Loved Ones':'Family';
   return <span id={id} className="membership-chips">
-    {person.circle&&<span className="membership-chip" title={circleName}><Glyph name={person.circle==='loved'?'heart':'people'}/><span className="membership-label">{circleName}</span></span>}
-    {destination&&(canOpen?<Control type="button" className="membership-chip-control" aria-label={groupLabel} title={household?.name||groupName} onClick={event=>{event.stopPropagation();go(destination)}}><span className="membership-chip membership-group"><Glyph name="home"/><span className="membership-label">{groupName}</span></span></Control>:<span className="membership-chip membership-group" title={groupLabel}><Glyph name="home"/><span className="membership-label">{groupName}</span></span>)}
-    {badge?.more>0&&<span className="membership-chip membership-more" title={'Also in '+badge.others.join(', ')}><span aria-hidden="true">+{badge.more}</span><span className="visually-hidden">{badge.more===1?'1 more household':badge.more+' more households'}</span></span>}
+    {showCircle&&person.circle&&<span className="membership-chip" title={circleName}><Glyph name={person.circle==='loved'?'heart':'people'}/><span className="membership-label">{circleName}</span></span>}
+    {chips.map(c=>canOpen?<Control key={c.key} type="button" className="membership-chip-control" aria-label={c.label} title={c.name} onClick={event=>{event.stopPropagation();go(c.destination)}}><span className="membership-chip membership-group"><Glyph name="home"/><span className="membership-label">{c.name}</span></span></Control>:<span key={c.key} className="membership-chip membership-group" title={c.label}><Glyph name="home"/><span className="membership-label">{c.name}</span></span>)}
+    {badges.more>0&&<span className="membership-chip membership-more" title={'Also in '+badges.others.join(', ')}><span aria-hidden="true">+{badges.more}</span><span className="visually-hidden">{badges.more===1?'1 more household':badges.more+' more households'}</span></span>}
     {person.leader&&<span className="membership-chip membership-shield" role="img" aria-label="Family leader" title="Family leader"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 6v5c0 5-3 8-7 10-4-2-7-5-7-10V6zM8.5 11.8l2.3 2.3 4.7-4.7"/></svg></span>}
   </span>
 }

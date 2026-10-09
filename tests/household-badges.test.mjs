@@ -1,20 +1,16 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {householdInitials,compactHouseholdName,householdBadge,memberHouseholds} from '../src/household-badges.js';
+import {householdBadges,memberHouseholds} from '../src/household-badges.js';
 // Fictional households only.
 const state={selfId:'ivy',householdId:'h-b',primaryHouseholds:{rowan:'h-c'},
- households:[{id:'h-a',name:'Juniper & Wren',memberIds:['ivy','rowan']},{id:'h-b',name:'Harbor Home',memberIds:['ivy']},{id:'h-c',name:'Corwin',memberIds:['rowan']},{id:'h-d',name:'Cora',memberIds:[]}],
+ households:[{id:'h-a',name:'Juniper & Wren',memberIds:['ivy','rowan']},{id:'h-b',name:'Harbor Home',memberIds:['ivy']},{id:'h-c',name:'Corwin',memberIds:['rowan','ivy']},{id:'h-d',name:'Cora',memberIds:[]}],
  householdRequests:[{id:'r',householdId:'h-d',requesterId:'ivy',kind:'join'}]};
-test('initials: ampersand pairs, skipped filler words, two letters for one word',()=>{
- assert.equal(householdInitials('Juniper & Wren'),'J&W');assert.equal(householdInitials('The Harbor Household'),'Ha');assert.equal(householdInitials('Marsh Quill'),'MQ');assert.equal(householdInitials(''),'');
+test('up to two full household names, then +N; names are never shortened',()=>{
+ const ivy=householdBadges(state,'ivy');
+ assert.deepEqual(ivy.shown.map(h=>h.name),['Harbor Home','Juniper & Wren'],'default household first, full names');
+ assert.equal(ivy.more,1);assert.deepEqual(ivy.others,['Corwin']);
+ const rowan=householdBadges(state,'rowan');assert.deepEqual(rowan.shown.map(h=>h.id),['h-c','h-a']);assert.equal(rowan.more,0);
 });
-test('compact names fall back to the full name when initials collide',()=>{
- assert.equal(compactHouseholdName(state,state.households[0]),'J&W');
- assert.equal(compactHouseholdName(state,state.households[2]),'Corwin','Corwin and Cora both start with Co');
-});
-test('one primary household plus +N; pending requests are not memberships',()=>{
- assert.deepEqual(memberHouseholds(state,'ivy').map(h=>h.id),['h-b','h-a'],'the signed-in member sees their own default first');
- const ivy=householdBadge(state,'ivy');assert.equal(ivy.label,'Harbor Home');assert.equal(ivy.more,1);assert.deepEqual(ivy.others,['Juniper & Wren']);
- const rowan=householdBadge(state,'rowan',{compact:true});assert.equal(rowan.household.id,'h-c');assert.equal(rowan.label,'Corwin');assert.equal(rowan.more,1);
- assert.equal(householdBadge(state,'nobody'),null);
- assert.equal(householdBadge({...state,primaryHouseholds:{}},'rowan').household.id,'h-a','without a stored default the first membership leads');
+test('pending requests are not memberships; no households means no badges',()=>{
+ assert.ok(!memberHouseholds(state,'ivy').some(h=>h.id==='h-d'));
+ assert.deepEqual(householdBadges(state,'nobody'),{shown:[],more:0,others:[]});
 });
