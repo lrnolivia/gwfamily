@@ -11,10 +11,12 @@ export async function householdState(db,actor){
  const ms=rows(await db.prepare("SELECT hm.* FROM household_members hm JOIN members m ON m.id=hm.member_id WHERE m.status='active' ORDER BY hm.joined_at,hm.household_id").all());
  const heritage=rows(await db.prepare("SELECT hh.* FROM household_heritage hh WHERE (hh.person_kind='ancestor' AND EXISTS(SELECT 1 FROM memorials m WHERE m.id=hh.person_id)) OR (hh.person_kind='member' AND EXISTS(SELECT 1 FROM members m WHERE m.id=hh.person_id AND m.status='active')) ORDER BY hh.updated_at,hh.id").all());
  const primary=(await db.prepare('SELECT primary_household_id FROM profiles WHERE member_id=?').bind(actor.id).first())?.primary_household_id;
+ // Each member's chosen default household, used only to order household badges.
+ const primaries=rows(await db.prepare('SELECT p.member_id,p.primary_household_id FROM profiles p JOIN household_members hm ON hm.member_id=p.member_id AND hm.household_id=p.primary_household_id JOIN members m ON m.id=p.member_id WHERE m.status=\'active\'').all());
  const own=ms.filter(m=>m.member_id===actor.id);
  const rs=rows(await db.prepare("SELECT * FROM household_requests WHERE status='pending' AND (requester_id=? OR recipient_id=? OR household_id IN (SELECT household_id FROM household_members WHERE member_id=? AND role='head')) ORDER BY created_at").bind(actor.id,actor.id,actor.id).all());
  return {
-  householdIds:own.map(m=>m.household_id),householdId:own.find(m=>m.household_id===primary)?.household_id||own[0]?.household_id||null,
+  householdIds:own.map(m=>m.household_id),primaryHouseholds:Object.fromEntries(primaries.map(p=>[p.member_id,p.primary_household_id])),householdId:own.find(m=>m.household_id===primary)?.household_id||own[0]?.household_id||null,
   households:hs.map(h=>({id:h.id,name:h.name,color:h.color_mode==='custom'?h.color:null,colorMode:h.color_mode,photo:h.photo_url,photoFrame:storedPhotoFrame(h.photo_frame_json),founderId:h.founder_id,
    memberIds:ms.filter(m=>m.household_id===h.id).map(m=>m.member_id),headIds:ms.filter(m=>m.household_id===h.id&&m.role==='head').map(m=>m.member_id),
    canManage:ms.some(m=>m.household_id===h.id&&m.member_id===actor.id&&m.role==='head'),
