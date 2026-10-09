@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
-// WebKit pins bottom:0 sticky rows above the scroller's bottom padding; the
+// Chromium and WebKit pin bottom:0 sticky rows above the scroller's bottom padding; the
 // surface must be painted below the row so scrolled content never shows there.
 test('sticky sheet footers paint the surface below themselves',()=>{
  const css=readFileSync(new URL('../src/sheet-standard.css',import.meta.url),'utf8');
