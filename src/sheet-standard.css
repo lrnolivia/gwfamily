@@ -64,3 +64,11 @@ html[data-theme][data-platform]:not([data-platform=ios]) .page-object-tools-head
 html[data-theme] .button.danger-action{background:color-mix(in srgb,var(--status-danger) 16%,var(--raised));color:var(--status-danger);border-radius:14px}
 html[data-theme] .button.danger-action:hover{background:color-mix(in srgb,var(--status-danger) 24%,var(--raised))}
 @media(forced-colors:active){html .button.danger-action{border:1px solid CanvasText}}
+
+/* Save rows inside sheets are the sticky bottom action row too. */
+#sheet-body .form-save{position:sticky;bottom:0;z-index:3;display:flex;gap:12px;margin:0;padding:12px 0 calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(to bottom,transparent,var(--surface) 12px);box-shadow:0 40px 0 0 var(--surface),0 80px 0 0 var(--surface)}
+#sheet-body .form-save>:is(.button,button){flex:1 1 0;min-width:0;justify-content:center;margin:0}
+/* Shirt options sit on one platter; light destructive text actions read as danger. */
+.size-platter{display:grid;gap:12px;padding:14px;border-radius:14px;background:var(--raised)}
+.size-platter>.size-list:empty{display:none}
+html[data-theme] .text-button.danger-text{color:var(--status-danger)}
