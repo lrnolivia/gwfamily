@@ -6,6 +6,7 @@ import {hasChatDrafts} from './messaging-model.js';
 import {watchBuild} from './update-check.js';
 import {createReloadController,isEditing} from './update-reload-controller.mjs';
 import './update-toast.css';
+const BOTTOM_CONTROLS='.message-compose-area,.fab';
 export function BuildUpdateNotice(){
  const {data,state,messaging}=useContext(AppContext),page=usePageContent();
  const [ready,setReady]=useState(null),[hint,setHint]=useState(''),latest=useRef(null),dirtyForms=useRef(new WeakSet());
@@ -24,7 +25,20 @@ export function BuildUpdateNotice(){
   const timer=setInterval(()=>controller.current.tick(),1000);
   return()=>{clearInterval(timer);events.forEach(e=>document.removeEventListener(e,activity,true));document.removeEventListener('input',changed,true);document.removeEventListener('change',changed,true)};
  },[]);
+ // Bottom-anchored primary controls (chat composer, Post) stay reachable beside Reload.
+ const [clear,setClear]=useState(0);
+ useEffect(()=>{
+  if(!ready)return;let frame=0;
+  const measure=()=>{frame=0;let top=innerHeight;for(const node of document.querySelectorAll(BOTTOM_CONTROLS)){const rect=node.getBoundingClientRect();if(rect.height>0&&rect.bottom>innerHeight/2)top=Math.min(top,rect.top)}setClear(top<innerHeight?Math.ceil(innerHeight-top+12):0)};
+  const schedule=()=>{if(!frame)frame=requestAnimationFrame(measure)};
+  const resize=typeof ResizeObserver==='function'?new ResizeObserver(schedule):null;
+  const changed=()=>{for(const node of document.querySelectorAll(BOTTOM_CONTROLS))resize?.observe(node);schedule()};
+  const observer=new MutationObserver(changed);observer.observe(document.body,{childList:true,subtree:true});
+  const vv=window.visualViewport;addEventListener('resize',schedule);vv?.addEventListener('resize',schedule);vv?.addEventListener('scroll',schedule);
+  changed();
+  return()=>{if(frame)cancelAnimationFrame(frame);observer.disconnect();resize?.disconnect();removeEventListener('resize',schedule);vv?.removeEventListener('resize',schedule);vv?.removeEventListener('scroll',schedule)};
+ },[ready]);
  if(!ready||typeof document==='undefined')return null;
  const waiting=latest.current.pending||latest.current.drafts||!latest.current.storageSafe;
- return createPortal(<aside className="gw-update-toast" role="status" aria-live="polite"><span>{hint||(waiting?'Update ready. Save your changes first.':'Update ready. Refreshing when you’re idle.')}</span><button type="button" disabled={latest.current.pending} onClick={()=>{if(!controller.current.manual())setHint('Save or close your draft before reloading.')}} aria-label="Reload updated app">Reload</button></aside>,document.body);
+ return createPortal(<aside className={'gw-update-toast'+(clear?' is-above-composer':'')} style={clear?{'--gw-update-toast-clear':clear+'px'}:undefined} role="status" aria-live="polite"><span>{hint||(waiting?'Update ready. Save your changes first.':'Update ready. Refreshing when you’re idle.')}</span><button type="button" disabled={latest.current.pending} onClick={()=>{if(!controller.current.manual())setHint('Save or close your draft before reloading.')}} aria-label="Reload updated app">Reload</button></aside>,document.body);
 }
