@@ -6,11 +6,11 @@ import {initialState,PREVIEW_KEY} from '../src/data-adapter.js';
 import {parsePaintColor} from './page-save-contrast.mjs';
 const browser=await (process.env.GW_BROWSER==='webkit'?webkit:chromium).launch({headless:true,executablePath:process.env.PW_CHROME||undefined}),results=[],errors=[];
 await mkdir('docs/recovery-qa',{recursive:true});
-async function pageFor(width,theme,platform,mode='browser'){
+async function pageFor(width,theme,platform,mode='browser',previewRoleView='member'){
  const page=await browser.newPage({viewport:{width,height:900},reducedMotion:'reduce'});page.setDefaultTimeout(12000);page.on('pageerror',e=>errors.push(e.message));
  await page.addInitScript(mode=>{Object.defineProperty(navigator,'standalone',{get:()=>mode==='standalone'});const original=window.matchMedia.bind(window);window.matchMedia=query=>{const media=original(query);if(query==='(display-mode: standalone)')Object.defineProperty(media,'matches',{get:()=>mode==='standalone'});return media}},mode);
  await page.goto('http://127.0.0.1:4173');await page.waitForFunction(()=>!!document.documentElement.dataset.platform);
- const state=initialState();state.onboarding='done';state.previewRoleView='leader';state.members.find(m=>m.id===state.selfId).profileColor='#c9aa52';
+ const state=initialState();state.onboarding='done';state.previewRoleView=previewRoleView;state.members.find(m=>m.id===state.selfId).profileColor='#c9aa52';
  await page.evaluate(({state,key,theme,platform})=>{localStorage.setItem(key,JSON.stringify({schema:2,mode:'preview',state}));
   sessionStorage.setItem('gw-active-mode','preview');localStorage.setItem('gw-theme',theme);localStorage.setItem('gw-platform',platform);localStorage.setItem('gw-preview-notice:v1','seen');localStorage.setItem('gw-install-dismissed','true')},{state,key:PREVIEW_KEY,theme,platform});
  await page.reload({waitUntil:'domcontentloaded'});await page.getByRole('navigation',{name:'Main navigation'}).waitFor();return page;
@@ -52,7 +52,7 @@ async function verifyFilterPlatters(page,width,theme){
 }
 try{
  for(const width of [390,768,1280])for(const theme of ['dark','light'])for(const platform of ['ios','android']){
-  const p=await pageFor(width,theme,platform),nav=p.getByRole('navigation',{name:'Main navigation'}),fab=p.getByRole('button',{name:'Post an update',exact:true});
+  const p=await pageFor(width,theme,platform,'browser','leader'),nav=p.getByRole('navigation',{name:'Main navigation'}),fab=p.getByRole('button',{name:'Post an update',exact:true});
   assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'page stays within viewport');
   const editEntry=p.locator('.page-edit-toolbar.is-entry'),mainBox=await p.locator('main').boundingBox(),footerBox=await p.locator('.app>footer').boundingBox(),entryBox=await editEntry.boundingBox();
   assert.ok(entryBox&&entryBox.y>=mainBox.y+mainBox.height-1&&entryBox.y+entryBox.height<=footerBox.y+1,'Edit Page sits after page content and before footer');
@@ -86,7 +86,7 @@ try{
  }
  // Regular members retain profile editing but have no shared-page tools.
  {
-  const p=await pageFor(390,'dark','android');await p.evaluate(key=>{const stored=JSON.parse(localStorage.getItem(key));stored.state.selfId='sheldon';localStorage.setItem(key,JSON.stringify(stored))},PREVIEW_KEY);await p.reload({waitUntil:'domcontentloaded'});
+  const p=await pageFor(390,'dark','android');await p.evaluate(key=>{const stored=JSON.parse(localStorage.getItem(key));stored.state.selfId='sheldon';stored.state.previewRoleView='member';localStorage.setItem(key,JSON.stringify(stored))},PREVIEW_KEY);await p.reload({waitUntil:'domcontentloaded'});
   const nav=p.getByRole('navigation',{name:'Main navigation'});await nav.getByRole('button',{name:'You',exact:true}).click();
   await expect(p.getByRole('button',{name:'Edit profile',exact:true})).toBeVisible();await expect(p.getByRole('heading',{name:'Leader Tools',exact:true})).toHaveCount(0);
   for(const name of ['Home','Reunion','Family']){await nav.getByRole('button',{name,exact:true}).click();await expect(p.getByRole('button',{name:'Edit page',exact:true})).toHaveCount(0);}
@@ -114,7 +114,7 @@ try{
   const p=await pageFor(390,theme,platform);
   await p.evaluate(()=>localStorage.setItem('gw-interface-accent:v1',JSON.stringify({mode:'custom',color:'#ec9d00'})));await p.reload({waitUntil:'domcontentloaded'});
   await p.getByRole('button',{name:'Profile and appearance'}).click();
-  const action=p.getByRole('button',{name:'Go to You',exact:true});await expect(action).toBeVisible();
+  const action=p.locator('.profile-menu').getByRole('button',{name:'Settings',exact:true});await expect(action).toBeVisible();
   const paint=await action.evaluate(e=>{const s=getComputedStyle(e),r=e.getBoundingClientRect();return {background:s.backgroundColor,color:s.color,shadow:s.textShadow,width:r.width,height:r.height}});
   assert.equal(paint.background,'rgb(236, 157, 0)','Yellow keeps the exact approved fill');assert.equal(paint.color,'rgb(255, 250, 240)','Yellow labels use the approved warm near-white');assert.notEqual(paint.shadow,'none','Yellow receives its soft warm-brown shadow');assert.ok(paint.width>=44&&paint.height>=44);
   await p.screenshot({path:`docs/recovery-qa/yellow-white-label-${theme}-${platform}.png`});results.push({check:'yellow white label paint, visual review required',theme,platform,paint});await p.close();
