@@ -2,6 +2,10 @@ import {UserError,json} from './family-service.mjs';
 import {directorySelection} from './member-directory.mjs';
 import {can} from './policy.mjs';
 import {CATEGORIES,DEFAULT_CATEGORIES,eligibleMemberSql,resourceAccessSql,followingSql} from './notification-policy.mjs';
+// Email and push can be switched off per category; anything not stored is on.
+const CHANNELS=['email','push'];
+const channelChoices=stored=>Object.fromEntries(CATEGORIES.map(k=>[k,Object.fromEntries(CHANNELS.map(c=>[c,stored?.[k]?.[c]!==false]))]));
+const storedChannels=channels=>Object.fromEntries(Object.entries(channels).map(([k,v])=>[k,Object.fromEntries(CHANNELS.filter(c=>v[c]===false).map(c=>[c,false]))]).filter(([,v])=>Object.keys(v).length));
 const rows=r=>r.results||[];
 const stamp=v=>v?Date.parse(/Z$|[+-]\d\d:\d\d$/.test(v)?v:v.replace(' ','T')+'Z'):null;
 const titles={
@@ -27,15 +31,15 @@ const visible=`n.recipient_id=? AND n.dismissed_at IS NULL AND ${eligibleMemberS
 export async function notificationSettings(db,actor){
  // Read Following and its revision in one database snapshot. Split reads can
  // pair a stale scope with a newer revision and defeat a revisionless save's CAS.
- const row=await db.prepare(`SELECT p.scope,p.selected_ids_json,s.following_scope,s.categories_json,s.global_off,s.revision
+ const row=await db.prepare(`SELECT p.scope,p.selected_ids_json,s.following_scope,s.categories_json,s.channels_json,s.global_off,s.revision
   FROM (SELECT ? AS member_id) viewer
   LEFT JOIN notification_preferences p ON p.member_id=viewer.member_id
   LEFT JOIN notification_settings s ON s.member_id=viewer.member_id`).bind(actor.id).first();
- return {accountId:actor.id,scope:row.scope==='off'?(row.following_scope||'leaders'):row.scope||row.following_scope||'leaders',selectedIds:json(row.selected_ids_json,[])||[],categories:{...DEFAULT_CATEGORIES,...json(row.categories_json)},globalOff:row.scope==='off'||!!row.global_off,revision:row.revision||0,pushEnabled:false};
+ return {accountId:actor.id,scope:row.scope==='off'?(row.following_scope||'leaders'):row.scope||row.following_scope||'leaders',selectedIds:json(row.selected_ids_json,[])||[],categories:{...DEFAULT_CATEGORIES,...json(row.categories_json)},channels:channelChoices(json(row.channels_json)),globalOff:row.scope==='off'||!!row.global_off,revision:row.revision||0,pushEnabled:false};
 }
 export async function notificationSettingsStatements(db,actor,patch){
  if(!patch||typeof patch!=='object'||Array.isArray(patch))throw new UserError('Check notification settings');
- const allowed=['scope','selectedIds','selectedMemberIds','categories','globalOff','revision'];
+ const allowed=['scope','selectedIds','selectedMemberIds','categories','channels','globalOff','revision'];
  if(Object.keys(patch).some(k=>!allowed.includes(k)))throw new UserError('Unsupported notification setting');
  const before=await notificationSettings(db,actor);let selected=patch.selectedIds??patch.selectedMemberIds??before.selectedIds;
  if(patch.selectedIds!==undefined||patch.selectedMemberIds!==undefined)try{selected=await directorySelection(db,selected,{max:200})}catch(e){throw new UserError(e.message,e.status||400)}
@@ -46,11 +50,13 @@ export async function notificationSettingsStatements(db,actor,patch){
  if(nextScope==='off')nextScope=before.scope;
  const categories={...before.categories};
  if(patch.categories!==undefined){if(!patch.categories||typeof patch.categories!=='object'||Array.isArray(patch.categories)||Object.entries(patch.categories).some(([k,v])=>!CATEGORIES.includes(k)||typeof v!=='boolean'))throw new UserError('Check notification categories');Object.assign(categories,patch.categories)}
+ const channels=structuredClone(before.channels);
+ if(patch.channels!==undefined){if(!patch.channels||typeof patch.channels!=='object'||Array.isArray(patch.channels)||Object.entries(patch.channels).some(([k,v])=>!CATEGORIES.includes(k)||!v||typeof v!=='object'||Array.isArray(v)||Object.entries(v).some(([c,on])=>!CHANNELS.includes(c)||typeof on!=='boolean')))throw new UserError('Check notification channels');for(const [k,v] of Object.entries(patch.channels))Object.assign(channels[k],v)}
  if(patch.revision!==undefined&&(!Number.isSafeInteger(patch.revision)||patch.revision<0))throw new UserError('Use a valid settings revision');
  const revision=patch.revision??before.revision;if(revision!==before.revision)throw new UserError('Notification settings changed on another device. Refresh and try again.',409);
  const token=crypto.randomUUID();
  const statements=[
-  db.prepare(`INSERT INTO notification_settings(member_id,categories_json,global_off,following_scope,revision,write_token) VALUES(?,?,?,?,1,?) ON CONFLICT(member_id) DO UPDATE SET categories_json=excluded.categories_json,global_off=excluded.global_off,following_scope=excluded.following_scope,revision=notification_settings.revision+1,write_token=excluded.write_token,updated_at=CURRENT_TIMESTAMP WHERE notification_settings.revision=?`).bind(actor.id,JSON.stringify(categories),off?1:0,nextScope,token,revision),
+  db.prepare(`INSERT INTO notification_settings(member_id,categories_json,channels_json,global_off,following_scope,revision,write_token) VALUES(?,?,?,?,?,1,?) ON CONFLICT(member_id) DO UPDATE SET categories_json=excluded.categories_json,channels_json=excluded.channels_json,global_off=excluded.global_off,following_scope=excluded.following_scope,revision=notification_settings.revision+1,write_token=excluded.write_token,updated_at=CURRENT_TIMESTAMP WHERE notification_settings.revision=?`).bind(actor.id,JSON.stringify(categories),JSON.stringify(storedChannels(channels)),off?1:0,nextScope,token,revision),
   // A failed compare-and-swap rolls back the whole D1 batch, including receipts.
   db.prepare(`INSERT INTO notification_setting_guards(token,valid) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM notification_settings WHERE member_id=? AND write_token=?) THEN 1 ELSE 0 END`).bind(token,actor.id,token),
   db.prepare(`INSERT INTO notification_preferences(member_id,scope,selected_ids_json) VALUES(?,?,?) ON CONFLICT(member_id) DO UPDATE SET scope=excluded.scope,selected_ids_json=excluded.selected_ids_json`).bind(actor.id,off?'off':nextScope,JSON.stringify(selected)),
