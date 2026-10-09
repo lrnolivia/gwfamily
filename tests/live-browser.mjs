@@ -90,15 +90,17 @@ async function closePerson(page) {
   await session.context.close();
 }
 async function approvePendingMembership(page, email) {
+  await page.getByRole('link', {name: /^Waiting for approval/}).click();
   const pending = page.getByRole('article').filter({hasText: email});
   await expect(pending).toHaveCount(1);
   await expect(pending).toContainText(email + ' · pending');
-  await pending.getByRole('button', {name: 'Review membership', exact: true}).click();
+  await pending.getByRole('button', {name: 'Review Membership', exact: true}).click();
   const review = page.getByRole('dialog', {name: 'Review membership', exact: true});
   await expect(review).toBeVisible();
   await expect(review).toContainText(email + ' · pending');
   await review.getByRole('button', {name: 'Approve membership', exact: true}).click();
   await expect(review).toHaveCount(0);
+  await page.getByRole('link', {name: /^Active Members/}).click();
   await expect(pending).toContainText(email + ' · active');
 }
 try{
