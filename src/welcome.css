@@ -6,7 +6,7 @@ dialog.welcome-overlay::backdrop{background:transparent}
 .welcome-scrim{position:fixed;inset:0;background:color-mix(in srgb,var(--surface) 34%,transparent);-webkit-backdrop-filter:blur(26px) saturate(1.35);backdrop-filter:blur(26px) saturate(1.35);transition:background .42s ease,backdrop-filter .42s ease,-webkit-backdrop-filter .42s ease}
 .is-leaving .welcome-scrim{background:transparent;-webkit-backdrop-filter:blur(0) saturate(1);backdrop-filter:blur(0) saturate(1)}
 .welcome-card{position:relative;z-index:1;display:flex;flex-direction:column;width:min(100%,520px);max-height:calc(var(--vv-height,100dvh) - 32px);border-radius:28px;background:var(--surface);box-shadow:0 24px 70px color-mix(in srgb,var(--accent-shadow-color,#174c2d) 30%,transparent),0 0 0 1px color-mix(in srgb,var(--accent) 22%,transparent);overflow:hidden;animation:welcome-rise .52s cubic-bezier(.2,.8,.2,1) both}
-.welcome-card::before{content:"";position:absolute;inset:0 0 auto 0;height:5px;background:var(--accent);pointer-events:none}
+.welcome-card::before{content:"";position:absolute;inset:0 0 auto 0;height:5px;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 45%,#e3b664));pointer-events:none}
 .is-leaving .welcome-card{animation:welcome-leave .42s cubic-bezier(.4,0,.2,1) both}
 .welcome-head{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;gap:8px;padding:16px 16px 0}
 .welcome-head-spacer{width:44px;height:44px}
