@@ -66,7 +66,9 @@ try{
   stable(before,await snapshot(heading));
   await page.screenshot({path:`${output}/${engine}-heading-${width}.png`});
   await heading.getByRole('button',{name:'Finish editing Feed heading',exact:true}).click();
-  await finish();await page.goto(base+'/#/reunion');await begin();
+  await finish();await page.goto(base+'/#/reunion');
+  // Hash navigation stays in-document; wait until React has swapped Home for Reunion before entering edit mode.
+  await expect(page.locator('[data-panel-page="home"]')).toHaveCount(0);await expect(page.locator('[data-panel-page="reunion"]').first()).toBeVisible();await begin();
   const editableHero=page.locator('[data-panel-page="reunion"] [data-panel-id="hero"]');if(await editableHero.getAttribute('data-panel-locked')==='true'){await editableHero.getByRole('button',{name:/^Panel options for /}).click();const layer=page.locator('.page-object-tools[open]');await layer.getByRole('button',{name:/^Unlock /}).click();await layer.getByRole('button',{name:'Close object tools',exact:true}).click();}
   const body=page.locator('[data-page-field="reunion.pricingNote"]');
   const panel=body.locator('xpath=ancestor::section[@data-panel-id][1]');
