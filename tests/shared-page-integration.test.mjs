@@ -6,16 +6,16 @@ const names=['react-app.jsx','features.jsx','family.jsx','memories.jsx','contact
 const files=Object.fromEntries(names.map(name=>[name,fs.readFileSync(new URL('../src/'+name,import.meta.url),'utf8')]));
 const source=Object.values(files).join('\n');
 test('shared copy fields remain rendered except intentionally retired redundant heading fields',()=>{
- const retiredHeadings=new Set(['reunion-plans.heading','reunion-calendar.heading','reunion.plansTitle']);
+ const retiredHeadings=new Set(['reunion-plans.heading','reunion-calendar.heading','reunion.plansTitle','family.inviteTitle','family.inviteBody']);
  const pairs=new Set([...source.matchAll(/<EditableText\s+page="([^"]+)"\s+field="([^"]+)"/g)].map(([,page,field])=>page+'.'+field));
  for(const field of ['nextRsvpTitle','nextRsvpBody','nextShirtsTitle','nextShirtsBody','nextFeesTitle','nextFeesBody'])pairs.add('home.'+field);
  for(const field of ['emptyTitle','emptyBody','caughtUpTitle','caughtUpBody'])pairs.add('inbox.'+field);
  assert.match(files['reunion-plans.jsx'],/page='home',field='reunionTitle'/);
  pairs.add('home.reunionTitle');pairs.add('reunion-plans.checklistTitle');
- // The invitations card is a native panel on Family and You; its copy follows the page it renders on.
+ // People and You own independent invitation panels; old Family copy remains recoverable.
  const invitations=fs.readFileSync(new URL('../src/family-invitations.jsx',import.meta.url),'utf8');
  assert.match(invitations,/<EditableText page=\{page\} field="inviteTitle"/);assert.match(invitations,/<EditableText page=\{page\} field="inviteBody"/);
- for(const page of ['family','you']){assert.match(files['react-app.jsx'],new RegExp("'native-invitations':invitationsAvailable\\(state,data\\)&&<InvitationCard page=\""+page+"\"/>"));pairs.add(page+'.inviteTitle');pairs.add(page+'.inviteBody');}
+ for(const page of ['people','you']){assert.match(source,new RegExp("'native-invitations':invitationsAvailable\\(state,data\\)&&<InvitationCard page=\""+page+"\"/>"));pairs.add(page+'.inviteTitle');pairs.add(page+'.inviteBody');}
  for(const key of retiredHeadings){assert.equal(pairs.has(key),false);const [page,field]=key.split('.');assert.ok(Object.hasOwn(SHARED_PAGE_SCHEMA[page].fields,field),'Existing saved heading data remains recoverable')}
  for(const [page,schema]of Object.entries(SHARED_PAGE_SCHEMA)){
   for(const field of Object.keys(schema.fields))assert.ok(pairs.has(page+'.'+field)||retiredHeadings.has(page+'.'+field),page+'.'+field+' is reachable in page content');
