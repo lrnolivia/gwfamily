@@ -10,6 +10,7 @@ import {commandFingerprint} from './command-identity.mjs';
 import {directorySelection as validateDirectorySelection} from './member-directory.mjs';
 import {merchandiseOptions,orderLines} from './merchandise.mjs';
 import {householdState,householdCommand} from './households.mjs';
+import {branchState,branchCommand} from './branches.mjs';
 import {adultOn,publicBirthdays,ageOn} from './birthdays.mjs';
 import { can, validateShirtSelection,shouldNotify } from './policy.mjs';
 import { createRateStorage } from './auth.mjs';
@@ -76,7 +77,7 @@ export async function familyState(db,actor,reunionId){
  for(const r of reactions){const id=r.post_id||r.comment_id;state.reactionMembers[id]??={};(state.reactionMembers[id][r.emoji]??=[]).push(r.member_id);state.reactionCounts[id]??={};state.reactionCounts[id][r.emoji]=(state.reactionCounts[id][r.emoji]||0)+1;if(r.member_id===actor.id)(state.reactions[id]??=[]).push(r.emoji)}
  const featured=list(await db.prepare('SELECT f.* FROM featured_memories f JOIN memories m ON m.id=f.memory_id WHERE m.deleted_at IS NULL ORDER BY f.is_primary DESC,f.approved_at DESC').bind().all());
  state.featuredPhotos=featured.flatMap(f=>{const m=state.memories.find(m=>m.id===f.memory_id&&m.image===f.media_url);return m?[m]:[]});state.featuredMemoryIds=state.featuredPhotos.map(m=>m.id);state.primaryMemoryId=featured.find(f=>f.is_primary&&state.featuredMemoryIds.includes(f.memory_id))?.memory_id||null;
- Object.assign(state,await householdState(db,actor));
+ Object.assign(state,await householdState(db,actor));Object.assign(state,await branchState(db,actor));
  for(const m of state.memorials)if(!m.canEdit)m.canEdit=state.households.some(h=>h.canManage&&h.heritage.some(e=>e.personKind==='ancestor'&&e.personId===m.id));
  return state;
 }
@@ -230,7 +231,7 @@ export async function command(db,actor,input){
  case 'MODERATE':{
   requireCan(actor,'moderate');const report=await db.prepare('SELECT * FROM moderation_reports WHERE id=?').bind(input.id).first();if(!report)throw new UserError('Report not found',404);if(!['removed','dismissed'].includes(input.status))throw new UserError('Choose a moderation decision');q('UPDATE moderation_reports SET status=?,resolved_by=? WHERE id=?',input.status,actor.id,report.id);if(input.status==='removed'){q('UPDATE posts SET deleted_at=CURRENT_TIMESTAMP WHERE id=?',report.target_id);q('UPDATE comments SET deleted_at=CURRENT_TIMESTAMP WHERE id=?',report.target_id);q('UPDATE photo_comments SET deleted_at=? WHERE id=?',Date.now(),report.target_id);q('UPDATE memories SET deleted_at=CURRENT_TIMESTAMP WHERE id=?',report.target_id)}audit('moderation-'+input.status,report.target_id);break;
  }
- default:{try{const h=await memorialCommand(db,actor,input,q,audit)||await householdCommand(db,actor,input,q,audit);if(!h)throw new UserError('This action is not supported');Object.assign(result,h)}catch(e){if(e instanceof UserError)throw e;if(e.status)throw new UserError(e.message,e.status);throw e}break;}
+ default:{try{const h=await memorialCommand(db,actor,input,q,audit)||await householdCommand(db,actor,input,q,audit)||await branchCommand(db,actor,input,q,audit);if(!h)throw new UserError('This action is not supported');Object.assign(result,h)}catch(e){if(e instanceof UserError)throw e;if(e.status)throw new UserError(e.message,e.status);throw e}break;}
  }
  q('INSERT INTO command_receipts(member_id,request_id,result_json,operation,fingerprint) VALUES(?,?,?,?,?)',actor.id,input.requestId,JSON.stringify(result),input.type,fingerprint);
  try{await db.batch(sql)}catch(error){const completed=await db.prepare('SELECT * FROM command_receipts WHERE member_id=? AND request_id=?').bind(actor.id,input.requestId).first();if(completed){if(completed.fingerprint&&(completed.fingerprint!==fingerprint||completed.operation!==input.type))throw new UserError('This request identifier was already used for different content',409);return json(completed.result_json)}if(String(error.message).includes('valid=1'))throw new UserError(contentWrite?'This content changed while you were editing. Reopen it before trying again.':REUNION_SCOPED_COMMANDS.has(input.type)||REUNION_LIFECYCLE_COMMANDS.has(input.type)?'The reunion changed while you were editing. Refresh and try again.':'Notification settings changed on another device. Refresh and try again.',409);throw error}

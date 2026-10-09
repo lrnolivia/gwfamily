@@ -6,7 +6,7 @@ export function householdAccent(h){
  return h.colorMode==='custom'||h.color.toLowerCase()!=='#4f996c'?h.color:null;
 }
 function reduceHouseholdPreview(state,action){const hs=state.households||[],rs=state.householdRequests||[],id=action.householdId,own=state.selfId;switch(action.type){
-case'CREATE_HOUSEHOLD':{const id='preview-household-'+(state.lastId+1);return {...state,lastId:state.lastId+1,householdId:state.householdId||id,households:[...hs,{id,name:action.name,color:null,colorMode:'inherit',photo:null,founderId:own,memberIds:[own],headIds:[own],canManage:true,heritage:[]}]}}
+case'CREATE_HOUSEHOLD':{const id='preview-household-'+(state.lastId+1);if(action.branchId&&!(state.branches||[]).some(b=>b.id===action.branchId))throw Error('Branch not found.');return {...state,lastId:state.lastId+1,branches:(state.branches||[]).map(b=>b.id===action.branchId?{...b,householdIds:[...b.householdIds,id]}:b),householdId:state.householdId||id,households:[...hs,{id,name:action.name,color:null,colorMode:'inherit',photo:null,founderId:own,memberIds:[own],headIds:[own],canManage:true,heritage:[]}]}}
 case'SET_PRIMARY_HOUSEHOLD':return hs.some(h=>h.id===id&&h.memberIds.includes(own))?{...state,householdId:id}:state;
 case'SAVE_HOUSEHOLD':return {...state,households:hs.map(h=>h.id===id?{...h,name:action.name,color:action.colorMode==='inherit'?null:action.color,colorMode:action.colorMode||'custom',photo:action.photo,photoFrame:normalizePhotoFrame(action.photoFrame??(action.photo===h.photo?h.photoFrame:undefined))}:h)};
 case'SAVE_HOUSEHOLD_HERITAGE':{

@@ -1,0 +1,27 @@
+/* Branches & households: every option sits on a platter row. */
+.family-setup{max-width:720px;margin-inline:auto;width:100%;min-width:0}
+.family-setup-intro{display:grid;gap:6px}
+.family-setup-intro h1{margin:0}
+.family-setup-section{gap:10px}
+.family-setup-section>h2,.family-setup-results>h3{margin:0}
+.family-setup-results{gap:8px}
+.family-setup .list-row.family-setup-row,.family-setup-task .list-row.family-setup-row{width:100%;min-height:60px;border-radius:14px;background:var(--raised)}
+.family-setup-row>span:not(.arrow){min-width:0;flex:1 1 auto}
+.family-setup-row p{margin:2px 0 0;color:var(--muted);font-size:.875rem}
+.family-setup-create>.glyph{color:var(--accent)}
+.family-setup-household{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;padding:12px 14px;border-radius:14px;background:var(--raised);min-width:0}
+.family-setup-household-copy{display:flex;align-items:flex-start;gap:12px;flex:1 1 200px;min-width:0}
+.family-setup-household-copy>.glyph{flex:none;margin-top:2px}
+.family-setup-household-copy>span{min-width:0}
+.family-setup-household-copy p{margin:2px 0 0;color:var(--muted);font-size:.875rem;overflow-wrap:anywhere}
+.family-setup-household-actions{display:flex;flex-wrap:wrap;gap:8px;margin-inline-start:auto}
+.family-setup-status{display:inline-flex;align-items:center;min-height:32px;padding:4px 12px;border-radius:999px;background:var(--soft,var(--surface));color:var(--muted);font-size:.8125rem;font-weight:650}
+.family-setup-search{display:grid;gap:6px}
+.family-setup-search input{width:100%;box-sizing:border-box}
+.family-setup-disclosure{display:flex;gap:10px;align-items:flex-start;padding:12px;border-radius:14px;background:var(--raised)}
+.family-setup-disclosure>.glyph{flex:none;color:var(--accent)}
+.family-setup-branch-households,.family-setup-branch-options{gap:8px}
+html[data-theme] .button.family-setup-danger{background:color-mix(in srgb,var(--status-danger) 16%,var(--raised));color:var(--status-danger)}
+html[data-theme] .button.family-setup-danger:hover{background:color-mix(in srgb,var(--status-danger) 24%,var(--raised))}
+.family-setup-finish{margin-top:4px}
+@media(max-width:700px){.family-setup-household-actions{margin-inline-start:0;width:100%}.family-setup-household-actions>.button{flex:1 1 0}}
