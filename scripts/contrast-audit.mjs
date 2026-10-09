@@ -43,9 +43,9 @@ for(const preset of THEME_PRESETS)for(const theme of ['light','dark']){
     }
     return out;
    });
-   for(const f of found)results.push({preset:preset.name,theme,view:route+(open?' > '+open:''),...f});
-   if(found.length)await page.screenshot({path:`${out}/${preset.name.replace(/\s/g,'-')}-${theme}-${(route+(open||'')).replace(/[^a-z0-9]+/gi,'-').slice(0,40)}.png`});
-  }catch(e){results.push({preset:preset.name,theme,view:route+(open?' > '+open:''),error:e.message.slice(0,100)})}
+   for(const f of found)results.push({preset:preset.label,theme,view:route+(open?' > '+open:''),...f});
+   if(found.length)await page.screenshot({path:`${out}/${preset.label.replace(/\s/g,'-')}-${theme}-${(route+(open||'')).replace(/[^a-z0-9]+/gi,'-').slice(0,40)}.png`});
+  }catch(e){results.push({preset:preset.label,theme,view:route+(open?' > '+open:''),error:e.message.slice(0,100)})}
  }
  await ctx.close();
 }
