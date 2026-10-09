@@ -154,3 +154,7 @@ test('a partial preview channel edit retains sibling channels, other categories,
 test('channel rows have category-specific labels, grouped native inputs, explicit gating copy and 44px label targets',()=>{
  const ui=source('notifications.jsx'),css=source('notifications.css');assert.match(ui,/role="group" aria-labelledby=\{'notification-category-'/);assert.match(ui,/aria-label=\{category.label\+': '\+channel.label\}/);assert.match(ui,/n.saveSettings\(\{channels:\{/);assert.match(ui,/These choices never turn either on/);assert.match(ui,/All notifications/);assert.match(ui,/Off pauses in-app activity, email, and push/);assert.match(css,/notification-channel-choice\{[^}]*min-width:44px;min-height:44px;margin:0/);assert.match(css,/@media\(max-width:580px\)/);assert.doesNotMatch(ui,/requestPermission|pushManager\.subscribe|Send test notification/);
 });
+
+test('device information uses a quiet inherited surface while preserving disclosure and visible status/error semantics',()=>{
+ const ui=source('push-device.jsx'),css=source('notifications.css');assert.match(ui,/<div className="notification-device-details" id=\{informationId\} hidden=\{!informationOpen\}/);assert.match(ui,/aria-expanded=\{informationOpen\} aria-controls=\{informationId\}/);assert.match(ui,/<p role="status">\{reason\}<\/p>/);assert.match(ui,/\{error&&<p role="alert">\{error\}<\/p>\}/);assert.match(css,/\.notification-device-details\{min-width:0;padding:16px;border-radius:14px;background:var\(--surface\)\}/);assert.match(css,/\.notification-device-status \[hidden\]\{display:none\}/);
+});

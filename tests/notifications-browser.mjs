@@ -315,6 +315,8 @@ try{
   await expect(info).toHaveAttribute('aria-expanded','false');await expect(details).toBeHidden();
   await info.focus();await info.press('Enter');await expect(info).toHaveAttribute('aria-expanded','true');await expect(details).toBeVisible();
   await expect(details).toContainText('Names and message content are never included.');
+  await expect(details).toHaveClass('notification-device-details');assert.equal(await details.evaluate(el=>getComputedStyle(el).borderRadius),'14px');assert.notEqual(await details.evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
+  await captureNotificationViewport(alice,`${output}/${engine}-device-information.png`,{settings:true});
   await info.press('Space');await expect(details).toBeHidden();
   const infoBounds=await info.boundingBox();assert.ok(infoBounds.width>=44&&infoBounds.height>=44);
   await chooseRadio(loved);assert.equal(accounts.alice.settings.scope,'loved_ones');
