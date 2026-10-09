@@ -39,7 +39,10 @@ const modeDone = page => toolbar(page).locator('.page-mode-done');
 // API probes preserve the complete normalized snapshot, including lock state,
 // layout order and Markdown source formats. Output URLs never become authority.
 const contentPayload = pageContentPayload;
-const primaryHero = (page, key) => page.locator(`[data-panel-page="${key}"] [data-panel-id="hero"]`);
+// Nested page layouts (Family contains Memories) each own a hero; match only the
+// hero whose closest owning page is the requested schema key.
+const ownedBy = key => `ancestor::*[@data-panel-page][1][@data-panel-page="${key}"]`;
+const primaryHero = (page, key) => page.locator(`xpath=//section[@data-panel-id="hero" and ${ownedBy(key)}]`);
 
 async function check(name, run) {
   currentCheck = name;
@@ -325,6 +328,7 @@ async function mediaPanel(page, key = 'home') {
   return panel;
 }
 async function togglePanelProtection(page, panel, locked) {
+ await expect(panel,'Protection targets exactly one panel').toHaveCount(1);
  const name=locked?/^Lock /:/^Unlock /,inline=panel.getByRole('button',{name});
  if(await inline.count()){await inline.click();return}
  const title=await panel.getAttribute('data-panel-title');assert.ok(title,'Target panel declares its own title');
@@ -334,7 +338,7 @@ async function togglePanelProtection(page, panel, locked) {
  await inspector.getByRole('button',{name:'Close object tools',exact:true}).click();
 }
 async function unlockHero(page, key) {
-  const optional=page.locator(`[data-panel-page="${key}"] .page-optional-media`);
+  const optional=page.locator(`xpath=//*[contains(concat(' ',normalize-space(@class),' '),' page-optional-media ') and ${ownedBy(key)}]`);
   if(await optional.count()&&!await optional.evaluate(node=>node.open))await optional.locator('summary').click();
   const hero = primaryHero(page, key);
   await expect(hero).toHaveCount(1);
