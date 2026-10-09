@@ -1,9 +1,9 @@
 {
   "name": "grnwht",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "scripts": {
-    "build": "node scripts/build-sign-in-assets.mjs && esbuild src/react-app.jsx --bundle --format=iife --jsx=automatic --outfile=dist/react-app.js && node scripts/build-favicon.mjs && node scripts/version-assets.mjs",
+    "build": "node scripts/build-sign-in-assets.mjs && esbuild src/service-worker.js --bundle --format=iife --outfile=dist/sw.js && esbuild src/react-app.jsx --bundle --format=iife --jsx=automatic --outfile=dist/react-app.js && node scripts/build-favicon.mjs && node scripts/version-assets.mjs",
     "test": "node --import ./tests/test-environment-guard.mjs --test tests/*.test.mjs"
   },
   "dependencies": {
