@@ -72,3 +72,9 @@ html[data-theme] .button.danger-action:hover{background:color-mix(in srgb,var(--
 .size-platter{display:grid;gap:12px;padding:14px;border-radius:14px;background:var(--raised)}
 .size-platter>.size-list:empty{display:none}
 html[data-theme] .text-button.danger-text{color:var(--status-danger)}
+
+/* Danger buttons must win over the primary-button rule (which is more specific),
+   glass tint included; :not(#gw-specificity) raises specificity only. */
+html[data-theme][data-platform] .button:is(.danger-action,.sheet-danger):not(#gw-specificity){--gw-control-color:color-mix(in srgb,var(--status-danger) 16%,var(--raised));background:color-mix(in srgb,var(--status-danger) 16%,var(--raised))!important;color:var(--status-danger)!important;border-color:transparent!important;box-shadow:none!important;text-shadow:none!important}
+html[data-theme][data-platform] .button:is(.danger-action,.sheet-danger):not(#gw-specificity):hover{background:color-mix(in srgb,var(--status-danger) 24%,var(--raised))!important}
+html[data-theme][data-platform] .button:is(.danger-action,.sheet-danger):not(#gw-specificity)>.liquid-glass-tint{background:color-mix(in srgb,var(--status-danger) 16%,var(--raised))!important}
