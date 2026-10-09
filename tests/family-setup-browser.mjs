@@ -64,10 +64,10 @@ try{
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'no horizontal page scroll');
   await page.getByRole('button',{name:/^Start a household/}).first().click();dialog=page.getByRole('dialog',{name:'Start a household',exact:true});
   await dialog.getByRole('textbox',{name:'Household name',exact:true}).fill('Second Fixture Home');await dialog.locator('.sheet-head .sheet-complete').click();await expect(dialog).toHaveCount(0);
-  // One primary household badge plus +N; the pending request is not counted.
+  // Household badges; the pending request is not counted.
   await page.goto(base+'/#/profile/'+stored.selfId);const chips=page.locator('.profile-overview .membership-chips, .profile-page .membership-chips').first();
-  await expect(chips.locator('.membership-group')).toHaveText('Fixture Hearth');await expect(chips.locator('.membership-more')).toContainText('+1');
-  await expect(chips.locator('.membership-more')).toHaveAttribute('title','Also in Second Fixture Home');
+  // Up to two full household names; +N only after two. Never shortened.
+  await expect(chips.locator('.membership-group')).toHaveText(['Fixture Hearth','Second Fixture Home']);await expect(chips.locator('.membership-more')).toHaveCount(0);
   await page.screenshot({path:`${output}/${engine}-${width}-${theme}-badges.png`});
   await page.screenshot({path:`${output}/${engine}-${width}-${theme}-setup.png`,fullPage:true});
   await context.close();

@@ -94,7 +94,7 @@ function BranchDetails({branch,onTask}){
   {households.length?<div className="stack family-setup-branch-households">{households.map(h=><article key={h.id} className="family-setup-household">
    <div className="family-setup-household-copy"><Glyph name="home"/><span><strong>{h.name}</strong><p>{memberCount(h)}</p></span></div>
    <div className="family-setup-household-actions">{memberOf(state,h)?<span className="family-setup-status">Your household</span>:joinPending(state,h.id)?<span className="family-setup-status" role="status">Request sent</span>:<Button secondary onClick={()=>onTask({type:'join',householdId:h.id,back:self})}>Ask to join</Button>}
-    {canPlaceHousehold(state,h)&&<Button secondary aria-label={'Remove '+h.name+' from '+branch.name} onClick={()=>onTask({type:'detach',branchId:branch.id,householdId:h.id,back:self})}>Remove</Button>}</div>
+    {canPlaceHousehold(state,h)&&<Button className="danger-action" data-destructive aria-label={'Remove '+h.name+' from '+branch.name} onClick={()=>onTask({type:'detach',branchId:branch.id,householdId:h.id,back:self})}>Remove</Button>}</div>
   </article>)}</div>:<p className="muted">No households have been added yet.</p>}
   <div className="stack family-setup-branch-options">
    {placeable.map(h=><Control key={h.id} type="button" className="list-row family-setup-row" onClick={()=>onTask({type:'attach',branchId:branch.id,householdId:h.id,back:self})}><Glyph name="plus"/><span><strong>Add {h.name}</strong><p>Your household joins this branch listing</p></span><span className="arrow"><Glyph name="arrow"/></span></Control>)}
