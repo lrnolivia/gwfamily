@@ -3,10 +3,10 @@
 dialog.welcome-overlay{position:fixed;inset:0;width:100%;max-width:none;height:100%;max-height:none;margin:0;padding:max(16px,env(safe-area-inset-top,0px)) 16px max(16px,env(safe-area-inset-bottom,0px));border:0;background:transparent;display:grid;place-items:center;overflow:auto;overscroll-behavior:contain;color:var(--text)}
 dialog.welcome-overlay:not([open]){display:none}
 dialog.welcome-overlay::backdrop{background:transparent}
-.welcome-scrim{position:fixed;inset:0;background:color-mix(in srgb,var(--surface,#f3efe2) 34%,transparent);-webkit-backdrop-filter:blur(26px) saturate(1.35);backdrop-filter:blur(26px) saturate(1.35);transition:background .42s ease,backdrop-filter .42s ease,-webkit-backdrop-filter .42s ease}
+.welcome-scrim{position:fixed;inset:0;background:color-mix(in srgb,var(--surface) 34%,transparent);-webkit-backdrop-filter:blur(26px) saturate(1.35);backdrop-filter:blur(26px) saturate(1.35);transition:background .42s ease,backdrop-filter .42s ease,-webkit-backdrop-filter .42s ease}
 .is-leaving .welcome-scrim{background:transparent;-webkit-backdrop-filter:blur(0) saturate(1);backdrop-filter:blur(0) saturate(1)}
-.welcome-card{position:relative;z-index:1;display:flex;flex-direction:column;width:min(100%,520px);max-height:calc(var(--vv-height,100dvh) - 32px);border-radius:28px;background:var(--surface,#f8f5ec);box-shadow:0 24px 70px color-mix(in srgb,var(--accent-shadow-color,#174c2d) 30%,transparent),0 0 0 1px color-mix(in srgb,var(--accent) 22%,transparent);overflow:hidden;animation:welcome-rise .52s cubic-bezier(.2,.8,.2,1) both}
-.welcome-card::before{content:"";position:absolute;inset:0 0 auto 0;height:5px;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 45%,#e3b664));pointer-events:none}
+.welcome-card{position:relative;z-index:1;display:flex;flex-direction:column;width:min(100%,520px);max-height:calc(var(--vv-height,100dvh) - 32px);border-radius:28px;background:var(--surface);box-shadow:0 24px 70px color-mix(in srgb,var(--accent-shadow-color,#174c2d) 30%,transparent),0 0 0 1px color-mix(in srgb,var(--accent) 22%,transparent);overflow:hidden;animation:welcome-rise .52s cubic-bezier(.2,.8,.2,1) both}
+.welcome-card::before{content:"";position:absolute;inset:0 0 auto 0;height:5px;background:var(--accent);pointer-events:none}
 .is-leaving .welcome-card{animation:welcome-leave .42s cubic-bezier(.4,0,.2,1) both}
 .welcome-head{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;gap:8px;padding:16px 16px 0}
 .welcome-head-spacer{width:44px;height:44px}
@@ -26,11 +26,11 @@ dialog.welcome-overlay::backdrop{background:transparent}
 .welcome-points small{color:var(--muted);font-size:.875rem}
 .welcome-body .family-setup{gap:12px}
 .welcome-body .family-setup .card{box-shadow:none}
-.welcome-footer.sheet-footer{position:sticky;bottom:0;padding:12px 24px calc(16px + env(safe-area-inset-bottom,0px));background:var(--surface,#f8f5ec)}
+.welcome-footer.sheet-footer{position:sticky;bottom:0;padding:12px 24px calc(16px + env(safe-area-inset-bottom,0px));background:var(--surface)}
 @keyframes welcome-rise{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
 @keyframes welcome-leave{to{opacity:0;transform:translateY(-10px) scale(.985)}}
 @media(max-width:700px){.welcome-card{border-radius:24px}.welcome-body{padding:8px 18px 12px}.welcome-footer.sheet-footer{padding-inline:18px}}
 @media(prefers-reduced-motion:reduce){.welcome-card,.is-leaving .welcome-card{animation:none}.welcome-scrim{transition:none}.welcome-progress li{transition:none}}
-@media(prefers-reduced-transparency:reduce){.welcome-scrim{background:color-mix(in srgb,var(--surface,#f3efe2) 88%,transparent)}}
+@media(prefers-reduced-transparency:reduce){.welcome-scrim{background:color-mix(in srgb,var(--surface) 88%,transparent)}}
 @media(forced-colors:active){.welcome-card{border:1px solid CanvasText}.welcome-progress li.is-done{background:Highlight}}
-.welcome-head .welcome-complete{background:var(--accent);color:var(--ink,#fff)}
+.welcome-head .welcome-complete{background:var(--control,var(--accent));color:var(--control-text)}
