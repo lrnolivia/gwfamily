@@ -57,3 +57,7 @@
 @container(max-width:25rem){.planning-checklist.planning-checklist .next-step{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:420px){.planning-checklist.planning-checklist{padding:20px}.planning-checklist.planning-checklist .next-step{grid-template-columns:minmax(0,1fr)}}
 @media(forced-colors:active){.planning-status.planning-status{color:CanvasText;background:Canvas;border:1px solid CanvasText}}
+/* Inside the Your Reunion Plan sheet the sheet is the surface: no inner card inset, and
+   the next step stacks so its heading and note are not squeezed side by side. */
+.planning-checklist.planning-checklist.planning-checklist-in-sheet{padding:0;background:none;box-shadow:none;border:0}
+.planning-checklist.planning-checklist.planning-checklist-in-sheet .next-step{grid-template-columns:minmax(0,1fr);gap:4px}

@@ -24,5 +24,7 @@ export async function transmitPreparedPush(details,expectedEndpoint,{fetcher=glo
  validatePushEndpoint(expectedEndpoint);validatePushEndpoint(details.endpoint);
  if(details.endpoint!==expectedEndpoint||details.method!=='POST')throw new Error('Push request rejected');
  const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),Math.min(Math.max(1,timeoutMs),10000));
- try{const response=await fetcher(details.endpoint,{method:'POST',headers:details.headers,body:details.body,redirect:'error',signal:abort.signal});await response.body?.cancel();return {status:response.status,retryAfter:response.headers.get('Retry-After')}}finally{clearTimeout(timer)}
+ // Workers fetch accepts only redirect 'follow' or 'manual'; 'error' throws before sending.
+  // 'manual' never follows, and a 3xx status is reported as not accepted.
+  try{const response=await fetcher(details.endpoint,{method:'POST',headers:details.headers,body:details.body,redirect:'manual',signal:abort.signal});await response.body?.cancel();return {status:response.status,retryAfter:response.headers.get('Retry-After')}}finally{clearTimeout(timer)}
 }

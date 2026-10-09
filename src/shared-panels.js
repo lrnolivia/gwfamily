@@ -18,6 +18,7 @@ function keys(value,allowed){if(!plain(value)||Object.keys(value).some(key=>!all
 // Source-owned slots render their existing authorized components. Saved content
 // can reorder these identities; it cannot replace their data or permissions.
 export const NATIVE_PANEL_DEFINITIONS=Object.freeze({
+ family:[['invitations','Bring your people','side',['inviteTitle','inviteBody']]],
  'leader-calendar':[['calendar-events','Reunion events','main',[]],['calendar-settings','Calendar settings','side',[]]],
  home:[['feed','Family feed','main',['feedTitle']],['reunion','Your reunion','side',['reunionTitle','nextRsvpTitle','nextRsvpBody','nextShirtsTitle','nextShirtsBody','nextFeesTitle','nextFeesBody']]],
  'reunion-plans':[['rsvp','RSVP','main',['rsvpTitle']],['merchandise','Merchandise','main',['merchandiseTitle']],['fees','Reunion fees','main',['feesTitle']],['checklist','Your reunion','side',['checklistTitle']],['history','Saved records','side',[]]],
@@ -29,7 +30,7 @@ export const NATIVE_PANEL_DEFINITIONS=Object.freeze({
  birthdays:[['calendar','Family birthdays','main',['monthTitle','emptyBody','privacyNote']]],
  shop:[['products','Merchandise','main',['heading','emptyBody']],['order','Your order','side',[]]],
  inbox:[['invitations','Conversation invitations','side',['invitationsTitle']],['conversations','Conversations','main',['emptyTitle','emptyBody','caughtUpTitle','caughtUpBody']]],
- you:[['profile','Your profile','side',[]],['family','Your family','main',[]],['plans','Reunion plans','main',[]],['preferences','Preferences','main',[]],['help','Help','main',[]],['leader-tools','Leader tools','side',['toolsTitle']]]
+ you:[['profile','Your profile','side',[]],['family','Your family','main',[]],['plans','Reunion plans','main',[]],['preferences','Preferences','main',[]],['help','Help','main',[]],['leader-tools','Leader tools','side',['toolsTitle']],['invitations','Bring your people','side',['inviteTitle','inviteBody']]]
 });
 export const nativePanelDefinition=(page,id)=>(NATIVE_PANEL_DEFINITIONS[page]||[]).find(([key])=>'native-'+key===id);
 export function sharedPanelTitle(page,panel,content,records={}){
@@ -48,8 +49,13 @@ const nativeDefaults=page=>(NATIVE_PANEL_DEFINITIONS[page]||[]).map(([id,,zone])
 export function defaultPanelLayout(page){const panels=PANEL_PAGES.includes(page)?[{id:'hero',kind:'hero',zone:'main',locked:true,removed:false},...nativeDefaults(page)]:[];return {version:2,panels,desktopOrder:panels.map(p=>p.id),mobileOrder:panels.map(p=>p.id)};}
 export function migratePanelLayout(page,layout){
  if(!layout)return defaultPanelLayout(page);
- if(layout.version!==1)return layout;
- const missing=nativeDefaults(page).filter(panel=>!layout.panels.some(p=>p.id===panel.id&&p.kind==='native'));
+ const legacy=layout.version===1;
+ if(!legacy&&layout.version!==2)return layout;
+ // Invitations became native after version 2 shipped. Add only that new slot
+ // to old Family/You snapshots; every existing slot and saved removed state stays intact.
+ const additions=page==='family'||page==='you'?['native-invitations']:[];
+ const missing=nativeDefaults(page).filter(panel=>(legacy||additions.includes(panel.id))&&!layout.panels.some(p=>p.id===panel.id&&p.kind==='native'));
+ if(!legacy&&!missing.length)return layout;
  const append=key=>{const order=[...layout[key]];for(const panel of missing){if(page==='reunion'&&panel.id==='native-plans'){const hero=order.indexOf('hero');order.splice(hero<0?order.length:hero+1,0,panel.id);}else order.push(panel.id);}return order;};
  return {...layout,version:2,panels:[...layout.panels,...missing],desktopOrder:append('desktopOrder'),mobileOrder:append('mobileOrder')};
 }

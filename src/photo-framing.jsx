@@ -36,6 +36,6 @@ export function PhotoFramingEditor({src,alt='',frame,onSave,onCancel,disabled=fa
   {layoutDraft&&<ImageLayoutControls value={layoutDraft} onChange={setLayoutDraft} disabled={disabled||failed} label={imageLayout.label}/>}
   {details}
 
-  <div className="photo-framing-actions"><Button secondary type="button" disabled={disabled} onClick={cancel}>Cancel</Button><Button type="button" disabled={disabled||failed} onClick={()=>{onSave?.(frames,layoutDraft);if(layoutDraft&&!atomicLayout)imageLayout.commit(layoutDraft)}}>{layoutDraft?'Apply image':'Apply framing'}</Button></div>
+  <div className="photo-framing-actions sheet-footer"><Button secondary type="button" disabled={disabled} onClick={cancel}>Cancel</Button><Button type="button" disabled={disabled||failed} onClick={()=>{onSave?.(frames,layoutDraft);if(layoutDraft&&!atomicLayout)imageLayout.commit(layoutDraft)}}>{layoutDraft?'Apply image':'Apply framing'}</Button></div>
  </div></section>;
 }

@@ -898,6 +898,14 @@ try {
 
   await check('Family edit mode includes related tab copy and the shared footer, and saves each affected page independently', async () => {
     await navigate(owner, 'family');
+    // This fixture has no invitation feature, so Family has no outer sidebar.
+    // People's own profiles and address-book sidebar must remain visible inside it.
+    await expect(owner.locator('[data-panel-page="family"]')).not.toHaveClass(/has-side/);
+    const peoplePanels = owner.locator('[data-panel-page="people"]');
+    await expect(peoplePanels).toHaveClass(/has-side/);
+    for (const id of ['native-profiles', 'native-contact']) {
+      await expect(peoplePanels.locator('[data-panel-id="' + id + '"]')).toBeVisible();
+    }
     await edit(owner);
     await editText(owner, 'family.heading', 'Synthetic family landing heading');
     await editText(owner, 'people.heading', 'Synthetic shared address book heading');
