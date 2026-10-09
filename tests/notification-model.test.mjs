@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {initialState,reducer,loadLocalState,PREVIEW_KEY} from '../src/data-adapter.js';
 import {SHARED_PAGE_SCHEMA,sharedPageDefaults,validateSharedPageContent} from '../src/shared-content-schema.js';
-import {DEFAULT_NOTIFICATION_CATEGORIES,normalizeNotificationSettings,notificationCategory,notificationTargetRoute,mergeNotificationPages,mergeNotificationResource,previewNotificationPage,previewOpenNotification,createNotificationChannel,isNotificationInvalidation,NOTIFICATION_INVALIDATION} from '../src/notification-model.js';
+import {DEFAULT_NOTIFICATION_CATEGORIES,normalizeNotificationSettings,restoreNotificationSettingFocus,notificationCategory,notificationTargetRoute,mergeNotificationPages,mergeNotificationResource,previewNotificationPage,previewOpenNotification,createNotificationChannel,isNotificationInvalidation,NOTIFICATION_INVALIDATION} from '../src/notification-model.js';
 const source=file=>fs.readFileSync(new URL('../src/'+file,import.meta.url),'utf8');
 const settings=(state,patch)=>reducer(state,{type:'SET_NOTIFICATION_SETTINGS',patch,revision:state.notificationSettings.revision});
 
@@ -126,3 +126,46 @@ test('Notifications settings has full-page entry from You and Notification Cente
 });
 
 test('push deep link is captured before initial route normalization removes URL search',()=>{const src=source('push-device.jsx');assert.match(src,/pendingNotice=useRef\(new URL\(location.href\)\.searchParams.get\('gwNotice'\)\)/);assert.match(src,/id=pendingNotice.current\|\|url.searchParams.get\('gwNotice'\)/);assert.match(src,/if\(!account\|\|!notifications\?\.ready\)return/);assert.match(src,/pendingNotice.current=null/)});
+
+test('channel normalization preserves legacy opt-outs and uses only known boolean choices',()=>{
+ const legacy=normalizeNotificationSettings({categories:{replies:false},channels:{mentions:{email:false,push:'yes',inApp:false},unknown:{email:false}}});
+ assert.deepEqual(legacy.channels.replies,{inApp:false,email:false,push:false});assert.deepEqual(legacy.channels.mentions,{inApp:false,email:false,push:false});assert.equal(legacy.channels.unknown,undefined);assert.equal(Object.keys(legacy.channels).length,12);assert.equal(legacy.pushEnabled,false);
+ const current=normalizeNotificationSettings({categories:{replies:false},channels:{replies:{email:true,push:false}}});assert.deepEqual(current.channels.replies,{inApp:false,email:true,push:false});
+});
+
+test('all eight preview combinations persist independently and only In app affects inbox counts',()=>{
+ for(let mask=0;mask<8;mask++){
+  const channels={inApp:!!(mask&1),email:!!(mask&2),push:!!(mask&4)};let state=initialState();
+  state=settings(state,{channels:{reactions:{push:false}}});state=settings(state,{channels:{replies:channels}});
+  assert.deepEqual(state.notificationSettings.channels.replies,channels);assert.equal(state.notificationSettings.channels.reactions.push,false);assert.equal(state.notificationSettings.categories.replies,channels.inApp);
+  assert.equal(previewNotificationPage(state).unreadCount,channels.inApp?3:2);assert.equal(state.notificationSettings.pushEnabled,false);
+  const storage={getItem:key=>key===PREVIEW_KEY?JSON.stringify({schema:2,mode:'preview',state}):null},loaded=loadLocalState(storage);
+  assert.deepEqual(loaded.notificationSettings.channels,state.notificationSettings.channels);assert.equal(loaded.notificationSettings.revision,2);
+ }
+});
+
+test('a partial preview channel edit retains sibling channels, other categories, Following, global off and unrelated state',()=>{
+ let state=initialState();state.drafts.post='Keep my draft';state=settings(state,{scope:'selected',selectedIds:['monique'],channels:{replies:{email:false,push:false},mentions:{email:false}},globalOff:true});
+ state=settings(state,{channels:{replies:{inApp:false}}});assert.deepEqual(state.notificationSettings.channels.replies,{inApp:false,email:false,push:false});assert.equal(state.notificationSettings.channels.mentions.email,false);assert.equal(state.notificationSettings.globalOff,true);assert.equal(state.notificationSettings.scope,'selected');assert.deepEqual(state.notificationSettings.selectedIds,['monique']);assert.equal(state.drafts.post,'Keep my draft');
+ state=settings(state,{globalOff:false,channels:{replies:{email:true}}});assert.deepEqual(state.notificationSettings.channels.replies,{inApp:false,email:true,push:false});
+ const reset=reducer(state,{type:'RESET_NOTIFICATIONS_PREVIEW'});assert.deepEqual(reset.notificationSettings.channels.replies,{inApp:true,email:true,push:true});assert.equal(reset.drafts.post,'Keep my draft');assert.equal(reset.notificationSettings.pushEnabled,false);
+});
+
+test('channel rows have category-specific labels, grouped native inputs, explicit gating copy and 44px label targets',()=>{
+ const ui=source('notifications.jsx'),css=source('notifications.css');assert.match(ui,/role="group" aria-labelledby=\{'notification-category-'/);assert.match(ui,/aria-label=\{category.label\+': '\+channel.label\}/);assert.match(ui,/n.saveSettings\(\{channels:\{/);assert.match(ui,/These choices never turn either on/);assert.match(ui,/All notifications/);assert.match(ui,/Off pauses in-app activity, email, and push/);assert.match(css,/notification-channel-choice\{[^}]*min-width:44px;min-height:44px;margin:0/);assert.match(css,/@media\(max-width:580px\)/);assert.doesNotMatch(ui,/requestPermission|pushManager\.subscribe|Send test notification/);
+});
+
+test('device information uses a quiet inherited surface while preserving disclosure and visible status/error semantics',()=>{
+ const ui=source('push-device.jsx'),css=source('notifications.css');assert.match(ui,/<div className="notification-device-details" id=\{informationId\} hidden=\{!informationOpen\}/);assert.match(ui,/aria-expanded=\{informationOpen\} aria-controls=\{informationId\}/);assert.match(ui,/<p role="status">\{reason\}<\/p>/);assert.match(ui,/\{error&&<p role="alert">\{error\}<\/p>\}/);assert.match(css,/\.notification-device-details\{min-width:0;padding:16px;border-radius:14px;background:var\(--surface\)\}/);assert.match(css,/\.notification-device-status \[hidden\]\{display:none\}/);
+});
+
+test('saving checkbox keyboard focus returns only when focus was lost to the document',()=>{
+ const document={body:{},documentElement:{}},calls=[],input={isConnected:true,disabled:false,ownerDocument:document,closest:()=>null,focus:options=>calls.push(options)};document.activeElement=document.body;
+ assert.equal(restoreNotificationSettingFocus(input),true);assert.deepEqual(calls,[{preventScroll:true}]);
+ document.activeElement={id:'newer-control'};assert.equal(restoreNotificationSettingFocus(input),false);assert.equal(calls.length,1);
+ document.activeElement=document.body;input.disabled=true;assert.equal(restoreNotificationSettingFocus(input),false);input.disabled=false;input.isConnected=false;assert.equal(restoreNotificationSettingFocus(input),false);input.isConnected=true;input.closest=()=>({inert:true});assert.equal(restoreNotificationSettingFocus(input),false);assert.equal(calls.length,1);
+});
+
+test('keyboard focus restoration stays with the initiating account and never runs for a pointer edit',()=>{
+ const ui=source('notifications.jsx');assert.match(ui,/event\.nativeEvent\?\.detail===0\?\{input:event\.currentTarget,account:state\.selfId,mode:state\.mode\}:null/);assert.match(ui,/pending\.account===state\.selfId&&pending\.mode===state\.mode/);assert.match(ui,/if\(!pending\|\|n\?\.busy\)return/);assert.match(ui,/pendingFocus\.current=null/);
+});

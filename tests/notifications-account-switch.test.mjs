@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {initialState} from '../src/data-adapter.js';
-import {DEFAULT_NOTIFICATION_CATEGORIES} from '../src/notification-model.js';
+import {normalizeNotificationSettings,patchNotificationSettings} from '../src/notification-model.js';
 import {sharedPageDefaults} from '../src/shared-content-schema.js';
 const source=readFileSync(new URL('./notifications-browser.mjs',import.meta.url),'utf8');
 const plain=value=>JSON.parse(JSON.stringify(value));
@@ -14,7 +14,7 @@ const scenarioFrom=text=>text.slice(text.indexOf("await check('account switch re
 const scenario=scenarioFrom(source);
 
 async function fixture(text=source){
- const context=vm.createContext({URL,structuredClone,initialState,DEFAULT_NOTIFICATION_CATEGORIES,sharedPageDefaults,
+ const context=vm.createContext({URL,structuredClone,initialState,normalizeNotificationSettings,patchNotificationSettings,sharedPageDefaults,
   assert:{equal:assert.equal,notEqual:assert.notEqual,ok:assert.ok,deepEqual:(actual,expected,message)=>assert.deepEqual(plain(actual),plain(expected),message)}});
  const routes=text.slice(text.indexOf('const oldPost='),text.indexOf('async function pageFor('));
  vm.runInContext(`const base='https://fixture.test',requests=[];${routes};`+
@@ -29,14 +29,14 @@ async function fixture(text=source){
 async function runScenario(text=source,{preClickRefreshes=0}={}){
  const f=await fixture(text),before=plain(f.accounts);let pending,clicks=0,viewId='alice',settings=plain(f.accounts.alice.settings),inbox=[],backRoute;
  const control={checked:true,defaultChecked:true,disabled:false};
- const install=async()=>{const result=await f.request('/api/notifications');viewId=result.body.accountId;settings=result.body.settings;control.checked=settings.categories.reactions;inbox=result.body.notifications;};
+ const install=async()=>{const result=await f.request('/api/notifications');viewId=result.body.accountId;settings=result.body.settings;control.checked=settings.channels.reactions.email;inbox=result.body.notifications;};
  const settle=async()=>{if(pending){const waiting=pending;pending=null;await waiting;await install();control.disabled=false;}};
  const reactions={async click(){
   clicks++;for(let index=0;index<preClickRefreshes;index++)await install();
   // Native activation proposes a new checked property. A controlled pending
   // render retains the authoritative value until the request settles.
   const proposed=!control.checked;control.checked=!proposed;control.disabled=true;
-  const payload={expectedAccountId:viewId,revision:settings.revision,categories:{reactions:proposed}};
+  const payload={expectedAccountId:viewId,revision:settings.revision,channels:{reactions:{email:proposed}}};
   pending=f.request('/api/me/notifications',{method:'PUT',payload});
  }};
  const expect=target=>({
@@ -66,8 +66,8 @@ test('the pre-click account switch can legitimately edit Bob after an ordinary r
  const old=source.replace(scenario,oldScenario);
  await assert.rejects(runScenario(old,{preClickRefreshes:1}),error=>{
   assert.match(error.message,/DOM checked property/);
-  assert.deepEqual(error.syntheticEvidence.writes.map(({viewer,payload})=>({viewer,payload})),[{viewer:'bob',payload:{expectedAccountId:'bob',revision:0,categories:{reactions:false}}}]);
-  assert.equal(error.syntheticEvidence.accounts.bob.settings.categories.reactions,false);
+  assert.deepEqual(error.syntheticEvidence.writes.map(({viewer,payload})=>({viewer,payload})),[{viewer:'bob',payload:{expectedAccountId:'bob',revision:0,channels:{reactions:{email:false}}}}]);
+  assert.equal(error.syntheticEvidence.accounts.bob.settings.channels.reactions.email,false);
   assert.deepEqual(error.syntheticEvidence.control,{checked:false,defaultChecked:true,disabled:false});return true;
  });
 });
@@ -76,13 +76,13 @@ test('the exact hosted scenario captures Alice intent before the server switch a
  for(const preClickRefreshes of [0,1,10]){
   const {f,before,control,clicks,backRoute}=await runScenario(source,{preClickRefreshes});assert.equal(clicks,1);assert.equal(backRoute,'https://fixture.test/#/home','The new account does not return to the old account route');
   assert.deepEqual(plain(f.accounts),before,'Neither account settings nor notices may be changed');
-  assert.deepEqual(plain(f.requests.filter(request=>request.method==='PUT')),[{viewer:'bob',path:'/api/me/notifications',method:'PUT',payload:{expectedAccountId:'alice',revision:0,categories:{reactions:false}}}]);
+  assert.deepEqual(plain(f.requests.filter(request=>request.method==='PUT')),[{viewer:'bob',path:'/api/me/notifications',method:'PUT',payload:{expectedAccountId:'alice',revision:0,channels:{reactions:{email:false}}}}]);
   assert.deepEqual(control,{checked:true,defaultChecked:true,disabled:false});
  }
 });
 
 test('the arrival gate captures the complete immutable request before authentication and cannot mutate either account',async()=>{
- const f=await fixture(),before=plain(f.accounts),payload={expectedAccountId:'alice',revision:0,categories:{reactions:false}};let release,captured;
+ const f=await fixture(),before=plain(f.accounts),payload={expectedAccountId:'alice',revision:0,channels:{reactions:{email:false}}};let release,captured;
  f.setArrival({promise:new Promise(resolve=>release=resolve),started:request=>captured=plain(request)});
  const pending=f.request('/api/me/notifications',{method:'PUT',payload});
  try{
@@ -95,10 +95,10 @@ test('the arrival gate captures the complete immutable request before authentica
 
 test('same-account writes and stale revisions retain normal authorization and commit behavior',async()=>{
  const f=await fixture();
- const first=await f.request('/api/me/notifications',{method:'PUT',payload:{expectedAccountId:'alice',revision:0,categories:{reactions:false}}});
- assert.equal(first.status,200);assert.equal(first.body.categories.reactions,false);assert.equal(first.body.revision,1);
- const stale=await f.request('/api/me/notifications',{method:'PUT',payload:{expectedAccountId:'alice',revision:0,categories:{reactions:true}}});assert.equal(stale.status,409);
- assert.equal(f.accounts.alice.settings.categories.reactions,false);assert.equal(f.accounts.bob.settings.categories.reactions,true);
+ const first=await f.request('/api/me/notifications',{method:'PUT',payload:{expectedAccountId:'alice',revision:0,channels:{reactions:{email:false}}}});
+ assert.equal(first.status,200);assert.equal(first.body.channels.reactions.email,false);assert.equal(first.body.revision,1);
+ const stale=await f.request('/api/me/notifications',{method:'PUT',payload:{expectedAccountId:'alice',revision:0,channels:{reactions:{email:true}}}});assert.equal(stale.status,409);
+ assert.equal(f.accounts.alice.settings.channels.reactions.email,false);assert.equal(f.accounts.bob.settings.channels.reactions.email,true);
 });
 
 test('the exact scenario fails if the server account mismatch guard is removed or the captured owner is wrong',async()=>{
@@ -115,7 +115,7 @@ test('the hosted ordering uses one normal click, preserves checked-property/acco
  for(const invariant of ['await expect(reactions).toBeDisabled();await expect(reactions).toBeChecked()',
   'await expect(reactions).toBeEnabled();await expect(reactions).toBeChecked()',
   'assert.deepEqual(accounts.alice.settings,oldSettings);assert.deepEqual(accounts.bob.settings,previous)',
-  "{viewer:'bob',payload:{expectedAccountId:'alice',revision:oldSettings.revision,categories:{reactions:false}}}",
+  "{viewer:'bob',payload:{expectedAccountId:'alice',revision:oldSettings.revision,channels:{reactions:{email:false}}}}",
   "[data-notice-id^=\"alice-\"]", "[data-notice-id^=\"bob-\"]",'finally{holdSettingsArrival=null;release();}'])assert.ok(scenario.includes(invariant),invariant);
  assert.doesNotMatch(scenario,/\.uncheck\(|\.check\(|force\s*:|waitForTimeout|setTimeout|\.evaluate\(|\.checked\s*=/);
 });

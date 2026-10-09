@@ -15,7 +15,7 @@ export function useNotifications(data){
   const live=current.current.data,latest=live.getCurrentState?.()||live.state;
   return run?.active&&!run.accountInvalidated&&runtime.current===run&&current.current.identity===run.identity&&latest.mode===run.mode&&latest.selfId===run.accountId;
  };
- const update=(run,patch)=>{if(valid(run))setSnapshot(previous=>({...previous,...patch,identity:run.identity}))};
+ const update=(run,patch)=>{if(valid(run))setSnapshot(previous=>({...previous,...(typeof patch==='function'?patch(previous):patch),identity:run.identity}))};
  const accountMatches=(run,result)=>{
   if(run.mode==='preview'||!result?.accountId||result.accountId===run.accountId)return true;
   update(run,{...blank(run.identity),loading:false,error:'Your account changed. Refreshing your activity…'});
@@ -55,17 +55,27 @@ export function useNotifications(data){
  // A local preview reset or a just-committed family command should be reflected
  // immediately. No draft/compose/filter/bag field is read or replaced here.
  useEffect(()=>{if(enabled)refresh()},[state.notifications,state.readNotices,state.notificationSettings?.revision,state.notificationUnreadCount]);
- async function perform(operation,{conflict=false}={}){
+ async function perform(operation,{conflict=false,settingsWrite=false}={}){
   const run=runtime.current;if(!valid(run)||run.identity!==identity||!enabled||run.mutating)return false;
   run.mutating=true;run.sequence++;run.controller?.abort();run.fetching=false;update(run,{busy:true,error:''});
   const live=current.current.data,finish=live.beginPending?.()||(()=>{});
   try{
    const result=await operation(run,live);if(!valid(run)||!accountMatches(run,result))return false;
    if(run.mode==='live')channel.current?.send();
-   await refresh({force:true});return valid(run)?result??true:false;
+   if(settingsWrite)update(run,{ready:false});
+   const readback=refresh({force:true}),readbackSequence=run.sequence,refreshed=await readback;
+   // A successful write with a failed read-back is not a rollback. Keep the
+   // last confirmed values and block another edit until a fresh snapshot arrives.
+   if(settingsWrite&&!refreshed){
+    // A timeout may be an AbortError with no refresh message. Offer recovery
+    // without overwriting a newer refresh, replacement account or auth error.
+    if(run.sequence===readbackSequence)update(run,previous=>({ready:false,error:previous.error||'Your change was saved, but the latest choices could not be loaded. Refresh activity before making another change.'}));
+    return false;
+   }
+   return valid(run)?result??true:false;
   }catch(error){
    if(!valid(run))return false;
-   if(error.status===409&&conflict){await refresh({force:true});update(run,{error:'Your notification choices changed on another device. The latest choices are shown; choose again to save your change.'})}
+   if(error.status===409&&conflict){const refreshed=await refresh({force:true});update(run,{...(!refreshed?{ready:false}:{}),error:refreshed?'Your notification choices changed on another device. The latest choices are shown; choose again to save your change.':'Your notification choices changed on another device. Refresh activity to load the latest choices before trying again.'})}
    else update(run,{error:error.name==='AbortError'?'The connection timed out. You can safely try this action again.':error.message||'That change could not be saved. Try again.'});
    if([401,403].includes(error.status)){update(run,{items:[],unreadCount:0,ready:false});live.refresh()}
    return false;
@@ -75,11 +85,11 @@ export function useNotifications(data){
  const dismiss=id=>perform(async(run,live)=>run.mode==='preview'?live.dispatch({type:'DISMISS_NOTICE',id}):live.notificationApi.dismiss(id,run.accountId));
  const readAll=()=>{const cutoff=snapshot.identity===identity?snapshot.readAllCutoff:null;if(!Number.isSafeInteger(cutoff))return Promise.resolve(false);return perform(async(run,live)=>run.mode==='preview'?live.dispatch({type:'MARK_NOTICES_READ_ALL',cutoff}):live.notificationApi.readAll(cutoff,run.accountId))};
  const clearAll=()=>{const cutoff=snapshot.identity===identity&&snapshot.ready?snapshot.readAllCutoff:null;if(!Number.isSafeInteger(cutoff))return Promise.resolve(false);return perform(async(run,live)=>run.mode==='preview'?live.dispatch({type:'DISMISS_NOTICES_ALL',cutoff}):live.notificationApi.dismissAll(cutoff,run.accountId))};
- const saveSettings=patch=>{const revision=snapshot.identity===identity?snapshot.settings.revision:0;return perform(async(run,live)=>{
+ const saveSettings=patch=>{if(snapshot.identity!==identity||!snapshot.ready)return Promise.resolve(false);const revision=snapshot.identity===identity?snapshot.settings.revision:0;return perform(async(run,live)=>{
   if(run.mode==='live')return live.notificationApi.saveSettings(patch,revision,run.accountId);
   const latest=normalizeNotificationSettings((live.getCurrentState?.()||live.state).notificationSettings);if(latest.revision!==revision)throw Object.assign(new Error('Notification choices changed.'),{status:409});
   return live.dispatch({type:'SET_NOTIFICATION_SETTINGS',patch,revision});
- },{conflict:true})};
+ },{conflict:true,settingsWrite:true})};
  const open=async id=>{
   const result=await perform(async(run,live)=>{
    const result=run.mode==='preview'?previewOpenNotification(live.getCurrentState?.()||live.state,id):await live.notificationApi.open(id,run.accountId);

@@ -55,7 +55,7 @@ test('settings conflict reloads latest revision without retrying or replacing an
 });
 test('settings remain authoritative and busy through a delayed write and its delayed read-back',async()=>{
  const saving=deferred(),reading=deferred(),readStarted=deferred(),writes=[];let lists=0;
- const previous=normalizeNotificationSettings({scope:'loved_ones',revision:4}),next={...previous,revision:5,categories:{...previous.categories,replies:false}};
+ const previous=normalizeNotificationSettings({scope:'loved_ones',revision:4}),next=normalizeNotificationSettings({...previous,revision:5,categories:{...previous.categories,replies:false}});
  const data=dataFor('alice',{
   list:()=>{lists++;if(lists===1)return Promise.resolve(page('alice',{settings:previous}));readStarted.resolve();return reading.promise},
   saveSettings:(patch,revision,accountId)=>{writes.push({patch,revision,accountId});return saving.promise},
@@ -231,4 +231,61 @@ test('clear-all failure retains the inbox, and a late old-account completion can
 test('preview clear-all retains hidden and later history and can reset without live writes',async()=>{
  const unexpected=()=>{throw new Error('Live API called from preview')},data=dataFor('alice',{dismissAll:unexpected});data.state={...initialState(),onboarding:'done'};data.preview=true;const host=await harness(data);
  try{host.render();await host.flush();await host.render().clearAll();assert.equal(host.render().items.length,0);assert.equal(host.render().unreadCount,0);assert.equal(data.state.notifications.length,4);assert.equal(data.state.notifications.filter(n=>n.dismissedAt).length,3);assert.equal(host.channels.length,0);await host.render().resetPreview();assert.equal(host.render().unreadCount,3)}finally{host.close()}
+});
+
+test('channel save preserves authoritative controls until its read-back and never replaces sibling choices',async()=>{
+ const saving=deferred(),reading=deferred(),started=deferred(),writes=[];let lists=0;
+ const previous=normalizeNotificationSettings({revision:4,channels:{replies:{email:true,push:false},mentions:{email:false}}});
+ const next=normalizeNotificationSettings({...previous,revision:5,channels:{...previous.channels,replies:{...previous.channels.replies,email:false}}});
+ const data=dataFor('alice',{list:()=>++lists===1?Promise.resolve(page('alice',{settings:previous})):(started.resolve(),reading.promise),saveSettings:(patch,revision,accountId)=>{writes.push({patch,revision,accountId});return saving.promise}}),host=await harness(data);
+ try{
+  host.render();await host.flush();const operation=host.render().saveSettings({channels:{replies:{email:false}}});assert.equal(host.render().busy,true);assert.deepEqual(host.render().settings,previous);
+  saving.resolve({accountId:'alice',...next});await started.promise;assert.deepEqual(host.render().settings,previous);assert.equal(host.render().busy,true);
+  reading.resolve(page('alice',{settings:next}));await operation;assert.deepEqual(host.render().settings,next);assert.equal(host.render().settings.channels.replies.push,false);assert.equal(host.render().settings.channels.mentions.email,false);assert.equal(host.render().busy,false);
+  assert.deepEqual(writes,[{patch:{channels:{replies:{email:false}}},revision:4,accountId:'alice'}]);assert.equal(data.pending,0);
+ }finally{saving.resolve({accountId:'alice'});reading.resolve(page('alice'));host.close()}
+});
+
+test('rejected channel write retains confirmed choices and does not pretend the checkbox was saved',async()=>{
+ const previous=normalizeNotificationSettings({revision:2,channels:{replies:{push:false}}});let writes=0;
+ const data=dataFor('alice',{list:async()=>page('alice',{settings:previous}),saveSettings:async()=>{writes++;throw Object.assign(Error('Fixture save rejected'),{status:400})}}),host=await harness(data);
+ try{host.render();await host.flush();assert.equal(await host.render().saveSettings({channels:{replies:{email:false}}}),false);assert.deepEqual(host.render().settings,previous);assert.match(host.render().error,/save rejected/);assert.equal(host.render().busy,false);assert.equal(writes,1);assert.equal(data.pending,0)}finally{host.close()}
+});
+
+test('a committed channel write with unavailable read-back blocks stale edits until refresh recovers',async()=>{
+ const previous=normalizeNotificationSettings({revision:2}),next=normalizeNotificationSettings({revision:3,channels:{replies:{email:false}}});let written=false,offline=false,writes=0;
+ const data=dataFor('alice',{list:async()=>{if(offline)throw Error('Fixture read-back offline');return page('alice',{settings:written?next:previous})},saveSettings:async()=>{written=true;offline=true;writes++;return {accountId:'alice',...next}}}),host=await harness(data);
+ try{host.render();await host.flush();assert.equal(await host.render().saveSettings({channels:{replies:{email:false}}}),false);assert.deepEqual(host.render().settings,previous);assert.equal(host.render().ready,false);assert.equal(host.render().busy,false);assert.match(host.render().error,/offline/);assert.equal(await host.render().saveSettings({channels:{replies:{push:false}}}),false);assert.equal(writes,1);assert.equal(data.pending,0);offline=false;await host.render().refresh();assert.equal(host.render().ready,true);assert.deepEqual(host.render().settings,next)}finally{host.close()}
+});
+
+test('channel conflict reloads the winner once and preserves independent values without retry',async()=>{
+ const previous=normalizeNotificationSettings({revision:2}),next=normalizeNotificationSettings({revision:3,channels:{replies:{inApp:false,email:true,push:false},mentions:{email:false}}});let writes=0,winner=false;
+ const data=dataFor('alice',{list:async()=>page('alice',{settings:winner?next:previous}),saveSettings:async()=>{writes++;winner=true;throw Object.assign(Error('Fixture conflict'),{status:409})}}),host=await harness(data);
+ try{host.render();await host.flush();assert.equal(await host.render().saveSettings({channels:{replies:{email:false}}}),false);assert.deepEqual(host.render().settings,next);assert.equal(host.render().ready,true);assert.equal(writes,1);assert.match(host.render().error,/changed on another device/)}finally{host.close()}
+});
+
+test('preview channel edits and reset remain local, independent and rollback-safe under stale revisions',async()=>{
+ const unexpected=()=>{throw Error('Live API used by preview')},data=dataFor('alice',{list:unexpected,saveSettings:unexpected});data.state={...initialState(),onboarding:'done'};data.preview=true;const host=await harness(data);
+ try{host.render();await host.flush();await host.render().saveSettings({channels:{replies:{email:false,push:false}}});assert.equal(host.render().unreadCount,3);assert.deepEqual(host.render().settings.channels.replies,{inApp:true,email:false,push:false});await host.render().saveSettings({channels:{replies:{inApp:false}}});assert.equal(host.render().unreadCount,2);assert.deepEqual(host.render().settings.channels.replies,{inApp:false,email:false,push:false});await host.render().resetPreview();assert.equal(host.render().unreadCount,3);assert.deepEqual(host.render().settings.channels.replies,{inApp:true,email:true,push:true});assert.equal(host.channels.length,0);assert.equal(data.pending,0)}finally{host.close()}
+});
+
+test('committed read-back timeout shows refresh recovery and never leaves all channel controls disabled without feedback',async()=>{
+ const before=normalizeNotificationSettings({revision:2}),after=normalizeNotificationSettings({revision:3,channels:{replies:{email:false}}});let written=false,timedOut=true;
+ const data=dataFor('alice',{list:async()=>{if(written&&timedOut)throw Object.assign(Error('Synthetic timeout'),{name:'AbortError'});return page('alice',{settings:written?after:before})},saveSettings:async()=>{written=true;return {accountId:'alice',...after}}}),host=await harness(data);
+ try{host.render();await host.flush();assert.equal(await host.render().saveSettings({channels:{replies:{email:false}}}),false);const current=host.render();assert.equal(current.ready,false);assert.equal(current.busy,false);assert.equal(current.loading,false);assert.equal(current.refreshing,false);assert.match(current.error,/Your change was saved/);assert.match(current.error,/Refresh activity/);assert.deepEqual(current.settings,before);assert.equal(data.pending,0);timedOut=false;await current.refresh();assert.equal(host.render().ready,true);assert.equal(host.render().error,'');assert.deepEqual(host.render().settings,after)}finally{host.close()}
+});
+
+test('late failed settings read-back cannot disable a newer refresh or contaminate a replacement account',async()=>{
+ for(const replacement of ['refresh','account']){
+  const oldRead=deferred(),started=deferred(),after=normalizeNotificationSettings({revision:3,channels:{replies:{email:false}}});let lists=0;
+  const alice=dataFor('alice',{list:()=>{lists++;if(lists===1)return Promise.resolve(page('alice'));if(lists===2){started.resolve();return oldRead.promise}return Promise.resolve(page('alice',{settings:after}))},saveSettings:async()=>({accountId:'alice',...after})}),bob=dataFor('bob'),host=await harness(alice);
+  try{host.render();await host.flush();const saving=host.render().saveSettings({channels:{replies:{email:false}}});await started.promise;if(replacement==='refresh')await host.render().refresh();else{host.render(bob);await host.flush()}
+   oldRead.reject(Object.assign(Error('Superseded read-back timeout'),{name:'AbortError'}));assert.equal(await saving,false);const current=host.render();assert.equal(current.ready,true);assert.equal(current.error,'');assert.equal(current.busy,false);assert.equal(current.identity,'live:'+(replacement==='refresh'?'alice':'bob'));assert.equal(current.settings.revision,replacement==='refresh'?3:0);assert.equal(alice.pending,0);
+  }finally{host.close()}
+ }
+});
+
+test('settings read-back denial retains the sign-in recovery message',async()=>{
+ let saved=false;const data=dataFor('alice',{list:async()=>{if(saved)throw Object.assign(Error('Fixture unauthorized'),{status:401});return page('alice')},saveSettings:async()=>{saved=true;return {accountId:'alice',ok:true}}}),host=await harness(data);
+ try{host.render();await host.flush();assert.equal(await host.render().saveSettings({channels:{replies:{push:false}}}),false);assert.equal(host.render().ready,false);assert.match(host.render().error,/Sign in again/);assert.equal(data.refreshes,1);assert.equal(data.pending,0)}finally{host.close()}
 });

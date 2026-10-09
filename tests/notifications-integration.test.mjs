@@ -11,8 +11,8 @@ test('hosted controlled-settings checks use real clicks and verify pending, comm
   'await replies.click();await expect.poll(()=>started).toBe(true)',
   'await expect(saving).toBeVisible();await expect(replies).toBeDisabled();await expect(replies).toBeChecked()',
   'await expect(replies).not.toBeChecked();await expect(replies).toBeEnabled();await expect(saving).toBeHidden()',
-  "{expectedAccountId:'alice',revision:previous.revision,categories:{replies:false}}",
-  "{expectedAccountId:'alice',revision:previous.revision+1,categories:{replies:true}}",
+  "{expectedAccountId:'alice',revision:previous.revision,channels:{replies:{inApp:false}}}",
+  "{expectedAccountId:'alice',revision:previous.revision+1,channels:{replies:{inApp:true}}}",
   'assert.deepEqual(accounts.alice.settings,{...previous,revision:previous.revision+2})',
   "assert.equal(accounts.alice.settings.scope,'loved_ones')",
  ])assert.ok(settings.includes(required),required);
@@ -21,11 +21,16 @@ test('hosted controlled-settings checks use real clicks and verify pending, comm
   "viewer.id='bob';",
   "finally{holdSettingsArrival=null;release();}",
   'await expect(reactions).toBeEnabled();await expect(reactions).toBeChecked()',
-  "{viewer:'bob',payload:{expectedAccountId:'alice',revision:oldSettings.revision,categories:{reactions:false}}}",
+  "{viewer:'bob',payload:{expectedAccountId:'alice',revision:oldSettings.revision,channels:{reactions:{email:false}}}}",
   'assert.deepEqual(accounts.alice.settings,oldSettings);assert.deepEqual(accounts.bob.settings,previous)',
   "await expect(panel(alice).locator('[data-notice-id^=\"alice-\"]')).toHaveCount(0)",
   "await expect(panel(alice).locator('[data-notice-id^=\"bob-\"]')).toHaveCount(2)",
  ])assert.ok(accountSwitch.includes(required),required);
  assert.ok(accountSwitch.indexOf('await expect.poll(()=>started).toBe(true)')<accountSwitch.indexOf("viewer.id='bob'"),'The server account changes only after the outgoing Alice request is captured');
  assert.match(file,/async function chooseRadio\(radio\)\{await expect\(radio\)\.toBeEnabled\(\);await radio\.locator\('\.\.'\)\.click\(\);await expect\(radio\)\.toBeChecked\(\);await expect\(radio\)\.toBeEnabled\(\);\}/);
+});
+
+test('recovery fixture follows the actual all-channel master-control name',async()=>{
+ const [ui,recovery]=await Promise.all([readFile(new URL('../src/notifications.jsx',import.meta.url),'utf8'),readFile(new URL('./recovery-browser.mjs',import.meta.url),'utf8')]);
+ const label=/ChoiceControl label="([^"]+)" value=\{settings\.globalOff/.exec(ui)?.[1];assert.equal(label,'All activity');assert.ok(recovery.includes("getByRole('group',{name:'"+label+"',exact:true})"));assert.doesNotMatch(recovery,/getByRole\('group',\{name:'In-app activity'/);
 });
