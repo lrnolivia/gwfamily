@@ -5,7 +5,7 @@ import {chromium,webkit,expect} from '@playwright/test';
 import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {initialState,PREVIEW_KEY} from '../src/data-adapter.js';
-import {DEFAULT_NOTIFICATION_CATEGORIES} from '../src/notification-model.js';
+import {NOTIFICATION_CATEGORIES,NOTIFICATION_DELIVERY_CHANNELS,normalizeNotificationSettings,patchNotificationSettings} from '../src/notification-model.js';
 import {sharedPageDefaults} from '../src/shared-content-schema.js';
 if(!process.env.CI&&process.env.GW_HOSTED_BROWSER_QA!=='1')throw new Error('Notification browser QA runs only in the authorized hosted CI environment.');
 const base=process.env.GW_NOTIFICATIONS_URL||'http://127.0.0.1:4173';
@@ -17,8 +17,8 @@ const engine=process.env.GW_BROWSER==='webkit'?'webkit':'chromium';
 const oldPost={id:'older-authorized-post',authorId:'bob',text:'An authorized older fixture post outside the feed window.',createdAt:1000,memberIds:[],files:[]};
 const comment={id:'older-comment',authorId:'bob',text:'The exact older fixture reply.',createdAt:2000,parentId:null,files:[]};
 let linkedComments=[comment];
-function account(id){return {id,email:{accountId:id,ready:true,enabled:false,revision:0,appearance:{preset:'green',theme:'light',headingFont:'sans'}},settings:{accountId:id,scope:'leaders',globalOff:false,selectedIds:[],categories:{...DEFAULT_NOTIFICATION_CATEGORIES},revision:0,pushEnabled:false},notices:Array.from({length:id==='alice'?135:2},(_,i)=>({id:id+'-notice-'+(i+1),sequence:i+1,kind:'reply.created',category:'replies',title:`${id==='alice'?'Fixture':'Other account'} update ${i+1}`,text:'A fictional update for hosted QA.',createdAt:Date.now()-i*1000,readAt:null,target:{kind:'comment',id:comment.id,containerId:oldPost.id,anchorId:comment.id}}))}}
-const accounts={alice:account('alice'),bob:account('bob')};let holdOpen=null,holdSettings=null,holdReadAll=null,holdSettingsArrival=null,holdDismissAll=null;
+function account(id){return {id,email:{accountId:id,ready:true,enabled:false,revision:0,appearance:{preset:'green',theme:'light',headingFont:'sans'}},settings:{accountId:id,...normalizeNotificationSettings()},notices:Array.from({length:id==='alice'?135:2},(_,i)=>({id:id+'-notice-'+(i+1),sequence:i+1,kind:'reply.created',category:'replies',title:`${id==='alice'?'Fixture':'Other account'} update ${i+1}`,text:'A fictional update for hosted QA.',createdAt:Date.now()-i*1000,readAt:null,target:{kind:'comment',id:comment.id,containerId:oldPost.id,anchorId:comment.id}}))}}
+const accounts={alice:account('alice'),bob:account('bob')};let holdOpen=null,holdSettings=null,holdReadAll=null,holdSettingsArrival=null,holdDismissAll=null,settingsFailure=null;
 function stateFor(id){return {...initialState(),mode:'live',schema:3,selfId:id,onboarding:'done',profileComplete:true,capabilities:{},
  members:[{id:'alice',name:'QA Alice',circle:'family',registered:true,adult:true,profileColor:'#4f996c'},{id:'bob',name:'QA Bob',circle:'family',registered:true,adult:true,profileColor:'#754c95'}],groups:[],memories:[],memorials:[],relationships:[],posts:[{id:'recent-fixture',authorId:'bob',text:'The current fixture feed.',createdAt:Date.now(),files:[]}],comments:{},reactions:{},notifications:[],readNotices:[],notificationSettings:{...accounts[id].settings},notificationUnreadCount:visible(accounts[id]).filter(n=>!n.readAt).length};}
 function visible(account){return account.settings.globalOff?[]:account.notices.filter(n=>!n.dismissedAt&&account.settings.categories[n.category]);}
@@ -49,8 +49,9 @@ async function attachRoutes(context,viewer){
   if(url.pathname==='/api/me/notifications'){
    if(method==='PUT'){
     if(holdSettings){const pending=holdSettings;holdSettings=null;pending.started();await pending.promise;}
+    if(settingsFailure){const message=settingsFailure;settingsFailure=null;return json(route,{error:message},500);}
     if(payload.revision!==a.settings.revision)return json(route,{error:'Notification settings changed on another device.'},409);
-    const {expectedAccountId,revision,categories,...rest}=payload;a.settings={...a.settings,...rest,categories:{...a.settings.categories,...categories},revision:revision+1};if(a.settings.scope==='loved')a.settings.scope='loved_ones';
+    const {expectedAccountId,revision,...patch}=payload;a.settings={accountId:a.id,...patchNotificationSettings(a.settings,patch),revision:revision+1};if(a.settings.scope==='loved')a.settings.scope='loved_ones';
    }return json(route,a.settings);
   }
   if(url.pathname==='/api/notifications/read-all'){
@@ -91,7 +92,9 @@ async function pageFor(viewer,{width=390,context:existing}={}){
   localStorage.setItem('gw-install-dismissed','true');localStorage.setItem('gw-preview-notice:v1','seen');
   for(const id of ['alice','bob'])localStorage.setItem('gw-help:v1:'+id,JSON.stringify({version:1,topic:'home',status:'skipped'}));
   const Native=globalThis.BroadcastChannel;if(Native)globalThis.BroadcastChannel=class extends Native{postMessage(value){if(this.name==='gw-notifications:v1')window.__qaBroadcast(value);return super.postMessage(value)}};
-  const noPermission=()=>{throw new Error('Notification permission must never be requested by activity UI')};if(globalThis.Notification)Notification.requestPermission=noPermission;
+  window.__qaNotificationSideEffects={permission:0,subscribe:0};
+  if(globalThis.Notification)Notification.requestPermission=()=>{window.__qaNotificationSideEffects.permission++;throw new Error('Notification permission must never be requested by activity UI')};
+  if(globalThis.PushManager)PushManager.prototype.subscribe=()=>{window.__qaNotificationSideEffects.subscribe++;throw new Error('Category controls must never enroll a device')};
  });
  await page.addInitScript(installNotificationViewportTrace);
  await page.goto(base+'/');await expect(page.getByRole('navigation',{name:'Main navigation',exact:true})).toBeVisible();return {page,context};
@@ -305,7 +308,7 @@ try{
  await check('settings preserve Following through global Off and normalize Loved Ones',async()=>{
   const before=visible(accounts.alice).filter(notice=>!notice.readAt).length;
   const previousRoute=await openSettings(alice),settings=alice.getByRole('region',{name:'Notification choices',exact:true});
-  const loved=settings.getByRole('radio',{name:'Loved Ones',exact:true}),replies=settings.getByRole('checkbox',{name:'Replies',exact:true}),saving=settings.getByRole('status',{name:'Saving notification choices',exact:true});
+  const loved=settings.getByRole('radio',{name:'Loved Ones',exact:true}),replies=settings.getByRole('checkbox',{name:'Replies: In app',exact:true}),saving=settings.getByRole('status',{name:'Saving notification choices',exact:true});
   const deviceSection=settings.locator('.notification-settings-section').first();
   await expect(deviceSection.getByRole('heading',{name:'Push on this device'})).toBeVisible();
   const info=deviceSection.getByRole('button',{name:'Information about device notifications'}),details=deviceSection.locator('[id="'+await info.getAttribute('aria-controls')+'"]');
@@ -331,15 +334,50 @@ try{
    assert.deepEqual(accounts.alice.settings,previous,'A pending save must not be presented as committed');
   }finally{release();}
   await expect(replies).not.toBeChecked();await expect(replies).toBeEnabled();await expect(saving).toBeHidden();await expect(backgroundBell(alice)).toHaveAttribute('aria-label','Notifications');
-  assert.deepEqual(settingsWrites().slice(writesBefore).map(write=>write.payload),[{expectedAccountId:'alice',revision:previous.revision,categories:{replies:false}}]);
-  assert.deepEqual(accounts.alice.settings,{...previous,revision:previous.revision+1,categories:{...previous.categories,replies:false}});
+  assert.deepEqual(settingsWrites().slice(writesBefore).map(write=>write.payload),[{expectedAccountId:'alice',revision:previous.revision,channels:{replies:{inApp:false}}}]);
+  assert.deepEqual(accounts.alice.settings,{...previous,revision:previous.revision+1,categories:{...previous.categories,replies:false},channels:{...previous.channels,replies:{...previous.channels.replies,inApp:false}}});
   await replies.click();await expect(replies).toBeChecked();await expect(replies).toBeEnabled();await expect(saving).toBeHidden();
   assert.deepEqual(settingsWrites().slice(writesBefore).map(write=>write.payload),[
-   {expectedAccountId:'alice',revision:previous.revision,categories:{replies:false}},
-   {expectedAccountId:'alice',revision:previous.revision+1,categories:{replies:true}},
+   {expectedAccountId:'alice',revision:previous.revision,channels:{replies:{inApp:false}}},
+   {expectedAccountId:'alice',revision:previous.revision+1,channels:{replies:{inApp:true}}},
   ]);
   assert.deepEqual(accounts.alice.settings,{...previous,revision:previous.revision+2});
   await returnFromSettings(alice,previousRoute);await expect(bell(alice)).toHaveAccessibleName(`Notifications, ${before} unread`);
+ });
+ await check('all category channels have readable 44px targets and all eight combinations persist independently',async()=>{
+  const previousRoute=await openSettings(alice),settings=alice.getByRole('region',{name:'Notification choices',exact:true}),previous=structuredClone(accounts.alice.settings),emailBefore=structuredClone(accounts.alice.email),writesBefore=requests.length;
+  await expect(settings.locator('.notification-category-choice')).toHaveCount(NOTIFICATION_CATEGORIES.length);
+  await expect(settings.locator('.notification-channel-choice input')).toHaveCount(NOTIFICATION_CATEGORIES.length*3);
+  for(const category of NOTIFICATION_CATEGORIES)for(const channel of NOTIFICATION_DELIVERY_CHANNELS){
+   const input=settings.getByRole('checkbox',{name:category.label+': '+channel.label,exact:true}),target=input.locator('..');
+   await expect(input).toBeChecked();const bounds=await target.boundingBox();assert.ok(bounds.width>=44&&bounds.height>=44,category.id+': '+channel.id);
+  }
+  for(let mask=0;mask<8;mask++){
+   const desired={inApp:!!(mask&1),email:!!(mask&2),push:!!(mask&4)};
+   for(const channel of NOTIFICATION_DELIVERY_CHANNELS){const input=settings.getByRole('checkbox',{name:'Replies: '+channel.label,exact:true});if(await input.isChecked()!==desired[channel.id]){await input.locator('..').click();await expect(input).toBeEnabled();}await expect(input).toBeChecked({checked:desired[channel.id]});}
+   assert.deepEqual(accounts.alice.settings.channels.replies,desired);assert.equal(accounts.alice.settings.categories.replies,desired.inApp);
+   for(const category of NOTIFICATION_CATEGORIES.filter(c=>c.id!=='replies'))assert.deepEqual(accounts.alice.settings.channels[category.id],previous.channels[category.id]);
+  }
+  // Space uses the same real, controlled checkbox as pointer activation.
+  const email=settings.getByRole('checkbox',{name:'Replies: Email',exact:true});await email.focus();await email.press('Space');await expect(email).not.toBeChecked();await expect(email).toBeEnabled();await expect(email).toBeFocused();
+  await alice.reload();await expectSettingsPage(alice);await expect(email).not.toBeChecked();await expect(settings.getByRole('checkbox',{name:'Replies: In app',exact:true})).toBeChecked();await expect(settings.getByRole('checkbox',{name:'Replies: Push',exact:true})).toBeChecked();
+  await email.locator('..').click();await expect(email).toBeChecked();await expect(email).toBeEnabled();
+  assert.deepEqual({...accounts.alice.settings,revision:previous.revision},previous);assert.deepEqual(accounts.alice.email,emailBefore);
+  assert.ok(requests.slice(writesBefore).filter(r=>r.method!=='GET').every(r=>r.path==='/api/me/notifications'),'Channel choices cannot write opt-in, enrollment, or test-send APIs');
+  assert.deepEqual(await alice.evaluate(()=>window.__qaNotificationSideEffects),{permission:0,subscribe:0});
+  await returnFromSettings(alice,previousRoute);
+ });
+ await check('failed and conflicting channel saves retain confirmed choices with recoverable feedback',async()=>{
+  const previousRoute=await openSettings(alice),settings=alice.getByRole('region',{name:'Notification choices',exact:true}),email=settings.getByRole('checkbox',{name:'Replies: Email',exact:true}),before=structuredClone(accounts.alice.settings);
+  settingsFailure='Fictional save failed. Try again.';await email.click();await expect(settings.getByRole('alert')).toContainText('Fictional save failed');await expect(email).toBeChecked();await expect(email).toBeEnabled();assert.deepEqual(accounts.alice.settings,before);
+  // Another device wins after the displayed snapshot. The outgoing revision
+  // must conflict; its intended email off is never silently retried.
+  const writesBefore=settingsWrites().length;let release,started=false;holdSettingsArrival={promise:new Promise(resolve=>release=resolve),started:()=>{started=true}};
+  try{await email.click();await expect.poll(()=>started).toBe(true);accounts.alice.settings={...accounts.alice.settings,revision:before.revision+1,channels:{...before.channels,mentions:{...before.channels.mentions,push:false}}};}finally{holdSettingsArrival=null;release();}
+  await expect(settings.getByRole('alert')).toContainText('changed on another device');await expect(email).toBeChecked();await expect(email).toBeEnabled();
+  const tagsPush=settings.getByRole('checkbox',{name:'Tags: Push',exact:true});await expect(tagsPush).not.toBeChecked();assert.equal(settingsWrites().length,writesBefore+1);assert.equal(accounts.alice.settings.channels.replies.email,true);
+  await tagsPush.click();await expect(tagsPush).toBeChecked();await expect(tagsPush).toBeEnabled();assert.deepEqual({...accounts.alice.settings,revision:before.revision},before);
+  await returnFromSettings(alice,previousRoute);
  });
  await check('email default-off opt-in follows the app theme and remains separate from device permission',async()=>{
   const previous=await openSettings(alice),email=alice.locator('.notification-email-settings');
@@ -375,9 +413,9 @@ try{
  });
  await check('account switch rejects stale settings writes and clears old-account inbox',async()=>{
   const previousRoute=await openSettings(alice),previous=structuredClone(accounts.bob.settings),oldSettings=structuredClone(accounts.alice.settings),writesBefore=settingsWrites().length;
-  const reactions=alice.getByRole('region',{name:'Notification choices'}).getByRole('checkbox',{name:'Reactions',exact:true});await expect(reactions).toBeChecked();await expect(reactions).toBeEnabled();
+  const reactions=alice.getByRole('region',{name:'Notification choices'}).getByRole('checkbox',{name:'Reactions: Email',exact:true});await expect(reactions).toBeChecked();await expect(reactions).toBeEnabled();
   let release,started=false;holdSettingsArrival={promise:new Promise(resolve=>release=resolve),started:payload=>{
-   assert.deepEqual(payload,{expectedAccountId:'alice',revision:oldSettings.revision,categories:{reactions:false}});started=true;
+   assert.deepEqual(payload,{expectedAccountId:'alice',revision:oldSettings.revision,channels:{reactions:{email:false}}});started=true;
   }};
   try{
    // Changing the cookie before click lets a normal visible/timed refresh make
@@ -388,7 +426,7 @@ try{
    viewer.id='bob';
   }finally{holdSettingsArrival=null;release();}
   await expect(backgroundBell(alice)).toHaveAttribute('aria-label','Notifications, 2 unread');await expect(reactions).toBeEnabled();await expect(reactions).toBeChecked();
-  assert.deepEqual(settingsWrites().slice(writesBefore).map(write=>({viewer:write.viewer,payload:write.payload})),[{viewer:'bob',payload:{expectedAccountId:'alice',revision:oldSettings.revision,categories:{reactions:false}}}]);
+  assert.deepEqual(settingsWrites().slice(writesBefore).map(write=>({viewer:write.viewer,payload:write.payload})),[{viewer:'bob',payload:{expectedAccountId:'alice',revision:oldSettings.revision,channels:{reactions:{email:false}}}}]);
   assert.deepEqual(accounts.alice.settings,oldSettings);assert.deepEqual(accounts.bob.settings,previous);
   const homeRoute=new URL(alice.url());homeRoute.hash='/home';assert.notEqual(previousRoute,homeRoute.href,'The previous account route was different');
   await expect(alice.locator('.page-navigation-header').getByRole('button',{name:'Back to Home',exact:true})).toBeVisible();
@@ -397,12 +435,13 @@ try{
  await check('notification controls fit 320/390/768/1280 across approved materials and palettes',async()=>{
   for(const variant of [{width:320,theme:'light',material:'android'},{width:390,theme:'dark',material:'ios'},{width:768,theme:'light',material:'ios'},{width:1280,theme:'dark',material:'android'}]){
    await alice.setViewportSize({width:variant.width,height:900});await alice.evaluate(({theme,material})=>{localStorage.setItem('gw-theme',theme);localStorage.setItem('gw-platform',material)},variant);await alice.reload();await showInbox(alice);await checkFit(alice);await checkBellClear(alice);await checkNavigationClear(alice);await captureNotificationViewport(alice,`${output}/${engine}-${variant.width}-${variant.theme}-${variant.material}-inbox.png`);
-   const previous=await openSettings(alice);await checkFit(alice);await captureNotificationViewport(alice,`${output}/${engine}-${variant.width}-${variant.theme}-${variant.material}-settings.png`,{settings:true});await returnFromSettings(alice,previous);
+   const previous=await openSettings(alice);await checkFit(alice);const row=alice.locator('.notification-category-choice').first();await row.scrollIntoViewIfNeeded();for(const label of await row.locator('.notification-channel-choice').all()){const box=await label.boundingBox();assert.ok(box.width>=44&&box.height>=44);}
+   await alice.screenshot({path:`${output}/${engine}-${variant.width}-${variant.theme}-${variant.material}-channels.png`,fullPage:false});await alice.getByRole('heading',{name:'Notifications',exact:true,level:1}).scrollIntoViewIfNeeded();await captureNotificationViewport(alice,`${output}/${engine}-${variant.width}-${variant.theme}-${variant.material}-settings.png`,{settings:true});await returnFromSettings(alice,previous);
   }
  });
  await check('preview controls are isolated and resettable with no notification network writes',async()=>{
   const preview=initialState();preview.onboarding='done';const p=await pageFor({id:'alice'});await p.page.evaluate(({key,state})=>{localStorage.setItem(key,JSON.stringify({schema:2,mode:'preview',state}));sessionStorage.setItem('gw-active-mode','preview')},{key:PREVIEW_KEY,state:preview});await p.page.reload();const before=requests.filter(r=>r.method!=='GET').length;
-  await showInbox(p.page);await panel(p.page).getByRole('button',{name:'Mark A sample reply is waiting read',exact:true}).click();await panel(p.page).getByRole('button',{name:'Dismiss A sample memory includes you',exact:true}).click();await panel(p.page).getByRole('button',{name:'Reset sample activity',exact:true}).click();await expect(bell(p.page)).toHaveAccessibleName('Notifications, 3 unread');await panel(p.page).getByRole('button',{name:'Clear all',exact:true}).click();await expect(panel(p.page).locator('[data-notice-id]')).toHaveCount(0);await expect(panel(p.page).getByRole('button',{name:'Clear all',exact:true})).toBeDisabled();await panel(p.page).getByRole('button',{name:'Reset sample activity',exact:true}).click();await expect(bell(p.page)).toHaveAccessibleName('Notifications, 3 unread');assert.equal(requests.filter(r=>r.method!=='GET').length,before);
+  await showInbox(p.page);await panel(p.page).getByRole('button',{name:'Mark A sample reply is waiting read',exact:true}).click();await panel(p.page).getByRole('button',{name:'Dismiss A sample memory includes you',exact:true}).click();await panel(p.page).getByRole('button',{name:'Reset sample activity',exact:true}).click();await expect(bell(p.page)).toHaveAccessibleName('Notifications, 3 unread');await panel(p.page).getByRole('button',{name:'Clear all',exact:true}).click();await expect(panel(p.page).locator('[data-notice-id]')).toHaveCount(0);await expect(panel(p.page).getByRole('button',{name:'Clear all',exact:true})).toBeDisabled();await panel(p.page).getByRole('button',{name:'Reset sample activity',exact:true}).click();await expect(bell(p.page)).toHaveAccessibleName('Notifications, 3 unread');const previousRoute=await openSettings(p.page),settings=p.page.getByRole('region',{name:'Notification choices',exact:true}),email=settings.getByRole('checkbox',{name:'Replies: Email',exact:true});await email.click();await expect(email).not.toBeChecked();await expect(email).toBeEnabled();await p.page.reload();await expectSettingsPage(p.page);await expect(email).not.toBeChecked();await expect(settings.getByRole('checkbox',{name:'Replies: In app',exact:true})).toBeChecked();await expect(settings.getByRole('checkbox',{name:'Replies: Push',exact:true})).toBeChecked();await settings.getByRole('button',{name:'Reset sample activity',exact:true}).click();await expect(email).toBeChecked();await returnFromSettings(p.page,previousRoute);assert.equal(requests.filter(r=>r.method!=='GET').length,before);
  });
  await check('Clear all dismisses the full paged inbox but retains later arrivals and other-account history',async()=>{
   const original=structuredClone(accounts.bob.notices),aliceBefore=structuredClone(accounts.alice.notices),settingsBefore=structuredClone(accounts.bob.settings),writesBefore=requests.length;

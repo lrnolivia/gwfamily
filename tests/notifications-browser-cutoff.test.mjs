@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {DEFAULT_NOTIFICATION_CATEGORIES} from '../src/notification-model.js';
+import {normalizeNotificationSettings,patchNotificationSettings} from '../src/notification-model.js';
 
 const source=readFileSync(new URL('./notifications-browser.mjs',import.meta.url),'utf8');
 const routeSource=source.slice(source.indexOf('const oldPost='),source.indexOf('async function pageFor('));
@@ -13,7 +13,7 @@ const later={id:'alice-new-after-cutoff',sequence:136,kind:'reply.created',categ
 const plain=value=>structuredClone(value);
 
 async function fixture({mutateRoute=value=>value}={}){
- const context=vm.createContext({URL,structuredClone,DEFAULT_NOTIFICATION_CATEGORIES,
+ const context=vm.createContext({URL,structuredClone,normalizeNotificationSettings,patchNotificationSettings,
   assert:{equal:assert.equal,ok:assert.ok,deepEqual:(actual,expected,message)=>assert.deepEqual(plain(actual),plain(expected),message)},
  });
  vm.runInContext(`const base='http://127.0.0.1:4173',requests=[];\n${mutateRoute(routeSource)}\n`+

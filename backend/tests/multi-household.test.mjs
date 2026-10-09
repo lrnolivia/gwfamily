@@ -3,10 +3,12 @@ import {database,seed} from './test-db.mjs';import {command,familyState} from '.
 const actor=id=>({id,status:'active',group:'family',roles:[],canPost:true,isLeader:false});
 const send=(db,id,type,values={})=>command(db,actor(id),{type,...values,requestId:crypto.randomUUID()});
 test('migration proves old single-membership failure, preserves every existing row and dependent trigger',()=>{
- let previous,triggers;
- const {sqlite}=database({beforeMigration(file,db){if(!file.startsWith('0023'))return;seed(db);db.exec("INSERT INTO households(id,name,founder_id) VALUES('a','A','alice'),('b','B','bob'); INSERT INTO household_members(household_id,member_id,role,joined_at) VALUES('a','alice','head','2020-01-02 03:04:05'),('b','bob','head','2021-02-03 04:05:06')");assert.throws(()=>db.exec("INSERT INTO household_members(household_id,member_id,role) VALUES('b','alice','member')"),/UNIQUE constraint failed/);previous=db.prepare('SELECT * FROM household_members ORDER BY household_id').all();triggers=db.prepare("SELECT name,sql FROM sqlite_master WHERE type='trigger' ORDER BY name").all();}});
+ let previous,triggers,triggersAfterMigration;
+ const {sqlite}=database({beforeMigration(file,db){if(file>'0023_multi_household_membership.sql'&&triggersAfterMigration===undefined)triggersAfterMigration=db.prepare("SELECT name,sql FROM sqlite_master WHERE type='trigger' ORDER BY name").all();if(!file.startsWith('0023'))return;seed(db);db.exec("INSERT INTO households(id,name,founder_id) VALUES('a','A','alice'),('b','B','bob'); INSERT INTO household_members(household_id,member_id,role,joined_at) VALUES('a','alice','head','2020-01-02 03:04:05'),('b','bob','head','2021-02-03 04:05:06')");assert.throws(()=>db.exec("INSERT INTO household_members(household_id,member_id,role) VALUES('b','alice','member')"),/UNIQUE constraint failed/);previous=db.prepare('SELECT * FROM household_members ORDER BY household_id').all();triggers=db.prepare("SELECT name,sql FROM sqlite_master WHERE type='trigger' ORDER BY name").all();}});
  assert.deepEqual(sqlite.prepare('SELECT * FROM household_members ORDER BY household_id').all(),previous);
- assert.deepEqual(sqlite.prepare("SELECT name,sql FROM sqlite_master WHERE type='trigger' ORDER BY name").all(),triggers);
+ // Compare exactly at the 0023 boundary; later migrations may intentionally
+ // add or replace notification triggers under their own regression coverage.
+ assert.deepEqual(triggersAfterMigration,triggers);
  assert.deepEqual(sqlite.prepare('PRAGMA foreign_key_check').all(),[]);
  assert.equal(sqlite.prepare("SELECT primary_household_id FROM profiles WHERE member_id='alice'").get().primary_household_id,'a');
  sqlite.exec("INSERT INTO household_members(household_id,member_id,role) VALUES('b','alice','member')");assert.throws(()=>sqlite.exec("INSERT INTO household_members(household_id,member_id,role) VALUES('b','alice','head')"),/UNIQUE constraint failed/);
