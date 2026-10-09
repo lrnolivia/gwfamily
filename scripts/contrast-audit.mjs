@@ -22,7 +22,7 @@ for(const preset of THEME_PRESETS)for(const theme of ['light','dark']){
  const page=await ctx.newPage();page.setDefaultTimeout(4000);
  for(const [route,open] of views){
   try{
-   await page.goto(base+route);await page.waitForTimeout(600);
+   await page.goto('about:blank');await page.goto(base+route);await page.waitForTimeout(600);
    if(open){await page.getByRole('button',{name:new RegExp('^'+open)}).first().click();await page.waitForTimeout(700)}
    const found=await page.evaluate(()=>{
     const cv=document.createElement('canvas');cv.width=cv.height=1;const cx=cv.getContext('2d',{willReadFrequently:true});

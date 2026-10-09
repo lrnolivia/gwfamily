@@ -57,11 +57,11 @@ const surfaceInfo=()=>page.evaluate(()=>{
 });
 const results=[],seen=new Set();let shot=0;
 for(const route of routes){
- let names;try{await page.goto(base+route);await page.waitForTimeout(700);names=await tagCandidates(route==='/')}catch(e){results.push({route,error:e.message.slice(0,120)});continue}
+ let names;try{await page.goto('about:blank');await page.goto(base+route);await page.waitForTimeout(700);names=await tagCandidates(route==='/')}catch(e){results.push({route,error:e.message.slice(0,120)});continue}
  for(let i=0;i<names.length;i++){
   if(/^(Back|Home|Reunion|Family|You)$/.test(names[i]))continue;
   try{
-   await page.goto(base+route);await page.waitForTimeout(500);await tagCandidates(route==='/');
+   await page.goto('about:blank');await page.goto(base+route);await page.waitForTimeout(500);await tagCandidates(route==='/');
    const before=page.url(),el=page.locator(`[data-crawl="${i}"]`);if(!(await el.count()))continue;
    await el.first().click({timeout:2500});await page.waitForTimeout(600);
    const info=await surfaceInfo();if(!info)continue;
