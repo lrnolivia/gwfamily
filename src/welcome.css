@@ -1,0 +1,35 @@
+/* Welcome: an opaque card over a dramatic, translucent blur of the authorized
+   Home. Blur lives only on the backdrop; the card itself is solid. */
+dialog.welcome-overlay{position:fixed;inset:0;width:100%;max-width:none;height:100%;max-height:none;margin:0;padding:max(16px,env(safe-area-inset-top,0px)) 16px max(16px,env(safe-area-inset-bottom,0px));border:0;background:transparent;display:grid;place-items:center;overflow:auto;overscroll-behavior:contain;color:var(--text)}
+dialog.welcome-overlay:not([open]){display:none}
+dialog.welcome-overlay::backdrop{background:transparent}
+.welcome-scrim{position:fixed;inset:0;background:color-mix(in srgb,var(--surface,#f3efe2) 34%,transparent);-webkit-backdrop-filter:blur(26px) saturate(1.35);backdrop-filter:blur(26px) saturate(1.35);transition:background .42s ease,backdrop-filter .42s ease,-webkit-backdrop-filter .42s ease}
+.is-leaving .welcome-scrim{background:transparent;-webkit-backdrop-filter:blur(0) saturate(1);backdrop-filter:blur(0) saturate(1)}
+.welcome-card{position:relative;z-index:1;display:flex;flex-direction:column;width:min(100%,520px);max-height:calc(var(--vv-height,100dvh) - 32px);border-radius:28px;background:var(--surface,#f8f5ec);box-shadow:0 24px 70px color-mix(in srgb,var(--accent-shadow-color,#174c2d) 30%,transparent),0 0 0 1px color-mix(in srgb,var(--accent) 22%,transparent);overflow:hidden;animation:welcome-rise .52s cubic-bezier(.2,.8,.2,1) both}
+.welcome-card::before{content:"";position:absolute;inset:0 0 auto 0;height:5px;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 45%,#e3b664));pointer-events:none}
+.is-leaving .welcome-card{animation:welcome-leave .42s cubic-bezier(.4,0,.2,1) both}
+.welcome-head{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;gap:8px;padding:16px 16px 0}
+.welcome-head-spacer{width:44px;height:44px}
+.welcome-progress{display:flex;justify-content:center;gap:8px;margin:0;padding:0;list-style:none}
+.welcome-progress li{width:28px;height:5px;border-radius:999px;background:color-mix(in srgb,var(--text) 14%,transparent);transition:background .3s ease}
+.welcome-progress li.is-done{background:var(--accent)}
+.welcome-body{display:grid;gap:14px;padding:8px 24px 12px;overflow:auto;min-height:0}
+.welcome-body h2{margin:0;font-size:clamp(1.5rem,5vw,1.875rem);line-height:1.15;letter-spacing:-.02em;text-wrap:balance;outline:none}
+/* Focus moves to the heading programmatically for screen readers; no ring on non-interactive text. */
+.welcome-body h2:focus,.welcome-body h2:focus-visible{outline:none}
+.welcome-lede{margin:0;color:var(--muted);font-size:1rem;line-height:1.5}
+.welcome-art{width:88px;height:88px;object-fit:contain;justify-self:start;filter:drop-shadow(0 8px 18px color-mix(in srgb,var(--accent) 30%,transparent))}
+.welcome-points{display:grid;gap:8px;margin:4px 0 0;padding:0;list-style:none}
+.welcome-points li{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--raised)}
+.welcome-points li>.glyph{flex:none;color:var(--accent)}
+.welcome-points span{display:grid;gap:2px;min-width:0}
+.welcome-points small{color:var(--muted);font-size:.875rem}
+.welcome-body .family-setup{gap:12px}
+.welcome-body .family-setup .card{box-shadow:none}
+.welcome-footer.sheet-footer{position:sticky;bottom:0;padding:12px 24px calc(16px + env(safe-area-inset-bottom,0px));background:var(--surface,#f8f5ec)}
+@keyframes welcome-rise{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes welcome-leave{to{opacity:0;transform:translateY(-10px) scale(.985)}}
+@media(max-width:700px){.welcome-card{border-radius:24px}.welcome-body{padding:8px 18px 12px}.welcome-footer.sheet-footer{padding-inline:18px}}
+@media(prefers-reduced-motion:reduce){.welcome-card,.is-leaving .welcome-card{animation:none}.welcome-scrim{transition:none}.welcome-progress li{transition:none}}
+@media(prefers-reduced-transparency:reduce){.welcome-scrim{background:color-mix(in srgb,var(--surface,#f3efe2) 88%,transparent)}}
+@media(forced-colors:active){.welcome-card{border:1px solid CanvasText}.welcome-progress li.is-done{background:Highlight}}
