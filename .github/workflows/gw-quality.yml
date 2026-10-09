@@ -158,6 +158,13 @@ jobs:
           GW_V4_QA_OUTPUT=docs/install-v4-qa node tests/install-v4-browser.mjs
           GW_HOME_QA_OUTPUT=docs/home-reunion-qa node tests/home-reunion-browser.mjs
           GW_MEMORIAL_QA_OUTPUT=docs/memorial-qa node tests/memorial-update-browser.mjs
+      - name: Branches, welcome, family refinement and memory uploads
+        if: ${{ !cancelled() && matrix.group == 'surfaces' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          GW_FAMILY_SETUP_QA_OUTPUT=docs/family-setup-qa node tests/family-setup-browser.mjs
+          GW_WELCOME_QA_OUTPUT=docs/welcome-qa node tests/welcome-browser.mjs
+          GW_MEMORY_BATCH_QA_OUTPUT=docs/memory-batch-qa node tests/memory-batch-browser.mjs
       - name: Fictional eight-preset email previews
         if: ${{ !cancelled() && matrix.group == 'surfaces' && matrix.browser == 'chromium' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         run: GW_EMAIL_QA_OUTPUT=docs/email-preview-qa node tests/email-preview-browser.mjs
@@ -334,6 +341,9 @@ jobs:
             docs/schedule-editor-qa
             docs/editor-geometry-qa
             docs/onboarding-qa
+            docs/family-setup-qa
+            docs/welcome-qa
+            docs/memory-batch-qa
             docs/push-settings-qa
             docs/install-v4-qa
             docs/home-reunion-qa
