@@ -1,0 +1,96 @@
+{
+  "deviceStepCounts": {
+    "ios": 4,
+    "ipad": 3,
+    "android": 3,
+    "androidTablet": 3
+  },
+  "flows": {
+    "ios": [
+      {
+        "step": 1,
+        "action": "open-page-menu",
+        "instruction": "Open Safari page menu",
+        "inlineControl": "ios-page-menu.svg"
+      },
+      {
+        "step": 2,
+        "action": "share",
+        "instruction": "Share",
+        "inlineControl": "ios-share.svg"
+      },
+      {
+        "step": 3,
+        "action": "add-to-home-screen",
+        "instruction": "Add to Home Screen",
+        "inlineControl": "ios-add-to-home-screen.svg"
+      },
+      {
+        "step": 4,
+        "action": "add",
+        "instruction": "Add",
+        "inlineControl": null
+      }
+    ],
+    "ipad": [
+      {
+        "step": 1,
+        "action": "share",
+        "instruction": "Share",
+        "inlineControl": "ios-share.svg"
+      },
+      {
+        "step": 2,
+        "action": "add-to-home-screen",
+        "instruction": "Add to Home Screen",
+        "inlineControl": "ios-add-to-home-screen.svg"
+      },
+      {
+        "step": 3,
+        "action": "add",
+        "instruction": "Add",
+        "inlineControl": null
+      }
+    ],
+    "android": [
+      {
+        "step": 1,
+        "action": "open-chrome-menu",
+        "instruction": "Open Chrome menu",
+        "inlineControl": "android-more.svg"
+      },
+      {
+        "step": 2,
+        "action": "add-to-home-screen",
+        "instruction": "Add to Home screen",
+        "inlineControl": "android-add-to-home-screen.svg"
+      },
+      {
+        "step": 3,
+        "action": "install",
+        "instruction": "Install",
+        "inlineControl": null
+      }
+    ],
+    "androidTablet": [
+      {
+        "step": 1,
+        "action": "open-chrome-menu",
+        "instruction": "Open Chrome menu",
+        "inlineControl": "android-more.svg"
+      },
+      {
+        "step": 2,
+        "action": "add-to-home-screen",
+        "instruction": "Add to Home screen",
+        "inlineControl": "android-add-to-home-screen.svg"
+      },
+      {
+        "step": 3,
+        "action": "install",
+        "instruction": "Install",
+        "inlineControl": null
+      }
+    ]
+  }
+}

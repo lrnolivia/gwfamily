@@ -21,7 +21,7 @@ const stubUrl=dataModule(`
  export const command=async()=>({}),familyState=async()=>({}),validDate=()=>true,adultOn=()=>true;
  export const can=()=>false,canRehearseFirstLoad=()=>false;
  export const invitationsEnabled=()=>false,provisionalAllowed=async()=>false,registerInvitationEntry=()=>{},registerFamilyInvitations=()=>{};
- export const registerPushRoutes=()=>{},registerNotifications=()=>{},registerPageContent=()=>{},registerHouseholdInvites=()=>{};
+ export const registerPushRoutes=()=>{},registerNotifications=()=>{},registerEmailNotifications=()=>{},registerPageContent=()=>{},registerHouseholdInvites=()=>{},registerFamilyCalendar=()=>{};
  export const publishedPageReferencesMedia=async()=>false,readCalendar=async()=>({});
  // Photo target authorization has its own real-route suite; this private-message isolation boundary exposes no photo references.
  export const registerPhotoDiscussions=()=>{},photoCommentsReferenceMedia=async()=>false;

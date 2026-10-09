@@ -11,9 +11,10 @@ export function normalizeToast(input){
  // A persistent condition must not silently become an expiring notice.
  if(!value||typeof value!=='object'||value.persistent===true||typeof value.message!=='string'||!value.message.trim())return null;
  const kind=value.kind==='error'?'error':'status';
- const fallback=kind==='error'?TOAST_ERROR_DURATION_MS:TOAST_DURATION_MS;
+ const actions=(Array.isArray(value.actions)?value.actions:[]).filter(action=>action&&typeof action.label==='string'&&action.label.trim()&&typeof action.run==='function').slice(0,2).map(action=>Object.freeze({label:action.label.trim().slice(0,80),run:action.run}));
+ const fallback=kind==='error'||actions.length?TOAST_ERROR_DURATION_MS:TOAST_DURATION_MS;
  const duration=typeof value.duration==='number'&&Number.isFinite(value.duration)?Math.min(TOAST_MAX_DURATION_MS,Math.max(TOAST_DURATION_MS,value.duration)):fallback;
- return {message:value.message.trim(),kind,duration};
+ return {message:value.message.trim(),kind,duration,...(actions.length?{actions}: {})};
 }
 
 export function createToastController({scopeKey='',clock,onChange=()=>{}}={}){

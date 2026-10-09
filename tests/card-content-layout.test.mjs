@@ -96,7 +96,7 @@ test('compact editor uses named pressed glyph buttons and image-only size contro
 test('Messages empty invitations do not create a phantom sidebar row and birthday has one card',()=>{
  const jsx=readFileSync(new URL('../src/messaging.jsx',import.meta.url),'utf8'),app=readFileSync(new URL('../src/react-app.jsx',import.meta.url),'utf8');
  assert.match(jsx,/'native-invitations':Boolean\(view.invitations.length>0\|\|paging.invitationCursor\)&&/);
- assert.match(app,/'native-birthdays':<Birthdays\/>/);assert.doesNotMatch(app,/'native-birthdays':<section[^>]*><Birthdays/);
+ const calendar=readFileSync(new URL('../src/family-calendar.jsx',import.meta.url),'utf8');assert.match(calendar,/<Birthdays\/>/);assert.doesNotMatch(app,/'native-birthdays':/);assert.match(app,/<MemberCalendar\/>/);
 });
 
 test('removing and restoring content preserves slot data, ordering, lock boundaries and reload',()=>{

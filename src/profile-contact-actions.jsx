@@ -3,7 +3,7 @@ import {api} from './live-adapter.js';
 import {Button,Control,Glyph,Popover,Sheet,useApp} from './ui-core.jsx';
 import {contactRows,contactVCard,contactFilename} from './profile-contact-model.js';
 import './profile-contact-actions.css';
-function ContactGlyph({name}){const custom={phone:'M6 3h4l2 5-3 2c1 3 2 4 5 5l2-3 5 2v4c0 2-2 3-4 2C9 19 5 15 3 7c-1-2 1-4 3-4Z',link:'m10 13 4-4m-6 6-2 2a4 4 0 0 1-6-6l4-4m12 2 2-2a4 4 0 0 0-6-6l-4 4',lock:'M6 10h12v11H6Zm3 0V6a3 3 0 0 1 6 0v4'};return custom[name]?<svg className="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={custom[name]}/></svg>:<Glyph name={name}/>;}
+export function ContactGlyph({name}){const custom={phone:'M6 3h4l2 5-3 2c1 3 2 4 5 5l2-3 5 2v4c0 2-2 3-4 2C9 19 5 15 3 7c-1-2 1-4 3-4Z',link:'m10 13 4-4m-6 6-2 2a4 4 0 0 1-6-6l4-4m12 2 2-2a4 4 0 0 0-6-6l-4 4',lock:'M6 10h12v11H6Zm3 0V6a3 3 0 0 1 6 0v4'};return custom[name]?<svg className="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={custom[name]}/></svg>:<Glyph name={name}/>;}
 async function embeddedPhoto(url){
  if(!url)return {};
  const target=new URL(url,location.href);if(target.origin!==location.origin)throw Error('This photo cannot be included in a contact download yet.');

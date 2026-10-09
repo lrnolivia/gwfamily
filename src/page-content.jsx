@@ -27,7 +27,7 @@ const plainChildren=children=>React.Children.toArray(children).map(child=>typeof
 export function PageContentProvider({children,enabled=true}){
  const app=useApp(),state=app?.state||{},preview=state.mode==='preview',canEditPreview=canAccessLeaderTools(state);
  const allowed=enabled&&state.onboarding==='done'&&(preview||(state.mode==='live'&&app?.data?.session?.status==='active'));
- const account=allowed?(preview?'preview:':'live:')+state.selfId:null;
+ const account=allowed?(preview?'preview:'+state.previewRoleView+':':'live:'+String(state.viewAsMember)+':')+state.selfId:null;
  const [records,setRecords]=useState({}),[editingPage,setEditingPage]=useState(null),[editingPages,setEditingPages]=useState([]),[arrangingPage,setArrangingPage]=useState(false),[activeEditor,setActiveEditor]=useState(null),[selectedObject,setSelectedObject]=useState(null),[objectRequest,setObjectRequest]=useState(null),[workCount,setWorkCount]=useState(0),[autosaveHolds,setAutosaveHolds]=useState(0),[storageError,setStorageError]=useState(''),[commandHistory,setCommandHistory]=useState({past:[],future:[]}),[commandNotice,setCommandNotice]=useState('');
  const commandRef=useRef({past:[],future:[]});
  const installCommands=useCallback(history=>{commandRef.current=history;setCommandHistory(history)},[]);

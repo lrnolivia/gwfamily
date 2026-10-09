@@ -1,3 +1,4 @@
+import {useScrollEdge} from './shared-scroll-edge.jsx';
 import {photoFrameStyle} from './photo-framing-model.js';
 import './photo-framing.css';
 import React,{createContext,useContext,useCallback,useEffect,useId,useMemo,useRef,useState} from 'react';
@@ -76,7 +77,7 @@ export function useViewport(){
 }
 export function Popover({open,onClose,anchor,children,kind='menu',className='',style}) {
   const glass=useApp()?.platform!=='android'&&['top-menu','notifications'].includes(kind);
-  const id=useId().replace(/:/g,'');
+  const id=useId().replace(/:/g,'');useScrollEdge(id,open);
   useEffect(()=>{
     const el=document.getElementById(id);if(!el||!open)return;
     if(kind==='notifications'){
@@ -87,12 +88,12 @@ export function Popover({open,onClose,anchor,children,kind='menu',className='',s
     const place=()=>{const v=window.visualViewport,r=anchor?.getBoundingClientRect?.();
       const left=v?.offsetLeft||0,top=v?.offsetTop||0,width=v?.width||innerWidth,height=v?.height||innerHeight;
       const w=Math.min(el.offsetWidth||300,width-24),h=Math.min(el.offsetHeight||300,height-24);
-      const x=Math.max(left+12,Math.min(r?.left??left+12,left+width-w-12));
+      const x=Math.max(left+12,Math.min(className.includes('onboarding-more-pop')&&r?r.left+r.width/2-w/2:r?.left??left+12,left+width-w-12));
       const below=(r?.bottom??top)+8,above=(r?.top??top)-h-8;
-      const y=below+h<=top+height-12?below:above>=top+12?above:Math.max(top+12,top+height-h-12);
-      el.style.left=x+'px';el.style.top=y+'px';if(r)el.style.transformOrigin=(r.left+r.width/2-x)+'px '+(r.top+r.height/2-y)+'px';el.style.maxHeight=(height-24)+'px';el.style.maxWidth=(width-24)+'px'};
+      const y=className.includes('onboarding-more-pop')?Math.max(top+12,above):below+h<=top+height-12?below:above>=top+12?above:Math.max(top+12,top+height-h-12);
+      el.style.left=x+'px';el.style.top=y+'px';if(r)el.style.transformOrigin=(r.left+r.width/2-x)+'px '+(r.top+r.height/2-y)+'px';el.style.maxHeight=(className.includes('onboarding-more-pop')&&r?Math.max(44,r.top-top-20):height-24)+'px';el.style.maxWidth=(width-24)+'px'};
     if(!el.matches(':popover-open'))el.showPopover();place();const observer=new ResizeObserver(place);observer.observe(el);
-    const follow=()=>{if(!className.includes('member-mini-pop'))return;const r=anchor?.getBoundingClientRect?.();if(!anchor?.isConnected||!r||r.bottom<=0||r.top>=innerHeight||r.right<=0||r.left>=innerWidth){onClose?.();return}place()};window.addEventListener('scroll',follow,true);
+    const follow=()=>{if(!className.includes('member-mini-pop')&&!className.includes('onboarding-more-pop'))return;const r=anchor?.getBoundingClientRect?.();if(!anchor?.isConnected||!r||r.bottom<=0||r.top>=innerHeight||r.right<=0||r.left>=innerWidth){onClose?.();return}place()};window.addEventListener('scroll',follow,true);
     window.visualViewport?.addEventListener('resize',place);window.visualViewport?.addEventListener('scroll',place);
     return ()=>{observer.disconnect();window.removeEventListener('scroll',follow,true);window.visualViewport?.removeEventListener('resize',place);window.visualViewport?.removeEventListener('scroll',place);
       if(el.matches(':popover-open'))el.hidePopover()};
@@ -113,7 +114,8 @@ export function useSheetForm({label=null,busy=false,disabled=false,dirty=false}=
  return id;
 }
 export function Sheet({title,kind='normal',onClose,children,style,suppressGlobalPending=false,busy=false,completion=null}) {
- const app=useApp(),ref=useRef(null),titleId=useId().replace(/:/g,'')+'-title';
+ const app=useApp(),ref=useRef(null),bodyRef=useRef(null),titleId=useId().replace(/:/g,'')+'-title';
+ useScrollEdge(bodyRef,kind!=='comments');
  const floating=useFloatingPanelPosition(ref);
  const [form,setForm]=useState(null),[confirmDiscard,setConfirmDiscard]=useState(false);
  const register=useCallback(value=>{setForm(value);return()=>setForm(current=>current?.id===value.id?null:current)},[]);
@@ -124,7 +126,7 @@ export function Sheet({title,kind='normal',onClose,children,style,suppressGlobal
  const action=completion||form?.label&&{label:form.label,formId:form.id,disabled:form.disabled};
  const content=<FloatingSurfaceContext.Provider value={true}><SheetFormContext.Provider value={register}>
   <div className="sheet-head" {...floating.handle}>{action?<Control type={action.formId?'submit':'button'} form={action.formId} className="icon-button sheet-complete" aria-label={action.label} disabled={locked||action.disabled} onClick={action.onClick}><Glyph name="check"/></Control>:<span className="sheet-action-placeholder" aria-hidden="true"/>}<h2 id={titleId}>{title}</h2><Control type="button" id="close" className="icon-button sheet-close" aria-label="Close dialog" disabled={locked} onClick={close}><Glyph name="close"/></Control></div>
-  <div id="sheet-body">{confirmDiscard?<section className="sheet-discard-confirm" role="alert"><h3>Discard unsaved changes?</h3><p>Your saved details will stay unchanged.</p><div className="row"><Button secondary onClick={()=>setConfirmDiscard(false)}>Keep editing</Button><Button onClick={()=>{setConfirmDiscard(false);onClose?.()}}>Discard changes</Button></div></section>:null}{app?.data?.error&&<p className="note" role="alert">{app.data.error}</p>}{locked&&!suppressGlobalPending&&<p role="status" className="small muted">Saving…</p>}<div inert={confirmDiscard||undefined}>{children}</div></div>
+  <div id="sheet-body" ref={bodyRef}>{confirmDiscard?<section className="sheet-discard-confirm" role="alert"><h3>Discard unsaved changes?</h3><p>Your saved details will stay unchanged.</p><div className="row"><Button secondary onClick={()=>setConfirmDiscard(false)}>Keep editing</Button><Button onClick={()=>{setConfirmDiscard(false);onClose?.()}}>Discard changes</Button></div></section>:null}{app?.data?.error&&<p className="note" role="alert">{app.data.error}</p>}{locked&&!suppressGlobalPending&&<p role="status" className="small muted">Saving…</p>}<div inert={confirmDiscard||undefined}>{children}</div></div>
  </SheetFormContext.Provider></FloatingSurfaceContext.Provider>;
  return <dialog id="sheet" ref={ref} className={className} style={{...style,...floating.style}} aria-labelledby={titleId}
   onCancel={e=>{e.preventDefault();close()}} onClick={e=>{if(e.target===ref.current)close()}}>

@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 // Hosted synthetic fixture only. Syntax-checking this file is not browser evidence.
 import {chromium,webkit,expect} from '@playwright/test';
 import assert from 'node:assert/strict';

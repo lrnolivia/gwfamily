@@ -9,6 +9,9 @@ const h=(type,props,...children)=>({type,props:props||{},children:children.flat(
 const Button=createOfficialSignInButton({createElement:h});
 const button=tree=>tree.children.find(node=>node.type==='button');
 const providers=['google','microsoft','yahoo'];
+test('onboarding signup intent changes both visible and accessible labels while retaining returning sign-in labels',()=>{
+ for(const provider of providers){const original=officialProviderBrand(provider).label;const signup=button(Button({provider,intent:'signup',onClick(){}}));assert.equal(signup.props['aria-label'],original.replace('Sign in','Sign up'));assert.equal(signup.children[1].children[0],signup.props['aria-label']);assert.equal(button(Button({provider,intent:'signin',onClick(){}})).props['aria-label'],original)}
+});
 
 test('email label aligns its existing glyph with text and scales with label typography',async()=>{
  const css=await readFile(new URL('../src/official-sign-in-button.css',import.meta.url),'utf8');

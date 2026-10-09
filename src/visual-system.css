@@ -237,3 +237,5 @@ html[data-theme] .poll .poll-choice>.poll-indicator.selected{background:color-mi
 
 /* Font previews keep their raised surface when selected, so use theme text. */
 html[data-theme][data-platform] .heading-font-option[aria-pressed=true]{color:var(--text)!important;text-shadow:none}
+
+html[data-font=sans]{--gw-heading-font:'Momo Trust Display',sans-serif}html[data-font=serif]{--gw-heading-font:'DM Serif Text',Georgia,serif}html .mini-identity strong{font-family:var(--gw-heading-font,'DM Serif Text',Georgia,serif)!important;font-weight:400}

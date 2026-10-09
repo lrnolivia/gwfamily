@@ -61,10 +61,10 @@ test('request consent, actor authorization and preview simulation are retained w
  assert.match(requests,/type:'RESOLVE_HOUSEHOLD_REQUEST',id:r.id,accept/);
  assert.match(identity,/<Avatar member=\{person\}/);assert.match(identity,/member&&<MemberBadges member=\{member\}/);
 });
-test('email invitations retain email choice, recipient-only link and truthful preview/sent status',()=>{
+test('email invitations explicitly send on submission, retain recipient-only link and truthful preview/sent status',()=>{
  assert.match(households,/<input required type="email" autoComplete="email" disabled=\{busy\}/);
- assert.match(households,/JSON.stringify\(\{householdId:h.id,email,sendEmail\}\)/);
- assert.match(households,/Send the invitation email/);assert.match(households,/No email or real link was sent/);
+ assert.match(households,/JSON.stringify\(\{householdId:h.id,email,sendEmail:true\}\)/);
+ assert.match(households,/Send invitation/);assert.match(households,/No email or real link was sent/);
  assert.match(households,/invite.emailSent\?'Invitation email sent.':'Invitation link ready.'/);
  assert.match(households,/Private invitation link<input readOnly value=\{invite.url\}/);
  assert.match(households,/Valid for seven days, for this recipient only/);

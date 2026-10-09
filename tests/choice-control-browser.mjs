@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 // Run only on the authorized hosted executor. This fixture uses no production
 // data, no external APIs, and cannot send a post or change a family record.
 import {chromium,webkit,expect} from '@playwright/test';

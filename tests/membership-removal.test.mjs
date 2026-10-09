@@ -9,7 +9,7 @@ import {directoryPeople} from '../src/member-directory.js';
 import {filterDirectoryMembers,managementDirectoryMembers} from '../src/people-directory-model.js';
 
 const request=(state,type,id,revision=0)=>({type,id,expectedAccountId:state.selfId,confirmedMemberId:id,expectedRevision:revision});
-function setup(){const state=initialState();return {state,id:state.members.find(m=>m.id!==state.selfId&&!m.managedBy).id}}
+function setup(){const state={...initialState(),previewRoleView:'leader'};return {state,id:state.members.find(m=>m.id!==state.selfId&&!m.managedBy).id}}
 
 test('preview removal keeps history and an admin-review record, hides the public directory entry, and supports removed filter',()=>{
  const {state,id}=setup(),next=reducer(state,request(state,'REMOVE_MEMBER',id));

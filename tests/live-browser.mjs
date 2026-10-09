@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 // Hosted-only Live API checks. All accounts, messages and uploads are synthetic.
 // Node contracts and syntax checks are not evidence of a hosted browser pass.
 import {createTestPng} from './png-fixtures.mjs';

@@ -24,3 +24,5 @@
 .merchandise-order .choice-control{min-width:0}
 .merchandise-refresh-error{overflow-wrap:anywhere}
 @media(max-width:420px){.household-member-row>.button,.household-bounded-task .row>.button{width:100%}}
+
+.household-members-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.household-members-heading h2{margin:0}.household-add-trigger{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;min-width:44px;border:0;border-radius:50%;background:var(--surface);color:var(--text)}.household-add-trigger .glyph{width:22px;height:22px}.household-add-members{min-width:0}.household-requests-inline{margin-top:12px;padding-top:16px;border-top:1px solid var(--line)}.household-requests-inline h3{margin:0;font-size:1rem}.household-heritage-form{width:100%;max-width:none!important;min-width:0}.household-children-link{min-width:0}

@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 // Hosted-only synthetic notification checks. API routes are intercepted in memory;
 // this file cannot write to a real account, send email/push, or request permission.
 import {chromium,webkit,expect} from '@playwright/test';
@@ -16,7 +17,7 @@ const engine=process.env.GW_BROWSER==='webkit'?'webkit':'chromium';
 const oldPost={id:'older-authorized-post',authorId:'bob',text:'An authorized older fixture post outside the feed window.',createdAt:1000,memberIds:[],files:[]};
 const comment={id:'older-comment',authorId:'bob',text:'The exact older fixture reply.',createdAt:2000,parentId:null,files:[]};
 let linkedComments=[comment];
-function account(id){return {id,settings:{accountId:id,scope:'leaders',globalOff:false,selectedIds:[],categories:{...DEFAULT_NOTIFICATION_CATEGORIES},revision:0,pushEnabled:false},notices:Array.from({length:id==='alice'?135:2},(_,i)=>({id:id+'-notice-'+(i+1),sequence:i+1,kind:'reply.created',category:'replies',title:`${id==='alice'?'Fixture':'Other account'} update ${i+1}`,text:'A fictional update for hosted QA.',createdAt:Date.now()-i*1000,readAt:null,target:{kind:'comment',id:comment.id,containerId:oldPost.id,anchorId:comment.id}}))}}
+function account(id){return {id,email:{accountId:id,ready:true,enabled:false,revision:0,appearance:{preset:'green',theme:'light',headingFont:'sans'}},settings:{accountId:id,scope:'leaders',globalOff:false,selectedIds:[],categories:{...DEFAULT_NOTIFICATION_CATEGORIES},revision:0,pushEnabled:false},notices:Array.from({length:id==='alice'?135:2},(_,i)=>({id:id+'-notice-'+(i+1),sequence:i+1,kind:'reply.created',category:'replies',title:`${id==='alice'?'Fixture':'Other account'} update ${i+1}`,text:'A fictional update for hosted QA.',createdAt:Date.now()-i*1000,readAt:null,target:{kind:'comment',id:comment.id,containerId:oldPost.id,anchorId:comment.id}}))}}
 const accounts={alice:account('alice'),bob:account('bob')};let holdOpen=null,holdSettings=null,holdReadAll=null,holdSettingsArrival=null,holdDismissAll=null;
 function stateFor(id){return {...initialState(),mode:'live',schema:3,selfId:id,onboarding:'done',profileComplete:true,capabilities:{},
  members:[{id:'alice',name:'QA Alice',circle:'family',registered:true,adult:true,profileColor:'#4f996c'},{id:'bob',name:'QA Bob',circle:'family',registered:true,adult:true,profileColor:'#754c95'}],groups:[],memories:[],memorials:[],relationships:[],posts:[{id:'recent-fixture',authorId:'bob',text:'The current fixture feed.',createdAt:Date.now(),files:[]}],comments:{},reactions:{},notifications:[],readNotices:[],notificationSettings:{...accounts[id].settings},notificationUnreadCount:visible(accounts[id]).filter(n=>!n.readAt).length};}
@@ -36,9 +37,10 @@ async function attachRoutes(context,viewer){
   if(method==='PUT'&&url.pathname==='/api/me/notifications'&&holdSettingsArrival){const pending=holdSettingsArrival;holdSettingsArrival=null;pending.started(payload);await pending.promise;}
   const a=accounts[viewer.id];requests.push({viewer:viewer.id,path:url.pathname,method,payload});
   if(payload.expectedAccountId&&payload.expectedAccountId!==viewer.id)return json(route,{error:'Your signed-in account changed. Refresh before trying again.'},409);
-  if(url.pathname==='/api/config')return json(route,{configured:true,email:false,providers:[],pushEnabled:false});
+  if(url.pathname==='/api/config')return json(route,{configured:true,email:false,providers:[],pushEnabled:false,emailNotifications:true});
   if(url.pathname==='/api/session')return json(route,{status:'active',member:{id:viewer.id},user:{id:viewer.id}});
   if(method==='GET'&&url.pathname==='/api/me/push')return json(route,{accountId:viewer.id,ready:false,pushEnabled:false,devices:[],reason:'activation-required'});
+  if(url.pathname==='/api/me/notification-email'){if(method==='PUT'){if(payload.revision!==a.email.revision)return json(route,{error:'Email choices changed on another device.'},409);a.email={...a.email,enabled:payload.enabled,appearance:payload.appearance,revision:payload.revision+1};}return json(route,a.email);}
   if(url.pathname==='/api/state')return json(route,stateFor(viewer.id));
   if(url.pathname==='/api/notifications'){
    const all=visible(a).sort((x,y)=>y.sequence-x.sequence),before=Number(url.searchParams.get('before'))||Infinity,limit=Number(url.searchParams.get('limit'))||30,filtered=all.filter(n=>n.sequence<before),items=filtered.slice(0,limit);
@@ -304,6 +306,14 @@ try{
   const before=visible(accounts.alice).filter(notice=>!notice.readAt).length;
   const previousRoute=await openSettings(alice),settings=alice.getByRole('region',{name:'Notification choices',exact:true});
   const loved=settings.getByRole('radio',{name:'Loved Ones',exact:true}),replies=settings.getByRole('checkbox',{name:'Replies',exact:true}),saving=settings.getByRole('status',{name:'Saving notification choices',exact:true});
+  const deviceSection=settings.locator('.notification-settings-section').first();
+  await expect(deviceSection.getByRole('heading',{name:'Push on this device'})).toBeVisible();
+  const info=deviceSection.getByRole('button',{name:'Information about device notifications'}),details=deviceSection.locator('[id="'+await info.getAttribute('aria-controls')+'"]');
+  await expect(info).toHaveAttribute('aria-expanded','false');await expect(details).toBeHidden();
+  await info.focus();await info.press('Enter');await expect(info).toHaveAttribute('aria-expanded','true');await expect(details).toBeVisible();
+  await expect(details).toContainText('Names and message content are never included.');
+  await info.press('Space');await expect(details).toBeHidden();
+  const infoBounds=await info.boundingBox();assert.ok(infoBounds.width>=44&&infoBounds.height>=44);
   await chooseRadio(loved);assert.equal(accounts.alice.settings.scope,'loved_ones');
   await chooseRadio(settings.getByRole('radio',{name:'Off',exact:true}));await expect(replies).toBeDisabled();await expect(backgroundBell(alice)).toHaveAttribute('aria-label','Notifications');
   assert.equal(accounts.alice.settings.globalOff,true);assert.equal(accounts.alice.settings.scope,'loved_ones');
@@ -330,6 +340,20 @@ try{
   ]);
   assert.deepEqual(accounts.alice.settings,{...previous,revision:previous.revision+2});
   await returnFromSettings(alice,previousRoute);await expect(bell(alice)).toHaveAccessibleName(`Notifications, ${before} unread`);
+ });
+ await check('email default-off opt-in persists eight-preset appearance and remains separate from device permission',async()=>{
+  const previous=await openSettings(alice),email=alice.locator('.notification-email-settings');
+  await expect(email.getByRole('button',{name:'Turn on email updates',exact:true})).toBeEnabled();
+  const color=email.getByRole('combobox',{name:'Email color',exact:true});await color.click();
+  await expect(email.getByRole('option')).toHaveCount(8);await email.getByRole('option',{name:'Blue',exact:true}).click();
+  await chooseRadio(email.getByRole('radio',{name:'DM Serif',exact:true}));await chooseRadio(email.getByRole('radio',{name:'Dark',exact:true}));
+  await email.getByRole('button',{name:'Turn on email updates',exact:true}).click();
+  await expect(email.getByRole('button',{name:'Turn off email updates',exact:true})).toBeEnabled();
+  assert.deepEqual(accounts.alice.email.appearance,{preset:'blue',theme:'dark',headingFont:'serif'});assert.equal(accounts.bob.email.enabled,false);
+  await alice.reload();await expectSettingsPage(alice);await expect(email.getByRole('combobox',{name:'Email color',exact:true})).toHaveValue('Blue');await expect(email.getByRole('radio',{name:'Dark',exact:true})).toBeChecked();
+  await email.getByRole('button',{name:'Turn off email updates',exact:true}).click();await expect(email.getByRole('button',{name:'Turn on email updates',exact:true})).toBeEnabled();assert.equal(accounts.alice.email.enabled,false);
+  const writes=requests.filter(r=>r.path==='/api/me/notification-email'&&r.method==='PUT');assert.equal(writes.length,2);assert.ok(writes.every(r=>r.payload.expectedAccountId==='alice'));
+  await returnFromSettings(alice,previous);
  });
  await check('read-all uses a server cutoff and leaves a later arrival unread',async()=>{
   await showInbox(alice);const previous=structuredClone(accounts.alice.notices),cutoff=Math.max(...previous.map(n=>n.sequence)),writesBefore=requests.length;

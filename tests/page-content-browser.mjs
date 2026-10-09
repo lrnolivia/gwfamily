@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 import {settlePointerTarget} from './browser-transition-readiness.mjs';
 import {pageContentPayload} from '../src/page-content-model.js';
 import {validatePhotoFrame} from '../src/photo-framing-model.js';
@@ -38,7 +39,10 @@ const modeDone = page => toolbar(page).locator('.page-mode-done');
 // API probes preserve the complete normalized snapshot, including lock state,
 // layout order and Markdown source formats. Output URLs never become authority.
 const contentPayload = pageContentPayload;
-const primaryHero = (page, key) => page.locator(`[data-panel-page="${key}"] [data-panel-id="hero"]`);
+// Nested page layouts (Family contains Memories) each own a hero; match only the
+// hero whose closest owning page is the requested schema key.
+const ownedBy = key => `ancestor::*[@data-panel-page][1][@data-panel-page="${key}"]`;
+const primaryHero = (page, key) => page.locator(`xpath=//section[@data-panel-id="hero" and ${ownedBy(key)}]`);
 
 async function check(name, run) {
   currentCheck = name;
@@ -324,15 +328,17 @@ async function mediaPanel(page, key = 'home') {
   return panel;
 }
 async function togglePanelProtection(page, panel, locked) {
+ await expect(panel,'Protection targets exactly one panel').toHaveCount(1);
  const name=locked?/^Lock /:/^Unlock /,inline=panel.getByRole('button',{name});
  if(await inline.count()){await inline.click();return}
- await panel.getByRole('button',{name:/^Panel options for /}).click();
+ const title=await panel.getAttribute('data-panel-title');assert.ok(title,'Target panel declares its own title');
+ await panel.getByRole('button',{name:'Panel options for '+title,exact:true}).click();
  const inspector=page.locator('.page-object-tools');
  await inspector.getByRole('button',{name}).click();
  await inspector.getByRole('button',{name:'Close object tools',exact:true}).click();
 }
 async function unlockHero(page, key) {
-  const optional=page.locator(`[data-panel-page="${key}"] .page-optional-media`);
+  const optional=page.locator(`xpath=//*[contains(concat(' ',normalize-space(@class),' '),' page-optional-media ') and ${ownedBy(key)}]`);
   if(await optional.count()&&!await optional.evaluate(node=>node.open))await optional.locator('summary').click();
   const hero = primaryHero(page, key);
   await expect(hero).toHaveCount(1);
@@ -518,17 +524,29 @@ try {
     await expect(owner.locator('html')).not.toHaveAttribute('data-page-edit-mode', 'true');
   });
 
-  await check('Plan and Calendar sections edit independently, retain sidebars and save placement',async()=>{
-    for(const [tab,key,panelId,titleField] of [['Plan','reunion-plans','native-rsvp','rsvpTitle'],['Calendar','reunion-calendar','native-events','heading']]){
+  await check('Plan and Schedule sections edit independently, retain sidebars and save placement',async()=>{
+    for(const [tab,key,panelId,titleField] of [['Plan','reunion-plans','native-rsvp','rsvpTitle'],['Schedule','reunion-calendar','native-events',null]]){
       await navigate(owner,'reunion');await owner.getByRole('tab',{name:tab,exact:true}).click();await edit(owner);
       const layout=owner.locator(`[data-panel-page="${key}"]`),panel=layout.locator(`[data-panel-id="${panelId}"]`);
+      // Schedule birthdays moved to Family Calendar; create a real editable
+      // sidebar card rather than require an obsolete native birthday panel.
+      let customId=null;
+      if(tab==='Schedule'){
+        await expect(owner.locator('[data-page-field="reunion-calendar.heading"]')).toHaveCount(0);
+        const originalIds=(await record(owner,key)).content.panelLayout.panels.map(row=>row.id);
+        await owner.getByRole('button',{name:'Add Panel',exact:true}).click();
+        const add=owner.getByRole('dialog',{name:'Add Panel',exact:true});await add.getByRole('radio',{name:'Side area',exact:true}).check();await add.getByRole('button',{name:'Add side panel',exact:true}).click();await save(owner);
+        customId=(await record(owner,key)).content.panelLayout.panels.find(row=>!originalIds.includes(row.id)).id;
+      }
       await expect(layout.locator('.page-panel-zone-side > .page-shared-panel')).not.toHaveCount(0);
       await expect(panel).toBeVisible();
       await expect(panel).not.toHaveAttribute('data-panel-locked','true');
       await togglePanelProtection(owner,panel,true);await save(owner);await expect(panel).toHaveAttribute('data-panel-locked','true');
       await togglePanelProtection(owner,panel,false);await save(owner);await expect(panel).not.toHaveAttribute('data-panel-locked','true');
-      const before=(await record(owner,key)).content.text[titleField];await editText(owner,key+'.'+titleField,before+' Synthetic edit');await save(owner);
-      assert.equal((await record(owner,key)).content.text[titleField],before+' Synthetic edit');
+      const before=titleField?(await record(owner,key)).content.text[titleField]:(await record(owner,key)).content.panelLayout.panels.find(row=>row.id===customId).title;
+      const editTitle=async value=>{if(titleField)await editText(owner,key+'.'+titleField,value);else{const custom=layout.locator('[data-panel-id="'+customId+'"]');await custom.getByRole('button',{name:'Edit Panel heading',exact:true}).click();await custom.getByRole('textbox',{name:'Panel heading',exact:true}).fill(value);await custom.getByRole('button',{name:'Finish editing Panel heading',exact:true}).click()}await save(owner)};
+      const readTitle=async()=>{const content=(await record(owner,key)).content;return titleField?content.text[titleField]:content.panelLayout.panels.find(row=>row.id===customId).title};
+      await editTitle(before+' Synthetic edit');assert.equal(await readTitle(),before+' Synthetic edit');
       await toolbar(owner).locator('.page-edit-tools > summary').click();await toolbar(owner).getByRole('button',{name:'Arrange page',exact:true}).click();
       await panel.getByRole('button',{name:/^Side for /}).click();await save(owner);
       assert.equal((await record(owner,key)).content.panelLayout.panels.find(row=>row.id===panelId).zone,'side');
@@ -549,9 +567,9 @@ try {
       await reorder.getByRole('button',{name:'Done',exact:true}).click();
       await owner.screenshot({path:`${output}/${key}-editable-sidebar-${engineName}.png`});
       await panel.getByRole('button',{name:/^Main for /}).click();await save(owner);
-      await toolbar(owner).locator('.page-edit-tools > summary').click();await toolbar(owner).getByRole('button',{name:'Finish arranging',exact:true}).click();await editText(owner,key+'.'+titleField,before);await save(owner);await togglePanelProtection(owner,panel,true);await save(owner);await modeDone(owner).click();
+      await toolbar(owner).locator('.page-edit-tools > summary').click();await toolbar(owner).getByRole('button',{name:'Finish arranging',exact:true}).click();await editTitle(before);await togglePanelProtection(owner,panel,true);await save(owner);await modeDone(owner).click();
       await owner.reload();await expect(owner.getByRole('tab',{name:tab,exact:true})).toHaveAttribute('aria-selected','true');
-      assert.equal((await record(owner,key)).content.text[titleField],before);
+      assert.equal(await readTitle(),before);
     }
   });
 
@@ -866,7 +884,11 @@ try {
     browserReads.get(anonymous).beginNavigation(anonymous.url());
     await anonymous.reload({waitUntil: 'domcontentloaded'});
     await expect(anonymous.locator('.onboard')).toBeVisible();
-    await expect(anonymous.getByText('Good to see you.', {exact: true})).toBeVisible();
+    // This isolated fixture deliberately enables no email or social providers.
+    await expect(anonymous.locator('.onboard .welcome-tagline')).toHaveText('Same roots. New memories.');
+    await expect(anonymous.locator('.welcome-actions').getByRole('button', {name: 'Continue', exact: true})).toBeVisible();
+    await expect(anonymous.getByRole('button', {name: 'Set up your profile', exact: true})).toBeVisible();
+    await expect(anonymous.locator('.sign-in-form')).toHaveCount(0);
     await expect(anonymous.locator('footer')).toContainText('Green & White. Same roots. New memories.');
     await expect(anonymous.getByText(updated.text.footerTagline, {exact: true})).toHaveCount(0);
     await expect(anonymous.getByText((await record(owner)).content.text.heading, {exact: true})).toHaveCount(0);

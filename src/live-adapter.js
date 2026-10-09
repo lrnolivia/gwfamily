@@ -1,3 +1,4 @@
+import {memberViewHeaders,memberViewSetting,writeMemberView} from './member-view-model.js';
 import {requestReference,withRequestReference} from './request-reference.js';
 import {shareUnchangedSnapshot} from './refresh-stability.js';
 import {reunionQuery,REUNION_SCOPED_COMMANDS} from './reunion-model.js';
@@ -9,7 +10,7 @@ import {mergeNotificationResource} from './notification-model.js';
 import {clearChatDrafts} from './messaging-model.js';
 import {saveLiveDrafts,readLiveDrafts,clearLiveDrafts,retainDraftAccount,hasLocalDrafts,commandFingerprint,readCommandRequests,saveCommandRequests,preserveNewerDrafts} from './draft-storage.js';
 export async function api(path,options={}){
- const response=await fetch(path,{credentials:'same-origin',cache:'no-store',...options,headers:{...(options.body instanceof FormData?{}:{'Content-Type':'application/json'}),...options.headers}});
+ const response=await fetch(path,{credentials:'same-origin',cache:'no-store',...options,headers:{...(options.body instanceof FormData?{}:{'Content-Type':'application/json'}),...memberViewHeaders(),...options.headers}});
  let value;try{value=await response.json()}catch{const requestId=requestReference(null,response);throw Object.assign(new Error(withRequestReference('The service returned an unreadable response. Please try again.',requestId)),{status:response.status,ambiguous:response.ok||response.status>=500,...(requestId?{requestId}:{})})}
  if(!response.ok){const requestId=requestReference(value,response);throw Object.assign(new Error((value?.error?.message||(typeof value?.error==='string'?value.error:null)||value?.message||'That action could not be saved.')+(requestId?' Reference: '+requestId:'')),{status:response.status,...(requestId?{requestId}:{})})}return value;
 }
@@ -51,6 +52,9 @@ const reviewOnly=typeof location!=='undefined'&&location.pathname.startsWith('/_
 const modeKey=reviewOnly?'gw-review-mode':'gw-active-mode';
 const localTypes=new Set(['SET_DRAFT','SET_DRAFT_FILES','SET_COMPOSE','SET_FEED_FILTER','SET_PEOPLE_FILTER','SET_MEMORY_FILTERS','BAG_ADD','BAG_REMOVE']);
 const localFields=['drafts','compose','feedFilter','peopleFilter','memoryFilters','bag'];
+// Preview-only role checks can reject local cleanup for a command the server already
+// accepted; keep current local fields rather than reporting a confirmed write as unsent.
+function reducerAfterAcknowledgement(current,action){try{return reducer({...current,mode:'preview'},action)}catch{return current}}
 export function useFamilyData(){
  const [state,setState]=useState(loadLocalState),[session,setSession]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[actionError,setError]=useState(''),[loadError,setLoadError]=useState(''),[pending,setPending]=useState(false),[draftStorageStatus,setDraftStorageStatus]=useState({ok:true}),[preview,setPreview]=useState(()=>{try{return reviewOnly||sessionStorage.getItem(modeKey)==='preview'}catch{return false}});
  const bootstrapRetry=useRef(false),bootstrapRecovery=useRef(null),refreshRun=useRef({sequence:0,controller:null}),reunionBags=useRef({}),signOutLock=useRef(false);
@@ -99,7 +103,7 @@ export function useFamilyData(){
   cancelRefresh();const run=refreshRun.current,sequence=run.sequence,controller=new AbortController();run.controller=controller;
   const generation=epoch.current,current=()=>alive.current&&generation===epoch.current&&sequence===refreshRun.current.sequence;
   try{
-   const [cfg,sess]=await Promise.all([readApi('/api/config',controller.signal),readApi('/api/session',controller.signal)]);if(!current())return;setConfig(previous=>shareUnchangedSnapshot(previous,cfg));setSession(previous=>shareUnchangedSnapshot(previous,sess));
+   const [cfg,sess]=await Promise.all([readApi('/api/config',controller.signal),readApi('/api/session',controller.signal)]);if(!current())return;if(memberViewSetting()?.accountId!==sess.user?.id)writeMemberView(null,false);setConfig(previous=>shareUnchangedSnapshot(previous,cfg));setSession(previous=>shareUnchangedSnapshot(previous,sess));
    if(sess.status==='active'&&!previewMode){
     if(sess.user?.id&&ref.current.mode==='live'&&sess.user.id!==ref.current.selfId){
      linkedResource.current=null;clearChatDrafts(ref.current.selfId);retainDraftAccount(null);requestBook.current={accountId:null,requests:{},confirmed:new Set()};save(initialState());
@@ -131,6 +135,7 @@ export function useFamilyData(){
   return()=>{recovery.stop();if(bootstrapRecovery.current===recovery)bootstrapRecovery.current=null;window.removeEventListener('online',wake);document.removeEventListener('visibilitychange',wake)};
  },[preview,session?.status]);
  useEffect(()=>{if(preview||session?.status!=='active')return;const tick=()=>{if(document.visibilityState==='visible'&&!busy.current&&!workCount.current&&!refreshRun.current.controller)refresh()};const timer=setInterval(tick,15000);window.addEventListener('online',tick);document.addEventListener('visibilitychange',tick);return()=>{clearInterval(timer);window.removeEventListener('online',tick);document.removeEventListener('visibilitychange',tick)}},[preview,session?.status]);
+ async function setMemberView(enabled){if(busy.current||workCount.current||ref.current.mode!=='live'||session?.canViewAsMember!==true)return false;if(!writeMemberView(ref.current.selfId,enabled))return false;epoch.current++;cancelRefresh();linkedResource.current=null;setLoading(true);return !!await refresh({previewMode:false})}
  function dispatch(action){
   if(ref.current.mode==='preview'){try{save(reducer(ref.current,action));setError('');return Promise.resolve(true)}catch(e){setError(e.message);return Promise.resolve(false)}}
   if(action.type==='SELECT_REUNION')return selectReunion(action.id);
@@ -152,7 +157,7 @@ export function useFamilyData(){
     if(!alive.current||generation!==epoch.current||ref.current.selfId!==before.selfId)return true;
     // Commit local draft cleanup immediately after the acknowledged write. A failed
     // read-back cannot turn a successful send into a second submission.
-    const updated=preserveNewerDrafts(ref.current,before,['APPROVE_MEMBER','REMOVE_MEMBER','RESTORE_MEMBER'].includes(action.type)?ref.current:reducer({...ref.current,mode:'preview'},action),action);
+    const updated=preserveNewerDrafts(ref.current,before,['APPROVE_MEMBER','REMOVE_MEMBER','RESTORE_MEMBER'].includes(action.type)?ref.current:reducerAfterAcknowledgement(ref.current,action),action);
     const local=Object.fromEntries(localFields.map(key=>[key,updated[key]]));if(action.type==='CLAIM_ORDER')local.bag=[];
     requestBook.current.confirmed.add(fingerprint);
     save({...ref.current,...local});
@@ -193,13 +198,13 @@ export function useFamilyData(){
   signOutLock.current=true;const finish=beginPending(),accountId=session?.user?.id||(ref.current.mode==='live'?ref.current.selfId:null);
   try{
    if(!reviewOnly&&(session?.signedIn===true||ref.current.mode==='live')){
-    // Stop delivery only for the connected account; preview itself has no server identity.
-    try{const registration=await navigator.serviceWorker?.getRegistration();const subscription=await registration?.pushManager?.getSubscription();if(subscription)await subscription.unsubscribe();const displayed=await registration?.getNotifications?.();displayed?.forEach(n=>n.close())}catch{}
+    // Confirm server sign-out before changing this device's delivery or local data.
     await api('/api/auth/sign-out',{method:'POST',body:'{}'});
+    try{const registration=await navigator.serviceWorker?.getRegistration();const subscription=await registration?.pushManager?.getSubscription();if(subscription)await subscription.unsubscribe();const displayed=await registration?.getNotifications?.();displayed?.forEach(n=>n.close())}catch{}
    }
    epoch.current++;cancelRefresh();setLoadError('');setError('');linkedResource.current=null;
    if(accountId){clearLiveDrafts(accountId);clearChatDrafts(accountId)}retainDraftAccount(null);
-   requestBook.current={accountId:null,requests:{},confirmed:new Set()};setSession(null);
+   writeMemberView(null,false);requestBook.current={accountId:null,requests:{},confirmed:new Set()};setSession(null);
    const signedOut={...initialState(),onboarding:'welcome'};ref.current=signedOut;setState(signedOut);
    // Do not call save(): that would overwrite the separate retained preview.
    setPreview(false);setLoading(false);try{sessionStorage.removeItem(modeKey)}catch{}
@@ -208,5 +213,5 @@ export function useFamilyData(){
  }
 
  async function upload(file){if(ref.current.mode==='preview'){const {readPreviewFile}=await import('./uploads.js');return readPreviewFile(file)}const data=new FormData();data.append('file',file);const finish=beginPending();try{return await api('/api/media',{method:'POST',body:data})}finally{finish()}}
- return {state,getCurrentState:()=>ref.current,dispatch,session,config,loading,error:actionError||loadError,pending,preview,enterPreview,leavePreview,refresh,signOut,upload,defer,setError,beginPending,notificationApi,hydrateNotificationResource,releaseNotificationResource:route=>{const link=linkedResource.current;if(link){const expectedId=link.target.kind==='comment'?link.target.containerId:link.target.id,expectedType=link.target.kind==='memory'?'memory':'post';if(route?.id!==expectedId||route?.type!==expectedType)linkedResource.current=null}},draftStorageStatus,hasLocalDrafts:hasLocalDrafts(state)};
+ return {state,setMemberView,getCurrentState:()=>ref.current,dispatch,session,config,loading,error:actionError||loadError,pending,preview,enterPreview,leavePreview,refresh,signOut,upload,defer,setError,beginPending,notificationApi,hydrateNotificationResource,releaseNotificationResource:route=>{const link=linkedResource.current;if(link){const expectedId=link.target.kind==='comment'?link.target.containerId:link.target.id,expectedType=link.target.kind==='memory'?'memory':'post';if(route?.id!==expectedId||route?.type!==expectedType)linkedResource.current=null}},draftStorageStatus,hasLocalDrafts:hasLocalDrafts(state)};
 }

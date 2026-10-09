@@ -31,12 +31,12 @@ test('same record serves member calendar; drafts and archive never appear',()=>{
  assert.throws(()=>applyCalendarCommand(details,{type:'ARCHIVE_EVENT',id:'fixture-event',expectedRevision:0}),e=>e.status===409);
 });
 test('preview mutations are isolated and resettable; legacy details retain events',()=>{
- const state=initialState(),next=reducer(state,{type:'SAVE_EVENT',expectedRevision:0,event});assert.equal(next.details.calendar.events.length,1);assert.equal(state.details.calendar,undefined);
+ const state={...initialState(),previewRoleView:'leader'},next=reducer(state,{type:'SAVE_EVENT',expectedRevision:0,event});assert.equal(next.details.calendar.events.length,1);assert.equal(state.details.calendar,undefined);
  const edited=reducer(next,{type:'DETAILS',value:{schedule:'Updated overview'}});assert.equal(edited.details.calendar.events.length,1);assert.equal(edited.details.calendar.revision,2);
  assert.equal(resetPreview({removeItem(){}}).details.calendar,undefined);
 });
 test('UI integration exposes full-page manager without a modal or event sends',()=>{
  const ui=readFileSync(new URL('../src/calendar-events.jsx',import.meta.url),'utf8'),leader=readFileSync(new URL('../src/leader-tools.jsx',import.meta.url),'utf8'),app=readFileSync(new URL('../src/react-app.jsx',import.meta.url),'utf8');
- assert.match(leader,/\['calendar','Calendar & Events','calendar'\]/);assert.match(app,/<MemberCalendar\/>/);assert.match(ui,/Use latest revision with my changes/);assert.doesNotMatch(ui,/openSheet|window\.confirm|sendInvit|notificationApi/);
+ assert.match(leader,/\['calendar','Schedule','calendar'\]/);assert.match(app,/<MemberCalendar\/>/);assert.match(ui,/Use latest revision with my changes/);assert.doesNotMatch(ui,/openSheet|window\.confirm|sendInvit|notificationApi/);
  assert.match(ui,/disabled=\{stale\}/);assert.match(ui,/Retry same save/);assert.match(ui,/role="alert"/);assert.match(ui,/type="date"/);
 });

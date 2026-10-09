@@ -7,8 +7,8 @@ import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {contextualTourSteps,tourProgressKey} from '../src/contextual-tour-model.js';
 import {installGuideAssets} from '../src/install-guide-assets.js';
-const approved=JSON.parse(await readFile(new URL('../docs/install-guide/approved-v2/manifest.json',import.meta.url),'utf8'));
-const APPROVED_ASSET_ALLOWLIST=Object.freeze([...approved.screens,...approved.inlineControls].map(item=>'approved-v2/'+item.file));
+const approved=JSON.parse(await readFile(new URL('../docs/install-guide/approved-v4/manifest.json',import.meta.url),'utf8'));
+const APPROVED_ASSET_ALLOWLIST=Object.freeze([...approved.screens,...approved.inlineControls].map(item=>'approved-v4/'+item.file));
 
 if(!process.env.CI&&process.env.GW_HOSTED_BROWSER_QA!=='1')throw new Error('Help browser QA runs only in the authorized hosted CI environment.');
 const root=fileURLToPath(new URL('../',import.meta.url));
@@ -24,7 +24,7 @@ const ASSET_ALLOWLIST=Object.freeze([
 ]);
 const HOSTED_PLAN=Object.freeze([
  'narrow and roomy viewports','Glass and Flat materials','light and dark themes',
- 'fullpage install Back','glyph-led OS tabs and automatic native-device selection','all sixteen SVGs load',
+ 'fullpage install Back','secondary More device selector and automatic native-device selection','all sixteen SVGs load',
  'seven visible native anchors','Next Back Skip Finish and replay',
  'keyboard focus wrapping and arrow shortcuts','200 percent text zoom',
  'protected native-dialog interruption','readonly route interruption',
@@ -90,7 +90,7 @@ createRoot(document.getElementById('root')).render(<Fixture/>);`;
 
 const stylesToLoad=[
  'dist/style.css','dist/review.css','dist/liquid-glass-core.css','dist/ui-pass.css','dist/react-ui.css',
- 'src/choice-control.css','src/help.css','src/install-guide-visuals.css','src/view-switcher.css','src/tutorial.css','src/sheet-geometry.css'
+ 'src/onboarding-layout.css','src/choice-control.css','src/help.css','src/install-guide-visuals.css','src/view-switcher.css','src/tutorial.css','src/sheet-geometry.css'
 ];
 const fixtureCSS=`.fixture-shell{max-width:960px;margin:auto;padding:20px;min-width:0}.fixture-header{display:grid;gap:12px}.fixture-safety{font:400 .8125rem/1.5 system-ui;color:var(--muted);margin:0}.fixture-help-actions,.fixture-home-controls{display:flex;gap:12px;flex-wrap:wrap}.fixture-navigation{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:24px 0}.fixture-navigation .button{min-width:0;min-height:48px;display:flex;flex-direction:column;padding:10px 4px;font-size:.875rem}.fixture-page{padding:12px 0 24px;min-width:0}.fixture-page h1{overflow-wrap:anywhere}.fixture-draft{display:grid;gap:8px;max-width:680px;margin-top:24px}.fixture-draft textarea{width:100%;min-width:0;min-height:100px;font:inherit}.fixture-draft p{font-size:.8125rem}.fixture-page-back{margin-bottom:16px}.fixture-home-controls .icon-button{width:52px;min-height:52px}.fixture-home-controls .button{min-height:48px}@media(max-width:380px){.fixture-shell{padding:12px}.fixture-navigation{gap:4px}.fixture-help-actions .button{font-size:.875rem}}`;
 const output=root+'docs/help-qa';
@@ -139,41 +139,45 @@ try{
   await page.getByRole('button',{name:'Install help',exact:true}).click();
   await expect(page.locator('.fixture-page[data-route="install"]')).toBeVisible();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
-  const osTabs=page.getByRole('tablist',{name:'Instructions for',exact:true});
-  await expect(osTabs.getByRole('tab')).toHaveCount(2);
-  await expect(osTabs.locator('.glyph')).toHaveCount(2);
-  const labelLines=await osTabs.locator('.view-switcher-label').evaluateAll(labels=>labels.map(e=>{const r=document.createRange();r.selectNodeContents(e);return {wrap:getComputedStyle(e).whiteSpace,lines:r.getClientRects().length}}));assert.ok(labelLines.every(label=>label.wrap==='nowrap'&&label.lines===1),'Every platform label stays on one line');
-  for(const [name,assetCount] of [['iPhone / iPad',3],['Android',3]]){
-   await chooseTab(osTabs.getByRole('tab',{name,exact:true}),expect);
-   await expect(page.locator('.install-steps>li')).toHaveCount(3);
+  const osMore=page.locator('.install-guide-options');
+  await expect(page.getByRole('tablist',{name:'Instructions for',exact:true})).toHaveCount(0);
+  await expect(osMore.getByRole('button',{name:'More',exact:true})).toBeVisible();await expect(osMore.getByRole('button',{name:'More',exact:true}).locator('.glyph')).toHaveCount(1);
+  async function chooseDevice(name){
+   const expected=name==='Android'?'Android instructions':'iPhone / iPad instructions';
+   if(await osMore.locator(':scope > span').textContent()===expected)return;
+   await osMore.getByRole('button',{name:'More',exact:true}).click();await expect(page.getByRole('dialog',{name:'Other device instructions',exact:true})).toBeVisible();
+   await page.getByRole('button',{name:'View '+name+' instructions',exact:true}).click();await expect(osMore.locator(':scope > span')).toHaveText(expected);
+  }
+  for(const [name,assetCount] of [['iPhone / iPad',approved.deviceStepCounts[width===320?'ios':'ipad']],['Android',3]]){
+   await chooseDevice(name);
+   await expect(page.locator('.install-steps>li')).toHaveCount(assetCount);
    await expect(page.locator('.install-native-frame img')).toHaveCount(assetCount);
    if(assetCount)await expect.poll(()=>page.locator('.install-native-frame img').evaluateAll(images=>images.every(img=>img.complete&&img.naturalWidth>0))).toBe(true);
    await assertNoOverflow(page,name);
   }
-  await chooseTab(osTabs.getByRole('tab',{name:'iPhone / iPad',exact:true}),expect);
-  await osTabs.getByRole('tab',{name:'iPhone / iPad',exact:true}).focus();
-  await page.keyboard.press('End');await expect(osTabs.getByRole('tab',{name:'Android',exact:true})).toHaveAttribute('aria-selected','true');
-  await page.keyboard.press('Home');await expect(osTabs.getByRole('tab',{name:'iPhone / iPad',exact:true})).toHaveAttribute('aria-selected','true');
-  await expect(page.locator('.install-steps')).toContainText('Page Menu');
+  await chooseDevice('iPhone / iPad');await osMore.getByRole('button',{name:'More',exact:true}).focus();await page.keyboard.press('Enter');await expect(page.getByRole('dialog',{name:'Other device instructions',exact:true})).toBeVisible();await page.keyboard.press('Escape');await expect(osMore.getByRole('button',{name:'More',exact:true})).toBeFocused();
+  await expect(page.locator('.install-steps')).toContainText(width===320?'Page Menu':'Share');
   await expect(page.locator('.install-steps')).toContainText('if that switch appears');
   await expect(page.getByRole('tablist',{name:'Safari example',exact:true})).toHaveCount(0);
   const image=page.locator('.install-mobile-visual img').first();
-  const device=width===320?'ios':'ipad';await expect(image).toHaveAttribute('src','install-guide/approved-v2/screens/default-'+device+'-'+theme+'-1.png');
-  const ratio=await image.evaluate(img=>({natural:img.naturalWidth/img.naturalHeight,rendered:img.getBoundingClientRect().width/img.getBoundingClientRect().height}));assert.ok(Math.abs(ratio.natural-ratio.rendered)<.01,'Approved mobile illustration keeps its intrinsic proportions');
+  const device=width===320?'ios':'ipad';await expect(image).toHaveAttribute('src','install-guide/approved-v4/screens/default-'+device+'-'+theme+'-1.png');
+  // Switching back can remount async-decoded artwork; sample only a decoded, laid-out image.
+  await expect.poll(()=>image.evaluate(async img=>{if(!img.complete||!img.naturalWidth)return false;await img.decode().catch(()=>{});const box=img.getBoundingClientRect();return box.width>0&&box.height>0})).toBe(true);
+  const ratio=await image.evaluate(img=>{const box=img.getBoundingClientRect(),style=getComputedStyle(img);return {natural:img.naturalWidth/img.naturalHeight,rendered:box.width/box.height,naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,width:box.width,height:box.height,src:img.currentSrc,cssWidth:style.width,cssHeight:style.height,objectFit:style.objectFit}});assert.ok(Math.abs(ratio.natural-ratio.rendered)<.01,'Approved mobile illustration keeps its intrinsic proportions: '+JSON.stringify(ratio));
   // All designated artwork and inline controls must update without remounting the guide.
   for(const [accent,color] of [['default',null],['red','#e64f59'],['orange','#ff7a00'],['yellow','#ec9d00'],['green','#387b51'],['blue','#3985e6'],['violet','#a267d5'],['coral-pink','#ff6685'],['stone','#8a8178']])for(const mode of ['light','dark']){
    await page.evaluate(({mode,color})=>window.fixture.theme(mode,color),{mode,color});
    for(const [label,os] of [['iPhone / iPad',width===320?'ios':'ipad'],['Android',width===320?'android':'androidTablet']]){
-    await chooseTab(osTabs.getByRole('tab',{name:label,exact:true}),expect);
-    const images=page.locator('.install-mobile-visual img');await expect(images).toHaveCount(3);
-    for(let step=0;step<3;step++)await expect(images.nth(step)).toHaveAttribute('src','install-guide/approved-v2/screens/'+accent+'-'+os+'-'+mode+'-'+(step+1)+'.png');
+    await chooseDevice(label);
+    const stepCount=approved.deviceStepCounts[os],images=page.locator('.install-mobile-visual img');await expect(images).toHaveCount(stepCount);
+    for(let step=0;step<stepCount;step++)await expect(images.nth(step)).toHaveAttribute('src','install-guide/approved-v4/screens/'+accent+'-'+os+'-'+mode+'-'+(step+1)+'.png');
     await expect.poll(()=>images.evaluateAll(images=>images.every(img=>img.complete&&img.naturalWidth>0))).toBe(true);
-    const control=page.locator('.install-inline-control img');await expect(control).toHaveAttribute('src','install-guide/approved-v2/inline-controls/'+(os==='ios'||os==='ipad'?'ios-add':'android-install-'+accent)+'-'+mode+'.svg');
+    const control=page.locator('.install-inline-control img');await expect(control).toHaveAttribute('src','install-guide/approved-v4/inline-controls/'+(os==='ios'||os==='ipad'?'ios-add':'android-install-'+accent)+'-'+mode+'.svg');
     await assertNoOverflow(page,'approved '+os+' '+accent+' '+mode);
    }
   }
   await page.evaluate(theme=>window.fixture.theme(theme),theme);
-  await chooseTab(osTabs.getByRole('tab',{name:'iPhone / iPad',exact:true}),expect);
+  await chooseDevice('iPhone / iPad');
   await page.evaluate(()=>window.fixture.textZoom(200));await assertNoOverflow(page,'200 percent install text');await page.evaluate(()=>window.fixture.textZoom(100));
   await expect(page.getByText('Mock install prompt only; no device installation or notification delivery is performed.',{exact:false})).toBeVisible();
   await page.evaluate(()=>window.fixture.mockInstallPrompt('dismissed'));

@@ -1,3 +1,6 @@
+import {canEditMemoryDetails} from './member-view-model.js';
+import {mayEditMemorial} from './memorial-page-model.mjs';
+import {isPreviewLeader,PREVIEW_LEADER_ACTIONS} from './member-view-model.js';
 import {canManageContent} from './content-actions-model.js';
 import {previewMembershipCommand} from './membership-model.js';
 import {normalizePayment} from './payment-model.js';
@@ -12,11 +15,11 @@ import {previewSeed} from './family-data.js';
 export const PREVIEW_KEY='gwfamily:preview:v2';
 export const previewCapabilities=Object.freeze({mode:'preview',networkWrites:false,sendInvitations:false,sendNotifications:false,payments:false,authenticate:false});
 export function initialState(){
-  return ensurePreviewReunions({mode:'preview',schema:2,onboarding:'welcome',selfId:'lauren',...previewSeed(),
+  return ensurePreviewReunions({mode:'preview',schema:2,onboarding:'welcome',previewRoleView:'member',selfId:'lauren',...previewSeed(),
     drafts:{post:'',comments:{},replies:{},files:{}},compose:{},favorites:[],feedFilter:'all',peopleFilter:'all',memoryFilters:{},notificationScope:'leaders',selectedNotificationIds:[],readNotices:[],
     notifications:previewNotificationSeed(),notificationSettings:normalizeNotificationSettings(),
     bag:[],order:null,payment:{paypal:'',cashApp:'',amount:''},fees:'unpaid',rsvp:null,details:{date:'',location:'',schedule:''},
-    households:[],householdRequests:[],householdId:null,reports:[],inviteDrafts:[],pollSelections:{},profilePhoto:null,contact:{},lastId:0});
+    households:[],householdRequests:[],householdId:null,householdIds:[],reports:[],inviteDrafts:[],pollSelections:{},profilePhoto:null,contact:{},lastId:0});
 }
 export function loadLocalState(storage=globalThis.localStorage){
   try{
@@ -52,6 +55,8 @@ export function memberMatches(member,filter){
 }
 export function reducer(state,action){
  if(state.mode!=='preview')return state;
+ if(action.type==='SET_PREVIEW_ROLE_VIEW')return {...state,previewRoleView:action.value==='leader'?'leader':'member'};
+ if(PREVIEW_LEADER_ACTIONS.has(action.type)&&!isPreviewLeader(state))throw Error('Switch to Leader in Preview role to use this preview action.');
  state=ensurePreviewReunions(state);
  if(action.type==='SELECT_REUNION'||REUNION_LIFECYCLE_COMMANDS.has(action.type))return previewReunionCommand(state,action);
  if(REUNION_SCOPED_COMMANDS.has(action.type)||['BAG_ADD','BAG_REMOVE'].includes(action.type)){
@@ -129,7 +134,7 @@ function reduceState(state,action){
       state.favorites.filter(x=>x!==action.id):[...state.favorites,action.id]};
     case 'RENAME_GROUP':return {...state,groups:state.groups.map(g=>g.id===action.id?{...g,name:action.name,nameEdited:true}:g)};
     case 'FEATURE_MEMORY':{const ids=new Set(state.featuredMemoryIds||[]);if(action.approved)ids.add(action.id);else ids.delete(action.id);return {...state,featuredMemoryIds:[...ids],primaryMemoryId:action.primary?action.id:state.primaryMemoryId===action.id&&!action.approved?null:state.primaryMemoryId,featuredPhotos:state.memories.filter(m=>ids.has(m.id))}};
-    case 'SAVE_MEMORY':return {...state,memories:state.memories.map(m=>m.id===action.memory.id?action.memory:m)};
+    case 'SAVE_MEMORY':if(!canEditMemoryDetails(state,state.memories.find(m=>m.id===action.memory.id)))throw Error('Only the uploader or a moderator can edit this memory.');return {...state,memories:state.memories.map(m=>m.id===action.memory.id?action.memory:m)};
     case 'ADD_MEMORY':return {...state,memories:[...state.memories,{...action.memory,id:action.memory.id||'memory-'+(state.lastId+1)}],lastId:state.lastId+1};
     case 'POLL_VOTE':return {...state,pollSelections:{...state.pollSelections,[action.postId]:action.options}};
     case 'BAG_ADD':{
@@ -155,7 +160,9 @@ function reduceState(state,action){
       posts:action.status==='removed'?state.posts.filter(p=>p.id!==action.targetId):state.posts,
       memories:action.status==='removed'?state.memories.filter(m=>m.id!==action.targetId):state.memories};
     case 'ADD_MEMORIAL':case 'SAVE_MEMORIAL':{
-     const value={...action.memorial,id:action.type==='ADD_MEMORIAL'?'preview-memorial-'+(state.lastId+1):action.memorial.id,createdBy:state.selfId,canEdit:true,previewTest:action.type==='ADD_MEMORIAL'||action.memorial.previewTest};
+     const adding=action.type==='ADD_MEMORIAL',prior=adding?null:state.memorials.find(m=>m.id===action.memorial?.id);
+     if(adding?!(isPreviewLeader(state)||state.households.some(h=>h.headIds?.includes(state.selfId))):!prior||!mayEditMemorial(state,prior))throw Error('You cannot edit this memorial in the current preview role.');
+     const value={...prior,...action.memorial,id:adding?'preview-memorial-'+(state.lastId+1):prior.id,createdBy:adding?state.selfId:prior.createdBy,canEdit:adding?true:prior.canEdit,previewTest:adding||prior.previewTest};
      let next={...state,memorials:action.type==='ADD_MEMORIAL'?[...state.memorials,value]:state.memorials.map(m=>m.id===value.id?{...m,...value}:m),lastId:state.lastId+1};
      if(value.householdId)next=householdPreview(next,{type:'SAVE_HOUSEHOLD_HERITAGE',householdId:value.householdId,entry:{personId:value.id,role:'ancestral-head',title:'Ancestral head'}})||next;
      return next;

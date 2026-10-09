@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 // Focused synthetic image editor QA; never run against a family deployment.
 import {chromium,webkit,expect} from '@playwright/test';
 import assert from 'node:assert/strict';

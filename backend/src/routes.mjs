@@ -1,3 +1,5 @@
+import {registerFamilyCalendar} from './family-calendar.mjs';
+import {registerEmailNotifications} from './email-notifications.mjs';
 import {requestDiagnosticContext} from './error-diagnostics.mjs';
 import {registerPhotoDiscussions,photoCommentsReferenceMedia} from './photo-discussions.mjs';
 import {invitationsEnabled,provisionalAllowed,registerInvitationEntry,registerFamilyInvitations} from './family-invitations.mjs';
@@ -18,13 +20,13 @@ import {publicAuthConfig} from './auth-providers.mjs';
 import {can} from './policy.mjs';
 export function registerPublic(app,authFactory){
  registerInvitationEntry(app,authFactory);
- app.get('/api/config',c=>{const e=authEnvironment(c.env);return c.json({...publicAuthConfig(e,authReady(e)),familyInvitations:invitationsEnabled(e),familyInvitationEmail:invitationsEnabled(e)&&Boolean(e.EMAIL)})});
+ app.get('/api/config',c=>{const e=authEnvironment(c.env);return c.json({...publicAuthConfig(e,authReady(e)),familyInvitations:invitationsEnabled(e),familyInvitationEmail:invitationsEnabled(e)&&Boolean(e.EMAIL),emailNotifications:e.EMAIL_SCHEMA_VERSION==='1',pushEnrollmentPrompt:e.PUSH_ENROLLMENT_PROMPT_ENABLED==='true'})});
  app.get('/api/session',async c=>{
   const e=authEnvironment(c.env);if(!authReady(e))return c.json({signedIn:false,configured:false,canRehearseFirstLoad:false});
   const session=await authFactory(e,requestDiagnosticContext(c,'auth.session.initial')).api.getSession({headers:c.req.raw.headers});if(!session)return c.json({signedIn:false,configured:true,canRehearseFirstLoad:false});
   if(!session.user.emailVerified)return c.json({signedIn:true,verified:false,status:'unverified',canRehearseFirstLoad:false});
-  c.set('diagnosticStage','membership');const member=await e.DB.prepare('SELECT status,removed_at FROM members WHERE id=?').bind(session.user.id).first();
-  return c.json({signedIn:true,verified:true,user:{id:session.user.id,name:session.user.name,email:session.user.email},status:member?.status||'new',membershipRemoved:Boolean(member?.removed_at),provisionalAccess:await provisionalAllowed(e,session.user,member),canRehearseFirstLoad:canRehearseFirstLoad(e,session,member)});
+  c.set('diagnosticStage','membership');const member=await e.DB.prepare('SELECT status,removed_at,is_leader FROM members WHERE id=?').bind(session.user.id).first();
+  return c.json({signedIn:true,verified:true,user:{id:session.user.id,name:session.user.name,email:session.user.email},status:member?.status||'new',membershipRemoved:Boolean(member?.removed_at),canViewAsMember:member?.status==='active'&&member?.is_leader===1,provisionalAccess:await provisionalAllowed(e,session.user,member),canRehearseFirstLoad:canRehearseFirstLoad(e,session,member)});
  });
  app.post('/api/enroll',async c=>{
   const e=authEnvironment(c.env);if(!authReady(e))throw new UserError('Sign-in is not configured',503);
@@ -40,7 +42,7 @@ export function registerPublic(app,authFactory){
    e.DB.prepare('UPDATE user SET name=?,updatedAt=? WHERE id=?').bind(value.name.trim(),Date.now(),session.user.id),
    e.DB.prepare('INSERT INTO profiles(member_id,birthday,completed,birthday_celebration,profile_color) VALUES(?,?,1,?,?) ON CONFLICT(member_id) DO UPDATE SET birthday=excluded.birthday,completed=1,birthday_celebration=excluded.birthday_celebration,profile_color=excluded.profile_color,updated_at=CURRENT_TIMESTAMP').bind(session.user.id,value.birthday,value.birthdayCelebration===true?1:0,profileColor)
   ]);
-  c.set('diagnosticStage','membership');const member=await e.DB.prepare('SELECT status,removed_at FROM members WHERE id=?').bind(session.user.id).first();return c.json({status:member.status});
+  c.set('diagnosticStage','membership');const member=await e.DB.prepare('SELECT status,removed_at,is_leader FROM members WHERE id=?').bind(session.user.id).first();return c.json({status:member.status});
  });
 
 
@@ -48,7 +50,7 @@ export function registerPublic(app,authFactory){
   const e=authEnvironment(c.env);if(!authReady(e)||!e.R2)throw new UserError('Photo storage is not configured',503);
   if(c.req.header('Origin')!==e.AUTH_ORIGIN)throw new UserError('Invalid request origin',403);
   const session=await authFactory(e,requestDiagnosticContext(c,'auth.session.initial')).api.getSession({headers:c.req.raw.headers});if(!session?.user.emailVerified)throw new UserError('Sign in before adding a photo',401);
-  c.set('diagnosticStage','membership');const member=await e.DB.prepare('SELECT status,removed_at FROM members WHERE id=?').bind(session.user.id).first();if(!member||!['active','pending'].includes(member.status))throw new UserError('Complete your details before adding a photo',403);
+  c.set('diagnosticStage','membership');const member=await e.DB.prepare('SELECT status,removed_at,is_leader FROM members WHERE id=?').bind(session.user.id).first();if(!member||!['active','pending'].includes(member.status))throw new UserError('Complete your details before adding a photo',403);
   const rate=await createRateStorage(e.DB).consume('onboarding-photo:'+session.user.id,{window:3600,max:6});if(!rate.allowed)throw new UserError('Photo upload limit reached. Try again later.',429);
   const form=await c.req.formData(),file=form.get('file');if(!file||typeof file.arrayBuffer!=='function'||!file.size||file.size>10*1024*1024||!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type))throw new UserError('Choose a JPEG, PNG, WebP or GIF under 10 MB');
   const bytes=await file.arrayBuffer(),head=new Uint8Array(bytes,0,Math.min(16,bytes.byteLength)),sig=String.fromCharCode(...head);
@@ -57,7 +59,7 @@ export function registerPublic(app,authFactory){
   try{await e.DB.batch([e.DB.prepare('INSERT INTO media(id,owner_id,object_key,name,mime_type,size_bytes) VALUES(?,?,?,?,?,?)').bind(id,session.user.id,key,'Profile photo',file.type,file.size),e.DB.prepare('UPDATE user SET image=?,updatedAt=? WHERE id=?').bind(url,Date.now(),session.user.id)])}catch(error){await e.R2.delete(key);throw error}return c.json({url},201);
  });
 }
-export function registerFamily(app){registerPhotoDiscussions(app);registerPushRoutes(app);registerNotifications(app);registerHouseholdInvites(app);registerFamilyInvitations(app);registerMessaging(app);registerPageContent(app);
+export function registerFamily(app){registerFamilyCalendar(app);registerPhotoDiscussions(app);registerPushRoutes(app);registerEmailNotifications(app);registerNotifications(app);registerHouseholdInvites(app);registerFamilyInvitations(app);registerMessaging(app);registerPageContent(app);
  app.get('/api/calendar',async c=>{try{return c.json(await readCalendar(c.env.DB,c.get('actor'),c.req.query('reunionId')))}catch(error){if(error.status)throw new UserError(error.message,error.status);throw error}});
  app.get('/api/state',async c=>c.json(await familyState(c.env.DB,c.get('actor'),c.req.query('reunionId'))));
  app.post('/api/commands',async c=>c.json(await command(c.env.DB,c.get('actor'),await c.req.json())));

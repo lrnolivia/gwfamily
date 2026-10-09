@@ -68,7 +68,7 @@ test('Live approval follows the actual shared focused review and awaits active r
   assert.match(row, /openSheet\(\{type:'leader-member-review'/);
   assert.match(row, />Review membership<\/Button>/);
   assert.doesNotMatch(row, /Approve membership|APPROVE_MEMBER/);
-  assert.match(manage, /onSave\(\{type:'APPROVE_MEMBER',id:m\.id,status,roles,canPost:post\}\)/);
+  assert.match(manage, /onSave\(\{type:'APPROVE_MEMBER',id:m\.id,status,roles,canPost:approvalPosting\(m\.status,status,post\)\}\)/);
   assert.match(app, /'leader-member-review':'Review membership'/);
   assert.match(app, /case'leader-member-review':return <MemberReview[^;]*onSaved=\{\(\)=>openSheet\(null\)\}/);
   assert.match(sheet, /<dialog[^>]*aria-labelledby=\{titleId\}/);

@@ -1,3 +1,4 @@
+import './test-environment-guard.mjs';
 import {expect} from '@playwright/test';
 
 // WebKit can finish scrollIntoView before React's deferred compact-header

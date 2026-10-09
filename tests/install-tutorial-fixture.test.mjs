@@ -36,14 +36,14 @@ test('all seven recovered targets are native public controls, with readonly rout
  assert.match(source,/Coach does not cover highlighted native control/);
 });
 
-test('install and tutorial are fullpage views using glyph-led native tabs and Back',()=>{
+test('install and tutorial are fullpage views using secondary device options and Back',()=>{
  assert.match(fixture,/route\.type==='install'&&<>[\s\S]*<InstallGuide\/>/);
  assert.match(fixture,/route\.type==='tutorial'&&<>[\s\S]*<Tutorial\/>/);
  assert.doesNotMatch(fixture,/sheet\.type==='install'|sheet\.type==='tutorial'|<Sheet title=.*Install/);
  assert.match(source,/getByRole\('tablist',\{name:'Instructions for'/);
  assert.match(source,/getByRole\('tablist',\{name:'Safari example',exact:true\}\)\)\.toHaveCount\(0\)/);
  assert.match(source,/getByRole\('tablist',\{name:'Explore a topic'/);
- assert.match(source,/osTabs\.locator\('\.glyph'\)/);
+ assert.match(source,/osMore\.getByRole\('button',\{name:'More',exact:true\}\)/);assert.match(source,/Other device instructions/);assert.match(source,/await page\.keyboard\.press\('Escape'\)/);
  assert.doesNotMatch(source,/getByRole\('radio'|chooseRadio|Next topic|I’ll explore on my own|Explore Home/);
  assert.match(source,/getByRole\('button',\{name:'Back',exact:true\}\)\.click\(\)/);
 });
@@ -81,7 +81,7 @@ test('mock install outcomes are explicitly limited to dismissed or failure, with
 });
 
 test('hosted script plans cover responsive, keyboard, interruption, replay, and pending states',()=>{
- for(const marker of ["[320,1280]","['ios','android']","['light','dark']","textZoom(200)","textZoom(100)","'ArrowRight'","'ArrowLeft'","'Tab'","'Escape'","'Enter'","'Home'","'End'",'Start over','Resume guide','Replay guide','Finish guide','Skip guide','window.fixture.pending(true)','window.fixture.interrupt()','interruptionClosed','window.fixture.navigate({type:\'reunion\'})'])assert.ok(source.includes(marker),marker);
+ for(const marker of ["[320,1280]","['ios','android']","['light','dark']","textZoom(200)","textZoom(100)","'ArrowRight'","'ArrowLeft'","'Tab'","'Escape'","'Enter'",'Start over','Resume guide','Replay guide','Finish guide','Skip guide','window.fixture.pending(true)','window.fixture.interrupt()','interruptionClosed','window.fixture.navigate({type:\'reunion\'})'])assert.ok(source.includes(marker),marker);
  assert.match(source,/Guide must not close a native modal/);
  assert.match(source,/await expect\(page\.locator\('\.contextual-tour'\)\)\.toHaveCount\(0\)/);
  assert.doesNotMatch(source,/\.click\(\{[^}]*force|localhost|127\.0\.0\.1|createServer|listen\(/);

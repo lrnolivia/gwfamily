@@ -52,6 +52,7 @@ export function notificationTargetRoute(target){
  if(!target||typeof target!=='object')return null;
  const id=safeId(target.id)?target.id:null,container=safeId(target.containerId)?target.containerId:null,anchor=safeId(target.anchorId)?target.anchorId:null;
  switch(target.kind){
+  case 'family_calendar_moderation':return {type:'family-calendar',...(id?{id}:{})};
   case 'post':return id?{type:'post',id,...(anchor?{section:'comment:'+anchor}:{})}:null;
   case 'comment':return container?{type:'post',id:container,section:'comment:'+(anchor||id||'')}:null;
   case 'memory':return id?{type:'memory',id}:null;

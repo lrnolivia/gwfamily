@@ -6,6 +6,20 @@ const tokenPattern=/^[a-f0-9]{64}$/;
 const hash=async value=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))).map(v=>v.toString(16).padStart(2,'0')).join('');
 const escape=value=>String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 export const invitationsEnabled=env=>env.FAMILY_INVITATIONS_ENABLED==='true';
+export async function invitationWelcome(request,env){
+ const headers={'Content-Type':'application/json','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'};
+ const reply=(body,status=200)=>new Response(JSON.stringify(body),{status,headers});
+ if(request.method!=='POST')return reply({error:'Method not allowed'},405);
+ if(request.headers.get('Origin')!==env.AUTH_ORIGIN)return reply({error:'Invalid request origin'},403);
+ if(!invitationsEnabled(env))return reply({error:'Invitations are not available right now'},503);
+ let input;try{const text=await request.text();if(text.length>256)return reply({error:'Invalid invitation'},400);input=JSON.parse(text)}catch{return reply({error:'Invalid invitation'},400)}
+ if(typeof input?.token!=='string'||!tokenPattern.test(input.token))return reply({error:'Invalid invitation'},400);
+ try{
+  const row=await env.DB.prepare("SELECT u.name AS inviter_name FROM family_invitations i JOIN members m ON m.id=i.sender_id JOIN user u ON u.id=m.id WHERE i.token_hash=? AND i.revoked_at IS NULL AND i.expires_at>? AND (i.reusable=1 OR i.accepted_by IS NULL) AND m.status='active' AND m.removed_at IS NULL AND u.emailVerified=1 LIMIT 1").bind(await hash(input.token),Date.now()).first();
+  if(!row)return reply({error:'This invitation is no longer available'},404);
+  return reply({inviterName:typeof row.inviter_name==='string'&&row.inviter_name.trim()?row.inviter_name.trim().split(/\s+/)[0].slice(0,60):'A family member'});
+ }catch{return reply({error:'We could not load this invitation. Please try again.'},503)}
+}
 export async function invitationFor(env,token,user){
  if(!invitationsEnabled(env))throw new UserError('Family invitations are not enabled yet',403);
  if(!tokenPattern.test(token||''))throw new UserError('This invitation is unavailable',404);
@@ -44,6 +58,7 @@ export async function provisionalFeed(db){
  return {readOnly:true,posts:posts.map(p=>({id:p.id,text:p.body,createdAt:p.created_at,author:p.name,photos:photos(json(p.metadata_json).files)})),memories:memories.flatMap(m=>{const v=json(m.data_json),id=typeof v.image==='string'?v.image.match(/^\/api\/media\/([A-Za-z0-9_-]{1,100})$/)?.[1]:null;return id?[{id:m.id,title:String(v.title||''),photo:{id,url:'/api/provisional/media/'+id,alt:String(v.title||'Family memory')}}]:[]})};
 }
 export function registerInvitationEntry(app,authFactory){
+ app.all('/api/family-invitations/welcome',c=>invitationWelcome(c.req.raw,c.env));
  async function session(c){const env=authEnvironment(c.env);if(!authReady(env))throw new UserError('Sign-in is not configured',503);const s=await authFactory(env,requestDiagnosticContext(c,'auth.session.initial')).api.getSession({headers:c.req.raw.headers});if(!s?.user?.emailVerified)throw new UserError('Verify your email before continuing',401);c.set('diagnosticStage','request.handler');return {env,user:s.user}}
  app.post('/api/family-invitations/accept',async c=>{const {env,user}=await session(c);if(c.req.header('Origin')!==env.AUTH_ORIGIN)throw new UserError('Invalid request origin',403);const value=await c.req.json();if(value.expectedAccountId!==user.id)throw new UserError('Your sign-in changed. Reload before continuing.',409);return c.json(await acceptFamilyInvitation(env,value.token,user))});
  async function permit(c){const {env,user}=await session(c),member=await env.DB.prepare('SELECT status,removed_at FROM members WHERE id=?').bind(user.id).first();if(!await provisionalAllowed(env,user,member))throw new UserError('Read-only family access is not available',403);return env}

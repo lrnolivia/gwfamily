@@ -61,7 +61,9 @@ const count=(text,pattern)=>(text.match(pattern)||[]).length;
 test('Home, Reunion and dedicated pages share the same planning model and route boundaries',()=>{
  const home=source.slice(source.indexOf('function Home('),source.indexOf('function Reunion('));
  const reunion=source.slice(source.indexOf('function Reunion('),source.indexOf('function Family('));
- assert.equal(count(home,/<YourReunionPanel\s*\/>/g),1);
+ assert.equal(count(home,/<YourReunionPanel\s*\/>/g),0);
+ assert.match(home,/aria-label="Your Reunion Plan" aria-haspopup="dialog"/);assert.match(home,/openSheet\(\{type:'your-reunion-plan',returnFocus:event\.currentTarget\}\)/);
+ assert.match(source,/case'your-reunion-plan':return <YourReunionPanel\/>/);
  assert.equal(count(reunion,/<YourReunionPanel\s*\/>/g),1);
  assert.equal(count(source,/<YourReunionPanel\s*\/>/g),2);
  assert.doesNotMatch(source,/<PlanningChecklist\b/);

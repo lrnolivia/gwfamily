@@ -3,6 +3,9 @@
 .page-panel-actions{padding:10px 0}.page-panel-actions>button,.page-panel-inline-controls>button,.page-panel-editor-heading>button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:8px 10px;border-radius:8px;font-size:.8125rem}
 .page-panel-actions>button:hover,.page-panel-inline-controls>button:hover,.page-panel-editor-heading>button:hover{background:var(--raised)}
 .page-panel-actions .page-editor-help{margin:0}.page-panel-actions>.page-mobile-order-entry{margin-right:auto}
+/* Nested layouts (Family contains People and Memories) size their columns from
+   their own available width rather than from the viewport alone. */
+.page-panel-layout .page-panel-layout{container-type:inline-size}
 .page-panel-columns{display:grid;grid-template-columns:minmax(0,1fr);gap:20px}.page-panel-layout.has-side>.page-panel-columns{grid-template-columns:minmax(0,1.6fr) minmax(240px,1fr)}
 .page-panel-zone,.page-panel-mobile-stack{display:grid;align-content:start;gap:18px;min-width:0}.page-panel-layout:not(.has-side) .page-panel-zone-side{display:none}
 .page-panel-zone-heading{font-size:.75rem;font-weight:650;color:var(--muted);margin:0}
@@ -127,3 +130,4 @@ html[data-theme][data-platform] button.page-added-button{padding:10px 16px;borde
 .page-editor-element-row>.page-editor-remove-element{flex:none;display:grid;place-items:center;width:36px;height:36px;min-height:36px;margin-inline-end:10px;padding:8px;border-radius:10px;background:var(--surface);color:var(--status-danger)}
 .page-editor-destructive-group{border-top:1px solid var(--line);padding-top:16px;margin-top:8px}
 .page-editor-remove{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:10px 14px;border-radius:12px;background:var(--raised);color:var(--status-danger)}
+@container (max-width:479px){.page-panel-layout.has-side>.page-panel-columns{grid-template-columns:minmax(0,1fr)}}
