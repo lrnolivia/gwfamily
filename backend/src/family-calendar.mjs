@@ -34,10 +34,18 @@ export async function changeFamilyEvent(db,actor,input){
  statements.push(db.prepare(`INSERT INTO audit_log(id,actor_id,action,subject_id) SELECT ?,?,?,? FROM family_calendar_events WHERE ${guard}`).bind(mutation,actor.id,operation,id,id,mutation));
  statements.push(db.prepare(`INSERT INTO command_receipts(member_id,request_id,result_json,operation,fingerprint) SELECT ?,?,?,?,? FROM family_calendar_events WHERE ${guard}`).bind(actor.id,input.requestId,JSON.stringify(result),operation,fingerprint,id,mutation));
  if(moderated){
-  // Explicit durable direct alert in the same transaction. The old generic
-  // fanout trigger does not understand this new resource. Push is independent.
+  // Retain the durable moderation event/audit even when delivery is off. The
+  // generic fanout does not understand this resource, so this explicit recipient
+  // path must apply the same global and effective-channel gates at commit time.
+  const recipientDelivery=`EXISTS(SELECT 1 FROM members recipient
+   LEFT JOIN notification_settings ns ON ns.member_id=recipient.id
+   LEFT JOIN notification_preferences np ON np.member_id=recipient.id
+   WHERE recipient.id=family_calendar_events.created_by AND COALESCE(ns.global_off,0)=0 AND COALESCE(np.scope,'leaders')!='off'
+   AND (COALESCE(json_extract(ns.categories_json,'$.membership'),1)=1
+    OR (COALESCE(json_extract(ns.channels_json,'$.membership.email'),1)=1 AND (SELECT enabled FROM email_notification_control WHERE id=1)=1 AND EXISTS(SELECT 1 FROM email_notification_preferences ep WHERE ep.member_id=recipient.id AND ep.enabled=1))
+    OR (COALESCE(json_extract(ns.channels_json,'$.membership.push'),1)=1 AND (SELECT enabled FROM push_control WHERE id=1)=1 AND EXISTS(SELECT 1 FROM push_devices pd JOIN session ps ON ps.id=pd.session_id AND ps.userId=pd.member_id WHERE pd.member_id=recipient.id AND pd.revoked_at IS NULL AND ps.expiresAt>unixepoch()*1000))))`;
   statements.push(db.prepare(`INSERT INTO notification_events(id,event_key,kind,actor_id,resource_kind,resource_id,category,audience,direct_ids_json,data_json) SELECT ?,?,?,?,?,?,'membership','direct',?,? FROM family_calendar_events WHERE ${guard}`).bind(mutation,'family-calendar:'+id+':'+nextRevision,'family_calendar.'+(input.action==='delete'?'removed':'changed'),actor.id,'family_calendar_moderation',id,JSON.stringify([row.created_by]),JSON.stringify({reason,title:value.title,action:input.action}),id,mutation));
-  statements.push(db.prepare(`INSERT OR IGNORE INTO notifications(id,recipient_id,event_id,kind,subject_id,category,resource_kind,resource_id) SELECT ?,?,?,?,?,'membership','family_calendar_moderation',? FROM family_calendar_events WHERE ${guard} AND ${eligibleMemberSql('?')}`).bind(crypto.randomUUID(),row.created_by,mutation,'family_calendar.'+(input.action==='delete'?'removed':'changed'),id,id,id,mutation,row.created_by));
+  statements.push(db.prepare(`INSERT OR IGNORE INTO notifications(id,recipient_id,event_id,kind,subject_id,category,resource_kind,resource_id) SELECT ?,?,?,?,?,'membership','family_calendar_moderation',? FROM family_calendar_events WHERE ${guard} AND ${eligibleMemberSql('?')} AND ${recipientDelivery}`).bind(crypto.randomUUID(),row.created_by,mutation,'family_calendar.'+(input.action==='delete'?'removed':'changed'),id,id,id,mutation,row.created_by));
  }
  await db.batch(statements);
  const receipt=await db.prepare('SELECT * FROM command_receipts WHERE member_id=? AND request_id=?').bind(actor.id,input.requestId).first();

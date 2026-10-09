@@ -19,16 +19,35 @@ export const NOTIFICATION_SCOPES=Object.freeze([
  {value:'loved',label:'Loved Ones'}, {value:'selected',label:'Selected people'},
  {value:'leaders',label:'Leaders'}, {value:'off',label:'Off'}
 ]);
+export const NOTIFICATION_DELIVERY_CHANNELS=Object.freeze([{id:'inApp',label:'In app'},{id:'email',label:'Email'},{id:'push',label:'Push'}]);
 export const DEFAULT_NOTIFICATION_CATEGORIES=Object.freeze(Object.fromEntries(NOTIFICATION_CATEGORIES.map(x=>[x.id,true])));
 export const NOTIFICATION_INVALIDATION=Object.freeze({type:'invalidate',version:1});
 export const NOTIFICATION_CHANNEL='gw-notifications:v1';
 const safeId=value=>typeof value==='string'&&value.length>0&&value.length<=200&&!/[\u0000-\u001f]/.test(value);
 export function normalizeNotificationSettings(value={},fallback={}){
  const raw=value.scope??fallback.notificationScope??'leaders',alias=raw==='loved_ones'?'loved':raw,scope=alias==='off'?'leaders':NOTIFICATION_SCOPES.some(x=>x.value===alias)?alias:'leaders';
+ const categories=Object.fromEntries(NOTIFICATION_CATEGORIES.map(x=>[x.id,typeof value.categories?.[x.id]==='boolean'?value.categories[x.id]:typeof value.channels?.[x.id]?.inApp==='boolean'?value.channels[x.id].inApp:true]));
+ // Old saved preview categories were all-channel switches. Keep those offs
+ // until each channel is explicitly changed; normalization has no side effects.
+ const channels=Object.fromEntries(NOTIFICATION_CATEGORIES.map(({id})=>[id,{inApp:categories[id],...Object.fromEntries(['email','push'].map(channel=>[channel,typeof value.channels?.[id]?.[channel]==='boolean'?value.channels[id][channel]:categories[id]]))}]));
  return {scope,globalOff:typeof value.globalOff==='boolean'?value.globalOff:raw==='off',
   selectedIds:[...new Set((Array.isArray(value.selectedIds)?value.selectedIds:fallback.selectedNotificationIds||[]).filter(safeId))],
-  categories:Object.fromEntries(NOTIFICATION_CATEGORIES.map(x=>[x.id,typeof value.categories?.[x.id]==='boolean'?value.categories[x.id]:true])),
+  categories,channels,
   revision:Number.isSafeInteger(value.revision)&&value.revision>=0?value.revision:0,pushEnabled:false};
+}
+// Apply a partial edit without dropping a different category or channel. The
+// server remains authoritative in live mode; this is the isolated preview reducer.
+export function patchNotificationSettings(value,patch={}){
+ const current=normalizeNotificationSettings(value),categories={...current.categories},channels=Object.fromEntries(NOTIFICATION_CATEGORIES.map(({id})=>[id,{...current.channels[id]}]));
+ for(const {id} of NOTIFICATION_CATEGORIES){
+  if(typeof patch.categories?.[id]==='boolean'){
+   const on=patch.categories[id];categories[id]=on;channels[id].inApp=on;
+   if(!on){channels[id].email=false;channels[id].push=false}
+  }
+  for(const {id:channel} of NOTIFICATION_DELIVERY_CHANNELS)if(typeof patch.channels?.[id]?.[channel]==='boolean')channels[id][channel]=patch.channels[id][channel];
+  categories[id]=channels[id].inApp;
+ }
+ return normalizeNotificationSettings({...current,...patch,categories,channels});
 }
 export function notificationCategory(notice){
  if(NOTIFICATION_CATEGORIES.some(x=>x.id===notice.category))return notice.category;

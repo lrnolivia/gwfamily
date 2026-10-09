@@ -24,7 +24,7 @@ export function EmailNotificationSettings(){
  const disabled=!account||!settings||!settings.ready||busy,paused=notifications?.settings?.globalOff;
  return <section className="notification-settings-section notification-email-settings"><h2>Email updates</h2>
   <p className="small muted">Optional updates go to your verified sign-in email. Emails contain a generic update and a link to GW. Your activity choices also apply. Turn email off here to cancel queued emails; a message already sent cannot be recalled.</p>
-  {!account?<p>Preview never enables email or sends messages.</p>:!supported?<p>Email updates are not activated in this build.</p>:!settings&&!error?<p role="status">Checking email choices…</p>:<p role="status">{settings?.enabled?'On for this account.':'Off for this account.'}{paused?' Activity in GW is off, so email updates are paused.':''}</p>}
+  {!account?<p>Preview never enables email or sends messages.</p>:!supported?<p>Email updates are not activated in this build.</p>:!settings&&!error?<p role="status">Checking email choices…</p>:<p role="status">{settings?.enabled?'On for this account.':'Off for this account.'}{paused?' All activity is off, so email updates are paused.':''}</p>}
   {account&&supported&&settings&&<div className="notification-bulk-actions"><Button secondary={settings.enabled} disabled={disabled||(!settings.enabled&&paused)} onClick={()=>save(!settings.enabled)}>{settings.enabled?'Turn off email updates':'Turn on email updates'}</Button></div>}
   {saved&&<p role="status">{saved}</p>}{error&&<div role="alert"><p>{error}</p>{supported&&account&&<Button secondary disabled={busy} onClick={()=>setRefresh(n=>n+1)}>Refresh email choices</Button>}</div>}
  </section>;

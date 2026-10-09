@@ -6,7 +6,7 @@ import {previewMembershipCommand} from './membership-model.js';
 import {normalizePayment} from './payment-model.js';
 import {ensurePreviewReunions,previewReunionCommand,REUNION_SCOPED_COMMANDS,REUNION_LIFECYCLE_COMMANDS,reunionArchived} from './reunion-model.js';
 import {applyCalendarCommand} from './calendar-model.js';
-import {normalizeNotificationSettings,previewNotificationSeed,previewVisibleNotifications} from './notification-model.js';
+import {normalizeNotificationSettings,patchNotificationSettings,previewNotificationSeed,previewVisibleNotifications} from './notification-model.js';
 import {householdPreview} from './household-model.js';
 import {validateMember,validBirthday} from './member-model.js';
 // UI data boundary. Replace these functions with a server adapter at integration.
@@ -93,7 +93,7 @@ function reduceState(state,action){
     case 'SET_MEMORY_FILTERS':return {...state,memoryFilters:action.value};
     case 'SET_NOTIFICATION_SCOPE':return {...state,notificationScope:action.value,notificationSettings:normalizeNotificationSettings({...state.notificationSettings,scope:action.value,globalOff:action.value==='off',revision:(state.notificationSettings?.revision||0)+1},state)};
     case 'SET_SELECTED_NOTIFICATION_IDS':return {...state,selectedNotificationIds:action.ids,notificationSettings:normalizeNotificationSettings({...state.notificationSettings,selectedIds:action.ids,revision:(state.notificationSettings?.revision||0)+1},state)};
-    case 'SET_NOTIFICATION_SETTINGS':{const current=normalizeNotificationSettings(state.notificationSettings,state);if(action.revision!==current.revision)return state;const settings=normalizeNotificationSettings({...current,...action.patch,categories:{...current.categories,...action.patch?.categories},revision:current.revision+1},state);return {...state,notificationSettings:settings,notificationScope:settings.scope,selectedNotificationIds:settings.selectedIds}}
+    case 'SET_NOTIFICATION_SETTINGS':{const current=normalizeNotificationSettings(state.notificationSettings,state);if(action.revision!==current.revision)return state;const settings=patchNotificationSettings(current,{...action.patch,revision:current.revision+1});return {...state,notificationSettings:settings,notificationScope:settings.scope,selectedNotificationIds:settings.selectedIds}}
     case 'MARK_NOTICES_READ_ALL':return {...state,readNotices:[...new Set([...state.readNotices,...previewVisibleNotifications(state).filter(n=>n.sequence<=action.cutoff&&n.kind!=='message.created').map(n=>n.id)])]};
     case 'RESET_NOTIFICATIONS_PREVIEW':return {...state,notifications:previewNotificationSeed(),readNotices:[],notificationSettings:normalizeNotificationSettings(),notificationScope:'leaders',selectedNotificationIds:[]};
     case 'DISMISS_NOTICE':return {...state,notifications:(state.notifications||[]).filter(n=>n.id!==action.id)};
