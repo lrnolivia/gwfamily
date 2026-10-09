@@ -79,7 +79,8 @@ try{
    const tools=page.getByRole('dialog',{name:'Panel · Bring your people.',exact:true});await expect(tools).toBeVisible();
    await expect(tools.getByRole('button',{name:/^Hero/})).toHaveAttribute('aria-pressed','false');
    for(const [label,zone] of [['Main','main'],['Full width','full'],['Side','side'],['Main','main']]){
-    await tools.getByRole('radio',{name:label,exact:true}).check();
+    // Choose through the visible chip label, as a person does; the radio stays the checked state.
+    const choice=tools.getByRole('radio',{name:label,exact:true});await choice.locator('..').click();await expect(tools,'Panel tools stay open after changing page area').toBeVisible();
     if(zone==='full')await expect(invitation.locator('xpath=..')).toHaveClass('page-panel-full-width');
     else{await expect(invitation).toHaveAttribute('data-panel-zone',zone);assert.equal(await invitation.evaluate(el=>el.closest('.page-panel-zone')?.classList.contains('page-panel-zone-'+el.dataset.panelZone)),true);}
     await expect(invitation).not.toHaveClass(/page-featured-panel/);

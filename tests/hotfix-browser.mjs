@@ -38,11 +38,13 @@ async function verifyFilterPlatters(page,width,theme){
  await verifyFilterPlatter(page,feed,'Feed');await feedTrigger.click();await expect(feedTrigger).toHaveAttribute('aria-expanded','true');await expect(feed.locator('.filter-option').first()).toBeVisible();await feed.locator('.filter-option').first().focus();await page.keyboard.press('Escape');await expect(feedTrigger).toHaveAttribute('aria-expanded','false');await expect(feedTrigger).toBeFocused();
  await page.screenshot({path:`docs/recovery-qa/filter-feed-${width}-${theme}.png`,fullPage:true});
  await nav.getByRole('button',{name:'Family',exact:true}).click();await page.getByRole('tab',{name:'People',exact:true}).click();
+ // The People tab shows a summary; the filterable directory lives in All family.
+ await page.getByRole('button',{name:'All family',exact:true}).click();
  const people=page.getByRole('region',{name:'Family directory',exact:true});await verifyFilterPlatter(page,people,'People');await people.getByRole('button',{name:'Filter & sort',exact:true}).click();await expect(people.getByRole('button',{name:'Done',exact:true})).toBeVisible();
  const peopleTrigger=people.getByRole('button',{name:'Filter & sort',exact:true}),peopleDone=people.getByRole('button',{name:'Done',exact:true});
  await peopleDone.scrollIntoViewIfNeeded();await expect(peopleTrigger).toHaveAttribute('aria-expanded','true');await expect(peopleDone).toBeVisible();
  await page.screenshot({path:`docs/recovery-qa/filter-people-${width}-${theme}.png`});await expect(peopleTrigger).toHaveAttribute('aria-expanded','true');await peopleDone.click();await expect(people.getByRole('button',{name:'Filter & sort',exact:true})).toBeFocused();
- await page.getByRole('tab',{name:'Memories',exact:true}).click();const memories=page.getByRole('region',{name:'Memory',exact:true});await verifyFilterPlatter(page,memories,'Memories');await memories.getByRole('button',{name:'Filter & sort',exact:true}).click();await expect(memories.getByRole('button',{name:'Done',exact:true})).toBeVisible();
+ await nav.getByRole('button',{name:'Family',exact:true}).click();await page.getByRole('tab',{name:'Memories',exact:true}).click();const memories=page.getByRole('region',{name:'Memory',exact:true});await verifyFilterPlatter(page,memories,'Memories');await memories.getByRole('button',{name:'Filter & sort',exact:true}).click();await expect(memories.getByRole('button',{name:'Done',exact:true})).toBeVisible();
  // Capture the interactive panel in its normal viewport, and prove that
  // scrolling and capture leave its controls open and usable.
  const memoryTrigger=memories.getByRole('button',{name:'Filter & sort',exact:true}),memoryDone=memories.getByRole('button',{name:'Done',exact:true});
