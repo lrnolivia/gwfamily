@@ -52,6 +52,9 @@ const reviewOnly=typeof location!=='undefined'&&location.pathname.startsWith('/_
 const modeKey=reviewOnly?'gw-review-mode':'gw-active-mode';
 const localTypes=new Set(['SET_DRAFT','SET_DRAFT_FILES','SET_COMPOSE','SET_FEED_FILTER','SET_PEOPLE_FILTER','SET_MEMORY_FILTERS','BAG_ADD','BAG_REMOVE']);
 const localFields=['drafts','compose','feedFilter','peopleFilter','memoryFilters','bag'];
+// Preview-only role checks can reject local cleanup for a command the server already
+// accepted; keep current local fields rather than reporting a confirmed write as unsent.
+function reducerAfterAcknowledgement(current,action){try{return reducer({...current,mode:'preview'},action)}catch{return current}}
 export function useFamilyData(){
  const [state,setState]=useState(loadLocalState),[session,setSession]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[actionError,setError]=useState(''),[loadError,setLoadError]=useState(''),[pending,setPending]=useState(false),[draftStorageStatus,setDraftStorageStatus]=useState({ok:true}),[preview,setPreview]=useState(()=>{try{return reviewOnly||sessionStorage.getItem(modeKey)==='preview'}catch{return false}});
  const bootstrapRetry=useRef(false),bootstrapRecovery=useRef(null),refreshRun=useRef({sequence:0,controller:null}),reunionBags=useRef({}),signOutLock=useRef(false);
@@ -154,7 +157,7 @@ export function useFamilyData(){
     if(!alive.current||generation!==epoch.current||ref.current.selfId!==before.selfId)return true;
     // Commit local draft cleanup immediately after the acknowledged write. A failed
     // read-back cannot turn a successful send into a second submission.
-    const updated=preserveNewerDrafts(ref.current,before,['APPROVE_MEMBER','REMOVE_MEMBER','RESTORE_MEMBER'].includes(action.type)?ref.current:reducer({...ref.current,mode:'preview'},action),action);
+    const updated=preserveNewerDrafts(ref.current,before,['APPROVE_MEMBER','REMOVE_MEMBER','RESTORE_MEMBER'].includes(action.type)?ref.current:reducerAfterAcknowledgement(ref.current,action),action);
     const local=Object.fromEntries(localFields.map(key=>[key,updated[key]]));if(action.type==='CLAIM_ORDER')local.bag=[];
     requestBook.current.confirmed.add(fingerprint);
     save({...ref.current,...local});
