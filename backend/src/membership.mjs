@@ -15,11 +15,14 @@ const readReceipt=async(db,actor,input,fingerprint)=>{
 export async function membershipCommand(db,actor,input,fingerprint){
  if(!can(actor,'manage_members')||!await db.prepare(`SELECT 1 WHERE ${adminSql}`).bind(actor.id).first())fail('Only an active admin can manage membership',403);
  if(typeof input.id!=='string'||!input.id||input.id===actor.id)fail('Choose another membership to update');
- const lifecycle=input.type!=='APPROVE_MEMBER';
+ const lifecycle=input.type!=='APPROVE_MEMBER',pendingApproval=input.type==='APPROVE_MEMBER'&&input.expectedStatus==='pending';
+ if(pendingApproval&&input.expectedAccountId!==actor.id)fail('Your signed-in account changed. Refresh before approving.',409);
  if(lifecycle&&(input.expectedAccountId!==actor.id||input.confirmedMemberId!==input.id))fail('Confirm the specific member using your current account',409);
  const prior=await readReceipt(db,actor,input,fingerprint);if(prior)return prior;
  const target=await db.prepare('SELECT * FROM members WHERE id=?').bind(input.id).first();if(!target)fail('Membership not found',404);
- if(lifecycle&&(!Number.isSafeInteger(input.expectedRevision)||input.expectedRevision!==target.membership_revision))fail('This membership changed. Close the review and open it again.',409);
+ if((lifecycle||pendingApproval)&&(!Number.isSafeInteger(input.expectedRevision)||input.expectedRevision!==target.membership_revision))fail('This membership changed. Close the review and open it again.',409);
+ if(pendingApproval&&(target.status!=='pending'||target.removed_at))fail('This membership is no longer waiting for approval. Refresh the list.',409);
+ if(pendingApproval&&(!Array.isArray(input.roles)||input.status!=='active'||input.canPost!==true||JSON.stringify([...new Set(input.roles||[])].sort())!==JSON.stringify(JSON.parse(target.roles_json).sort())))fail('Quick approval must preserve existing organizer roles.',409);
  let status,roles,canPost,isLeader,removedAt,removedBy,action;
  if(input.type==='REMOVE_MEMBER'){
   if(target.removed_at)fail('This membership has already been removed. Refresh to review it.',409);

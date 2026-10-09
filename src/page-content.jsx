@@ -105,12 +105,16 @@ export function PageContentProvider({children,enabled=true}){
   installCommands({past:[],future:[]});setCommandNotice('');routeAtEdit.current=routeKey;setEditingPages(scope);setEditingPage(page);return true;
  },[load,routeKey,installCommands]);
  const beginWork=useCallback(()=>{const finish=app?.data?.beginPending?.();workRef.current++;setWorkCount(count=>count+1);let ended=false;return()=>{if(ended)return;ended=true;workRef.current=Math.max(0,workRef.current-1);finish?.();if(mounted.current)setWorkCount(count=>Math.max(0,count-1))}},[app?.data?.beginPending]);
- const activateSurface=useCallback((node,editorId=null)=>{setActiveEditor(editorId);if(!node)setSelectedObject(null);const next=node?.closest?.('dialog,.card,section,.intro,footer')||node;if(activeSurface.current===next)return;activeSurface.current?.classList.remove('page-active-edit-card');activeSurface.current=next;next?.classList.add('page-active-edit-card')},[]);
+ const activateSurface=useCallback((node,editorId=null)=>{setActiveEditor(editorId);if(!node)setSelectedObject(null);const next=node?.closest?.('dialog,.card,section,.intro,footer')||node;{const panel=next?.closest?.('[data-panel-id]');if(panel&&next.dataset&&!next.closest('dialog')){next.dataset.panelRef=panel.dataset.panelId;next.dataset.panelOwner=panel.closest('[data-panel-page]')?.dataset.panelPage||''}}if(activeSurface.current===next)return;activeSurface.current?.classList.remove('page-active-edit-card');activeSurface.current=next;next?.classList.add('page-active-edit-card')},[]);
  useEffect(()=>{if(!editingPage)activateSurface(null);return()=>activateSurface(null)},[editingPage,activateSurface]);
  useEffect(()=>{
   const main=document.getElementById('main');if(!editingPage||!main||typeof MutationObserver==='undefined')return;
-  const observer=new MutationObserver(()=>{if(activeSurface.current?.isConnected===false)activateSurface(null)});
-  observer.observe(main,{childList:true,subtree:true});return()=>observer.disconnect();
+  // Moving a panel between page areas re-mounts it, possibly a render later. Wait a
+  // frame and follow the same panel on the same page instead of closing its editor.
+  let pending=0;
+  const relocate=node=>{const id=node?.dataset?.panelRef,owner=node?.dataset?.panelOwner;if(!id)return null;const matches=[...document.querySelectorAll('[data-panel-id="'+CSS.escape(id)+'"]')].filter(n=>!n.closest('dialog')&&(n.closest('[data-panel-page]')?.dataset.panelPage||'')===owner);return matches.length===1?matches[0]:null};
+  const observer=new MutationObserver(()=>{const lost=activeSurface.current;if(lost?.isConnected!==false||pending)return;pending=requestAnimationFrame(()=>{pending=0;if(activeSurface.current!==lost||lost.isConnected)return;const next=relocate(lost);if(next){next.dataset.panelRef=lost.dataset.panelRef;next.dataset.panelOwner=lost.dataset.panelOwner;next.classList.add('page-active-edit-card');activeSurface.current=next}else activateSurface(null)})});
+  observer.observe(main,{childList:true,subtree:true});return()=>{observer.disconnect();if(pending)cancelAnimationFrame(pending)};
  },[editingPage,activateSurface]);
  useEffect(()=>{if(!editingPage)return;const settle=event=>{const target=event.target;if(!target.closest?.('#main')||target.closest('[data-card-slot],[data-page-field],.page-panel-options-entry,.page-panel-inline-controls,.page-object-tools,.page-edit-toolbar,button,a,input,textarea,select,[contenteditable="true"]'))return;activateSurface(null)};document.addEventListener('pointerdown',settle);return()=>document.removeEventListener('pointerdown',settle)},[editingPage,activateSurface]);
  const update=useCallback((page,change,{historyLabel,historyReplay=false}={})=>{

@@ -239,6 +239,7 @@ html[data-theme] .poll .poll-choice>.poll-indicator.selected{background:color-mi
 html[data-theme][data-platform] .heading-font-option[aria-pressed=true]{color:var(--text)!important;text-shadow:none}
 
 html[data-font=sans]{--gw-heading-font:'Momo Trust Display',sans-serif}html[data-font=serif]{--gw-heading-font:'DM Serif Text',Georgia,serif}html .mini-identity strong{font-family:var(--gw-heading-font,'DM Serif Text',Georgia,serif)!important;font-weight:400}
-/* Row glyphs (leading icon and trailing chevron) align with the bold title's first
-   line rather than the vertical centre of multi-line rows. */
-html .list-row>.glyph,html .list-row>.arrow{align-self:flex-start;margin-block-start:0}
+/* Menu glyphs track the first title line, including enlarged text. The small
+   optical inset clears the text line's ascender space without centring icons
+   against a multi-line description. Rows without title/detail copy stay native. */
+html .list-row:has(>span>strong)>.glyph,html .list-row:has(>span>strong)>.arrow{align-self:flex-start;margin-block-start:calc(.6125rem - 9.5px + .15rem)}

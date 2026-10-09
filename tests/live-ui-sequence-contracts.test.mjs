@@ -26,7 +26,7 @@ function membershipHarness({count = 1, status = 'pending', reviewedEmail = email
   const pending = {
     kind: 'pending',
     getByRole(role, options) {
-      assert.equal(role, 'button'); assert.equal(options.name, 'Review membership'); assert.equal(options.exact, true);
+      assert.equal(role, 'button'); assert.equal(options.name, 'Review Membership'); assert.equal(options.exact, true);
       return {async click() {events.push('open-review'); state.dialog = true;}};
     },
   };
@@ -38,6 +38,7 @@ function membershipHarness({count = 1, status = 'pending', reviewedEmail = email
     },
   };
   const page = {getByRole(role, options) {
+    if (role === 'link') return {async click() {events.push(String(options.name).includes('Waiting')?'open-waiting':'open-active');}};
     if (role === 'article') return {filter(filter) {assert.equal(filter.hasText, email); return pending;}};
     assert.equal(role, 'dialog'); assert.equal(options.name, 'Review membership'); assert.equal(options.exact, true);
     return review;
@@ -61,15 +62,15 @@ function membershipHarness({count = 1, status = 'pending', reviewedEmail = email
 test('Live approval follows the actual shared focused review and awaits active read-back', async () => {
   const h = membershipHarness(); await h.run();
   assert.deepEqual(h.events, [
-    'pending-count-1', 'pending-text-' + email + ' · pending', 'open-review', 'review-visible',
-    'review-text-' + email + ' · pending', 'approve', 'review-count-0', 'pending-text-' + email + ' · active',
+    'open-waiting', 'pending-count-1', 'pending-text-' + email + ' · pending', 'open-review', 'review-visible',
+    'review-text-' + email + ' · pending', 'approve', 'review-count-0', 'open-active', 'pending-text-' + email + ' · active',
   ]);
-  const row = manage.slice(manage.indexOf("{active==='members'"), manage.indexOf("{active==='rsvp'"));
+  const row = read('../src/membership-people.jsx');
   assert.match(row, /openSheet\(\{type:'leader-member-review'/);
-  assert.match(row, />Review membership<\/Button>/);
-  assert.doesNotMatch(row, /Approve membership|APPROVE_MEMBER/);
+  assert.match(row, /'Review Membership':'Manage Membership'/);
+  assert.match(row, /view==='pending'&&<Button/);
   assert.match(manage, /onSave\(\{type:'APPROVE_MEMBER',id:m\.id,status,roles,canPost:approvalPosting\(m\.status,status,post\)\}\)/);
-  assert.match(app, /'leader-member-review':'Review membership'/);
+  assert.match(app, /'leader-member-review':s.member\?\.status==='pending'/);
   assert.match(app, /case'leader-member-review':return <MemberReview[^;]*onSaved=\{\(\)=>openSheet\(null\)\}/);
   assert.match(sheet, /<dialog[^>]*aria-labelledby=\{titleId\}/);
   assert.match(sheet, /<h2 id=\{titleId\}>\{title\}<\/h2>/);

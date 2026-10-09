@@ -10,7 +10,9 @@ page.on('pageerror',error=>errors.push(error.message));
 await page.addInitScript(()=>{localStorage.setItem('gw-platform','android');localStorage.setItem('gw-install-dismissed','true')});
 try{
  await page.goto(base+'/__test/signin?user=alice');await expect(page.getByRole('navigation',{name:'Main navigation',exact:true})).toBeVisible();
- await page.getByRole('button',{name:'Family',exact:true}).click();await page.getByRole('button',{name:'Invite someone',exact:true}).click();
+ await page.getByRole('button',{name:'Family',exact:true}).click();
+ // People shows a directory summary; invitations start from the full All family directory.
+ await page.getByRole('button',{name:'All family',exact:true}).click();await page.getByRole('button',{name:'Invite someone',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Invite someone',exact:true});await expect(dialog).toBeVisible();
  await expect(dialog.getByRole('button',{name:'Create invitation link',exact:true})).toHaveCount(0);await expect(dialog.getByRole('button',{name:'Send email invitation',exact:true})).toBeDisabled();await dialog.getByRole('textbox',{name:'Recipient email',exact:true}).fill('pending@example.test');await dialog.getByRole('button',{name:'Send email invitation',exact:true}).click();const link=await dialog.getByLabel('Invitation link',{exact:true}).inputValue();assert.match(link,/#\/family-invite\/[a-f0-9]{64}$/);await expect(dialog).toContainText('Invitation email sent.');
  const pending=await browser.newContext({viewport:{width:390,height:844}}),view=await pending.newPage();view.on('pageerror',error=>errors.push(error.message));try{

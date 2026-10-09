@@ -12,10 +12,10 @@ async function rateLimit(db,memberId){
 export function registerPushRoutes(app,{sender=createPushSender}={}){
  app.get('/api/me/push',async c=>{
   const actor=c.get('actor');if(!pushStorageReady(c.env))return c.json({accountId:actor.id,ready:false,pushEnabled:false,devices:[],reason:'activation-required'});
-  const rows=await c.env.DB.prepare('SELECT id,label,confirmed_at AS confirmedAt,key_version AS keyVersion,endpoint FROM push_devices WHERE member_id=? AND session_id=? AND revoked_at IS NULL LIMIT 10').bind(actor.id,c.get('sessionId')).all();
+  const rows=await c.env.DB.prepare('SELECT id,label,confirmed_at AS confirmedAt,key_version AS keyVersion,preview_enabled AS previewEnabled,preview_revision AS previewRevision,endpoint FROM push_devices WHERE member_id=? AND session_id=? AND revoked_at IS NULL LIMIT 10').bind(actor.id,c.get('sessionId')).all();
   const devices=await Promise.all(rows.results.map(async({endpoint,...device})=>{
    const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(endpoint));
-   return {...device,endpointFingerprint:Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('')};
+   return {...device,previewEnabled:device.previewEnabled===1,endpointFingerprint:Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('')};
   }));
   const ready=await enabled(c.env);return c.json({accountId:actor.id,ready,pushEnabled:ready&&devices.some(d=>d.keyVersion===c.env.PUSH_KEY_VERSION),devices,...(ready?{publicKey:c.env.PUSH_VAPID_PUBLIC_KEY,keyVersion:c.env.PUSH_KEY_VERSION}:{reason:'activation-required'})});
  });
@@ -29,6 +29,22 @@ export function registerPushRoutes(app,{sender=createPushSender}={}){
   try{return c.json(await registerDevice(c.env.DB,actor,sessionId,value.expectedAccountId,value.subscription,c.env.PUSH_KEY_VERSION),201)}catch(error){if(error.message==='Device registration unavailable')throw new UserError('Device setup could not be saved. Check your account and notification choices.',400);throw error}
 
  });
+ app.put('/api/me/push/devices/:id/preview',async c=>{
+  const actor=c.get('actor'),value=await c.req.json();guard(actor,value?.expectedAccountId);
+  if(!value||Array.isArray(value)||Object.keys(value).some(k=>!['expectedAccountId','enabled','revision'].includes(k))||typeof value.enabled!=='boolean'||!Number.isSafeInteger(value.revision)||value.revision<0)throw new UserError('Choose whether this device shows message previews.',400);
+  if(!pushStorageReady(c.env)||value.enabled&&!await enabled(c.env))throw new UserError('Device push is not activated.',503);
+  const now=Date.now(),session=c.get('sessionId');if(!session)throw new UserError('Sign in again before changing previews.',401);
+  // CAS stops another tab's stale On from silently undoing a later Off. Turning
+  // previews on affects future activity only, never already queued messages.
+  await c.get('validateMessageSession')?.();
+  const row=await c.env.DB.prepare(`UPDATE push_devices SET preview_enabled=?,preview_revision=preview_revision+1,preview_confirmed_at=?,preview_after_sequence=COALESCE((SELECT MAX(sequence) FROM notification_sequence),0)
+   WHERE id=? AND member_id=? AND session_id=? AND revoked_at IS NULL AND preview_revision=?
+   AND EXISTS(SELECT 1 FROM session s WHERE s.id=push_devices.session_id AND s.userId=push_devices.member_id AND s.expiresAt>?)
+   AND (?=0 OR (key_version=? AND (SELECT enabled FROM push_control WHERE id=1)=1 AND COALESCE((SELECT global_off FROM notification_settings WHERE member_id=push_devices.member_id),0)=0 AND COALESCE((SELECT scope FROM notification_preferences WHERE member_id=push_devices.member_id),'leaders')!='off'))
+   RETURNING id,preview_enabled AS previewEnabled,preview_revision AS previewRevision`).bind(value.enabled?1:0,value.enabled?now:null,c.req.param('id'),actor.id,session,value.revision,now,value.enabled?1:0,c.env.PUSH_KEY_VERSION||'').first();
+  if(!row)throw new UserError('This device or its preview setting changed. Refresh before trying again.',409);
+  return c.json({accountId:actor.id,...row,previewEnabled:row.previewEnabled===1});
+ });
  app.post('/api/me/push/devices/:id/test',async c=>{
   const actor=c.get('actor'),value=await c.req.json();guard(actor,value?.expectedAccountId);
   if(!await enabled(c.env))throw new UserError('Device push is not activated.',503);
@@ -36,7 +52,7 @@ export function registerPushRoutes(app,{sender=createPushSender}={}){
   if(!device)throw new UserError('Enable push on this device first.',404);
   if(device.key_version!==c.env.PUSH_KEY_VERSION)throw new UserError('Device setup has changed. Turn push off, then enable it again.',409);
   await rateLimit(c.env.DB,actor.id);
-  const result=await sender(c.env)({subscription:{endpoint:device.endpoint,keys:{p256dh:device.p256dh,auth:device.auth}},keyVersion:device.key_version,payload:{v:1,test:true,expiresAt:Date.now()+60000},ttl:60});
+  const result=await sender(c.env)({subscription:{endpoint:device.endpoint,keys:{p256dh:device.p256dh,auth:device.auth}},keyVersion:device.key_version,payload:{v:1,presentationVersion:2,test:true,expiresAt:Date.now()+60000},ttl:60});
   if(result.status<200||result.status>=300){
    const providerStatus=Number.isInteger(result.status)&&result.status>=100&&result.status<=599?result.status:null;
    const expired=providerStatus===404||providerStatus===410;

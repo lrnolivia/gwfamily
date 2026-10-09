@@ -18,8 +18,8 @@ test('legacy layout migration is nondestructive and idempotent with custom order
 test('legacy removed hero remains recoverable without being resurrected',()=>{
  const old={version:1,panels:[{id:'hero',kind:'hero',zone:'main',locked:false,removed:true}],desktopOrder:[],mobileOrder:[]},next=migratePanelLayout('reunion',old);assert.ok(next.panels[0].removed);assert.ok(!next.desktopOrder.includes('hero'));assert.doesNotThrow(()=>validatePanelLayout('reunion',next,clean));
 });
-test('pre-invitations version 2 Family and You layouts gain only the new native panel',()=>{
- for(const page of ['family','you']){
+test('pre-invitations version 2 Family, You and People layouts gain only the new native panel',()=>{
+ for(const page of ['family','you','people']){
   const content=sharedPageDefaults(page);
   delete content.text.inviteTitle;delete content.text.inviteBody;
   let old=content.panelLayout;
@@ -39,7 +39,7 @@ test('pre-invitations version 2 Family and You layouts gain only the new native 
  }
 });
 test('saved invitation removal and ordering are never reset by additive normalization',()=>{
- for(const page of ['family','you']){
+ for(const page of ['family','you','people']){
   const old=removeSharedPanel(defaultPanelLayout(page),'native-invitations');
   assert.equal(migratePanelLayout(page,old),old);
   assert.ok(validateSharedPageContent(page,{...sharedPageDefaults(page),panelLayout:old}).panelLayout.panels.find(panel=>panel.id==='native-invitations').removed);

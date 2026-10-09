@@ -314,7 +314,7 @@ try{
   const info=deviceSection.getByRole('button',{name:'Information about device notifications'}),details=deviceSection.locator('[id="'+await info.getAttribute('aria-controls')+'"]');
   await expect(info).toHaveAttribute('aria-expanded','false');await expect(details).toBeHidden();
   await info.focus();await info.press('Enter');await expect(info).toHaveAttribute('aria-expanded','true');await expect(details).toBeVisible();
-  await expect(details).toContainText('Names and message content are never included.');
+  await expect(details).toContainText('Names and message content stay hidden unless you turn on message previews for this device.');
   await expect(details).toHaveClass('notification-device-details');assert.equal(await details.evaluate(el=>getComputedStyle(el).borderRadius),'14px');assert.notEqual(await details.evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
   await captureNotificationViewport(alice,`${output}/${engine}-device-information.png`,{settings:true});
   await info.press('Space');await expect(details).toBeHidden();

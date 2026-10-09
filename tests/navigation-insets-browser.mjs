@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import {mkdir, writeFile} from 'node:fs/promises';
 import {initialState, PREVIEW_KEY} from '../src/data-adapter.js';
 import {navigationInsetMetrics} from '../src/navigation-insets.js';
+import {verifyPageHeaderGlass} from './page-header-glass-browser-check.mjs';
 
 if (!process.env.CI && process.env.GW_HOSTED_BROWSER_QA !== '1') {
   throw new Error('Navigation browser QA runs only in the authorized hosted CI environment.');
@@ -185,6 +186,7 @@ try {
         await expect(page.locator('.page-navigation-header .page-back')).toHaveCount(0);
         const backGlyph=page.locator('.page-route-glyph .glyph').first();await expect(backGlyph).toBeVisible();
         assert.equal(await backGlyph.evaluate(node=>getComputedStyle(node).transform),'none',`${label}: Main destination glyph is not reversed by material wrappers`);
+        await verifyPageHeaderGlass(page,{material,inline:true,label});
         if(material==='android'){
           const selected=page.getByRole('navigation',{name:'Main navigation'}).locator('button[aria-current=page]');
           const paint=await selected.evaluate(node=>({fill:getComputedStyle(node).backgroundColor,glyph:getComputedStyle(node.querySelector('.glyph')).color}));
@@ -201,10 +203,12 @@ try {
         });
         await page.waitForFunction(()=>window.scrollY>=299);
         await expect(page.locator('.page-navigation-header')).toHaveAttribute('data-compact','true');
+        await verifyPageHeaderGlass(page,{material,inline:false,label});
         const back=page.locator('.page-route-glyph');await expect(back).toBeVisible();await expect(page.locator('.page-navigation-header .page-back')).toHaveCount(0);
         const backBox=await back.boundingBox();assert.ok(backBox.y>=0&&backBox.y+backBox.height<=device.height,`${label}: Main destination glyph stays visible after scroll`);
         await page.evaluate(()=>{window.scrollTo(0,0);document.getElementById('navigation-qa-scroll-space').remove();});
         await page.waitForFunction(()=>window.scrollY===0&&!document.querySelector('.page-navigation-header').hasAttribute('data-compact'));
+        await verifyPageHeaderGlass(page,{material,inline:true,label});
         for (const safe of [0, 21, 34]) {
           await navigationStage(page, trace, `safe-area geometry ${safe}px`);
           await page.evaluate(value => document.documentElement.style.setProperty('--gw-safe-bottom', `${value}px`), safe);

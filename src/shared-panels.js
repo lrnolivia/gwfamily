@@ -24,7 +24,7 @@ export const NATIVE_PANEL_DEFINITIONS=Object.freeze({
  'reunion-plans':[['rsvp','RSVP','main',['rsvpTitle']],['merchandise','Merchandise','main',['merchandiseTitle']],['fees','Reunion fees','main',['feesTitle']],['checklist','Your reunion','side',['checklistTitle']],['history','Saved records','side',[]]],
  'reunion-calendar':[['events','Reunion events','main',[]],['birthdays','Family birthdays','side',[]]],
  reunion:[['plans','Your reunion','main',['plansTitle']],['schedule','Reunion schedule','side',['weekendTitle','weekendEmptyTitle','weekendEmptyBody']],['clarity','A little clarity','side',['clarityTitle','clarityBody']]],
- people:[['directory','Our people','main',['peopleTitle','noResults']],['profiles','Your family profiles','side',['profilesTitle']],['contact','Address book','side',['heading','intro','sharingNote','emptyTitle','emptyBody']],['shared-contacts','Shared contact cards','main',['sharedTitle','sharedEmptyBody']]],
+ people:[['invitations','Bring your people','side',['inviteTitle','inviteBody']],['directory','Our people','main',['peopleTitle','noResults']],['profiles','Your family profiles','side',['profilesTitle']],['contact','Address book','side',['heading','intro','sharingNote','emptyTitle','emptyBody']],['shared-contacts','Shared contact cards','main',['sharedTitle','sharedEmptyBody']]],
  memories:[['gallery','Shared memories','main',['listTitle','emptyBody']]],
  tree:[['founders','Family founders','side',[]],['memorials','Held in our hearts','main',['memorialsTitle']],['connections','Family connections','side',['connectionsTitle','connectionsBody']]],
  birthdays:[['calendar','Family birthdays','main',['monthTitle','emptyBody','privacyNote']]],
@@ -51,9 +51,10 @@ export function migratePanelLayout(page,layout){
  if(!layout)return defaultPanelLayout(page);
  const legacy=layout.version===1;
  if(!legacy&&layout.version!==2)return layout;
- // Invitations became native after version 2 shipped. Add only that new slot
- // to old Family/You snapshots; every existing slot and saved removed state stays intact.
- const additions=page==='family'||page==='you'?['native-invitations']:[];
+ // Invitations became native after version 2 shipped. People owns its new
+ // invitation independently of the retired outer Family slot. Add only a
+ // missing identity; existing placements, removals, and all other slots survive.
+ const additions=['family','you','people'].includes(page)?['native-invitations']:[];
  const missing=nativeDefaults(page).filter(panel=>(legacy||additions.includes(panel.id))&&!layout.panels.some(p=>p.id===panel.id&&p.kind==='native'));
  if(!legacy&&!missing.length)return layout;
  const append=key=>{const order=[...layout[key]];for(const panel of missing){if(page==='reunion'&&panel.id==='native-plans'){const hero=order.indexOf('hero');order.splice(hero<0?order.length:hero+1,0,panel.id);}else order.push(panel.id);}return order;};

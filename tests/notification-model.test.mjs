@@ -125,7 +125,7 @@ test('Notifications settings has full-page entry from You and Notification Cente
  assert.match(css,/notification-settings-page/);assert.match(css,/max-width:520px/);
 });
 
-test('push deep link is captured before initial route normalization removes URL search',()=>{const src=source('push-device.jsx');assert.match(src,/pendingNotice=useRef\(new URL\(location.href\)\.searchParams.get\('gwNotice'\)\)/);assert.match(src,/id=pendingNotice.current\|\|url.searchParams.get\('gwNotice'\)/);assert.match(src,/if\(!account\|\|!notifications\?\.ready\)return/);assert.match(src,/pendingNotice.current=null/)});
+test('push deep link is captured before initial route normalization removes URL search',()=>{const src=source('push-device.jsx');assert.match(src,/pending=useRef\(undefined\)/);assert.match(src,/if\(pending.current===undefined\)pending.current=pendingPushOpen\(location.href\)/);assert.match(src,/target=pending.current\|\|readPushOpenTarget\(location.href\)/);assert.match(src,/if\(!account\|\|!notifications\?\.ready\)return/);assert.match(src,/pending.current=null;clearPendingPushOpen\(\)/)});
 
 test('channel normalization preserves legacy opt-outs and uses only known boolean choices',()=>{
  const legacy=normalizeNotificationSettings({categories:{replies:false},channels:{mentions:{email:false,push:'yes',inApp:false},unknown:{email:false}}});

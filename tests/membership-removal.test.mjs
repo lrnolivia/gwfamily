@@ -43,7 +43,7 @@ test('preview removal persists locally and preview reset restores the samples',(
 
 test('review requires named target confirmation in the existing sheet and keeps Enter and top check separate from removal',()=>{
  const source=readFileSync(new URL('../src/manage-family.jsx',import.meta.url),'utf8');
- assert.match(source,/membershipStatus\(member\)/);assert.match(source,/setConfirming\('REMOVE_MEMBER'\)/);assert.match(source,/>Remove member<\/Button>/);
+ assert.match(readFileSync(new URL('../src/membership-people.jsx',import.meta.url),'utf8'),/membershipStatus\(member\)/);assert.match(source,/setConfirming\('REMOVE_MEMBER'\)/);assert.match(source,/>Remove member<\/Button>/);
  assert.match(source,/Remove \$\{m.name\}\?/);assert.match(source,/\{m.name\} \(\{m.email\}\)/);
  assert.match(source,/Their sign-in account, existing posts, messages, orders, and payment records will be kept/);
  assert.match(source,/confirmedMemberId:m.id,expectedAccountId:state.selfId,expectedRevision:m.membership_revision\?\?0/);

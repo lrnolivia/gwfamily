@@ -36,7 +36,7 @@ test('every category supports all eight independent combinations through fanout,
    assert.equal(outbox(x,'email').length,Number(choices.email));assert.equal(outbox(x,'push').length,Number(choices.push));
    let emails=0,pushes=0;
    await drainEmailNotifications(emailEnv(x),{send:async mail=>{emails++;assert.equal(mail.to,'bob@example.test');assert.doesNotMatch(mail.html,/fictional-channel-fixture|membership\.role_changed/);return {messageId:'fictional-only'}}});
-   await drainWithInjectedSender(x.DB,{sender:async({payload})=>{pushes++;assert.equal(payload.title,'Green & White Family');assert.doesNotMatch(JSON.stringify(payload),/bob@example|membership\.role_changed/);return {status:201}}});
+   await drainWithInjectedSender(x.DB,{sender:async({payload})=>{pushes++;assert.equal(payload.title,'Family account update');assert.doesNotMatch(JSON.stringify(payload),/bob@example|membership\.role_changed/);return {status:201}}});
    assert.equal(emails,Number(choices.email));assert.equal(pushes,Number(choices.push));
    assert.equal(count(x,'push_devices'),1);assert.equal(x.sqlite.prepare('SELECT enabled FROM email_notification_preferences').get().enabled,1);
   }finally{x.sqlite.close()}

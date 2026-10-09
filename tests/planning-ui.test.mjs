@@ -18,11 +18,11 @@ const result=buildSync({stdin:{contents:`
  import {renderToStaticMarkup} from 'react-dom/server';
  import {AppContext} from './src/ui-core.jsx';
  import {PlanningChecklist,PlanningLinks,FamilyPlanningPage,PlanningHistoryPage} from './src/planning-checklist.jsx';
- import {YourReunionPanel,ReunionPlans} from './src/reunion-plans.jsx';
+ import {HomeReunionPlan,YourReunionPanel,ReunionPlans} from './src/reunion-plans.jsx';
  import {Planner,Rsvp} from './src/planner.jsx';
  import {Claim} from './src/features.jsx';
  export function render(state,component='checklist',props={},context={}){
-  const Component={checklist:PlanningChecklist,links:PlanningLinks,planner:Planner,rsvp:Rsvp,claim:Claim,'reunion-panel':YourReunionPanel,'reunion-plans':ReunionPlans,'family-planning':FamilyPlanningPage,'planning-history':PlanningHistoryPage}[component];
+  const Component={checklist:PlanningChecklist,links:PlanningLinks,planner:Planner,rsvp:Rsvp,claim:Claim,'reunion-panel':YourReunionPanel,'home-reunion':HomeReunionPlan,'reunion-plans':ReunionPlans,'family-planning':FamilyPlanningPage,'planning-history':PlanningHistoryPage}[component];
   return renderToStaticMarkup(React.createElement(AppContext.Provider,{value:{state,platform:'android',data:{},route:{type:'home'},go(){},openSheet(){},setToast(){},dispatch(){},...context}},React.createElement(Component,props)));
  }`,resolveDir:root},bundle:true,format:'cjs',platform:'node',write:false,loader:{'.css':'empty'}});
 const module={exports:{}};
@@ -62,7 +62,8 @@ test('Home, Reunion and dedicated pages share the same planning model and route 
  const home=source.slice(source.indexOf('function Home('),source.indexOf('function Reunion('));
  const reunion=source.slice(source.indexOf('function Reunion('),source.indexOf('function Family('));
  assert.equal(count(home,/<YourReunionPanel\s*\/>/g),0);
- assert.match(home,/aria-label="Your Reunion Plan" aria-haspopup="dialog"/);assert.match(home,/openSheet\(\{type:'your-reunion-plan',returnFocus:event\.currentTarget\}\)/);
+ assert.match(home, /'native-reunion':<HomeReunionPlan\/>/);
+ assert.match(reunionSource,/aria-label="Your Reunion Plan" aria-haspopup="dialog"/);assert.match(reunionSource,/openSheet\(\{type:'your-reunion-plan',returnFocus:event\.currentTarget\}\)/);
  assert.match(source,/case'your-reunion-plan':return <YourReunionPanel inSheet\/>/);
  assert.equal(count(reunion,/<YourReunionPanel\s*\/>/g),1);
  assert.equal(count(source,/<YourReunionPanel\s*\/>/g),1);
@@ -203,4 +204,20 @@ test('status text uses semantic foreground/background pairs and labels',()=>{
  assert.match(css,/\.planning-status.is-complete\{background:var\(--plan-complete-bg\);color:var\(--plan-complete-text\)\}/);
  assert.match(css,/@media\(forced-colors:active\)/);
  assert.match(css,/grid-template-columns:minmax\(0,1fr\) auto/);
+});
+
+
+test('Home uses the canonical inline checklist only on tablet/desktop and the existing sheet entry only on phones',()=>{
+ for(const narrow of [false,true]){
+  const html=render(state,'home-reunion',{}, {narrow});
+  assert.equal(count(html,/class="[^"]*planning-checklist/g),narrow?0:1);
+  assert.equal(count(html,/aria-haspopup="dialog"/g),narrow?1:0);
+  if(!narrow){assert.match(html,/Your saved planning status/);assert.match(html,/Family member checklist/)}
+  assertNoNestedControls(html);
+ }
+ assert.equal(render(state,'home-reunion',{}, {narrow:false,reunionPlanOpen:true}), '', 'An open mobile sheet remains the sole checklist after widening');
+ assert.equal(count(render(state,'home-reunion',{}, {narrow:true,reunionPlanOpen:true}),/aria-haspopup="dialog"/g),1);
+ assert.match(source,/narrow=useNarrow\(preserveHomeReunionFocus\)/);
+ assert.match(source,/reunionPlanOpen:sheet\?\.type==='your-reunion-plan'/);
+ assert.match(source,/sheet.type==='your-reunion-plan'\)requestAnimationFrame\(\(\)=>focusHomeReunionPlan\(\)\)/);
 });

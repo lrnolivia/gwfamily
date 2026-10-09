@@ -6,7 +6,10 @@
 .reunion-progress{display:flex;align-items:center;gap:8px}
 .reunion-progress>.text-button{display:inline-grid;place-items:center;min-width:40px;min-height:40px}
 .reunion-progress>.text-button>.glyph{width:18px;height:18px}
-.tree-later .page-media-content>img{width:175px;height:140px;object-fit:contain}
+/* Keep the untouched oak compact; explicit editor sizing fills its chosen
+   percentage wrapper. Uploaded media has its own page-hero-asset rules. */
+.tree-later .page-media-content>img{width:175px;max-width:100%;height:140px;object-fit:contain}
+.tree-later .card-content-slot[data-card-image-width] .tree-hero-media .page-media-content>img{width:100%;height:auto}
 .tree-later>.tree-hero-media{max-width:100%}
 .memories-hero>.page-editable-media{min-width:0}
 .memories-hero .page-hero-asset{max-height:340px}
