@@ -63,12 +63,13 @@ test('Home, Reunion and dedicated pages share the same planning model and route 
  const reunion=source.slice(source.indexOf('function Reunion('),source.indexOf('function Family('));
  assert.equal(count(home,/<YourReunionPanel\s*\/>/g),0);
  assert.match(home,/aria-label="Your Reunion Plan" aria-haspopup="dialog"/);assert.match(home,/openSheet\(\{type:'your-reunion-plan',returnFocus:event\.currentTarget\}\)/);
- assert.match(source,/case'your-reunion-plan':return <YourReunionPanel\/>/);
+ assert.match(source,/case'your-reunion-plan':return <YourReunionPanel inSheet\/>/);
  assert.equal(count(reunion,/<YourReunionPanel\s*\/>/g),1);
- assert.equal(count(source,/<YourReunionPanel\s*\/>/g),2);
+ assert.equal(count(source,/<YourReunionPanel\s*\/>/g),1);
+ assert.equal(count(source,/<YourReunionPanel inSheet\/>/g),1);
  assert.doesNotMatch(source,/<PlanningChecklist\b/);
  assert.equal(count(source,/<PlanningLinks\s*\/>/g),1);
- assert.match(reunionSource,/export function YourReunionPanel\(\{compact=false,page='home',field='reunionTitle'\}\)\{return <PlanningChecklist compact=\{compact\} title="Your reunion" heading=/);
+ assert.match(reunionSource,/export function YourReunionPanel\(\{compact=false,page='home',field='reunionTitle',inSheet=false\}\)\{return <PlanningChecklist compact=\{compact\} inSheet=\{inSheet\} title="Your reunion" heading=/);
  assert.match(reunionSource,/<YourReunionPanel compact page="reunion-plans" field="checklistTitle"\/>/);
  assert.match(checklistSource,/export function FamilyPlanningPage\(\)\{return <section className="stack"><h1>Family member checklist<\/h1><PlanningChecklist showMembers\/>/);
  assert.match(checklistSource,/export function PlanningHistoryPage\(\)\{return <section className="stack"><h1>Saved planning records<\/h1><SavedPlanningHistory expanded\/>/);

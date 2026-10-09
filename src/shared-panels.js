@@ -18,6 +18,7 @@ function keys(value,allowed){if(!plain(value)||Object.keys(value).some(key=>!all
 // Source-owned slots render their existing authorized components. Saved content
 // can reorder these identities; it cannot replace their data or permissions.
 export const NATIVE_PANEL_DEFINITIONS=Object.freeze({
+ family:[['invitations','Bring your people','side',['inviteTitle','inviteBody']]],
  'leader-calendar':[['calendar-events','Reunion events','main',[]],['calendar-settings','Calendar settings','side',[]]],
  home:[['feed','Family feed','main',['feedTitle']],['reunion','Your reunion','side',['reunionTitle','nextRsvpTitle','nextRsvpBody','nextShirtsTitle','nextShirtsBody','nextFeesTitle','nextFeesBody']]],
  'reunion-plans':[['rsvp','RSVP','main',['rsvpTitle']],['merchandise','Merchandise','main',['merchandiseTitle']],['fees','Reunion fees','main',['feesTitle']],['checklist','Your reunion','side',['checklistTitle']],['history','Saved records','side',[]]],
@@ -29,7 +30,7 @@ export const NATIVE_PANEL_DEFINITIONS=Object.freeze({
  birthdays:[['calendar','Family birthdays','main',['monthTitle','emptyBody','privacyNote']]],
  shop:[['products','Merchandise','main',['heading','emptyBody']],['order','Your order','side',[]]],
  inbox:[['invitations','Conversation invitations','side',['invitationsTitle']],['conversations','Conversations','main',['emptyTitle','emptyBody','caughtUpTitle','caughtUpBody']]],
- you:[['profile','Your profile','side',[]],['family','Your family','main',[]],['plans','Reunion plans','main',[]],['preferences','Preferences','main',[]],['help','Help','main',[]],['leader-tools','Leader tools','side',['toolsTitle']]]
+ you:[['profile','Your profile','side',[]],['family','Your family','main',[]],['plans','Reunion plans','main',[]],['preferences','Preferences','main',[]],['help','Help','main',[]],['leader-tools','Leader tools','side',['toolsTitle']],['invitations','Bring your people','side',['inviteTitle','inviteBody']]]
 });
 export const nativePanelDefinition=(page,id)=>(NATIVE_PANEL_DEFINITIONS[page]||[]).find(([key])=>'native-'+key===id);
 export function sharedPanelTitle(page,panel,content,records={}){

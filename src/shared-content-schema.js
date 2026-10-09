@@ -21,7 +21,7 @@ export const SHARED_PAGE_SCHEMA=Object.freeze({
  }),
  'reunion-plans':page('Reunion Plan',{heading:text('Plan heading','Your plans'),rsvpTitle:text('RSVP heading','RSVP'),merchandiseTitle:text('Merchandise heading','Merchandise'),feesTitle:text('Fees heading','Reunion fees'),checklistTitle:text('Checklist heading','Your reunion')}),
  'reunion-calendar':page('Reunion Calendar',{heading:text('Calendar heading','Reunion calendar')}),
- family:page('Family',{heading:text('Page heading','Our family.'),intro:body('Introduction','People, memories, and the stories that connect us.')}),
+ family:page('Family',{heading:text('Page heading','Our family.'),intro:body('Introduction','People, memories, and the stories that connect us.'),inviteTitle:text('Invitations card heading','Bring your people.'),inviteBody:body('Invitations card copy','Share your invitation link and make room for more family memories.')}),
  people:page('People',{
   heading:text('Address book heading','Address book'),intro:body('Address book introduction','A trusted place for the details each person chooses to share.'),sharingNote:body('Sharing note','Contact cards are opt-in. Sharing a detail is your choice.'),emptyTitle:text('Empty card heading','Start with your own card.'),emptyBody:body('Empty card copy','Add your details, then choose who can see them. No contact information is shared yet.'),profilesTitle:text('Profiles heading','Your family profiles'),peopleTitle:text('People heading','Our people'),sharedTitle:text('Shared cards heading','Shared with you'),sharedEmptyBody:body('No shared contact cards','No family contact cards have been shared with you yet.'),noResults:body('No matching people','No people match these filters.')
  }),
@@ -30,7 +30,7 @@ export const SHARED_PAGE_SCHEMA=Object.freeze({
  birthdays:page('Birthdays',{heading:text('Page heading','Family birthdays'),monthTitle:text('Month heading prefix','Birthdays in',80),emptyBody:body('Empty month copy','No shared birthdays this month.'),privacyNote:body('Birthday privacy note','Only adult members who opt in appear here. Your birth year and household birthdays stay private.')}),
  shop:page('Shop',{heading:text('Page heading','Family merchandise'),emptyBody:body('Empty shop copy','The leaders haven’t added merchandise yet.')}),
  inbox:page('Messages',{eyebrow:text('Page eyebrow','Keep in touch',80),heading:text('Page heading','Messages'),intro:body('Introduction','A private space for your conversations.'),invitationsTitle:text('Invitations heading','Invitations'),emptyTitle:text('Empty inbox heading','A little hello goes a long way.'),emptyBody:body('Empty inbox copy','Choose a family member or bring a group together.'),caughtUpTitle:text('Caught-up heading','You’re all caught up.'),caughtUpBody:body('Caught-up copy','There are no conversations on this page.')}),
- you:page('You',{greetingPrefix:text('Greeting before your name','Hi,',40),intro:body('Introduction','A familiar face in the family.'),toolsTitle:text('Leader section heading','Leader Tools')})
+ you:page('You',{greetingPrefix:text('Greeting before your name','Hi,',40),intro:body('Introduction','A familiar face in the family.'),toolsTitle:text('Leader section heading','Leader Tools'),inviteTitle:text('Invitations card heading','Bring your people.'),inviteBody:body('Invitations card copy','Share your invitation link and make room for more family memories.')})
 });
 export function sharedPageDefaults(pageId){
  const schema=Object.hasOwn(SHARED_PAGE_SCHEMA,pageId)&&SHARED_PAGE_SCHEMA[pageId];

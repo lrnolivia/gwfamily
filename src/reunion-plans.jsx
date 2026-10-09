@@ -8,7 +8,7 @@ import {Rsvp,ReunionFeesPanel} from './planner.jsx';
 import {ProductList} from './features.jsx';
 import './reunion-plans.css';
 
-export function YourReunionPanel({compact=false,page='home',field='reunionTitle'}){return <PlanningChecklist compact={compact} title="Your reunion" heading={<EditableText page={page} field={field} as="span">Your reunion</EditableText>}/>}
+export function YourReunionPanel({compact=false,page='home',field='reunionTitle',inSheet=false}){return <PlanningChecklist compact={compact} inSheet={inSheet} title="Your reunion" heading={<EditableText page={page} field={field} as="span">Your reunion</EditableText>}/>}
 export function ReunionPlans(){
  const {state}=useApp(),plan=derivePlanning(state),shirts=plan.byId.shirts,legacy=usePageContent('reunion');
  return <div className="stack reunion-plans-page"><SharedPagePanels page="reunion-plans" mediaOnly nativePanels={{

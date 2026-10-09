@@ -5,6 +5,10 @@ import {pageIdentity,backUnread} from './page-navigation-model.js';
 import {conversationTitle} from './messaging-model.js';
 import {mainPages} from './navigation.js';
 import './page-navigation.css';
+// Pages whose title lives inside a decorative hero plate keep a real header row;
+// anchoring Back to that title would place it on the plate under the top fade.
+const HEADER_ROW_PAGES=new Set(['memorial']);
+const headerTitles={memorial:'In loving memory'};
 export function useCompactChrome(){
  const [compact,setCompact]=useState(()=>window.scrollY>96);
  useEffect(()=>{let frame;const update=()=>{frame=null;setCompact(window.scrollY>96)},schedule=()=>{if(frame==null)frame=requestAnimationFrame(update)};window.addEventListener('scroll',schedule,{passive:true});window.addEventListener('resize',schedule);return()=>{window.removeEventListener('scroll',schedule);window.removeEventListener('resize',schedule);if(frame!=null)cancelAnimationFrame(frame)}},[]);
@@ -22,7 +26,7 @@ export function PageNavigationHeader({previous,compact}){
  },[]);
  const {route,state,messaging,goBack,go}=useApp(),page=usePageContent(route.type),main=mainPages.has(route.type),showBack=!main,[heading,setHeading]=useState(null),headerRef=useRef(null),[position,setPosition]=useState(null);
  useLayoutEffect(()=>{
-  const root=document.getElementById('main');if(!root){setHeading(null);return;}
+  const root=document.getElementById('main');if(!root||HEADER_ROW_PAGES.has(route.type)){setHeading(null);return;}
   const update=()=>{const next=root.querySelector('h1')||(!['post','photo','memory','chat'].includes(route.type)&&root.querySelector(':scope > section > h2,:scope > div > h2'));setHeading(current=>current===next?current:next)};
   update();const observer=new MutationObserver(update);observer.observe(root,{childList:true,subtree:true});return()=>observer.disconnect();
  },[route.type,route.id,showBack]);
@@ -36,7 +40,7 @@ export function PageNavigationHeader({previous,compact}){
   return()=>{observer.disconnect();window.removeEventListener('scroll',schedule);window.removeEventListener('resize',schedule);if(frame!=null)cancelAnimationFrame(frame);if(original===null)heading.removeAttribute('data-page-back-anchor');else heading.setAttribute('data-page-back-anchor',original)};
  },[heading,compact]);
  const chat=route.type==='chat'?messaging.conversations?.find(item=>item.id===route.id):null;
- const title=page.content?.text?.heading||(chat?conversationTitle(chat,state.selfId):route.type==='chat'?'Conversation':pageIdentity(route,state)),destination=previous||{type:'home'},unread=backUnread(previous,messaging),label='Back to '+pageIdentity(destination,state)+(unread?', '+unread+' unread':'');
+ const title=page.content?.text?.heading||headerTitles[route.type]||(chat?conversationTitle(chat,state.selfId):route.type==='chat'?'Conversation':pageIdentity(route,state)),destination=previous||{type:'home'},unread=backUnread(previous,messaging),label='Back to '+pageIdentity(destination,state)+(unread?', '+unread+' unread':'');
  const back=className=><Control type="button" className={'page-back '+className} aria-label={label} onClick={goBack}><svg className="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M20 12H4m6-6-6 6 6 6" strokeLinecap="round" strokeLinejoin="round"/></svg>{unread>0&&<span className="page-back-unread" aria-hidden="true">{unread>99?'99+':unread}</span>}</Control>;
  const inline=Boolean(heading)&&!compact,mainGlyph={home:'home',reunion:'calendar',family:'people',you:'user'}[route.type];
  return <div ref={headerRef} style={inline&&position?{'--gw-inline-back-top':position.top+'px','--gw-inline-back-left':position.left+'px'}:undefined} className={'page-back-row page-navigation-header '+(main?'is-main-page':'')+(inline?' has-inline-title':'')} data-compact={compact||undefined}>

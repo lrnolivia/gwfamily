@@ -8,7 +8,7 @@ test('disabled delete/revoke-session require exact account and do not opt in',as
 
 test('prepared transport rejects changed endpoints and enforces redirect/abort/status-only boundary',async()=>{
  const {transmitPreparedPush}=await import('../src/push-runtime.mjs');const endpoint='https://web.push.apple.com/fictional-offline-only';let calls=0;
- const fetcher=async(url,options)=>{calls++;assert.equal(url,endpoint);assert.equal(options.redirect,'error');assert.equal(options.method,'POST');assert.ok(options.signal);return new Response('must not be logged',{status:429,headers:{'Retry-After':'90'}})};
+ const fetcher=async(url,options)=>{calls++;assert.equal(url,endpoint);assert.equal(options.redirect,'manual');assert.equal(options.method,'POST');assert.ok(options.signal);return new Response('must not be logged',{status:429,headers:{'Retry-After':'90'}})};
  assert.deepEqual(await transmitPreparedPush({endpoint,method:'POST',headers:{},body:'fictional-body'},endpoint,{fetcher}),{status:429,retryAfter:'90'});
  await assert.rejects(()=>transmitPreparedPush({endpoint:'https://evil.example.test',method:'POST'},endpoint,{fetcher}));assert.equal(calls,1);
 });
@@ -22,7 +22,13 @@ test('destination safety is revalidated at transport even when both endpoints ma
  assert.equal(requests,0);
  for(const host of ['fcm.googleapis.com','updates.push.services.mozilla.com','web.push.apple.com'])assert.equal(validatePushEndpoint('https://'+host+'/fictional-offline-only'),'https://'+host+'/fictional-offline-only');
 });
-test('redirect response is never followed or considered accepted',async()=>{const {transmitPreparedPush}=await import('../src/push-runtime.mjs');const {retryOutcome}=await import('../src/push-policy.mjs');let requests=0;const endpoint='https://web.push.apple.com/fictional-offline-only';const response=await transmitPreparedPush({endpoint,method:'POST'},endpoint,{fetcher:async(_,options)=>{requests++;assert.equal(options.redirect,'error');return new Response(null,{status:302,headers:{Location:'http://169.254.169.254/'}})}});assert.equal(requests,1);assert.equal(response.status,302);assert.equal(retryOutcome(response.status,1,0,100000).state,'failed')});
+test('transport uses a redirect mode the Workers runtime accepts',async()=>{
+ const {transmitPreparedPush}=await import('../src/push-runtime.mjs');const endpoint='https://web.push.apple.com/fictional-offline-only';
+ // Mirrors workerd: any mode other than follow/manual throws before a request is made.
+ const workerdFetch=async(_,options)=>{if(!['follow','manual'].includes(options.redirect))throw new TypeError('Invalid redirect value, must be one of "follow" or "manual"');assert.equal(options.redirect,'manual');return new Response(null,{status:201})};
+ assert.deepEqual(await transmitPreparedPush({endpoint,method:'POST',headers:{},body:'fictional-body'},endpoint,{fetcher:workerdFetch}),{status:201,retryAfter:null});
+});
+test('redirect response is never followed or considered accepted',async()=>{const {transmitPreparedPush}=await import('../src/push-runtime.mjs');const {retryOutcome}=await import('../src/push-policy.mjs');let requests=0;const endpoint='https://web.push.apple.com/fictional-offline-only';const response=await transmitPreparedPush({endpoint,method:'POST'},endpoint,{fetcher:async(_,options)=>{requests++;assert.equal(options.redirect,'manual');return new Response(null,{status:302,headers:{Location:'http://169.254.169.254/'}})}});assert.equal(requests,1);assert.equal(response.status,302);assert.equal(retryOutcome(response.status,1,0,100000).state,'failed')});
 
 test('documented Apple and Microsoft provider families are supported without weakening URL trust boundaries',async()=>{
  const {validatePushEndpoint}=await import('../src/push-policy.mjs');
@@ -57,7 +63,7 @@ test('real pinned web-push encrypts and signs only the generic payload; provider
  // Ephemeral fictional test keys only. Production staged keys are never loaded or regenerated.
  const keys=webpush.generateVAPIDKeys(),browser=createECDH('prime256v1');browser.generateKeys();
  const sub={...subscription,keys:{p256dh:browser.getPublicKey().toString('base64url'),auth:Buffer.alloc(16,3).toString('base64url')}};let calls=0;
- const send=createPushSender({...readyConfig,PUSH_VAPID_PUBLIC_KEY:keys.publicKey,PUSH_VAPID_PRIVATE_KEY:keys.privateKey},{fetcher:async(url,options)=>{calls++;assert.equal(url,sub.endpoint);assert.equal(options.headers['Content-Encoding'],'aes128gcm');assert.ok(options.headers.Authorization.startsWith('vapid '));assert.ok(Buffer.isBuffer(options.body));assert.ok(!options.body.includes(Buffer.from('fixture-message')));assert.equal(options.redirect,'error');return new Response(null,{status:201})}});
+ const send=createPushSender({...readyConfig,PUSH_VAPID_PUBLIC_KEY:keys.publicKey,PUSH_VAPID_PRIVATE_KEY:keys.privateKey},{fetcher:async(url,options)=>{calls++;assert.equal(url,sub.endpoint);assert.equal(options.headers['Content-Encoding'],'aes128gcm');assert.ok(options.headers.Authorization.startsWith('vapid '));assert.ok(Buffer.isBuffer(options.body));assert.ok(!options.body.includes(Buffer.from('fixture-message')));assert.equal(options.redirect,'manual');return new Response(null,{status:201})}});
  assert.deepEqual(await send({subscription:sub,keyVersion:'fixture-v1',payload:{v:1,test:true,expiresAt:Date.now()+60000},ttl:60}),{status:201,retryAfter:null});assert.equal(calls,1);
  assert.deepEqual(await send({keyVersion:'stale'}),{status:403});assert.equal(calls,1);
 });

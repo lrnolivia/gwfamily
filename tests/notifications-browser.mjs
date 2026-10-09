@@ -341,16 +341,17 @@ try{
   assert.deepEqual(accounts.alice.settings,{...previous,revision:previous.revision+2});
   await returnFromSettings(alice,previousRoute);await expect(bell(alice)).toHaveAccessibleName(`Notifications, ${before} unread`);
  });
- await check('email default-off opt-in persists eight-preset appearance and remains separate from device permission',async()=>{
+ await check('email default-off opt-in follows the app theme and remains separate from device permission',async()=>{
   const previous=await openSettings(alice),email=alice.locator('.notification-email-settings');
   await expect(email.getByRole('button',{name:'Turn on email updates',exact:true})).toBeEnabled();
-  const color=email.getByRole('combobox',{name:'Email color',exact:true});await color.click();
-  await expect(email.getByRole('option')).toHaveCount(8);await email.getByRole('option',{name:'Blue',exact:true}).click();
-  await chooseRadio(email.getByRole('radio',{name:'DM Serif',exact:true}));await chooseRadio(email.getByRole('radio',{name:'Dark',exact:true}));
+  // Members do not style email; it follows their app theme.
+  for(const name of ['Email color','Email heading style','Email appearance'])await expect(email.getByText(name,{exact:true})).toHaveCount(0);
+  await expect(email.getByRole('combobox')).toHaveCount(0);await expect(email.getByRole('radio')).toHaveCount(0);
+  const appTheme=await alice.evaluate(()=>document.documentElement.dataset.theme==='dark'?'dark':'light');
   await email.getByRole('button',{name:'Turn on email updates',exact:true}).click();
   await expect(email.getByRole('button',{name:'Turn off email updates',exact:true})).toBeEnabled();
-  assert.deepEqual(accounts.alice.email.appearance,{preset:'blue',theme:'dark',headingFont:'serif'});assert.equal(accounts.bob.email.enabled,false);
-  await alice.reload();await expectSettingsPage(alice);await expect(email.getByRole('combobox',{name:'Email color',exact:true})).toHaveValue('Blue');await expect(email.getByRole('radio',{name:'Dark',exact:true})).toBeChecked();
+  assert.equal(accounts.alice.email.appearance.theme,appTheme);assert.ok(['sans','serif'].includes(accounts.alice.email.appearance.headingFont));assert.ok(accounts.alice.email.appearance.preset);assert.equal(accounts.bob.email.enabled,false);
+  await alice.reload();await expectSettingsPage(alice);await expect(email.getByRole('button',{name:'Turn off email updates',exact:true})).toBeEnabled();
   await email.getByRole('button',{name:'Turn off email updates',exact:true}).click();await expect(email.getByRole('button',{name:'Turn on email updates',exact:true})).toBeEnabled();assert.equal(accounts.alice.email.enabled,false);
   const writes=requests.filter(r=>r.path==='/api/me/notification-email'&&r.method==='PUT');assert.equal(writes.length,2);assert.ok(writes.every(r=>r.payload.expectedAccountId==='alice'));
   await returnFromSettings(alice,previous);

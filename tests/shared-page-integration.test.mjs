@@ -12,6 +12,10 @@ test('shared copy fields remain rendered except intentionally retired redundant 
  for(const field of ['emptyTitle','emptyBody','caughtUpTitle','caughtUpBody'])pairs.add('inbox.'+field);
  assert.match(files['reunion-plans.jsx'],/page='home',field='reunionTitle'/);
  pairs.add('home.reunionTitle');pairs.add('reunion-plans.checklistTitle');
+ // The invitations card is a native panel on Family and You; its copy follows the page it renders on.
+ const invitations=fs.readFileSync(new URL('../src/family-invitations.jsx',import.meta.url),'utf8');
+ assert.match(invitations,/<EditableText page=\{page\} field="inviteTitle"/);assert.match(invitations,/<EditableText page=\{page\} field="inviteBody"/);
+ for(const page of ['family','you']){assert.match(files['react-app.jsx'],new RegExp("'native-invitations':<InvitationCard page=\""+page+"\"/>"));pairs.add(page+'.inviteTitle');pairs.add(page+'.inviteBody');}
  for(const key of retiredHeadings){assert.equal(pairs.has(key),false);const [page,field]=key.split('.');assert.ok(Object.hasOwn(SHARED_PAGE_SCHEMA[page].fields,field),'Existing saved heading data remains recoverable')}
  for(const [page,schema]of Object.entries(SHARED_PAGE_SCHEMA)){
   for(const field of Object.keys(schema.fields))assert.ok(pairs.has(page+'.'+field)||retiredHeadings.has(page+'.'+field),page+'.'+field+' is reachable in page content');
