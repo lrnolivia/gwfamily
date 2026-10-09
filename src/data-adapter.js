@@ -8,6 +8,8 @@ import {ensurePreviewReunions,previewReunionCommand,REUNION_SCOPED_COMMANDS,REUN
 import {applyCalendarCommand} from './calendar-model.js';
 import {normalizeNotificationSettings,patchNotificationSettings,previewNotificationSeed,previewVisibleNotifications} from './notification-model.js';
 import {householdPreview} from './household-model.js';
+import {branchPreview} from './branch-model.js';
+import {promptPreview} from './member-prompts-model.js';
 import {validateMember,validBirthday} from './member-model.js';
 // UI data boundary. Replace these functions with a server adapter at integration.
 // Roles and membership here are presentation data, never authorization.
@@ -19,7 +21,7 @@ export function initialState(){
     drafts:{post:'',comments:{},replies:{},files:{}},compose:{},favorites:[],feedFilter:'all',peopleFilter:'all',memoryFilters:{},notificationScope:'leaders',selectedNotificationIds:[],readNotices:[],
     notifications:previewNotificationSeed(),notificationSettings:normalizeNotificationSettings(),
     bag:[],order:null,payment:{paypal:'',cashApp:'',amount:''},fees:'unpaid',rsvp:null,details:{date:'',location:'',schedule:''},
-    households:[],householdRequests:[],householdId:null,householdIds:[],reports:[],inviteDrafts:[],pollSelections:{},profilePhoto:null,contact:{},lastId:0});
+    households:[],householdRequests:[],householdId:null,householdIds:[],branches:[],prompts:{},reports:[],inviteDrafts:[],pollSelections:{},profilePhoto:null,contact:{},lastId:0});
 }
 export function loadLocalState(storage=globalThis.localStorage){
   try{
@@ -171,6 +173,6 @@ function reduceState(state,action){
     case 'RESET_INVITE_DRAFTS': return {...state,inviteDrafts:[]};
  case 'SAVE_INVITE_DRAFT':return {...state,inviteDrafts:[...state.inviteDrafts,{id:'invite-'+(state.lastId+1),
       recipient:action.recipient,groupId:action.groupId,createdAt:Date.now()}],lastId:state.lastId+1};
-    default:return householdPreview(state,action)||state;
+    default:return householdPreview(state,action)||branchPreview(state,action)||promptPreview(state,action)||state;
   }
 }

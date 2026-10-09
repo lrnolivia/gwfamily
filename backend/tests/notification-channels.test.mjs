@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {database,seed} from './test-db.mjs';
-import {CATEGORIES} from '../src/notification-policy.mjs';
+import {CATEGORIES,channelDefault} from '../src/notification-policy.mjs';
 import {notificationSettings,notificationSettingsStatements,saveNotificationSettings,listNotifications,openNotification,readAllNotifications,dismissAllNotifications} from '../src/notification-service.mjs';
 import {registerDevice,claimDelivery,authorizedDelivery,drainWithInjectedSender} from '../src/push-store.mjs';
 import {claimEmail,drainEmailNotifications} from '../src/email-notifications.mjs';
@@ -53,7 +53,7 @@ test('migration preserves every legacy off, defaults, consent, global off, revis
  }});
  try{
   const alice=await notificationSettings(x.DB,{id:'alice'}),settings=await notificationSettings(x.DB,bob),defaults=await notificationSettings(x.DB,{id:'owner'});
-  for(const category of CATEGORIES){assert.deepEqual(alice.channels[category],{inApp:false,email:false,push:false});assert.deepEqual(defaults.channels[category],{inApp:true,email:true,push:true})}
+  for(const category of CATEGORIES){assert.deepEqual(alice.channels[category],{inApp:false,email:false,push:false});assert.deepEqual(defaults.channels[category],{inApp:true,email:channelDefault(category,'email'),push:channelDefault(category,'push')})}
   assert.equal(alice.globalOff,true);assert.equal(alice.revision,7);assert.equal(settings.revision,3);assert.deepEqual(settings.channels.replies,{inApp:false,email:false,push:false});assert.deepEqual(settings.channels.reactions,{inApp:true,email:true,push:true});
   assert.deepEqual(JSON.parse(x.sqlite.prepare("SELECT channels_json FROM notification_settings WHERE member_id='bob'").get().channels_json),{replies:{email:false,push:false}});
   assert.deepEqual(x.sqlite.prepare('SELECT * FROM email_notification_preferences').get(),before.email);assert.equal(count(x,'push_devices'),0);assert.equal(count(x,'notification_events'),before.events);assert.equal(count(x,'notifications'),before.notices);assert.equal(count(x,'email_notification_outbox'),0);assert.equal(count(x,'push_outbox'),0);
@@ -62,13 +62,14 @@ test('migration preserves every legacy off, defaults, consent, global off, revis
  }finally{x.sqlite.close()}
 });
 
-test('channel edits preserve unrelated preferences, default on values use sparse storage, and invalid DTOs cannot commit',async()=>{
+test('channel edits preserve unrelated preferences, only choices that differ from the default are stored, and invalid DTOs cannot commit',async()=>{
  const x=setup();try{
   let s=await saveNotificationSettings(x.DB,bob,{scope:'selected',selectedIds:['alice'],channels:{replies:{email:false},mentions:{push:false}}});
   s=await saveNotificationSettings(x.DB,bob,{channels:{replies:{inApp:false}},revision:s.revision});
   assert.deepEqual(s.channels.replies,{inApp:false,email:false,push:true});assert.equal(s.channels.mentions.push,false);assert.deepEqual(s.selectedIds,['alice']);assert.equal(s.scope,'selected');
   s=await saveNotificationSettings(x.DB,bob,{channels:{replies:{email:true}},revision:s.revision});assert.equal(s.channels.replies.inApp,false);assert.equal(s.channels.mentions.push,false);
-  assert.deepEqual(JSON.parse(x.sqlite.prepare("SELECT channels_json FROM notification_settings WHERE member_id='bob'").get().channels_json),{mentions:{push:false}});
+  // Replies email and Tags push are off by default, so only the Replies email opt-in is stored.
+  assert.deepEqual(JSON.parse(x.sqlite.prepare("SELECT channels_json FROM notification_settings WHERE member_id='bob'").get().channels_json),{replies:{email:true}});
   for(const channels of [null,[],false,{unknown:{email:true}},{replies:[]},{replies:{sms:true}},{replies:{email:'true'}},{replies:{inApp:null}}])await assert.rejects(()=>saveNotificationSettings(x.DB,bob,{channels}),e=>e.status===400);
   await assert.rejects(()=>saveNotificationSettings(x.DB,bob,{categories:{replies:false},channels:{replies:{email:true}}}),e=>e.status===400);
   assert.equal((await notificationSettings(x.DB,bob)).revision,s.revision);assert.equal(count(x,'push_devices'),0);assert.equal(count(x,'email_notification_preferences'),0);
@@ -77,9 +78,9 @@ test('channel edits preserve unrelated preferences, default on values use sparse
 
 test('channel compare-and-swap remains atomic and cannot undo another device or account',async()=>{
  const x=setup();try{
-  const stale=await notificationSettingsStatements(x.DB,bob,{channels:{replies:{email:false}},revision:0});
-  await saveNotificationSettings(x.DB,bob,{channels:{mentions:{push:false}},revision:0});await assert.rejects(()=>x.DB.batch(stale));
-  const actual=await notificationSettings(x.DB,bob);assert.equal(actual.channels.replies.email,true);assert.equal(actual.channels.mentions.push,false);assert.equal(actual.revision,1);assert.equal(count(x,'notification_setting_guards'),0);
+  const stale=await notificationSettingsStatements(x.DB,bob,{channels:{reactions:{email:false}},revision:0});
+  await saveNotificationSettings(x.DB,bob,{channels:{membership:{push:false}},revision:0});await assert.rejects(()=>x.DB.batch(stale));
+  const actual=await notificationSettings(x.DB,bob);assert.equal(actual.channels.reactions.email,true);assert.equal(actual.channels.membership.push,false);assert.equal(actual.revision,1);assert.equal(count(x,'notification_setting_guards'),0);
   const env={DB:x.DB,BETTER_AUTH_SECRET:'fictional-only',AUTH_ORIGIN:'https://fixture.example.test'},app=createApp(()=>({api:{getSession:async()=>({user:{id:'bob',emailVerified:true},session:{id:'channel-session'}})}}));
   const response=await app.request(env.AUTH_ORIGIN+'/api/me/notifications',{method:'PUT',headers:{Origin:env.AUTH_ORIGIN,'Content-Type':'application/json'},body:JSON.stringify({expectedAccountId:'alice',revision:1,channels:{mentions:{push:true}}})},env);
   assert.equal(response.status,409);assert.deepEqual(await notificationSettings(x.DB,bob),actual);
@@ -189,4 +190,16 @@ test('legacy explicit Off cancels external channels even when categories JSON wa
   assert.equal(x.sqlite.prepare('SELECT revoked_at FROM push_devices').get().revoked_at,null,'A category off must not revoke the device itself');
   await saveNotificationSettings(x.DB,bob,{channels:{membership:{email:true,push:true}}});assert.deepEqual((await notificationSettings(x.DB,bob)).channels.membership,{inApp:false,email:true,push:true});
  }finally{x.sqlite.close()}
+});
+
+test('Lauren’s defaults: an unset member gets email/push only where the default is on',async()=>{
+ const expected={following:[0,0],mentions:[0,0],replies:[0,1],messages:[0,1],announcements:[1,1],birthdays:[1,1],fees:[1,1],orders:[1,1],membership:[1,1],reunion:[1,1]};
+ for(const [category,[email,push]] of Object.entries(expected)){
+  const x=setup();try{
+   await enableFixtures(x);const row=event(x,category);
+   assert.ok(row,category+' still reaches the in-app inbox');
+   assert.equal(outbox(x,'email').length,email,category+' email');assert.equal(outbox(x,'push').length,push,category+' push');
+   const shown=(await notificationSettings(x.DB,bob)).channels[category];assert.deepEqual(shown,{inApp:true,email:!!email,push:!!push},category+' settings');
+  }finally{x.sqlite.close()}
+ }
 });

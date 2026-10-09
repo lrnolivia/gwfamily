@@ -1,11 +1,11 @@
 import {useEffect,useState,useRef} from 'react';
 export const mainPages=new Set(['home','reunion','family','you']);
-const pages=new Set([...mainPages,'all-family','family-calendar','memorial','profile','post','photo','memory','group','shop','planner','leader-tools','household','household-children','household-manage','household-invite','family-invite','edit-profile','contact','birthdays','inbox','chat','chat-new','chat-settings','notification-settings','tutorial','family-checklist','planning-history','appearance','preview-help','install','rsvp','invitations','about']);
+const pages=new Set([...mainPages,'all-family','family-calendar','memorial','profile','post','photo','memory','group','shop','planner','leader-tools','household','household-children','household-manage','family-setup','household-invite','family-invite','edit-profile','contact','birthdays','inbox','chat','chat-new','chat-settings','notification-settings','tutorial','family-checklist','planning-history','appearance','preview-help','install','rsvp','invitations','about']);
 export function owningDestination(route){
  const type=route?.type;
  if(['reunion','shop','rsvp','birthdays'].includes(type))return 'reunion';
  if(['family','all-family','family-calendar','memorial','profile','household','household-children','memories','memory','group'].includes(type))return 'family';
- if(['you','appearance','edit-profile','contact','planner','leader-tools','family-checklist','planning-history','household-manage','notification-settings','tutorial','preview-help','install','invitations','about'].includes(type))return 'you';
+ if(['you','appearance','edit-profile','contact','planner','leader-tools','family-checklist','planning-history','household-manage','family-setup','notification-settings','tutorial','preview-help','install','invitations','about'].includes(type))return 'you';
  return 'home';
 }
 export function routeFromHash(hash){try{const [path,query='']=String(hash||'').replace(/^#\/?/,'').split('?'),[type,id]=path.split('/');if(!pages.has(type))return {type:'home'};const p=new URLSearchParams(query);return {type,...(id?{id:decodeURIComponent(id)}:{}),...(p.get('section')?{section:p.get('section')}:{}),...(p.get('tab')?{tab:p.get('tab')}:{} ),...(p.get('comment')?{comment:p.get('comment')}:{} )}}catch{return {type:'home'}}}

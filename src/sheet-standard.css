@@ -10,6 +10,12 @@
 /* One sticky action row at the bottom of its sheet. */
 .sheet-footer{position:sticky;bottom:0;z-index:3;display:flex;flex-wrap:wrap;gap:12px;margin:0;padding:12px 0 calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(to bottom,transparent,var(--surface) 12px);border:0}
 .sheet-footer>:is(.button,button,.page-editor-remove){flex:1 1 0;min-width:0;justify-content:center;margin:0}
+/* Chromium and WebKit pin a bottom:0 sticky row above the scroller's bottom
+   padding (and the home-indicator inset), leaving a strip where scrolled content
+   shows through. Two surface-colored shadow copies paint that strip; a shadow is
+   used because some footers clip their own overflow. Rows are taller than 40px,
+   so the copies overlap and cover up to 80px below the row. */
+html .sheet-footer{box-shadow:0 40px 0 0 var(--surface),0 80px 0 0 var(--surface)}
 .page-object-tools-body>.sheet-footer{margin-bottom:-20px}
 /* Destructive actions sit side by side on a danger-tinted surface. */
 .sheet-footer.page-editor-destructive-group{border-top:0;margin-top:0;padding-top:12px}
@@ -39,3 +45,15 @@ html .profile-menu .profile-summary>.member-view-controls{border:0;padding:0;fle
 html .profile-menu .profile-summary>.live-member-view{display:contents}
 html .profile-menu .profile-summary .member-view-eye{order:0;margin:0;width:36px;height:36px;min-width:36px;min-height:36px;padding:8px}
 html .profile-menu .profile-summary .live-member-view>p{flex-basis:100%;margin:0}
+
+/* Destructive actions in any sheet footer share the danger surface. */
+html[data-theme] .sheet-footer .button.sheet-danger{background:color-mix(in srgb,var(--status-danger) 16%,var(--raised));color:var(--status-danger);border-radius:14px}
+html[data-theme] .sheet-footer .button.sheet-danger:hover{background:color-mix(in srgb,var(--status-danger) 24%,var(--raised))}
+@media(forced-colors:active){html .sheet-footer .button.sheet-danger{border:1px solid CanvasText}}
+
+/* Editor tools header scrolls content beneath it. Glass: the same translucent
+   blur and soft fade as the app header. Flat: a little more room underneath. */
+html[data-platform=ios] .page-object-tools-heading{background:color-mix(in srgb,var(--surface) 82%,transparent);-webkit-backdrop-filter:blur(18px) saturate(1.2);backdrop-filter:blur(18px) saturate(1.2)}
+html[data-platform=ios] .page-object-tools-heading::after{content:'';position:absolute;top:100%;left:0;right:0;height:20px;pointer-events:none;background:linear-gradient(color-mix(in srgb,var(--surface) 82%,transparent),transparent)}
+html[data-theme][data-platform]:not([data-platform=ios]) .page-object-tools-heading{padding-bottom:18px}
+@media(prefers-reduced-transparency:reduce){html[data-platform=ios] .page-object-tools-heading{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none}}

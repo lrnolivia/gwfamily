@@ -38,3 +38,11 @@ test('creating an additional household never replaces the existing primary or ex
  assert.equal(state.householdId,a.id);assert.deepEqual(new Set(state.householdIds),new Set([a.id,b.id]));assert.ok(state.households.filter(h=>h.memberIds.includes('alice')).every(h=>h.canManage));
  sqlite.exec("UPDATE profiles SET birthday='2020-01-01' WHERE member_id='owner'");await assert.rejects(()=>send(DB,'owner','CREATE_HOUSEHOLD',{name:'Child'}),/Registered adults/);
 });
+test('state exposes each member’s default household for badge order and ignores pending requests',async()=>{
+ const {DB,sqlite}=database();seed(sqlite);const a=await send(DB,'alice','CREATE_HOUSEHOLD',{name:'A'}),b=await send(DB,'bob','CREATE_HOUSEHOLD',{name:'B'});
+ const invitation=await send(DB,'bob','INVITE_HOUSEHOLD_MEMBER',{householdId:b.id,memberId:'alice'});
+ let state=await familyState(DB,actor('bob'));assert.deepEqual(state.primaryHouseholds,{alice:a.id,bob:b.id});assert.deepEqual(state.households.find(h=>h.id===b.id).memberIds,['bob'],'a pending invitation is not a membership');
+ await send(DB,'alice','RESOLVE_HOUSEHOLD_REQUEST',{id:invitation.id,accept:true});await send(DB,'alice','SET_PRIMARY_HOUSEHOLD',{householdId:b.id});
+ state=await familyState(DB,actor('bob'));assert.equal(state.primaryHouseholds.alice,b.id);
+ sqlite.exec("UPDATE members SET status='suspended' WHERE id='alice'");assert.equal((await familyState(DB,actor('bob'))).primaryHouseholds.alice,undefined);
+});

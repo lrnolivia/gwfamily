@@ -5,7 +5,7 @@ import {chromium,webkit,expect} from '@playwright/test';
 import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {initialState,PREVIEW_KEY} from '../src/data-adapter.js';
-import {NOTIFICATION_CATEGORIES,NOTIFICATION_DELIVERY_CHANNELS,normalizeNotificationSettings,patchNotificationSettings} from '../src/notification-model.js';
+import {NOTIFICATION_CATEGORIES,NOTIFICATION_DELIVERY_CHANNELS,channelDefault,normalizeNotificationSettings,patchNotificationSettings} from '../src/notification-model.js';
 import {sharedPageDefaults} from '../src/shared-content-schema.js';
 if(!process.env.CI&&process.env.GW_HOSTED_BROWSER_QA!=='1')throw new Error('Notification browser QA runs only in the authorized hosted CI environment.');
 const base=process.env.GW_NOTIFICATIONS_URL||'http://127.0.0.1:4173';
@@ -352,7 +352,8 @@ try{
   await expect(settings.locator('.notification-channel-choice input')).toHaveCount(NOTIFICATION_CATEGORIES.length*3);
   for(const category of NOTIFICATION_CATEGORIES)for(const channel of NOTIFICATION_DELIVERY_CHANNELS){
    const input=settings.getByRole('checkbox',{name:category.label+': '+channel.label,exact:true}),target=input.locator('..');
-   await expect(input).toBeChecked();const bounds=await target.boundingBox();assert.ok(bounds.width>=44&&bounds.height>=44,category.id+': '+channel.id);
+   // Lauren's defaults: In app on; email/push off for a few personal categories.
+   await expect(input).toBeChecked({checked:channel.id==='inApp'||channelDefault(category.id,channel.id)});const bounds=await target.boundingBox();assert.ok(bounds.width>=44&&bounds.height>=44,category.id+': '+channel.id);
   }
   for(let mask=0;mask<8;mask++){
    const desired={inApp:!!(mask&1),email:!!(mask&2),push:!!(mask&4)};
@@ -364,21 +365,22 @@ try{
   const email=settings.getByRole('checkbox',{name:'Replies: Email',exact:true});await email.focus();await email.press('Space');await expect(email).not.toBeChecked();await expect(email).toBeEnabled();await expect(email).toBeFocused();
   await alice.reload();await expectSettingsPage(alice);await expect(email).not.toBeChecked();await expect(settings.getByRole('checkbox',{name:'Replies: In app',exact:true})).toBeChecked();await expect(settings.getByRole('checkbox',{name:'Replies: Push',exact:true})).toBeChecked();
   await email.locator('..').click();await expect(email).toBeChecked();await expect(email).toBeEnabled();
-  assert.deepEqual({...accounts.alice.settings,revision:previous.revision},previous);assert.deepEqual(accounts.alice.email,emailBefore);
+  // The loop leaves Replies fully on; Replies email starts off under Lauren's defaults.
+  assert.deepEqual({...accounts.alice.settings,revision:previous.revision},{...previous,channels:{...previous.channels,replies:{inApp:true,email:true,push:true}}});assert.deepEqual(accounts.alice.email,emailBefore);
   assert.ok(requests.slice(writesBefore).filter(r=>r.method!=='GET').every(r=>r.path==='/api/me/notifications'),'Channel choices cannot write opt-in, enrollment, or test-send APIs');
   assert.deepEqual(await alice.evaluate(()=>window.__qaNotificationSideEffects),{permission:0,subscribe:0});
   await returnFromSettings(alice,previousRoute);
  });
  await check('failed and conflicting channel saves retain confirmed choices with recoverable feedback',async()=>{
-  const previousRoute=await openSettings(alice),settings=alice.getByRole('region',{name:'Notification choices',exact:true}),email=settings.getByRole('checkbox',{name:'Replies: Email',exact:true}),before=structuredClone(accounts.alice.settings);
+  const previousRoute=await openSettings(alice),settings=alice.getByRole('region',{name:'Notification choices',exact:true}),email=settings.getByRole('checkbox',{name:'Birthday celebrations: Email',exact:true}),before=structuredClone(accounts.alice.settings);
   settingsFailure='Fictional save failed. Try again.';await email.click();await expect(settings.getByRole('alert')).toContainText('Fictional save failed');await expect(email).toBeChecked();await expect(email).toBeEnabled();assert.deepEqual(accounts.alice.settings,before);
   // Another device wins after the displayed snapshot. The outgoing revision
   // must conflict; its intended email off is never silently retried.
   const writesBefore=settingsWrites().length;let release,started=false;holdSettingsArrival={promise:new Promise(resolve=>release=resolve),started:()=>{started=true}};
-  try{await email.click();await expect.poll(()=>started).toBe(true);accounts.alice.settings={...accounts.alice.settings,revision:before.revision+1,channels:{...before.channels,mentions:{...before.channels.mentions,push:false}}};}finally{holdSettingsArrival=null;release();}
+  try{await email.click();await expect.poll(()=>started).toBe(true);accounts.alice.settings={...accounts.alice.settings,revision:before.revision+1,channels:{...before.channels,membership:{...before.channels.membership,push:false}}};}finally{holdSettingsArrival=null;release();}
   await expect(settings.getByRole('alert')).toContainText('changed on another device');await expect(email).toBeChecked();await expect(email).toBeEnabled();
-  const tagsPush=settings.getByRole('checkbox',{name:'Tags: Push',exact:true});await expect(tagsPush).not.toBeChecked();assert.equal(settingsWrites().length,writesBefore+1);assert.equal(accounts.alice.settings.channels.replies.email,true);
-  await tagsPush.click();await expect(tagsPush).toBeChecked();await expect(tagsPush).toBeEnabled();assert.deepEqual({...accounts.alice.settings,revision:before.revision},before);
+  const rolesPush=settings.getByRole('checkbox',{name:'Account and family roles: Push',exact:true});await expect(rolesPush).not.toBeChecked();assert.equal(settingsWrites().length,writesBefore+1);assert.equal(accounts.alice.settings.channels.birthdays.email,true);
+  await rolesPush.click();await expect(rolesPush).toBeChecked();await expect(rolesPush).toBeEnabled();assert.deepEqual({...accounts.alice.settings,revision:before.revision},before);
   await returnFromSettings(alice,previousRoute);
  });
  await check('email default-off opt-in follows the app theme and remains separate from device permission',async()=>{
@@ -443,7 +445,7 @@ try{
  });
  await check('preview controls are isolated and resettable with no notification network writes',async()=>{
   const preview=initialState();preview.onboarding='done';const p=await pageFor({id:'alice'});await p.page.evaluate(({key,state})=>{localStorage.setItem(key,JSON.stringify({schema:2,mode:'preview',state}));sessionStorage.setItem('gw-active-mode','preview')},{key:PREVIEW_KEY,state:preview});await p.page.reload();const before=requests.filter(r=>r.method!=='GET').length;
-  await showInbox(p.page);await panel(p.page).getByRole('button',{name:'Mark A sample reply is waiting read',exact:true}).click();await panel(p.page).getByRole('button',{name:'Dismiss A sample memory includes you',exact:true}).click();await panel(p.page).getByRole('button',{name:'Reset sample activity',exact:true}).click();await expect(bell(p.page)).toHaveAccessibleName('Notifications, 3 unread');await panel(p.page).getByRole('button',{name:'Clear all',exact:true}).click();await expect(panel(p.page).locator('[data-notice-id]')).toHaveCount(0);await expect(panel(p.page).getByRole('button',{name:'Clear all',exact:true})).toBeDisabled();await panel(p.page).getByRole('button',{name:'Reset sample activity',exact:true}).click();await expect(bell(p.page)).toHaveAccessibleName('Notifications, 3 unread');const previousRoute=await openSettings(p.page),settings=p.page.getByRole('region',{name:'Notification choices',exact:true}),email=settings.getByRole('checkbox',{name:'Replies: Email',exact:true});await email.click();await expect(email).not.toBeChecked();await expect(email).toBeEnabled();await p.page.reload();await expectSettingsPage(p.page);await expect(email).not.toBeChecked();await expect(settings.getByRole('checkbox',{name:'Replies: In app',exact:true})).toBeChecked();await expect(settings.getByRole('checkbox',{name:'Replies: Push',exact:true})).toBeChecked();await settings.getByRole('button',{name:'Reset sample activity',exact:true}).click();await expect(email).toBeChecked();await returnFromSettings(p.page,previousRoute);assert.equal(requests.filter(r=>r.method!=='GET').length,before);
+  await showInbox(p.page);await panel(p.page).getByRole('button',{name:'Mark A sample reply is waiting read',exact:true}).click();await panel(p.page).getByRole('button',{name:'Dismiss A sample memory includes you',exact:true}).click();await panel(p.page).getByRole('button',{name:'Reset sample activity',exact:true}).click();await expect(bell(p.page)).toHaveAccessibleName('Notifications, 3 unread');await panel(p.page).getByRole('button',{name:'Clear all',exact:true}).click();await expect(panel(p.page).locator('[data-notice-id]')).toHaveCount(0);await expect(panel(p.page).getByRole('button',{name:'Clear all',exact:true})).toBeDisabled();await panel(p.page).getByRole('button',{name:'Reset sample activity',exact:true}).click();await expect(bell(p.page)).toHaveAccessibleName('Notifications, 3 unread');const previousRoute=await openSettings(p.page),settings=p.page.getByRole('region',{name:'Notification choices',exact:true}),email=settings.getByRole('checkbox',{name:'Replies: Email',exact:true});await expect(email).not.toBeChecked();await email.click();await expect(email).toBeChecked();await expect(email).toBeEnabled();await p.page.reload();await expectSettingsPage(p.page);await expect(email).toBeChecked();await expect(settings.getByRole('checkbox',{name:'Replies: In app',exact:true})).toBeChecked();await expect(settings.getByRole('checkbox',{name:'Replies: Push',exact:true})).toBeChecked();await settings.getByRole('button',{name:'Reset sample activity',exact:true}).click();await expect(email).not.toBeChecked();await returnFromSettings(p.page,previousRoute);assert.equal(requests.filter(r=>r.method!=='GET').length,before);
  });
  await check('Clear all dismisses the full paged inbox but retains later arrivals and other-account history',async()=>{
   const original=structuredClone(accounts.bob.notices),aliceBefore=structuredClone(accounts.alice.notices),settingsBefore=structuredClone(accounts.bob.settings),writesBefore=requests.length;

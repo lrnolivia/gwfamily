@@ -20,3 +20,5 @@
  .household-title>.household-profile-actions{flex-basis:100%;width:100%}
  .household-profile-actions>.button{width:100%}
 }
+/* Branch details stay quiet: one muted line under the member count. */
+.household-branch-line{margin:2px 0 0;font-size:.8125rem;letter-spacing:.01em;overflow-wrap:anywhere}

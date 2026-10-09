@@ -1,6 +1,11 @@
 // The same resource policy is embedded in migration 0012 fanout and used again
 // at list/count/open time. Never authorize a resource from the loaded feed.
 export const CATEGORIES=Object.freeze(['following','mentions','replies','reactions','announcements','birthdays','households','fees','orders','membership','reunion','messages']);
+// Unset external channels: email off for Following, Tags, Replies and
+// Conversations; push off for Following and Tags; everything else on.
+// Keep in step with migration 0028 and src/notification-model.js.
+export const CHANNEL_DEFAULT_OFF=Object.freeze({email:Object.freeze(['following','mentions','replies','messages']),push:Object.freeze(['following','mentions'])});
+export const channelDefault=(category,channel)=>!CHANNEL_DEFAULT_OFF[channel]?.includes(category);
 export const DEFAULT_CATEGORIES=Object.freeze(Object.fromEntries(CATEGORIES.map(k=>[k,true])));
 export const eligibleMemberSql=member=>`EXISTS(SELECT 1 FROM members nm JOIN user nu ON nu.id=nm.id WHERE nm.id=${member} AND nm.status='active' AND nu.emailVerified=1 AND nm.member_group IN ('family','loved_ones'))`;
 const adultSql=member=>`EXISTS(SELECT 1 FROM profiles np WHERE np.member_id=${member} AND np.completed=1 AND np.birthday>='1900-01-01' AND np.birthday<=date('now','-18 years'))`;
