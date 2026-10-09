@@ -57,3 +57,8 @@ html[data-platform=ios] .page-object-tools-heading{background:color-mix(in srgb,
 html[data-platform=ios] .page-object-tools-heading::after{content:'';position:absolute;top:100%;left:0;right:0;height:20px;pointer-events:none;background:linear-gradient(color-mix(in srgb,var(--surface) 82%,transparent),transparent)}
 html[data-theme][data-platform]:not([data-platform=ios]) .page-object-tools-heading{padding-bottom:18px}
 @media(prefers-reduced-transparency:reduce){html[data-platform=ios] .page-object-tools-heading{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none}}
+
+/* Destructive confirmations outside sheet footers use the same danger surface. */
+html[data-theme] .button.danger-action{background:color-mix(in srgb,var(--status-danger) 16%,var(--raised));color:var(--status-danger);border-radius:14px}
+html[data-theme] .button.danger-action:hover{background:color-mix(in srgb,var(--status-danger) 24%,var(--raised))}
+@media(forced-colors:active){html .button.danger-action{border:1px solid CanvasText}}
