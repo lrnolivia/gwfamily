@@ -161,7 +161,9 @@ try{
   await expect(page.getByRole('tablist',{name:'Safari example',exact:true})).toHaveCount(0);
   const image=page.locator('.install-mobile-visual img').first();
   const device=width===320?'ios':'ipad';await expect(image).toHaveAttribute('src','install-guide/approved-v4/screens/default-'+device+'-'+theme+'-1.png');
-  const ratio=await image.evaluate(img=>({natural:img.naturalWidth/img.naturalHeight,rendered:img.getBoundingClientRect().width/img.getBoundingClientRect().height}));assert.ok(Math.abs(ratio.natural-ratio.rendered)<.01,'Approved mobile illustration keeps its intrinsic proportions');
+  // Switching back can remount async-decoded artwork; sample only a decoded, laid-out image.
+  await expect.poll(()=>image.evaluate(async img=>{if(!img.complete||!img.naturalWidth)return false;await img.decode().catch(()=>{});const box=img.getBoundingClientRect();return box.width>0&&box.height>0})).toBe(true);
+  const ratio=await image.evaluate(img=>{const box=img.getBoundingClientRect(),style=getComputedStyle(img);return {natural:img.naturalWidth/img.naturalHeight,rendered:box.width/box.height,naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,width:box.width,height:box.height,src:img.currentSrc,cssWidth:style.width,cssHeight:style.height,objectFit:style.objectFit}});assert.ok(Math.abs(ratio.natural-ratio.rendered)<.01,'Approved mobile illustration keeps its intrinsic proportions: '+JSON.stringify(ratio));
   // All designated artwork and inline controls must update without remounting the guide.
   for(const [accent,color] of [['default',null],['red','#e64f59'],['orange','#ff7a00'],['yellow','#ec9d00'],['green','#387b51'],['blue','#3985e6'],['violet','#a267d5'],['coral-pink','#ff6685'],['stone','#8a8178']])for(const mode of ['light','dark']){
    await page.evaluate(({mode,color})=>window.fixture.theme(mode,color),{mode,color});
