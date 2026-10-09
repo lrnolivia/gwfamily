@@ -36,6 +36,9 @@ try{
  const dialog=page.getByRole('dialog',{name:'Reorder panels'}),row=dialog.locator('[data-panel-id="native-reunion"]');
  const ids=()=>dialog.locator('.page-order-card[data-panel-id]').evaluateAll(elements=>elements.map(node=>node.dataset.panelId));
  const initial=await ids();await row.focus();await page.keyboard.press('ArrowUp');const moved=await ids();assert.notDeepEqual(moved,initial);await row.focus();await page.keyboard.press('ArrowDown');assert.deepEqual(await ids(),initial);
+ // Complete both keyboard writes before starting a separate pointer gesture.
+ // An in-flight autosave intentionally disables dragging and cancels an active drag.
+ await save();await expect(row).toHaveAttribute('draggable','true');
  // Playwright scrolls both targets into view before the real mouse gesture.
  // Mobile modal rows may begin below the viewport; stale offscreen coordinates
  // cannot establish whether the application's drop handlers work.
