@@ -5,8 +5,11 @@ import worker,{createApp} from '../src/worker.mjs';
 import {queueNotificationDrains,notificationMutation} from '../src/notification-dispatch.mjs';
 import {registerDevice,drainWithInjectedSender} from '../src/push-store.mjs';
 const origin='https://fixture.example.test';
+// Lauren's defaults (0028) leave email/push off for Following, Tags, Replies and
+// Conversations. These suites test delivery, so the fictional member opts in.
+const OPT_IN_CHANNELS="INSERT INTO notification_settings(member_id,channels_json,write_token) VALUES('bob',json('{\"following\":{\"email\":true,\"push\":true},\"mentions\":{\"email\":true,\"push\":true},\"replies\":{\"email\":true},\"messages\":{\"email\":true}}'),'channels:fixture-opt-in')";
 function setup({switchAccount=false,providerFailure=false}={}){
- const x=database();seed(x.sqlite);x.sqlite.exec("DELETE FROM notifications;DELETE FROM notification_events;UPDATE email_notification_control SET enabled=1;INSERT INTO email_notification_preferences(member_id,enabled,updated_at) VALUES('bob',1,0)");
+ const x=database();seed(x.sqlite);x.sqlite.exec("DELETE FROM notifications;DELETE FROM notification_events;UPDATE email_notification_control SET enabled=1;INSERT INTO email_notification_preferences(member_id,enabled,updated_at) VALUES('bob',1,0)");x.sqlite.exec(OPT_IN_CHANNELS);
  const sent=[],work=[];let calls=0;
  const env={DB:x.DB,BETTER_AUTH_SECRET:'fictional-only',AUTH_ORIGIN:origin,AUTH_EMAIL_ENABLED:'true',EMAIL_SCHEMA_VERSION:'1',EMAIL:{send:async m=>{sent.push(m);if(providerFailure)throw Error('Fictional failure');return {messageId:'fictional-accepted'}}}};
  const app=createApp(()=>({api:{getSession:async({headers})=>{const id=headers.get('x-fixture-user');calls++;return id?{user:{id:switchAccount&&calls>1?'alice':id,emailVerified:id!=='unverified'},session:{id:'fictional-session'}}:null}}}));

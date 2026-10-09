@@ -148,7 +148,7 @@ test('a partial preview channel edit retains sibling channels, other categories,
  let state=initialState();state.drafts.post='Keep my draft';state=settings(state,{scope:'selected',selectedIds:['monique'],channels:{replies:{email:false,push:false},mentions:{email:false}},globalOff:true});
  state=settings(state,{channels:{replies:{inApp:false}}});assert.deepEqual(state.notificationSettings.channels.replies,{inApp:false,email:false,push:false});assert.equal(state.notificationSettings.channels.mentions.email,false);assert.equal(state.notificationSettings.globalOff,true);assert.equal(state.notificationSettings.scope,'selected');assert.deepEqual(state.notificationSettings.selectedIds,['monique']);assert.equal(state.drafts.post,'Keep my draft');
  state=settings(state,{globalOff:false,channels:{replies:{email:true}}});assert.deepEqual(state.notificationSettings.channels.replies,{inApp:false,email:true,push:false});
- const reset=reducer(state,{type:'RESET_NOTIFICATIONS_PREVIEW'});assert.deepEqual(reset.notificationSettings.channels.replies,{inApp:true,email:true,push:true});assert.equal(reset.drafts.post,'Keep my draft');assert.equal(reset.notificationSettings.pushEnabled,false);
+ const reset=reducer(state,{type:'RESET_NOTIFICATIONS_PREVIEW'});assert.deepEqual(reset.notificationSettings.channels.replies,{inApp:true,email:false,push:true});assert.equal(reset.drafts.post,'Keep my draft');assert.equal(reset.notificationSettings.pushEnabled,false);
 });
 
 test('channel rows have category-specific labels, grouped native inputs, explicit gating copy and 44px label targets',()=>{

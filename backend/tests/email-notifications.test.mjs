@@ -5,8 +5,11 @@ import {createApp} from '../src/worker.mjs';
 import {claimEmail,drainEmailNotifications} from '../src/email-notifications.mjs';
 import {emailRetry} from '../src/email-delivery-policy.mjs';
 const appearance={preset:'green',theme:'light',headingFont:'sans'};
+// Lauren's defaults (0028) leave email/push off for Following, Tags, Replies and
+// Conversations. These suites test delivery, so the fictional member opts in.
+const OPT_IN_CHANNELS="INSERT INTO notification_settings(member_id,channels_json,write_token) VALUES('bob',json('{\"following\":{\"email\":true,\"push\":true},\"mentions\":{\"email\":true,\"push\":true},\"replies\":{\"email\":true},\"messages\":{\"email\":true}}'),'channels:fixture-opt-in')";
 function setup(){
- const x=database();seed(x.sqlite);x.sqlite.exec('DELETE FROM notifications; DELETE FROM notification_events');
+ const x=database();seed(x.sqlite);x.sqlite.exec('DELETE FROM notifications; DELETE FROM notification_events');x.sqlite.exec(OPT_IN_CHANNELS);
  const env={DB:x.DB,BETTER_AUTH_SECRET:'fictional-only',AUTH_ORIGIN:'https://fictional.example.test',AUTH_EMAIL_ENABLED:'true',EMAIL_SCHEMA_VERSION:'1',EMAIL:{send(){throw Error('No external mail in tests')}}};
  const app=createApp(()=>({api:{getSession:async({headers})=>headers.get('x-fixture-user')?{user:{id:headers.get('x-fixture-user'),emailVerified:headers.get('x-fixture-user')!=='unverified'},session:{id:'fictional-session'}}:null}}));
  const call=(user='bob',method='GET',body,origin=env.AUTH_ORIGIN)=>app.request(env.AUTH_ORIGIN+'/api/me/notification-email',{method,headers:{Origin:origin,'x-fixture-user':user,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})},env);
@@ -51,7 +54,7 @@ test('opt-out cancels leased queue; re-enabling does not resurrect earlier gener
  let sent=0;await drainEmailNotifications(x.env,{send:async()=>{sent++;return {messageId:'fictional'}}});assert.equal(sent,0);
 });
 test('read/dismissed/category/global-off/revoked-resource/member/address/verification suppress queued delivery',async()=>{
- const mutations=["UPDATE notifications SET read_at=CURRENT_TIMESTAMP","UPDATE notifications SET dismissed_at=CURRENT_TIMESTAMP","INSERT INTO notification_settings(member_id,categories_json) VALUES('bob','{\"membership\":false}')","INSERT INTO notification_settings(member_id,global_off) VALUES('bob',1)","UPDATE notifications SET resource_id='absent-member'","UPDATE members SET status='suspended' WHERE id='bob'","UPDATE members SET status='suspended',removed_at=CURRENT_TIMESTAMP WHERE id='bob'","UPDATE user SET email='changed@example.test' WHERE id='bob'","UPDATE user SET emailVerified=0 WHERE id='bob'"];
+ const mutations=["UPDATE notifications SET read_at=CURRENT_TIMESTAMP","UPDATE notifications SET dismissed_at=CURRENT_TIMESTAMP","INSERT INTO notification_settings(member_id,categories_json) VALUES('bob','{\"membership\":false}') ON CONFLICT(member_id) DO UPDATE SET categories_json=excluded.categories_json,write_token='legacy-fixture'","INSERT INTO notification_settings(member_id,global_off) VALUES('bob',1) ON CONFLICT(member_id) DO UPDATE SET global_off=1","UPDATE notifications SET resource_id='absent-member'","UPDATE members SET status='suspended' WHERE id='bob'","UPDATE members SET status='suspended',removed_at=CURRENT_TIMESTAMP WHERE id='bob'","UPDATE user SET email='changed@example.test' WHERE id='bob'","UPDATE user SET emailVerified=0 WHERE id='bob'"];
  for(const sql of mutations){const x=setup();await optIn(x);notice(x);x.sqlite.exec(sql);let sent=0;await drainEmailNotifications(x.env,{send:async()=>{sent++;return {messageId:'fictional'}}});assert.equal(sent,0,sql);assert.equal(x.sqlite.prepare('SELECT state FROM email_notification_outbox').get().state,'cancelled',sql)}
 });
 test('current Following and private resource access are checked again at dispatch',async()=>{
