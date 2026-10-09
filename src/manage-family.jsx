@@ -11,24 +11,25 @@ import {PersonIdentity} from './person-identity.jsx';
 import './manage-family-people.css';
 import './membership-review-polish.css';
 import {approvalPosting} from './membership-posting-default.mjs';
-import {PeopleFilters} from './people-filters.jsx';
-import {emptyPeopleFilters,filterDirectoryMembers,managementDirectoryMembers} from './people-directory-model.js';
+import {MembershipPeople} from './membership-people.jsx';
 export function ManageFamily({section,embedded=false}){
- const {state,dispatch,openSheet}=useApp(),[remoteItems,setItems]=useState(null),[error,setError]=useState(''),[tab,setTab]=useState(section||'members'),[peopleFilters,setPeopleFilters]=useState({...emptyPeopleFilters});
+ const {state,dispatch,openSheet}=useApp(),[remoteItems,setItems]=useState(null),[error,setError]=useState(''),[tab,setTab]=useState(section||'members');
  const preview=state.mode==='preview',accountKey=state.mode+':'+state.selfId,scopeKey=accountKey+':'+state.selectedReunionId,account=useRef(accountKey),request=useRef({sequence:0,controller:null});account.current=scopeKey;
+ const stateRef=useRef(state);stateRef.current=state;
  const items=preview?leaderPreview(state):remoteItems?.scopeKey===scopeKey?remoteItems.items:null;
  const load=()=>{
-  if(preview)return Promise.resolve();
+  if(preview)return new Promise(resolve=>setTimeout(()=>resolve(leaderPreview(stateRef.current)),0));
   const expectedAccount=scopeKey,run=request.current;run.controller?.abort();const sequence=++run.sequence,controller=new AbortController();run.controller=controller;setError('');
   const current=()=>account.current===expectedAccount&&request.current.sequence===sequence&&!controller.signal.aborted;
-  return api(reunionQuery('/api/manage',state.selectedReunionId),{signal:controller.signal}).then(items=>{if(current())setItems({scopeKey:expectedAccount,items})}).catch(error=>{if(current())setError(error.message)}).finally(()=>{if(run.sequence===sequence)run.controller=null});
+  return api(reunionQuery('/api/manage',state.selectedReunionId),{signal:controller.signal}).then(items=>{if(current()){setItems({scopeKey:expectedAccount,items});return items}return null}).catch(error=>{if(current())setError(error.message)}).finally(()=>{if(run.sequence===sequence)run.controller=null});
  };
  useEffect(()=>{load();return()=>{request.current.sequence++;request.current.controller?.abort()}},[preview?state:scopeKey]);useEffect(()=>{if(section)setTab(section)},[section]);
- const act=async action=>{setError('');const saved=await dispatch(action);if(saved)await load();return saved};
+ const act=async action=>{if(account.current!==scopeKey)return false;setError('');const saved=await dispatch(action);if(saved&&account.current===scopeKey)await load();return saved};
+ const readMembers=async()=>{const refreshed=await load();if(!refreshed?.members)throw Error('Memberships could not be refreshed.');return refreshed.members};
  const options=[(isPreviewLeader(state)||state.capabilities?.manageMembers)&&['members','People'],(isPreviewLeader(state)||state.capabilities?.manageReunion)&&['rsvp','RSVPs'],(isPreviewLeader(state)||state.capabilities?.manageReunion)&&['shirts','Merchandise'],(isPreviewLeader(state)||state.capabilities?.treasurer||state.capabilities?.manageReunion)&&['fees','Fees']].filter(Boolean);
  const active=options.some(option=>option[0]===tab)?tab:options[0]?.[0];if(!options.length)return <p>You don’t have access to these tools.</p>;
  return <section className="stack">{!embedded&&<><h2>Family organizer</h2><div className="segmented" role="tablist" aria-label="Organizer tools">{options.map(([id,label])=><Control type="button" key={id} role="tab" aria-selected={active===id} onClick={()=>setTab(id)}>{label}</Control>)}</div></>}{error&&<p role="alert">{error}</p>}{!items?(error?<Button secondary onClick={load}>Try again</Button>:<p role="status">Loading family details…</p>):<>
- {active==='members'&&<div className="stack"><PeopleFilters state={state} value={peopleFilters} onChange={setPeopleFilters} management resultCount={filterDirectoryMembers(state,managementDirectoryMembers(state,items.members),peopleFilters).length}/>{!items.members.some(member=>member.status==='pending')&&<p className="muted">No new requests waiting.</p>}{filterDirectoryMembers(state,managementDirectoryMembers(state,items.members),peopleFilters).map(member=><article key={member.id} className="manage-member-row"><PersonIdentity memberId={member.id} fallbackName={member.name}><p className="muted small">{member.email} · {membershipStatus(member)}</p>{member.invited_by_name&&<p className="muted small">Invited by {member.invited_by_name}</p>}</PersonIdentity>{member.id===state.selfId?<p className="muted small">Your account</p>:<Button secondary onClick={()=>openSheet({type:'leader-member-review',id:member.id,member,accountKey,onSave:act})}>Review membership</Button>}</article>)}{!filterDirectoryMembers(state,managementDirectoryMembers(state,items.members),peopleFilters).length&&<p className="muted">No people match these filters.</p>}</div>}
+ {active==='members'&&<MembershipPeople key={scopeKey} members={items.members} onSave={act} readMembers={readMembers}/>}
  {active==='rsvp'&&<div className="card stack"><h3>Household replies</h3>{items.rsvps.map(reply=><div className="manage-report-row" key={reply.member_id||reply.memberId}><PersonIdentity memberId={reply.member_id||reply.memberId} fallbackName={reply.name}><p>{reply.status} · {reply.count} {reply.count===1?'person':'people'}</p></PersonIdentity></div>)}{!items.rsvps.length&&<p>No replies yet.</p>}</div>}
  {active==='shirts'&&<MerchandiseManager items={items} onRefresh={load}/>}
  {active==='fees'&&<><PaymentMethodsManager key={scopeKey}/>{(isPreviewLeader(state)||state.capabilities?.treasurer)&&<div className="card stack"><h3>Payment reports</h3><p className="muted">Check the actual payment service before confirming receipt.</p>{items.fees.map(fee=><div key={fee.id} className="stack manage-report-row"><PersonIdentity memberId={fee.member_id||fee.memberId} fallbackName={fee.name}><p>{fee.status}</p></PersonIdentity>{fee.status==='reported'&&!reunionArchived(state)&&<div className="card-actions"><Button secondary onClick={()=>act({type:'CONFIRM_FEE',id:fee.id,status:'rejected'})}>Not received</Button><Button onClick={()=>act({type:'CONFIRM_FEE',id:fee.id,status:'confirmed'})}>Receipt verified</Button></div>}</div>)}{!items.fees.length&&<p>No payments reported yet.</p>}</div>}</>}

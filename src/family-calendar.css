@@ -1,1 +1,52 @@
-.family-calendar-toolbar{display:flex;flex-wrap:wrap;align-items:end;gap:12px}.family-calendar-toolbar>*{flex:1 1 180px;min-inline-size:0}.family-calendar-toolbar label{display:grid;gap:6px}.family-calendar-agenda{padding:0;list-style:none}.family-calendar-agenda h2{margin:0;font-size:1.25rem}.family-calendar-agenda .row.spread{flex-wrap:wrap}.family-calendar-agenda li{padding:16px}.family-calendar-page{min-inline-size:0}.family-event-form .field-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}@media(max-width:380px){.family-event-form .field-row{grid-template-columns:minmax(0,1fr)}}
+/* Family Calendar uses the shared GW palette, choice controls and sheet chrome. */
+.stack.family-calendar-page{min-inline-size:0;gap:20px}
+.family-calendar-header{margin:0;padding:0;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px}
+.family-calendar-header>div{flex:1 1 24rem;min-width:0}
+.family-calendar-header h1{margin:0 0 8px}
+.family-calendar-header p{margin:0;max-width:65ch;line-height:1.5}
+.family-calendar-header>.family-calendar-add{flex:0 0 auto;min-height:44px;margin:0}
+.family-calendar-page>.family-calendar-preview{margin:0;padding:12px 14px;font-size:.8125rem;line-height:1.5}
+.family-calendar-toolbar.filter-platter{display:grid;gap:12px;min-width:0;padding:14px;border:0;border-radius:14px;background:var(--raised);color:var(--text)}
+.family-calendar-search-row{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);align-items:end;gap:12px;min-width:0}
+.family-calendar-search,.family-calendar-type-filter{display:grid;min-width:0;gap:8px;margin:0;font-size:.875rem;font-weight:600;line-height:1.4}
+.family-calendar-search input{width:100%;min-width:0;color:var(--text);background:var(--surface)}
+.family-calendar-filter-trigger{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-width:0;min-height:var(--field-height,48px);padding:12px 14px;border:0;border-radius:14px;background:var(--surface);color:var(--text);font:inherit;font-size:1rem;font-weight:400;text-align:start}
+.family-calendar-filter-trigger>.gw-optic-content{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:start}
+.family-calendar-filter-trigger>span:not(.gw-optic-content),.family-calendar-filter-trigger>.gw-optic-content>span{min-width:0;overflow-wrap:anywhere}
+.family-calendar-filter-trigger>.glyph,.family-calendar-filter-trigger>.gw-optic-content>.glyph{flex:none;width:18px;height:18px;transform:rotate(90deg);transition:transform 160ms ease}
+.family-calendar-filter-trigger[aria-expanded=true] .glyph{transform:rotate(-90deg)}
+.family-calendar-filter-trigger:hover{background:color-mix(in srgb,var(--surface) 94%,var(--text))}
+.family-calendar-type-options[hidden]{display:none}
+.family-calendar-type-options{min-width:0;padding-top:4px}
+.family-calendar-type-options .choice-control>legend{font-size:.8125rem;color:var(--muted)}
+.family-calendar-type-choices .choice-chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,7.75rem),1fr));gap:8px}
+.family-calendar-type-choices .choice-chip,.family-event-type-choices .choice-chip{min-width:0}
+.family-calendar-type-choices .choice-chip-face,.family-event-type-choices .choice-chip-face{min-height:44px;padding:10px 12px;font-size:.875rem;line-height:1.4}
+.family-calendar-clear{display:flex;align-items:center;justify-self:start;gap:8px;min-height:44px;padding:8px 10px;border:0;border-radius:10px;background:var(--surface);color:var(--text);font:inherit;font-size:.8125rem;font-weight:600}
+.family-calendar-clear>.glyph{width:16px;height:16px}
+.family-calendar-clear:hover{background:color-mix(in srgb,var(--surface) 94%,var(--text))}
+.family-calendar-toolbar :is(button,input):focus-visible{outline:3px solid var(--control,var(--accent));outline-offset:3px}
+.family-calendar-page>.family-calendar-results{margin:0;font-size:.8125rem;line-height:1.4}
+.calendar-agenda.family-calendar-agenda{display:grid;gap:12px;margin:0;padding:0;list-style:none}
+.family-calendar-agenda>.family-calendar-event{display:grid;gap:10px;min-width:0;padding:18px}
+.family-calendar-agenda h2{margin:0;font-size:1.25rem;line-height:1.3;overflow-wrap:anywhere}
+.family-calendar-agenda .family-calendar-event>p{margin:0;min-width:0;line-height:1.5;overflow-wrap:anywhere}
+.family-calendar-when,.family-calendar-location{display:flex;align-items:flex-start;gap:8px;font-size:.875rem}
+.family-calendar-when>.glyph,.family-calendar-location>.glyph{flex:none;width:18px;height:18px;margin-top:2px}
+.family-calendar-when{color:var(--text);font-weight:600}
+.family-calendar-location{color:var(--muted)}
+.family-calendar-event>.calendar-description{font-size:.9375rem;max-width:65ch;white-space:pre-wrap}
+.family-calendar-event-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-top:2px}
+.family-calendar-agenda .family-calendar-event-actions.row>.button{width:auto;flex:0 1 auto;min-width:72px;min-height:44px;margin:0;padding:10px 16px;font-size:.8125rem}
+.family-calendar-page>.family-calendar-empty{margin:0;padding:12px 0;line-height:1.5}
+.family-event-form>.family-event-type-platter{container:family-event-types / inline-size;padding:14px;border-radius:14px;background:var(--raised)}
+.family-event-type-choices .choice-chips{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.family-calendar-type-choices .choice-chip-face>span,.family-event-type-choices .choice-chip-face>span{overflow-wrap:normal;word-break:normal}
+@container family-event-types (max-width:17rem){.family-event-type-choices .choice-chips{grid-template-columns:minmax(0,1fr)}}
+.family-event-form .field-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.family-event-form>p,.family-event-delete-form>p{margin:0;line-height:1.5}
+.family-event-footer>.button{min-height:44px;white-space:normal}
+.family-event-footer>.button[type=submit]{flex-grow:1.6}
+@media(max-width:600px){.family-calendar-search-row{grid-template-columns:minmax(0,1fr)}.family-calendar-header>.family-calendar-add{flex-basis:100%}}
+@media(max-width:380px){.family-event-form .field-row{grid-template-columns:minmax(0,1fr)}.family-calendar-toolbar.filter-platter,.family-event-form>.family-event-type-platter{padding:12px}.family-calendar-type-choices .choice-chip-face{padding:10px 6px;gap:6px;font-size:.8125rem}.family-event-type-choices .choice-chip-face{padding:10px 12px;gap:8px}.family-calendar-type-choices .choice-mark,.family-event-type-choices .choice-mark{width:17px;height:17px}}
+@media(prefers-reduced-motion:reduce){.family-calendar-filter-trigger>.glyph,.family-calendar-filter-trigger>.gw-optic-content>.glyph{transition:none}}

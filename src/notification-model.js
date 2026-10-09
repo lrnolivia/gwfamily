@@ -82,7 +82,7 @@ export function notificationTargetRoute(target){
   case 'comment':return container?{type:'post',id:container,section:'comment:'+(anchor||id||'')}:null;
   case 'memory':return id?{type:'memory',id}:null;
   case 'household_invitation':return {type:'household',...(container?{id:container}:{}),section:'email-invitation'};
-  case 'household_request':return {type:'household',...(container?{id:container}:{})};
+  case 'household_request':return {type:'household',...(container?{id:container}:{}),section:'requests'};
   case 'fee':return {type:target.section==='planner'?'leader-tools':'you',section:'fees'};
   case 'order':return {type:target.section==='planner'?'leader-tools':'you',section:'shirts'};
   case 'member':return ['members','planner'].includes(target.section)?{type:'leader-tools',section:'members'}:{type:'you'};
