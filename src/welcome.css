@@ -33,3 +33,4 @@ dialog.welcome-overlay::backdrop{background:transparent}
 @media(prefers-reduced-motion:reduce){.welcome-card,.is-leaving .welcome-card{animation:none}.welcome-scrim{transition:none}.welcome-progress li{transition:none}}
 @media(prefers-reduced-transparency:reduce){.welcome-scrim{background:color-mix(in srgb,var(--surface,#f3efe2) 88%,transparent)}}
 @media(forced-colors:active){.welcome-card{border:1px solid CanvasText}.welcome-progress li.is-done{background:Highlight}}
+.welcome-head .welcome-complete{background:var(--accent);color:var(--ink,#fff)}
