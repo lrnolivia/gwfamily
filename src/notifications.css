@@ -49,3 +49,5 @@ html[data-theme] :is(.notification-panel,.notification-settings),html[data-theme
 .notification-device-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}.notification-device-heading h2{margin:0;min-width:0}.notification-settings-page .notification-device-info{flex:0 0 44px;width:44px;min-width:44px;height:44px;padding:10px}.notification-device-status [hidden]{display:none}
 
 @keyframes gw-notification-pulse{0%,100%{box-shadow:0 0 0 0 rgba(185,37,58,.1)}50%{box-shadow:0 0 8px 3px rgba(185,37,58,.32)}}@media(prefers-reduced-motion:reduce){.notification-badge{animation:none}}
+/* Outranks the 42px Glass icon-button default so the info control keeps a 44px target. */
+html[data-platform] .notification-settings-page .notification-device-info.icon-button{flex:0 0 44px;width:44px;min-width:44px;height:44px;min-height:44px}
