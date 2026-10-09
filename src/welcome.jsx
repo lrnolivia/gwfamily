@@ -3,6 +3,7 @@ import {Button,Control,Glyph,useApp} from './ui-core.jsx';
 import {useTutorial} from './tutorial.jsx';
 import {FamilySetup} from './family-setup.jsx';
 import {promptDue} from './member-prompts-model.js';
+import {useScrollEdge} from './shared-scroll-edge.jsx';
 import './welcome.css';
 // First-run welcome for an approved member. App mounts this only after the
 // existing authorization gate, so the blurred Home behind it is content the
@@ -16,6 +17,7 @@ const reducedMotion=()=>Boolean(window.matchMedia?.('(prefers-reduced-motion: re
 export function WelcomeOverlay({variant='welcome',manual=false,returnFocus=null,onClose}){
  const refine=variant==='refine',STEPS=refine?REFINE_STEPS:WELCOME_STEPS;
  const {state,dispatch,setToast}=useApp(),tour=useTutorial(),ref=useRef(null),heading=useRef(null),origin=useRef(null),closing=useRef(false),titleId='gw-welcome-'+useId().replace(/:/g,'');
+ const body=useRef(null);useScrollEdge(body);
  const [step,setStep]=useState(STEPS[0]),[leaving,setLeaving]=useState(false),[busy,setBusy]=useState(false);
  const first=(state.members.find(m=>m.id===state.selfId)?.name||'').trim().split(/\s+/)[0];
  useEffect(()=>{origin.current=returnFocus||document.activeElement;const el=ref.current;if(el&&!el.open)el.showModal();return()=>{if(el?.open)el.close()}},[]);
@@ -44,7 +46,7 @@ export function WelcomeOverlay({variant='welcome',manual=false,returnFocus=null,
     {STEPS.length>1?<ol className="welcome-progress" aria-label={'Step '+(index+1)+' of '+STEPS.length}>{STEPS.map((s,i)=><li key={s} className={i<=index?'is-done':''} aria-hidden="true"/>)}</ol>:<span aria-hidden="true"/>}
     {refine?<Control type="button" className="icon-button welcome-complete" aria-label="Done" disabled={busy} onClick={()=>finish('completed')}><Glyph name="check"/></Control>:<span className="welcome-head-spacer" aria-hidden="true"/>}
    </div>
-   <div className="welcome-body">
+   <div ref={body} className="welcome-body">
     {step==='hello'?<>
      <img className="welcome-art" src="tree-artwork.png" alt=""/>
      <h2 id={titleId} ref={heading} tabIndex={-1}>Welcome to the family{first?', '+first:''}</h2>

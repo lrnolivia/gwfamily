@@ -50,3 +50,7 @@
 @media(max-width:600px){.family-calendar-search-row{grid-template-columns:minmax(0,1fr)}.family-calendar-header>.family-calendar-add{flex-basis:100%}}
 @media(max-width:380px){.family-event-form .field-row{grid-template-columns:minmax(0,1fr)}.family-calendar-toolbar.filter-platter,.family-event-form>.family-event-type-platter{padding:12px}.family-calendar-type-choices .choice-chip-face{padding:10px 6px;gap:6px;font-size:.8125rem}.family-event-type-choices .choice-chip-face{padding:10px 12px;gap:8px}.family-calendar-type-choices .choice-mark,.family-event-type-choices .choice-mark{width:17px;height:17px}}
 @media(prefers-reduced-motion:reduce){.family-calendar-filter-trigger>.glyph,.family-calendar-filter-trigger>.gw-optic-content>.glyph{transition:none}}
+/* Repeats and All-day share the Event type platter so no option sits loose. */
+.family-event-form>.family-event-platter{display:grid;gap:12px;padding:14px;border-radius:14px;background:var(--raised)}
+.family-event-form>.family-event-platter>.check-row{margin:0}
+@media(max-width:380px){.family-event-form>.family-event-platter{padding:12px}}

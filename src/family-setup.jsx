@@ -83,7 +83,7 @@ function useSubmit(action,{done,onDone}){
 function ConfirmStep({action,label,done,back,onDone,disabled=false,danger=false,children}){
  const {busy,error,run}=useSubmit(action,{done,onDone}),formId=useSheetForm({label,busy,disabled});
  return <form id={formId} className="stack family-setup-confirm" aria-busy={busy} onSubmit={e=>{e.preventDefault();if(!disabled)run()}}>{children}{error&&<p role="alert">{error}</p>}
-  <div className="sheet-footer"><Button secondary disabled={busy} onClick={back}>Cancel</Button><Button type="submit" className={danger?'family-setup-danger':''} disabled={busy||disabled}>{busy?'Saving…':label}</Button></div></form>;
+  <div className="sheet-footer"><Button secondary disabled={busy} onClick={back}>Cancel</Button><Button type="submit" className={danger?'sheet-danger':''} data-destructive={danger||undefined} disabled={busy||disabled}>{busy?'Saving…':label}</Button></div></form>;
 }
 function BranchDetails({branch,onTask}){
  const {state}=useApp();if(!branch)return <p role="alert">This branch is no longer available.</p>;
@@ -101,7 +101,7 @@ function BranchDetails({branch,onTask}){
    <Control type="button" className="list-row family-setup-row" onClick={()=>onTask({type:'create-household',branchId:branch.id,back:self})}><Glyph name="home"/><span><strong>Start a household in this branch</strong><p>You’ll be its founding head</p></span><span className="arrow"><Glyph name="arrow"/></span></Control>
    {manager&&<Control type="button" className="list-row family-setup-row" onClick={()=>onTask({type:'rename-branch',branchId:branch.id,back:self})}><Glyph name="edit"/><span><strong>Rename branch</strong><p>Family leaders only</p></span><span className="arrow"><Glyph name="arrow"/></span></Control>}
   </div>
-  {manager&&!households.length&&<div className="sheet-footer"><Button className="family-setup-danger" onClick={()=>onTask({type:'remove-branch',branchId:branch.id,back:self})}>Remove empty branch</Button></div>}
+  {manager&&!households.length&&<div className="sheet-footer"><Button className="sheet-danger" data-destructive onClick={()=>onTask({type:'remove-branch',branchId:branch.id,back:self})}>Remove empty branch</Button></div>}
  </>;
 }
 function PlaceHousehold({household,back,onTask}){
