@@ -5,7 +5,7 @@ import {chromium,webkit,expect} from '@playwright/test';
 import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {initialState,PREVIEW_KEY} from '../src/data-adapter.js';
-import {NOTIFICATION_CATEGORIES,NOTIFICATION_DELIVERY_CHANNELS,normalizeNotificationSettings,patchNotificationSettings} from '../src/notification-model.js';
+import {NOTIFICATION_CATEGORIES,NOTIFICATION_DELIVERY_CHANNELS,channelDefault,normalizeNotificationSettings,patchNotificationSettings} from '../src/notification-model.js';
 import {sharedPageDefaults} from '../src/shared-content-schema.js';
 if(!process.env.CI&&process.env.GW_HOSTED_BROWSER_QA!=='1')throw new Error('Notification browser QA runs only in the authorized hosted CI environment.');
 const base=process.env.GW_NOTIFICATIONS_URL||'http://127.0.0.1:4173';
@@ -352,7 +352,8 @@ try{
   await expect(settings.locator('.notification-channel-choice input')).toHaveCount(NOTIFICATION_CATEGORIES.length*3);
   for(const category of NOTIFICATION_CATEGORIES)for(const channel of NOTIFICATION_DELIVERY_CHANNELS){
    const input=settings.getByRole('checkbox',{name:category.label+': '+channel.label,exact:true}),target=input.locator('..');
-   await expect(input).toBeChecked();const bounds=await target.boundingBox();assert.ok(bounds.width>=44&&bounds.height>=44,category.id+': '+channel.id);
+   // Lauren's defaults: In app on; email/push off for a few personal categories.
+   await expect(input).toBeChecked({checked:channel.id==='inApp'||channelDefault(category.id,channel.id)});const bounds=await target.boundingBox();assert.ok(bounds.width>=44&&bounds.height>=44,category.id+': '+channel.id);
   }
   for(let mask=0;mask<8;mask++){
    const desired={inApp:!!(mask&1),email:!!(mask&2),push:!!(mask&4)};
