@@ -261,6 +261,16 @@ jobs:
           curl -fsS http://127.0.0.1:4188/api/config
           mkdir -p docs/ci-logs
           CI=true node scripts/ci-test-summary.mjs content-actions-browser --browser tests/content-actions-browser.mjs 2>&1 | tee docs/ci-logs/content-actions-browser.log
+      - name: Memory removal, report queue and history paging browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          # Separate fictional database with history beyond the first page.
+          GW_HISTORY_FIXTURE=1 GW_FIXTURE_PORT=4191 node backend/tests/fixture-server.mjs > /tmp/gw-history-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4191/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4191/api/config
+          mkdir -p docs/ci-logs
+          CI=true GW_HISTORY_QA_OUTPUT=docs/content-history-qa node tests/content-history-browser.mjs 2>&1 | tee docs/ci-logs/content-history-browser.log
       - name: Card content arrangement browser checks
         if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 10

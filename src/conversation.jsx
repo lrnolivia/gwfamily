@@ -1,3 +1,4 @@
+import {LoadOlder} from './content-history.jsx';
 import {MemberMiniCard,MemberIdentityControl} from './person-identity.jsx';
 import {PageMarkdownBody,PageMarkdownEditor} from './page-markdown.jsx';
 import {TaggedFamily} from './member-tags.jsx';
@@ -133,7 +134,7 @@ function Comment({comment,all,targetId,depth=0}){
 }
 export function CommentsView({targetId,placeholder='Write a comment…',emptyMessage='Start the conversation.'}){
  const {state,dispatch}=useApp(),stored=state.comments[targetId]||[],known=new Set(stored.map(comment=>comment.id)),all=stored.map(comment=>comment.parentId&&!known.has(comment.parentId)?{...comment,parentId:null}:comment),{typers}=useTypingPresence({scope:'posts',id:targetId,enabled:!!state.posts?.some(post=>post.id===targetId)});
- return <div className="comments-view"><div className="chat-thread">{all.filter(comment=>!comment.parentId).map(comment=><Comment key={comment.id} comment={comment} all={all} targetId={targetId}/>)}{!all.length&&<p className="empty-conversation muted">{emptyMessage}</p>}</div>
+ return <div className="comments-view"><LoadOlder kind="comments" postId={targetId}/><div className="chat-thread">{all.filter(comment=>!comment.parentId).map(comment=><Comment key={comment.id} comment={comment} all={all} targetId={targetId}/>)}{!all.length&&<p className="empty-conversation muted">{emptyMessage}</p>}</div>
   {typers.length>0&&<ActivityDots label={typingLabel(typers)} className="comment-typing-presence"/>}
   <div className="conversation-composer"><ComposerBox targetId={targetId} placeholder={placeholder} onSubmit={(text,files)=>dispatch({type:'ADD_COMMENT',targetId,text,files})}/></div></div>
 }
