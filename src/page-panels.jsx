@@ -87,7 +87,7 @@ function MobilePanelOrder({page:initialPage,onClose}){
  </div></Sheet>;
 }
 
-export function SharedPagePanels({page,children,mediaOnly=false,mainTail=null,sideTail=null,wideHero=false,afterPrimary=null,nativePanels={},closingPanels=[]}){
+export function SharedPagePanels({page,children,mediaOnly=false,stageMedia=false,mainTail=null,sideTail=null,wideHero=false,afterPrimary=null,nativePanels={},closingPanels=[]}){
  const editor=useLayoutEditor(page),viewportNarrow=useNarrow(),presentation=useRef(viewportNarrow);
  const [mediaTools,setMediaTools]=useState(null);
  useLayoutEffect(()=>{setMediaTools(mediaOnly&&editor.editing?document.querySelector('[data-page-media-tools="'+page+'"]'):null)},[page,mediaOnly,editor.editing]);
@@ -95,7 +95,7 @@ export function SharedPagePanels({page,children,mediaOnly=false,mainTail=null,si
  // surface immediately, but defer canvas reparenting until that task closes.
  if(!editor.activeEditor)presentation.current=viewportNarrow;
  const narrow=presentation.current,[addingElement,setAddingElement]=useState(false),[toolPanel,setToolPanel]=useState(null),toolTrigger=useRef(null),toolId=useId(),[removed,setRemoved]=useState(null),[notice,setNotice]=useState(''),drag=usePanelDrag({disabled:editor.busy||!editor.editing||!editor.arrangingPage||narrow,onKeyMove:(id,key)=>{const moved=editor.change(layout=>keyboardSharedPanel(layout,id,key));setNotice(moved?'Panel moved. Changes save automatically.':'That panel cannot move there. Unlock any panel in the way first.');},onMove:(id,target)=>{const moved=editor.change(layout=>moveSharedPanel(layout,id,target));setNotice(moved?'Panel moved. Changes save automatically.':'That move crosses a locked panel. Unlock it first.');}});
- const visible=editor.layout.panels.filter(p=>!p.removed&&(p.kind!=='native'||nativePanels[p.id]!=null&&nativePanels[p.id]!==false)&&!(p.kind==='hero'&&mediaOnly&&!editor.editing&&editor.content.hero.mode==='default')),archived=editor.layout.panels.filter(p=>p.removed&&(p.kind!=='native'||nativePanels[p.id]!=null&&nativePanels[p.id]!==false)),order=narrow?editor.layout.mobileOrder:editor.layout.desktopOrder,ordered=order.map(id=>visible.find(p=>p.id===id)).filter(Boolean);
+ const visible=editor.layout.panels.filter(p=>!p.removed&&(p.kind!=='native'||nativePanels[p.id]!=null&&nativePanels[p.id]!==false)&&!(p.kind==='hero'&&mediaOnly&&!editor.editing&&(stageMedia&&editor.content.hero.mode!=='video'||editor.content.hero.mode==='default'))),archived=editor.layout.panels.filter(p=>p.removed&&(p.kind!=='native'||nativePanels[p.id]!=null&&nativePanels[p.id]!==false)),order=narrow?editor.layout.mobileOrder:editor.layout.desktopOrder,ordered=order.map(id=>visible.find(p=>p.id===id)).filter(Boolean);
  if(!editor.valid)return <>{children}{afterPrimary}{Object.values(nativePanels)}{mainTail}{sideTail}</>;
  const remove=panel=>{const placement={desktop:editor.layout.desktopOrder.indexOf(panel.id),mobile:editor.layout.mobileOrder.indexOf(panel.id)};editor.change(layout=>removeSharedPanel(layout,panel.id),'Remove panel');setRemoved({id:panel.id,title:title(panel,page,editor.content,editor.records),placement});setNotice(title(panel,page,editor.content,editor.records)+' removed from this page. Undo is available.');};
  const restore=(id,placement)=>{editor.change(layout=>restoreSharedPanel(layout,id,placement),'Restore panel');setRemoved(null);setNotice('Panel restored.');};
