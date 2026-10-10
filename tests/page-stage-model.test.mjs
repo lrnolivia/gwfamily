@@ -44,3 +44,16 @@ test('this day in family history needs a photo from an earlier year',()=>{
  assert.equal(thisDayMemory(memories,now).id,'4');
  assert.equal(thisDayMemory([{id:'5',image:'e.jpg'}],now),null);
 });
+
+test('wordmark colors come from the photo and always read on what sits behind them',async()=>{
+ const {wordmarkPalette,contrast,rgbToHsl}=await import('../src/page-stage-model.js');
+ const toRgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+ const grassAndSky=[...Array(40).fill([70,120,50]),...Array(25).fill([120,170,220]),...Array(10).fill([200,140,60])];
+ for(const bg of [[240,240,235],[20,30,25],[110,140,100]]){
+  const p=wordmarkPalette(grassAndSky,bg);
+  for(const ink of Object.values(p))assert.ok(contrast(toRgb(ink),bg)>=4.5,ink+' on '+bg);
+ }
+ const green=rgbToHsl(toRgb(wordmarkPalette(grassAndSky,[240,240,235]).green))[0];
+ assert.ok(green>70&&green<150,'the leading ink follows the photo\'s strongest hue: '+green);
+ assert.equal(wordmarkPalette([[128,128,128],[250,250,250]],[240,240,235]),null,'no color in the photo keeps the existing wordmark');
+});

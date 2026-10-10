@@ -34,7 +34,7 @@ try{
  const initial=await read();const reset=await page.request.post(base+'/api/page-content/home/restore',{data:{requestId:'card-fixture-reset-'+Date.now(),expectedRevision:initial.revision,revision:0},headers:{Origin:base}});assert.equal(reset.status(),200);await reload();
  await check('desktop two-column screenshot geometry and source-owned action',async()=>{
   // Viewing, Home's photo lives in the page stage; the card keeps it for editing.
-  await expect(page.locator('.page-stage .page-stage-photo.is-current')).toBeVisible();await expect(card().locator('[data-card-slot="media"]')).toHaveCount(0);
+  await expect(page.locator('.page-stage img[src*="photos/"]')).toHaveCount(0);await expect(card().locator('[data-card-slot="media"]')).toHaveCount(0);
   await card().getByRole('button',{name:'Reunion details',exact:true}).click();await expect(page).toHaveURL(/reunion/);await navigate(base+'/#/home');
   await page.screenshot({path:`${output}/${engine}-desktop-original.png`,fullPage:true});
  });
@@ -58,7 +58,7 @@ try{
  await check('independent text, photo, action placement saves and reloads durably',async()=>{
   await arrange();await card().getByRole('button',{name:'Heading column: Right',exact:true}).click();await card().getByRole('button',{name:'Move Heading earlier',exact:true}).click();await card().getByRole('button',{name:'Heading alignment: Center',exact:true}).click();await card().getByRole('button',{name:'Reunion details button alignment: Right',exact:true}).click();
   for(let step=0;step<7;step++)await card().getByRole('button',{name:'Decrease Photo or video size',exact:true}).click();await card().getByRole('button',{name:'Left column vertical alignment: Top',exact:true}).click();await card().getByRole('button',{name:'Right column vertical alignment: Bottom',exact:true}).click();await card().getByRole('button',{name:'Photo or video aspect ratio: Portrait 3:4',exact:true}).click();await finishAndSave();saved=await read();assert.deepEqual(saved.content.cardLayouts.hero.right.map(item=>item.id),['title','media']);assert.equal(saved.content.cardLayouts.hero.left.at(-1).align,'end');
-  await reload();await expect(card().locator('[data-card-slot="title"]')).toHaveAttribute('data-card-align','center');assert.deepEqual(await order('right'),['title']);await expect(page.locator('.page-stage .page-stage-photo.is-current')).toBeVisible();assert.deepEqual((await read()).content.cardLayouts,saved.content.cardLayouts);assert.equal(saved.content.cardLayouts.hero.right.find(item=>item.id==='media').width,65);assert.equal(saved.content.cardLayouts.hero.vertical.right,'bottom');assert.equal(saved.content.cardLayouts.hero.vertical.left,'top');await expect(card().locator('[data-card-column=left]')).toHaveAttribute('data-card-vertical','top');await expect(card().locator('[data-card-column=right]')).toHaveAttribute('data-card-vertical','bottom');
+  await reload();await expect(card().locator('[data-card-slot="title"]')).toHaveAttribute('data-card-align','center');assert.deepEqual(await order('right'),['title']);await expect(page.locator('.page-stage img[src*="photos/"]')).toHaveCount(0);assert.deepEqual((await read()).content.cardLayouts,saved.content.cardLayouts);assert.equal(saved.content.cardLayouts.hero.right.find(item=>item.id==='media').width,65);assert.equal(saved.content.cardLayouts.hero.vertical.right,'bottom');assert.equal(saved.content.cardLayouts.hero.vertical.left,'top');await expect(card().locator('[data-card-column=left]')).toHaveAttribute('data-card-vertical','top');await expect(card().locator('[data-card-column=right]')).toHaveAttribute('data-card-vertical','bottom');
   await page.screenshot({path:`${output}/${engine}-desktop-arranged.png`,fullPage:true});
  });
  await check('mobile stacks left then right, supports touch/selects, preserves save through reload',async()=>{
@@ -76,14 +76,14 @@ try{
  await check('reset restores one coherent source-owned arrangement and alignment through reload',async()=>{
   await page.setViewportSize({width:1280,height:900});await expect(page.locator('[data-panel-page="home"]')).toHaveClass(/is-wide/);await begin();await arrange();
   await card().getByRole('button',{name:'Reset arrangement',exact:true}).click();await finishAndSave();await reload();
-  await expect(page.locator('.page-stage .page-stage-photo.is-current')).toBeVisible();await expect(card().locator('[data-card-slot="media"]')).toHaveCount(0);
+  await expect(page.locator('.page-stage img[src*="photos/"]')).toHaveCount(0);await expect(card().locator('[data-card-slot="media"]')).toHaveCount(0);
   await begin();await arrange();await expect(card().locator('[data-card-slot="media"] img')).toBeVisible();
   await expect.poll(()=>order('left')).toEqual(['eyebrow','title','body','action']);await expect.poll(()=>order('right')).toEqual(['media']);
   for(const slot of ['eyebrow','title','body'])await expect(card().locator('[data-card-slot="'+slot+'"]')).toHaveAttribute('data-card-align','start');
   await expect(card().locator('[data-card-slot="action"]')).toHaveAttribute('data-card-align','stretch');
   for(const width of [390,768,1280]){
    await page.setViewportSize({width,height:900});await expect(page.locator('.page-panel-layout[data-panel-page="home"]')).toHaveClass(width<700?/is-mobile/:/is-wide/);
-   await expect(card().locator('[data-card-column="left"]')).toBeVisible();await expect(card().locator('[data-card-column="right"]')).toBeVisible();await expect(page.locator('.page-stage .page-stage-photo.is-current')).toBeVisible();
+   await expect(card().locator('[data-card-column="left"]')).toBeVisible();await expect(card().locator('[data-card-column="right"]')).toBeVisible();await expect(page.locator('.page-stage img[src*="photos/"]')).toHaveCount(0);
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth)<=1);
    await page.screenshot({path:`${output}/${engine}-reset-${width}.png`,fullPage:true});
   }
