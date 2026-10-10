@@ -23,43 +23,34 @@
 /* Under the header only when nothing sits between them. */
 .page-stage.is-tucked{margin-top:calc(-1 * var(--stage-head))}
 .page-stage:not(.is-tucked){--stage-head:16px}
-.page-stage:not(.is-framed){min-height:min(64svh,520px);display:grid;align-content:end}
-@media(min-width:700px){.page-stage:not(.is-framed){min-height:min(56vh,560px)}}
-/* Without a photo the stage stays short; the tint and oak carry it. */
-.page-stage.is-plain{min-height:min(40svh,340px)}
+/* Without a framed photo (You, or no photo yet) the stage is just the heading
+   under the header, on a soft tint: no tall empty space. */
+.page-stage:not(.is-framed){display:block}
 
 /* Blurred fill (header strip, side gaps, the You page). */
 .page-stage-media{position:absolute;inset:0;z-index:-3;overflow:hidden;pointer-events:none;
  transform:translateY(calc(var(--stage-p,0) * 14%));will-change:transform}
 .page-stage-backdrop{position:absolute;inset:-48px;background-size:cover;background-position:center;
- filter:blur(30px) saturate(1.25) brightness(.92);opacity:0;transition:opacity 1.6s ease}
-.page-stage-backdrop.is-current{opacity:1}
-.page-stage-backdrop.drift-a{animation:page-stage-drift-a 28s ease-in-out infinite alternate}
-.page-stage-backdrop.drift-b{animation:page-stage-drift-b 28s ease-in-out infinite alternate}
-@keyframes page-stage-drift-a{from{transform:scale(1.02) translate(0,0)}to{transform:scale(1.12) translate(-2%,-1.5%)}}
-@keyframes page-stage-drift-b{from{transform:scale(1.1) translate(-2%,0)}to{transform:scale(1.02) translate(1.5%,-1%)}}
-.page-stage-art{position:absolute;right:-6%;bottom:18%;width:min(78%,520px);opacity:.2;filter:saturate(.8)}
-.page-stage.is-plain{background:linear-gradient(165deg,color-mix(in srgb,var(--stage-tint,var(--accent)) 34%,var(--bg)) 0%,var(--bg) 78%)}
+ filter:blur(30px) saturate(1.25) brightness(.92);animation:page-stage-photo-in .7s ease both}
+.page-stage.is-plain{background:linear-gradient(180deg,color-mix(in srgb,var(--stage-tint,var(--accent)) 16%,var(--bg)) 0%,var(--bg) 100%)}
+.page-stage-probe{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 
 /* The photo, whole. Height follows its own shape, capped; contain never crops. */
 .page-stage-figure{position:relative;z-index:-1;pointer-events:none;width:100%;aspect-ratio:var(--stage-ratio,1.333);max-height:var(--stage-max);margin-top:var(--stage-lift)}
 .page-stage-photo{position:absolute;top:0;left:50%;width:min(100%,calc(var(--stage-max) * var(--stage-ratio,1.333)));height:100%;transform:translateX(-50%);object-fit:contain;animation:page-stage-photo-in .9s ease both;
  -webkit-mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.55) calc(var(--stage-feather) * .45),#000 var(--stage-feather),#000 52%,rgba(0,0,0,.72) 68%,rgba(0,0,0,.36) 84%,transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.55) calc(var(--stage-feather) * .45),#000 var(--stage-feather),#000 52%,rgba(0,0,0,.72) 68%,rgba(0,0,0,.36) 84%,transparent 100%)}
 .page-stage-photo.is-current{opacity:1}
+.page-stage-frame>.page-stage-photo.is-leaving,.page-stage-extend-wash.is-leaving{animation:page-stage-photo-out .7s ease both}
+@keyframes page-stage-photo-out{from{opacity:1}to{opacity:0}}
+html[data-stage-enter=from-right] :is(.page-stage-copy,.page-stage ~ *){animation:page-stage-enter-right .48s cubic-bezier(.2,.8,.2,1) both}
+html[data-stage-enter=from-left] :is(.page-stage-copy,.page-stage ~ *){animation:page-stage-enter-left .48s cubic-bezier(.2,.8,.2,1) both}
+@keyframes page-stage-enter-right{from{opacity:0;transform:translateX(32px)}to{opacity:1;transform:none}}
+@keyframes page-stage-enter-left{from{opacity:0;transform:translateX(-32px)}to{opacity:1;transform:none}}
 @keyframes page-stage-photo-in{from{opacity:0}to{opacity:1}}
 /* Gallery controls sit on the photo, above the heading block. */
 .page-stage-frame{position:absolute;inset:0;pointer-events:auto}
 /* The stage photo also carries the gallery's asset class; keep it whole here. */
 .page-stage-frame>.page-stage-photo{display:block;max-height:none;aspect-ratio:auto;object-fit:contain;border-radius:0;width:min(100%,calc(var(--stage-max) * var(--stage-ratio,1.333)));height:100%}
-.page-stage-gallery{margin-inline-start:auto;display:flex;align-items:center;gap:2px;padding:4px;border-radius:999px;
- background:color-mix(in srgb,var(--surface) 78%,transparent);color:var(--text);-webkit-backdrop-filter:blur(14px) saturate(1.2);backdrop-filter:blur(14px) saturate(1.2);box-shadow:0 4px 16px rgba(0,0,0,.12)}
-.page-stage-gallery>button{display:grid;place-items:center;width:40px;height:40px;min-height:40px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--text)}
-.page-stage-gallery>button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.page-stage-gallery>button:disabled{opacity:.45}
-.page-stage-gallery .glyph{width:18px;height:18px}
-.page-stage-gallery-step.is-previous .glyph{transform:scaleX(-1)}
-.page-stage-gallery-count{min-width:44px;text-align:center;font-size:.875rem;font-weight:650;font-variant-numeric:tabular-nums}
-@media(prefers-reduced-transparency:reduce){.page-stage-gallery{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none}}
 /* Wider screens: when the photo is narrower than the stage, its sides feather
    into the blurred fill too. */
 @media(min-width:700px){.page-stage-photo{
@@ -76,16 +67,14 @@
    photo's displayed width, overlapping its feathered top so there's no seam. */
 .page-stage-extend{position:absolute;left:50%;bottom:calc(100% - var(--stage-feather));width:min(100%,calc(var(--stage-max) * var(--stage-ratio,1.333)));height:calc(var(--stage-lift) + var(--stage-feather) + 24px);transform:translateX(-50%);overflow:hidden;
  -webkit-mask-image:linear-gradient(to top,#000 0,#000 45%,transparent 100%);mask-image:linear-gradient(to top,#000 0,#000 45%,transparent 100%)}
-.page-stage-extend-wash{position:absolute;inset:-28px;background-size:100% 100%;background-repeat:no-repeat;filter:blur(22px) saturate(1.08);opacity:0;transition:opacity 1.6s ease}
-.page-stage-extend-wash.is-current{opacity:1}
+.page-stage-extend-wash{position:absolute;inset:-28px;background-size:100% 100%;background-repeat:no-repeat;filter:blur(22px) saturate(1.08);animation:page-stage-photo-in .7s ease both}
 
 .page-stage-shade{position:absolute;inset:0;z-index:-2;pointer-events:none;background:
  linear-gradient(to bottom,color-mix(in srgb,var(--bg) 30%,transparent) 0%,transparent 22%,transparent 46%,color-mix(in srgb,var(--bg) 30%,transparent) 62%,color-mix(in srgb,var(--bg) 70%,transparent) 78%,var(--bg) 94%,var(--bg) 100%)}
 .page-stage.is-blurred .page-stage-shade{background:
  linear-gradient(to bottom,color-mix(in srgb,var(--stage-tint,var(--accent)) 30%,transparent) 0%,color-mix(in srgb,var(--bg) 35%,transparent) 45%,color-mix(in srgb,var(--bg) 90%,transparent) 80%,var(--bg) 100%)}
-.page-stage.is-blurred .page-stage-backdrop{animation:none}
 
-.page-stage-copy{position:relative;display:grid;gap:8px;padding:calc(var(--stage-head) + 12px) var(--stage-gutter) 18px;min-width:0;
+.page-stage-copy{position:relative;display:grid;gap:8px;padding:calc(var(--stage-head) + 8px) var(--stage-gutter) 14px;min-width:0;
  opacity:calc(1 - var(--stage-p,0) * 1.25);transform:translateY(calc(var(--stage-p,0) * -24px))}
 /* Framed: the copy follows the photo, overlapping only its faded bottom. */
 .page-stage.is-framed .page-stage-copy{padding-top:0;margin-top:-72px}
@@ -111,6 +100,8 @@ html[data-stage-top]:not([data-page-edit-mode=true]) .app>.app-header:not(#gw-sp
 /* Background-aware wordmark: the ink follows the photo behind the header. */
 html[data-stage-top][data-stage-tone=dark]:not([data-page-edit-mode=true]) .app>.app-header{--wordmark-green:#f6edcf;--wordmark-amp:#f6edcf;--wordmark-white:#c9dcc4;--wordmark-family:#9fd2ad}
 html[data-stage-top][data-stage-tone=light]:not([data-page-edit-mode=true]) .app>.app-header{--wordmark-green:#1d6b3a;--wordmark-amp:#1d6b3a;--wordmark-white:#164d2b;--wordmark-family:#0f3520}
+html[data-stage-top][data-stage-wordmark=photo]:not([data-page-edit-mode=true]) .app>.app-header:not(#gw-specificity){--wordmark-green:var(--stage-wm-green);--wordmark-amp:var(--stage-wm-green);--wordmark-white:var(--stage-wm-white);--wordmark-family:var(--stage-wm-family)}
+.app>.app-header :is(.wordmark-green,.wordmark-amp,.wordmark-white,.wordmark-bottom){transition:color .6s ease}
 html[data-stage-top][data-stage-tone=dark]:not([data-page-edit-mode=true]) .app>.app-header .wordmark{text-shadow:0 1px 10px rgba(0,0,0,.45)}
 html[data-stage-top][data-stage-tone=light]:not([data-page-edit-mode=true]) .app>.app-header .wordmark{text-shadow:0 1px 10px rgba(255,255,255,.55)}
 
@@ -118,6 +109,8 @@ html[data-stage-top][data-stage-tone=light]:not([data-page-edit-mode=true]) .app
 html[data-page-edit-mode=true] .page-stage-backdrop{animation:none!important}
 @media(prefers-reduced-motion:reduce){
  .page-stage-backdrop,.page-stage-photo,.page-stage-extend-wash{animation:none!important;transition:none}
+ .page-stage-frame>.page-stage-photo.is-leaving,.page-stage-extend-wash.is-leaving{display:none}
+ .app>.app-header :is(.wordmark-green,.wordmark-amp,.wordmark-white,.wordmark-bottom){transition:none}
  .page-stage-media,.page-stage-copy{transform:none;opacity:1}
  .app>.app-header::before,.app>.app-header::after{transition:none}
 }
