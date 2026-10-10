@@ -1,6 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {Control,Glyph,useApp} from './ui-core.jsx';
-import {FamilySetupTask} from './family-setup.jsx';
+import {FamilySetupTask,FamilyOption as Option} from './family-setup.jsx';
 import {branchKey,branchMatch,branchesForHousehold,canPlaceHousehold,familySetupSearch,familySetupSuggestions} from './branch-model.js';
 import './family-steps.css';
 // Guided family setup for the welcome and the one-time refinement: one question
@@ -12,7 +12,7 @@ import './family-steps.css';
 const OTHER_BRANCHES=4;
 const memberOf=(state,h)=>(h?.memberIds||[]).includes(state.selfId);
 const memberCount=h=>{const n=(h.memberIds||[]).length;return n+' '+(n===1?'member':'members')};
-const branchCount=b=>{const n=(b.householdIds||[]).length;return n?n+' '+(n===1?'household':'households'):'No households yet'};
+export const branchCount=b=>{const n=(b.householdIds||[]).length;return n?n+' '+(n===1?'household':'households'):'No households yet'};
 const pendingJoins=state=>(state.householdRequests||[]).filter(r=>r.kind==='join'&&r.requesterId===state.selfId);
 function defaultChoice(state){
  const suggest=familySetupSuggestions(state);
@@ -52,12 +52,6 @@ export function useFamilySteps(){
  }
  return {mine,targets,steps,choiceFor,choose:(id,choice)=>setChoices(c=>({...c,[id]:choice})),primaryId,setPrimary,freeze:()=>{if(!frozen)setFrozen(open.map(h=>h.id))},save,busy,error};
 }
-function Option({name,checked,onChange,glyph,title,detail,tag,disabled}){
- return <label className={'family-step-option'+(checked?' is-selected':'')}>
-  <input type="radio" name={name} checked={checked} disabled={disabled} onChange={onChange}/>
-  <Glyph name={glyph}/><span><strong>{title}</strong>{detail&&<small>{detail}</small>}{tag&&<em className="family-step-tag">{tag}</em>}</span>
- </label>;
-}
 export function FamilyStep({flow,step,go,heading,titleId,refine}){
  const {state}=useApp(),[task,setTask]=useState(null),origin=useRef(null);
  const openTask=(next,e)=>{origin.current=e?.currentTarget||null;setTask(next)};
@@ -74,7 +68,7 @@ export function FamilyStep({flow,step,go,heading,titleId,refine}){
    </div>
    <div className="family-step-list">
     <Control type="button" className="list-row family-step-action" onClick={e=>openTask({type:'find-household'},e)}><Glyph name="search"/><span><strong>{flow.mine.length?'Join another household':'Join your household'}</strong><small>Search by name. A head approves your request.</small></span><span className="arrow"><Glyph name="arrow"/></span></Control>
-    <Control type="button" className="list-row family-step-action" onClick={e=>openTask({type:'create-household'},e)}><Glyph name="plus"/><span><strong>Start a household</strong><small>You’ll be its founding head</small></span><span className="arrow"><Glyph name="arrow"/></span></Control>
+    <Control type="button" className="list-row family-step-action" onClick={e=>openTask({type:'create-household',askBranch:false},e)}><Glyph name="plus"/><span><strong>Start a household</strong><small>You’ll be its founding head</small></span><span className="arrow"><Glyph name="arrow"/></span></Control>
    </div>
    {task&&<FamilySetupTask task={task} onTask={setTask} onClose={closeTask}/>}
   </>;

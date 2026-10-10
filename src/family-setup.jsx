@@ -1,4 +1,5 @@
 import React,{useRef,useState} from 'react';
+import {branchKey} from './branch-model.js';
 import {Button,Control,Glyph,Sheet,useApp,useSheetForm} from './ui-core.jsx';
 import {ChoiceControl} from './choice-control.jsx';
 import {branchesForHousehold,branchMatch,canManageBranches,canPlaceHousehold,familySetupSearch,familySetupSuggestions} from './branch-model.js';
@@ -51,6 +52,14 @@ function HouseholdSetupRow({household:h,onTask,own=false}){
   </div>
  </article>;
 }
+// A radio choice on a platter row; the welcome steps and Start a household share it.
+export function FamilyOption({name,checked,onChange,glyph,title,detail,tag,disabled}){
+ return <label className={'family-step-option'+(checked?' is-selected':'')}>
+  <input type="radio" name={name} checked={checked} disabled={disabled} onChange={onChange}/>
+  <Glyph name={glyph}/><span><strong>{title}</strong>{detail&&<small>{detail}</small>}{tag&&<em className="family-step-tag">{tag}</em>}</span>
+ </label>;
+}
+const branchHouseholds=b=>{const n=(b.householdIds||[]).length;return n?n+' '+(n===1?'household':'households'):'No households yet'};
 // One sheet, one task at a time: close (✕) on the left, confirm (✓) on the right,
 // with the same primary action in the sticky footer.
 export function FamilySetupTask({task,onTask,onClose}){
@@ -69,7 +78,7 @@ export function FamilySetupTask({task,onTask,onClose}){
     <p>{task.type==='attach'?<>Add <strong>{household?.name}</strong> to <strong>{branch?.name}</strong>?</>:<>Remove <strong>{household?.name}</strong> from <strong>{branch?.name}</strong>?</>}</p>
     <p className="field-help">{task.type==='attach'?'Branches group households for browsing. No one joins a household, gains access or becomes a head.':'Only this branch listing changes. The household, its members and its other branches stay as they are.'}</p></ConfirmStep>
   :task.type==='find-household'?<FindHousehold onTask={onTask} back={back}/>
-  :task.type==='create-household'?<CreateHousehold branchId={task.branchId} back={back} onDone={onClose}/>
+  :task.type==='create-household'?<CreateHousehold branchId={task.branchId} askBranch={task.askBranch!==false} back={back} onDone={onClose}/>
   :task.type==='create-branch'?<CreateBranch initialName={task.name||''} householdId={task.householdId} back={back} onDone={onClose} onTask={onTask}/>
   :task.type==='rename-branch'?<RenameBranch branch={branch} back={back}/>
   :task.type==='remove-branch'?<ConfirmStep back={back} onDone={onClose} label="Remove branch" danger action={{type:'REMOVE_BRANCH',branchId:task.branchId}} done="Branch removed." disabled={!branch||branch.householdIds.length>0}>
@@ -132,11 +141,43 @@ function FindHousehold({onTask,back}){
   <div className="sheet-footer"><Button secondary onClick={back}>Back</Button></div>
  </>;
 }
-function CreateHousehold({branchId,back,onDone}){
- const {state}=useApp(),[name,setName]=useState(''),branch=(state.branches||[]).find(b=>b.id===branchId);
- const {busy,error,run}=useSubmit(null,{done:'Household created. You’re its founding head.',onDone}),formId=useSheetForm({label:'Create household',busy,disabled:!name.trim(),dirty:Boolean(name.trim())});
- return <form id={formId} className="gw-form stack" aria-busy={busy} onSubmit={e=>{e.preventDefault();if(name.trim())run({type:'CREATE_HOUSEHOLD',name:name.trim(),...(branch?{branchId:branch.id}:{})})}}>
+// Starting a household also asks, optionally, which family branch it belongs to:
+// the surname branch is pre-selected (or offered as new) and Not sure yet skips.
+// Opened from a branch, that branch is used. The welcome steps ask on their own screen.
+function CreateHousehold({branchId,askBranch=true,back,onDone}){
+ const {state,dispatch,setToast}=useApp(),latest=useRef(state);latest.current=state;
+ const [name,setName]=useState(''),branch=(state.branches||[]).find(b=>b.id===branchId);
+ const suggest=familySetupSuggestions(state),suggested=suggest.branches[0]||null,createName=!suggested&&suggest.createName?suggest.createName+' Branch':'';
+ const others=(state.branches||[]).filter(b=>b.id!==suggested?.id).slice(0,4),ask=askBranch&&!branch;
+ const [choice,setChoice]=useState(suggested?{kind:'branch',branchId:suggested.id}:createName?{kind:'create',name:createName}:{kind:'skip'});
+ const [busy,setBusy]=useState(false),[error,setError]=useState(''),lock=useRef(false);
+ const formId=useSheetForm({label:'Create household',busy,disabled:!name.trim(),dirty:Boolean(name.trim())});
+ async function submit(){
+  if(lock.current||!name.trim())return;lock.current=true;setBusy(true);setError('');
+  try{
+   const before=new Set((latest.current.households||[]).map(h=>h.id)),target=branch?branch.id:ask&&choice.kind==='branch'?choice.branchId:null;
+   if(!await dispatch({type:'CREATE_HOUSEHOLD',name:name.trim(),...(target?{branchId:target}:{})})){setError('That wasn’t saved. Check the message above and try again.');return}
+   let note='Household created. You’re its founding head.';
+   if(ask&&choice.kind==='create'){
+    // The new household appears once the saved state renders; wait briefly for it.
+    const fresh=()=>(latest.current.households||[]).find(h=>!before.has(h.id)&&h.memberIds?.includes(latest.current.selfId));
+    for(let i=0;i<40&&!fresh();i++)await new Promise(r=>setTimeout(r,50));
+    const created=fresh(),existing=branchMatch(latest.current,choice.name);
+    const placed=created&&await dispatch(existing?{type:'ATTACH_BRANCH_HOUSEHOLD',branchId:existing.id,householdId:created.id}:{type:'CREATE_BRANCH',name:choice.name,householdId:created.id}).catch(()=>false);
+    note=placed?'Household created in '+choice.name+'. You’re its founding head.':'Household created. Add it to a branch from Branches & households.';
+   }
+   setToast(note);onDone?.();
+  }catch(e){setError(e.message||'That wasn’t saved. Try again.')}
+  finally{lock.current=false;setBusy(false)}
+ }
+ return <form id={formId} className="gw-form stack" aria-busy={busy} onSubmit={e=>{e.preventDefault();submit()}}>
   <label>Household name<input required maxLength="100" value={name} disabled={busy} onChange={e=>setName(e.target.value)} placeholder="The name your family uses"/></label>
+  {ask&&<fieldset className="family-step-list family-step-choices family-create-branch"><legend>Family branch <span className="muted">Optional</span></legend>
+   {suggested&&<FamilyOption name="create-household-branch" checked={choice.kind==='branch'&&choice.branchId===suggested.id} onChange={()=>setChoice({kind:'branch',branchId:suggested.id})} glyph="tree" title={suggested.name} detail={branchHouseholds(suggested)} tag="Suggested" disabled={busy}/>}
+   {createName&&<FamilyOption name="create-household-branch" checked={choice.kind==='create'&&branchKey(choice.name)===branchKey(createName)} onChange={()=>setChoice({kind:'create',name:createName})} glyph="tree" title={createName} detail="New branch for your last name" tag="Suggested" disabled={busy}/>}
+   {others.map(b=><FamilyOption key={b.id} name="create-household-branch" checked={choice.kind==='branch'&&choice.branchId===b.id} onChange={()=>setChoice({kind:'branch',branchId:b.id})} glyph="tree" title={b.name} detail={branchHouseholds(b)} disabled={busy}/>)}
+   <FamilyOption name="create-household-branch" checked={choice.kind==='skip'} onChange={()=>setChoice({kind:'skip'})} glyph="help" title="Not sure yet" detail="Skip. You can add it to a branch later." disabled={busy}/>
+  </fieldset>}
   <p className="field-help family-setup-disclosure"><Glyph name="info"/><span>You’ll be the founding head of this household. Other adults choose whether to join, and additional heads follow the existing approval process.{branch?<> It will be listed in <strong>{branch.name}</strong>.</>:null}</span></p>
   {error&&<p role="alert">{error}</p>}
   <div className="sheet-footer"><Button secondary disabled={busy} onClick={back}>Cancel</Button><Button type="submit" disabled={busy||!name.trim()}>{busy?'Creating…':'Create household'}</Button></div></form>;
