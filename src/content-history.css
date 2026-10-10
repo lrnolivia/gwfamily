@@ -10,3 +10,12 @@
 .report-card .row{flex-wrap:wrap;gap:8px}
 .load-older{display:flex;justify-content:center;padding:8px 0}
 .load-older .button{min-width:min(100%,220px)}
+.chat-safety .chat-safety-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;padding:8px 14px;border-radius:14px;background:var(--raised);flex-wrap:wrap}
+.direct-message:has(>.message-report-choice){grid-template-columns:30px 36px minmax(0,1fr)}
+.direct-message .message-report-choice{grid-row:1;grid-column:1;align-self:center;display:flex;justify-content:center}
+.direct-message:has(>.message-report-choice)>.message-avatar{grid-column:2}
+.direct-message:has(>.message-report-choice)>.message-bubble{grid-column:3}
+.direct-message .message-report-choice input{width:22px;height:22px}
+.direct-message.is-report-chosen .message-bubble{outline:2px solid var(--destructive);outline-offset:2px}
+.report-messages-bar{position:sticky;bottom:calc(env(safe-area-inset-bottom,0px) + 88px);z-index:3}
+.report-card .report-excerpt.is-messages{white-space:pre-line}

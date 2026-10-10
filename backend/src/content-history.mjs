@@ -1,5 +1,6 @@
 import {UserError,json,readPost,visiblePostSql} from './family-service.mjs';
 import {can} from './policy.mjs';
+import {messageReportQueue} from './chat-safety.mjs';
 // History paging, search, recoverable removal and the moderator report queue.
 // Every read rechecks visibility against the current actor; ids travel as one
 // JSON parameter so D1's bound-parameter limit never caps a page.
@@ -101,6 +102,8 @@ export async function reportQueue(db,actor,{status='open'}={}){
  const rows=list(await db.prepare(`SELECT r.*,u.name AS reporter_name FROM moderation_reports r LEFT JOIN user u ON u.id=r.reporter_id WHERE ${status==='open'?"r.status='open'":"r.status!='open'"} ORDER BY r.created_at DESC,r.id DESC LIMIT 100`).bind().all());
  const reports=[];
  for(const r of rows){const target=await describeTarget(db,actor,r.target_id);const author=target.authorId?await db.prepare('SELECT name FROM user WHERE id=?').bind(target.authorId).first():null;reports.push({id:r.id,targetId:r.target_id,reason:r.reason,status:r.status,reporterName:r.reporter_name||'Family member',createdAt:stamp(r.created_at),resolvedAt:r.resolved_at?stamp(r.resolved_at):null,target:{...target,authorName:author?.name||null}})}
+ // Private-message reports carry only the chosen snapshot.
+ reports.push(...await messageReportQueue(db,status));reports.sort((a,b)=>b.createdAt-a.createdAt);
  return {status,reports};
 }
 // Removals this actor may undo: their own for thirty days; moderators see every open removal.

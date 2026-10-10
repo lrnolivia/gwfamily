@@ -27,4 +27,4 @@ export const historyQuery=(path,params)=>{const q=new URLSearchParams();for(cons
 export function memoryMatches(memory,query){const text=String(query||'').trim().toLocaleLowerCase();if(!text)return true;return [memory.title,memory.category,memory.event,memory.year,memory.milestone,...(memory.tags||[])].filter(Boolean).join(' ').toLocaleLowerCase().includes(text)}
 // Same people who may edit a memory may remove it: the uploader or a moderator.
 export const canRemoveMemory=(state,memory)=>Boolean(memory)&&canEditMemoryDetails(state,memory);
-export function removalLabel(kind){return kind==='memory'?'Memory':kind==='comment'?'Comment':'Post'}
+export function removalLabel(kind){return kind==='memory'?'Memory':kind==='comment'?'Comment':kind==='message'?'Private messages':kind==='photo-comment'?'Photo comment':'Post'}

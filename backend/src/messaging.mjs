@@ -16,6 +16,9 @@ const accessSql=accessFor('?');
 const accountSql=`EXISTS(SELECT 1 FROM members m JOIN user u ON u.id=m.id WHERE m.id=? AND ${eligibleSql})`;
 const manageSql=`EXISTS(SELECT 1 FROM conversations mc JOIN conversation_members mm ON mm.conversation_id=mc.id WHERE mc.id=? AND mm.member_id=? AND mm.status='active' AND mc.type='group' AND (mc.owner_id=mm.member_id OR mm.role='manager'))`;
 const deliverySql=`EXISTS(SELECT 1 FROM conversations delivery WHERE delivery.id=? AND (delivery.type='group' OR EXISTS(SELECT 1 FROM conversation_members peer JOIN members m ON m.id=peer.member_id JOIN user u ON u.id=m.id WHERE peer.conversation_id=delivery.id AND peer.member_id!=? AND peer.status IN ('active','pending') AND ${eligibleSql})))`;
+// A block in either direction stops new invitations between two people. The
+// generic refusal never tells the other person that they were blocked.
+const unblockedSql=(a,b)=>`NOT EXISTS(SELECT 1 FROM member_blocks bl WHERE (bl.blocker_id=${a} AND bl.blocked_id=${b}) OR (bl.blocker_id=${b} AND bl.blocked_id=${a}))`;
 const closed=()=>new UserError('This direct conversation is closed. Leave it before starting a new invitation.',409);
 
 function payload(value,keys){
@@ -55,7 +58,7 @@ function requireManager(value,actor){if(value.type!=='group'||value.owner_id!==a
 async function recipients(db,actor,value){
  if(!Array.isArray(value)||!value.length||value.length>=MAX_MEMBERS||value.some(id=>typeof id!=='string'||!id||id.length>100||id===actor.id))throw new UserError('Choose other registered family members');
  const ids=[...new Set(value)].sort();
- for(const id of ids)if(!await db.prepare(`SELECT m.id FROM members m JOIN user u ON u.id=m.id WHERE m.id=? AND ${eligibleSql}`).bind(id).first())throw new UserError('Choose active registered adult family members');
+ for(const id of ids)if(!await db.prepare(`SELECT m.id FROM members m JOIN user u ON u.id=m.id WHERE m.id=? AND ${eligibleSql} AND ${unblockedSql('?','m.id')}`).bind(id,actor.id,actor.id).first())throw new UserError('Choose active registered adult family members who can receive your invitation');
  return ids;
 }
 const message=(row,files=[])=>({id:row.id,conversationId:row.conversation_id,authorId:row.author_id,body:row.attachment_only===1?'':row.body,sequence:row.sequence,createdAt:row.created_at,name:row.name,photo:row.image||null,files});
@@ -117,7 +120,7 @@ export function registerMessaging(app){
  registerMessageAttachments(app,{UserError,accessSql,accessFor,conversation,rate,requestId});
  app.get('/api/conversations/recipients',async c=>{
   const db=c.env.DB,actor=c.get('actor');await activeAccount(db,actor.id);
-  const q=text(c.req.query('q')||'',80,false),found=rows(await db.prepare(`SELECT m.id,u.name,u.image FROM members m JOIN user u ON u.id=m.id WHERE ${eligibleSql} AND m.id!=? AND (?='' OR instr(lower(u.name),lower(?))>0) ORDER BY u.name COLLATE NOCASE,m.id LIMIT 200`).bind(actor.id,q,q).all());
+  const q=text(c.req.query('q')||'',80,false),found=rows(await db.prepare(`SELECT m.id,u.name,u.image FROM members m JOIN user u ON u.id=m.id WHERE ${eligibleSql} AND m.id!=? AND ${unblockedSql('?','m.id')} AND (?='' OR instr(lower(u.name),lower(?))>0) ORDER BY u.name COLLATE NOCASE,m.id LIMIT 200`).bind(actor.id,actor.id,actor.id,q,q).all());
   await c.get('validateMessageSession')?.();
   return c.json({members:found.map(m=>({id:m.id,name:m.name,photo:m.image||null}))});
  });
@@ -173,7 +176,7 @@ export function registerMessaging(app){
    db.prepare(`INSERT OR IGNORE INTO messaging_requests(member_id,request_id,operation,fingerprint,resource_id) SELECT ?,?,'create',?,? WHERE ${accountSql} AND ${eligibleRecipients}`).bind(actor.id,key,hash,id,actor.id,...ids,ids.length),
    db.prepare(`INSERT INTO conversations(id,type,name,owner_id,created_at,direct_key) SELECT ?,?,?,?,?,? WHERE ${guard}`).bind(id,data.type,name,actor.id,now,pair,actor.id,key,id),
    db.prepare(`INSERT INTO conversation_members(conversation_id,member_id,status,joined_at) SELECT ?,?,'active',? WHERE ${guard}`).bind(id,actor.id,now,actor.id,key,id),
-   ...ids.map(memberId=>db.prepare(`INSERT INTO conversation_members(conversation_id,member_id,status,invited_by,invited_at) SELECT ?,?,'pending',?,? WHERE ${guard} AND ${accountSql}`).bind(id,memberId,actor.id,now,actor.id,key,id,memberId))
+   ...ids.map(memberId=>db.prepare(`INSERT INTO conversation_members(conversation_id,member_id,status,invited_by,invited_at) SELECT ?,?,'pending',?,? WHERE ${guard} AND ${accountSql} AND ${unblockedSql('?','?')}`).bind(id,memberId,actor.id,now,actor.id,key,id,memberId,actor.id,memberId,memberId,actor.id))
   ];
   try{await db.batch(statements)}catch(error){const concurrent=await reuse();if(concurrent)return c.json(concurrent);throw error}
   const saved=await receipt(db,actor,key,'create',hash);if(!saved)throw new UserError('Conversation membership changed. Choose eligible members and try again.',409);await conversation(db,actor,saved.resource_id);return c.json({id:saved.resource_id},201);
@@ -264,7 +267,7 @@ export function registerMessaging(app){
   const current=rows(await db.prepare("SELECT member_id FROM conversation_members WHERE conversation_id=? AND status IN ('active','pending')").bind(id).all());
   if(new Set([...current.map(x=>x.member_id),...ids]).size>MAX_MEMBERS)throw new UserError('Conversations support up to 50 members');
   await rate(db,actor.id,'invite',40,3600);const now=new Date().toISOString();
-  await db.batch(ids.map(memberId=>db.prepare(`INSERT INTO conversation_members(conversation_id,member_id,status,role,invited_by,invited_at) SELECT ?,?,'pending','member',?,? WHERE ${accessSql} AND ${manageSql} AND ${accountSql} ON CONFLICT(conversation_id,member_id) DO UPDATE SET status='pending',role='member',invited_by=excluded.invited_by,invited_at=excluded.invited_at,joined_at=NULL WHERE conversation_members.status IN ('declined','left','removed')`).bind(id,memberId,actor.id,now,id,actor.id,id,actor.id,memberId)));
+  await db.batch(ids.map(memberId=>db.prepare(`INSERT INTO conversation_members(conversation_id,member_id,status,role,invited_by,invited_at) SELECT ?,?,'pending','member',?,? WHERE ${accessSql} AND ${manageSql} AND ${accountSql} AND ${unblockedSql('?','?')} ON CONFLICT(conversation_id,member_id) DO UPDATE SET status='pending',role='member',invited_by=excluded.invited_by,invited_at=excluded.invited_at,joined_at=NULL WHERE conversation_members.status IN ('declined','left','removed')`).bind(id,memberId,actor.id,now,id,actor.id,id,actor.id,memberId,actor.id,memberId,memberId,actor.id)));
   return c.json({conversation:await detail(db,actor,id)});
  });
  app.patch('/api/conversations/:id',async c=>{
