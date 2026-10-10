@@ -51,7 +51,7 @@ async function fingerprint(value){return [...new Uint8Array(await crypto.subtle.
 async function rate(db,id,kind,max,window=60){if(!(await createRateStorage(db).consume(`messaging:${kind}:${id}`,{window,max})).allowed)throw new UserError('Please wait before trying again',429)}
 async function activeAccount(db,id,adult=true){if(!await db.prepare(`SELECT m.id FROM members m JOIN user u ON u.id=m.id WHERE m.id=? AND ${adult?eligibleSql:memberSql}`).bind(id).first())throw new UserError(adult?'Private messaging requires an active verified adult profile':'Active verified membership required',403)}
 async function conversation(db,actor,id){
- const value=await db.prepare(`SELECT c.*,cm.role,cm.read_sequence FROM conversations c JOIN conversation_members cm ON cm.conversation_id=c.id WHERE c.id=? AND cm.member_id=? AND ${accessSql}`).bind(id,actor.id,id,actor.id).first();
+ const value=await db.prepare(`SELECT c.*,cm.role,cm.read_sequence,cm.notifications_muted FROM conversations c JOIN conversation_members cm ON cm.conversation_id=c.id WHERE c.id=? AND cm.member_id=? AND ${accessSql}`).bind(id,actor.id,id,actor.id).first();
  if(!value)throw missing();return value;
 }
 function requireManager(value,actor){if(value.type!=='group'||value.owner_id!==actor.id&&value.role!=='manager')throw new UserError('Conversation owner or manager required',403)}
@@ -61,7 +61,10 @@ async function recipients(db,actor,value){
  for(const id of ids)if(!await db.prepare(`SELECT m.id FROM members m JOIN user u ON u.id=m.id WHERE m.id=? AND ${eligibleSql} AND ${unblockedSql('?','m.id')}`).bind(id,actor.id,actor.id).first())throw new UserError('Choose active registered adult family members who can receive your invitation');
  return ids;
 }
-const message=(row,files=[])=>({id:row.id,conversationId:row.conversation_id,authorId:row.author_id,body:row.attachment_only===1?'':row.body,sequence:row.sequence,createdAt:row.created_at,name:row.name,photo:row.image||null,files});
+// Unsent messages keep their place (sequence, read cursors) but not their text or files.
+const message=(row,files=[],quote=null)=>({id:row.id,conversationId:row.conversation_id,authorId:row.author_id,body:row.unsent_at||row.attachment_only===1?'':row.body,sequence:row.sequence,createdAt:row.created_at,name:row.name,photo:row.image||null,files:row.unsent_at?[]:files,...(row.unsent_at?{unsent:true,unsentAt:row.unsent_at}:{}),...(row.edited_at&&!row.unsent_at?{editedAt:row.edited_at}:{}),...(row.reply_to_id?{replyTo:quote||{id:row.reply_to_id,unavailable:true}}:{})});
+// Quotes show only what the reader can already read in this conversation.
+async function quotesFor(db,id,list){const ids=[...new Set(list.map(r=>r.reply_to_id).filter(Boolean))];if(!ids.length)return new Map();const found=rows(await db.prepare('SELECT ms.id,ms.author_id,ms.body,ms.attachment_only,ms.unsent_at,u.name FROM messages ms JOIN user u ON u.id=ms.author_id WHERE ms.conversation_id=? AND ms.id IN (SELECT value FROM json_each(?))').bind(id,JSON.stringify(ids)).all());return new Map(found.map(q=>[q.id,{id:q.id,authorId:q.author_id,name:q.name,...(q.unsent_at?{unsent:true}:{excerpt:(q.attachment_only===1?'Attachment':q.body).slice(0,140)})}]))}
 async function detail(db,actor,id){
  const value=await conversation(db,actor,id);
  const members=rows(await db.prepare(`SELECT cm.member_id,cm.status,cm.role,cm.invited_by,cm.invited_at,cm.joined_at,cm.read_sequence,u.name,u.image FROM conversation_members cm JOIN user u ON u.id=cm.member_id WHERE cm.conversation_id=? AND ${accessSql} ORDER BY CASE cm.status WHEN 'active' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END,u.name COLLATE NOCASE,cm.member_id LIMIT 100`).bind(id,id,actor.id).all());
@@ -72,15 +75,15 @@ async function detail(db,actor,id){
  return serializeConversation(value,members,last,unread?.n||0,actor,files);
 }
 function serializeConversation(value,members,last,unreadCount,actor,lastFiles=[]){
- return {id:value.id,type:value.type,name:value.name,ownerId:value.owner_id,myRole:value.owner_id===actor.id?'owner':value.role,readSequence:value.read_sequence,latestSequence:last?.sequence||0,unreadCount,createdAt:value.created_at,updatedAt:last?.created_at||value.created_at,lastMessage:last?message(last,lastFiles):null,members:members.map(m=>({memberId:m.member_id,name:m.name,photo:m.image||null,status:m.status,role:m.member_id===value.owner_id?'owner':m.role,invitedBy:m.invited_by,invitedAt:m.invited_at,joinedAt:m.joined_at,readSequence:m.read_sequence}))};
+ return {id:value.id,type:value.type,name:value.name,ownerId:value.owner_id,myRole:value.owner_id===actor.id?'owner':value.role,muted:value.notifications_muted===1,readSequence:value.read_sequence,latestSequence:last?.sequence||0,unreadCount,createdAt:value.created_at,updatedAt:last?.created_at||value.created_at,lastMessage:last?message(last,lastFiles):null,members:members.map(m=>({memberId:m.member_id,name:m.name,photo:m.image||null,status:m.status,role:m.member_id===value.owner_id?'owner':m.role,invitedBy:m.invited_by,invitedAt:m.invited_at,joinedAt:m.joined_at,readSequence:m.read_sequence}))};
 }
 async function pageDetails(db,actor,ids){
  if(!ids.length)return [];
  const selected=JSON.stringify(ids);
  // Bounded reads replace per-conversation round trips. JSON binds keep the
  // maximum page within D1's parameter limit, including authorization parameters.
- const summaries=rows(await db.prepare(`SELECT c.*,cm.role,cm.read_sequence,
-  lm.id AS last_id,lm.author_id AS last_author_id,lm.body AS last_body,lm.attachment_only AS last_attachment_only,lm.sequence AS last_sequence,lm.created_at AS last_created_at,lu.name AS last_name,lu.image AS last_image,
+ const summaries=rows(await db.prepare(`SELECT c.*,cm.role,cm.read_sequence,cm.notifications_muted,
+  lm.id AS last_id,lm.author_id AS last_author_id,lm.body AS last_body,lm.attachment_only AS last_attachment_only,lm.unsent_at AS last_unsent_at,lm.edited_at AS last_edited_at,lm.sequence AS last_sequence,lm.created_at AS last_created_at,lu.name AS last_name,lu.image AS last_image,
   (SELECT count(*) FROM messages unread WHERE unread.conversation_id=c.id AND unread.sequence>cm.read_sequence AND unread.author_id!=cm.member_id) AS unread_count
   FROM conversations c JOIN conversation_members cm ON cm.conversation_id=c.id JOIN members m ON m.id=cm.member_id JOIN user u ON u.id=m.id
   LEFT JOIN messages lm ON lm.id=(SELECT id FROM messages WHERE conversation_id=c.id ORDER BY sequence DESC LIMIT 1) LEFT JOIN user lu ON lu.id=lm.author_id
@@ -97,7 +100,7 @@ async function pageDetails(db,actor,ids){
  return ids.flatMap(id=>{
   const value=byId.get(id),group=memberGroups.get(id)||[];
   if(!value||!stillAllowed.has(id)||!group.some(m=>m.member_id===actor.id&&m.status==='active'))return [];
-  const last=value.last_id?{id:value.last_id,conversation_id:id,author_id:value.last_author_id,body:value.last_body,attachment_only:value.last_attachment_only,sequence:value.last_sequence,created_at:value.last_created_at,name:value.last_name,image:value.last_image}:null;
+  const last=value.last_id?{id:value.last_id,conversation_id:id,author_id:value.last_author_id,body:value.last_body,attachment_only:value.last_attachment_only,unsent_at:value.last_unsent_at,edited_at:value.last_edited_at,sequence:value.last_sequence,created_at:value.last_created_at,name:value.last_name,image:value.last_image}:null;
   return [serializeConversation(value,group,last,value.unread_count,actor,lastFiles.get(value.last_id)||[])];
  });
 }
@@ -190,28 +193,33 @@ export function registerMessaging(app){
   const cursor=before??after;if(cursor!==undefined)sequence(Number(cursor));
   const found=rows(await db.prepare(`SELECT ms.*,u.name,u.image FROM messages ms JOIN user u ON u.id=ms.author_id WHERE ms.conversation_id=? AND ${accessSql}${cursor!==undefined?` AND ms.sequence ${before!==undefined?'<':'>'} ?`:''} ORDER BY ms.sequence ${after!==undefined?'ASC':'DESC'} LIMIT ?`).bind(id,id,actor.id,...(cursor!==undefined?[Number(cursor)]:[]),limit+1).all());
   const hasMore=found.length>limit,result=found.slice(0,limit);if(after===undefined)result.reverse();
-  const attachments=await loadMessageAttachments(db,actor.id,result,accessFor);
+  // Edits, unsends and restores of already-loaded messages, after the client's change cursor.
+  const changedAfter=c.req.query('changedAfter');if(changedAfter!==undefined&&(changedAfter.length>40||!/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d(\.\d{1,3})?$/.test(changedAfter)))throw new UserError('Use a valid change cursor');
+  const changed=changedAfter===undefined?[]:rows(await db.prepare(`SELECT ms.*,u.name,u.image FROM messages ms JOIN user u ON u.id=ms.author_id WHERE ms.conversation_id=? AND ms.changed_at>? AND ${accessSql} ORDER BY ms.changed_at LIMIT 100`).bind(id,changedAfter,id,actor.id).all());
+  const changeCursor=(await db.prepare('SELECT MAX(changed_at) AS at FROM messages WHERE conversation_id=?').bind(id).first())?.at||null;
+  const attachments=await loadMessageAttachments(db,actor.id,[...result,...changed],accessFor),quotes=await quotesFor(db,id,[...result,...changed]);
   await c.get('validateMessageSession')?.();await conversation(db,actor,id);
-  return c.json({messages:result.map(row=>message(row,attachments.get(row.id)||[])),nextBefore:result[0]?.sequence??null,nextAfter:result.at(-1)?.sequence??null,hasMore});
+  return c.json({messages:result.map(row=>message(row,attachments.get(row.id)||[],quotes.get(row.reply_to_id))),changed:changed.map(row=>message(row,attachments.get(row.id)||[],quotes.get(row.reply_to_id))),changeCursor,nextBefore:result[0]?.sequence??null,nextAfter:result.at(-1)?.sequence??null,hasMore});
  });
  app.post('/api/conversations/:id/messages',async c=>{
   const db=c.env.DB,actor=c.get('actor'),id=c.req.param('id');await conversation(db,actor,id);
-  const data=await readBody(c,['requestId','body','attachments','expectedAccountId']),key=requestId(data.requestId),body=text(data.body??'',4000,false);
+  const data=await readBody(c,['requestId','body','attachments','expectedAccountId','replyToId']),key=requestId(data.requestId),body=text(data.body??'',4000,false);
+  const replyTo=data.replyToId===undefined?null:typeof data.replyToId==='string'&&await db.prepare('SELECT id FROM messages WHERE id=? AND conversation_id=?').bind(data.replyToId,id).first()?data.replyToId:(()=>{throw new UserError('That message can no longer be quoted',409)})();
   let ids;try{ids=normalizeAttachmentIds(data.attachments)}catch(error){if(error instanceof AttachmentError)throw new UserError(error.message,error.status);throw error}
   if((ids.length||data.expectedAccountId!==undefined)&&data.expectedAccountId!==actor.id)throw new UserError('The signed-in account changed. Reload before sending.',409);
   if(!body&&!ids.length)throw new UserError('Enter a message or choose an attachment');
   // Preserve the existing text-only fingerprint for old clients. Attachment refs
   // are ordered, immutable private IDs, never metadata or family media URLs.
-  const hash=await fingerprint(ids.length?{conversationId:id,body,attachments:ids}:{conversationId:id,body});
+  const hash=await fingerprint({...(ids.length?{conversationId:id,body,attachments:ids}:{conversationId:id,body}),...(replyTo?{replyTo}:{})});
   const confirm=async saved=>{
    const row=await db.prepare(`SELECT ms.*,u.name,u.image FROM messages ms JOIN user u ON u.id=ms.author_id WHERE ms.id=? AND ms.conversation_id=? AND ms.author_id=? AND ${accessSql}`).bind(saved.resource_id,id,actor.id,id,actor.id).first();
    if(!row){await conversation(db,actor,id);throw new UserError('This send receipt has no accessible message. Reload before retrying.',409)}
-   const files=(await loadMessageAttachments(db,actor.id,[row],accessFor)).get(row.id)||[];
+   const files=(await loadMessageAttachments(db,actor.id,[row],accessFor)).get(row.id)||[],quote=(await quotesFor(db,id,[row])).get(row.reply_to_id);
    // Hydration awaits another database read. Do not return a cached body after
    // participant/adult/archive access has changed during that await.
    await c.get('validateMessageSession')?.();await conversation(db,actor,id);
    if(files.length!==ids.length||files.some((file,index)=>file.id!==ids[index]))throw new UserError('The message attachment association is incomplete. Retry the same request.',409);
-   return c.json({message:message(row,files)},201);
+   return c.json({message:message(row,files,quote)},201);
   };
   const unavailable=state=>state.safe_to_edit===1?c.json({error:'An attachment expired or was cancelled. Upload it again before sending.',code:'attachments-unavailable',safeToEdit:true},410):c.json({error:'The attachment send is not confirmed. Retry the same request before changing it.',code:'attachments-unconfirmed',safeToEdit:false},409);
   let saved=await sendState(db,actor,id,key,hash,ids);
@@ -227,7 +235,7 @@ export function registerMessaging(app){
   }
   const statements=[
    db.prepare(`INSERT OR IGNORE INTO messaging_requests(member_id,request_id,operation,fingerprint,resource_id) SELECT ?,?,'send',?,? WHERE ${accessSql} AND ${deliverySql} AND ${attachmentGuard.sql}`).bind(actor.id,key,hash,mid,id,actor.id,id,actor.id,...attachmentGuard.values),
-   db.prepare(`INSERT INTO messages(id,conversation_id,author_id,body,created_at,sequence,attachment_only) SELECT ?,?,?,?,?,COALESCE((SELECT MAX(sequence) FROM messages WHERE conversation_id=?),0)+1,? WHERE EXISTS(SELECT 1 FROM messaging_requests WHERE member_id=? AND request_id=? AND operation='send' AND resource_id=?) AND ${accessSql} AND ${deliverySql} AND ${attachmentGuard.sql}`).bind(mid,id,actor.id,storedBody,now,id,body?0:1,actor.id,key,mid,id,actor.id,id,actor.id,...attachmentGuard.values)
+   db.prepare(`INSERT INTO messages(id,conversation_id,author_id,body,created_at,sequence,attachment_only,reply_to_id) SELECT ?,?,?,?,?,COALESCE((SELECT MAX(sequence) FROM messages WHERE conversation_id=?),0)+1,?,? WHERE EXISTS(SELECT 1 FROM messaging_requests WHERE member_id=? AND request_id=? AND operation='send' AND resource_id=?) AND ${accessSql} AND ${deliverySql} AND ${attachmentGuard.sql}`).bind(mid,id,actor.id,storedBody,now,id,body?0:1,replyTo,actor.id,key,mid,id,actor.id,id,actor.id,...attachmentGuard.values)
   ];
   if(ids.length)statements.push(db.prepare(`UPDATE conversation_attachments SET message_id=?,message_ordinal=CAST((SELECT key FROM json_each(?) WHERE value=conversation_attachments.id) AS INTEGER) WHERE id IN (SELECT value FROM json_each(?)) AND conversation_id=? AND owner_id=? AND state='ready' AND message_id IS NULL AND expires_at>MAX(?,CAST((julianday('now')-2440587.5)*86400000 AS INTEGER)) AND ${accessFor('conversation_attachments.conversation_id')} AND EXISTS(SELECT 1 FROM messages ms WHERE ms.id=? AND ms.conversation_id=conversation_attachments.conversation_id AND ms.author_id=conversation_attachments.owner_id)`).bind(mid,JSON.stringify(ids),JSON.stringify(ids),id,actor.id,nowMs,actor.id,mid));
   if(ids.length){

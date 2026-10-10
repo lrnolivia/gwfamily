@@ -12,6 +12,14 @@ export function useBlocks(){
  return {blocks,error,set};
 }
 // Conversation details: block or unblock other participants.
+// Per-chat notification mute for this participant only.
+export function ConversationMute({conversation:c,onChanged}){
+ const {state}=useApp(),[busy,setBusy]=useState(false),[error,setError]=useState(''),[shown,setShown]=useState(null);
+ if(state.mode!=='live')return null;
+ const muted=shown??Boolean(c.muted);
+ async function toggle(next){setShown(next);setBusy(true);setError('');try{await api('/api/conversations/'+encodeURIComponent(c.id)+'/notifications',{method:'PUT',body:JSON.stringify({muted:next,expectedAccountId:state.selfId})});onChanged?.()}catch(e){setShown(null);setError(e.message)}finally{setBusy(false)}}
+ return <section className="card stack" aria-label="Notifications for this chat"><h2>Notifications</h2><label className="check-row"><input type="checkbox" checked={muted} disabled={busy} onChange={e=>toggle(e.target.checked)}/>Mute this conversation</label><p className="small muted">You’ll still see new messages here and in Messages. Only alerts are silenced.</p>{error&&<p className="form-error" role="alert">{error}</p>}</section>;
+}
 export function ConversationSafety({conversation:c,onChanged}){
  const {state,go}=useApp(),{blocks,error:loadError,set}=useBlocks(),[busy,setBusy]=useState(''),[error,setError]=useState(''),[confirm,setConfirm]=useState(null);
  const others=(c.members||[]).filter(m=>memberId(m)!==state.selfId&&!['removed'].includes(m.status));

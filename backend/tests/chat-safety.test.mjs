@@ -58,3 +58,34 @@ test('a message report keeps only the chosen messages and grants moderators no c
  await assert.rejects(()=>command(s.DB,owner,{type:'MODERATE',kind:'message',id:report.data.id,status:'dismissed',requestId:crypto.randomUUID()}),e=>e.status===409);
  assert.equal((await reportQueue(s.DB,owner,{status:'resolved'})).reports.find(r=>r.id===report.data.id).status,'handled');
 });
+
+test('message edit keeps an author-only revision; unsend hides text and files but keeps order and read cursors; undo works',async()=>{
+ const s=setup();const id=await s.create('alice',['bob']);await s.call('bob','/api/conversations/'+id+'/invitation','POST',{action:'accept'});
+ const sent=async(user,body,extra={})=>(await s.call(user,'/api/conversations/'+id+'/messages','POST',{requestId:crypto.randomUUID(),body,...extra})).data.message;
+ const first=await sent('alice','Fictional typo mesage'),second=await sent('bob','Fictional reply');
+ await s.call('bob','/api/conversations/'+id+'/read','POST',{sequence:second.sequence});
+ const patch=(user,messageId,body)=>s.call(user,'/api/conversations/'+id+'/messages/'+messageId,'PATCH',body);
+ assert.equal((await patch('bob',first.id,{action:'edit',body:'Hijack',expectedBody:'Fictional typo mesage'})).status,403);
+ assert.equal((await patch('alice',first.id,{action:'edit',body:'Fixed',expectedBody:'stale'})).status,409);
+ assert.equal((await patch('alice',first.id,{action:'edit',body:'Fictional typo message',expectedBody:'Fictional typo mesage'})).status,200);
+ const quote=await sent('bob','Agreed',{replyToId:first.id});assert.equal(quote.replyTo.excerpt,'Fictional typo message');
+ assert.equal((await s.call('bob','/api/conversations/'+id+'/messages','POST',{requestId:crypto.randomUUID(),body:'x',replyToId:'not-here'})).status,409);
+ const cursor=(await s.call('bob','/api/conversations/'+id+'/messages')).data.changeCursor;
+ assert.equal((await patch('alice',first.id,{action:'unsend'})).status,200);assert.equal((await patch('alice',first.id,{action:'unsend'})).status,200,'repeat is idempotent');
+ const polled=(await s.call('bob','/api/conversations/'+id+'/messages?after='+quote.sequence+'&changedAfter='+encodeURIComponent(cursor))).data;assert.deepEqual(polled.changed.map(m=>[m.id,m.unsent]),[[first.id,true]],'an open chat sees the unsend while polling');
+ const view=(await s.call('bob','/api/conversations/'+id+'/messages')).data.messages;
+ const gone=view.find(m=>m.id===first.id);assert.equal(gone.unsent,true);assert.equal(gone.body,'');assert.equal(gone.sequence,first.sequence,'sequence kept');
+ assert.equal(view.find(m=>m.id===quote.id).replyTo.unsent,true,'quotes of unsent messages show no text');
+ assert.equal(JSON.stringify(view).includes('typo'),false);
+ const detail=(await s.call('bob','/api/conversations/'+id)).data.conversation;assert.equal(detail.members.find(m=>m.memberId==='bob').readSequence,second.sequence,'read cursor unchanged');
+ assert.equal(s.sqlite.prepare("SELECT count(*) n FROM message_revisions WHERE message_id=?").get(first.id).n,2);
+ assert.equal((await patch('alice',first.id,{action:'restore'})).status,200);
+ assert.equal((await s.call('bob','/api/conversations/'+id+'/messages')).data.messages.find(m=>m.id===first.id).body,'Fictional typo message');
+ s.sqlite.prepare("UPDATE messages SET unsent_at=datetime('now','-2 days') WHERE id=?").run(first.id);assert.equal((await patch('alice',first.id,{action:'restore'})).status,409);
+});
+test('per-chat mute is serialized for the participant only',async()=>{
+ const s=setup();const id=await s.create('alice',['bob']);
+ assert.equal((await s.call('alice','/api/conversations/'+id)).data.conversation.muted,false);
+ assert.equal((await s.call('alice','/api/conversations/'+id+'/notifications','PUT',{muted:true,expectedAccountId:'alice'})).status,200);
+ assert.equal((await s.call('alice','/api/conversations/'+id)).data.conversation.muted,true);
+});

@@ -48,9 +48,43 @@ export async function messageReportQueue(db,status){
  const open=status==='open';
  return rows(await db.prepare(`SELECT r.*,u.name AS reporter_name FROM message_reports r LEFT JOIN user u ON u.id=r.reporter_id WHERE ${open?"r.status='open'":"r.status!='open'"} ORDER BY r.created_at DESC,r.id DESC LIMIT 100`).bind().all()).map(r=>{const messages=JSON.parse(r.messages_json);const people=[...new Set(messages.filter(m=>m.authorId!==r.reporter_id).map(m=>m.authorName))];return {id:r.id,kind:'message',reason:r.reason,status:r.status,reporterName:r.reporter_name||'Family member',createdAt:Date.parse(r.created_at.replace(' ','T')+'Z'),resolvedAt:r.resolved_at?Date.parse(r.resolved_at.replace(' ','T')+'Z'):null,messages,target:{kind:'message',authorName:people.join(', ')||null,excerpt:messages.map(m=>`${m.authorName}: ${m.text||'(attachment)'}${m.files.length?' ['+m.files.join(', ')+']':''}`).join('\n'),route:null,removed:false}}});
 }
+// Author-only message actions. Edit keeps the earlier text as an author-only
+// revision. Unsend hides text and files from everyone else but keeps the row,
+// its sequence and read cursors; the author can undo it for a day.
+export const UNSEND_UNDO_HOURS=24;
+export async function messageAction(db,actor,conversationId,messageId,input){
+ await active(db,actor.id);
+ if(!await db.prepare(`SELECT 1 WHERE ${participantSql}`).bind(conversationId,actor.id).first())throw new UserError('Conversation not found',404);
+ const row=await db.prepare("SELECT *,unsent_at>=datetime('now',?) AS recent FROM messages WHERE id=? AND conversation_id=?").bind(`-${UNSEND_UNDO_HOURS} hours`,messageId,conversationId).first();
+ if(!row)throw new UserError('Message not found',404);if(row.author_id!==actor.id)throw new UserError('Only the sender can change this message',403);
+ const revision=(kind,body)=>db.prepare('INSERT INTO message_revisions(id,message_id,author_id,kind,body) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),row.id,actor.id,kind,body);
+ if(input.action==='edit'){
+  if(row.unsent_at)throw new UserError('Undo the unsend before editing',409);
+  if(typeof input.body!=='string'||!input.body.trim()||input.body.length>4000)throw new UserError('Enter the new message text');
+  if(typeof input.expectedBody!=='string')throw new UserError('Reopen the message before editing',409);
+  const current=row.attachment_only===1?'':row.body;if(input.expectedBody!==current)throw new UserError('This message changed. Reopen it before editing.',409);
+  const body=input.body.trim();if(body===current)return {id:row.id,editedAt:row.edited_at};
+  const result=await db.batch([revision('edit',row.body),db.prepare("UPDATE messages SET body=?,attachment_only=0,edited_at=CURRENT_TIMESTAMP,changed_at=strftime('%Y-%m-%d %H:%M:%f','now') WHERE id=? AND unsent_at IS NULL AND body=? RETURNING edited_at").bind(body,row.id,row.body)]);
+  if(!result[1].results?.length)throw new UserError('This message changed. Reopen it before editing.',409);
+  return {id:row.id,editedAt:result[1].results[0].edited_at};
+ }
+ if(input.action==='unsend'){
+  if(row.unsent_at)return {id:row.id,unsent:true};
+  await db.batch([revision('unsend',row.body),db.prepare("UPDATE messages SET unsent_at=CURRENT_TIMESTAMP,changed_at=strftime('%Y-%m-%d %H:%M:%f','now') WHERE id=? AND unsent_at IS NULL").bind(row.id)]);
+  return {id:row.id,unsent:true};
+ }
+ if(input.action==='restore'){
+  if(!row.unsent_at)return {id:row.id,unsent:false};
+  if(!row.recent)throw new UserError(`Unsent messages can be restored for ${UNSEND_UNDO_HOURS} hours.`,409);
+  await db.batch([revision('restore',row.body),db.prepare("UPDATE messages SET unsent_at=NULL,changed_at=strftime('%Y-%m-%d %H:%M:%f','now') WHERE id=? AND unsent_at IS NOT NULL").bind(row.id)]);
+  return {id:row.id,unsent:false};
+ }
+ throw new UserError('Choose edit, unsend or restore');
+}
 export function registerChatSafety(app){
  const run=fn=>async c=>{try{return c.json(await fn(c))}catch(error){if(error.status)throw new UserError(error.message,error.status);throw error}};
  app.get('/api/conversations/blocks',run(async c=>({blocks:await listBlocks(c.env.DB,c.get('actor'))})));
  app.post('/api/conversations/blocks',run(async c=>setBlock(c.env.DB,c.get('actor'),await body(c,['memberId','blocked']))));
+ app.patch('/api/conversations/:id/messages/:messageId',run(async c=>messageAction(c.env.DB,c.get('actor'),c.req.param('id'),c.req.param('messageId'),await body(c,['action','body','expectedBody']))));
  app.post('/api/conversations/:id/reports',run(async c=>reportMessages(c.env.DB,c.get('actor'),c.req.param('id'),await body(c,['requestId','messageIds','reason']))));
 }

@@ -27,7 +27,7 @@ export async function sendPrivateMessage({conversationId,accountId,attempt,signa
  const controller=new AbortController(),abort=()=>controller.abort(),timer=setTimeout(abort,20000);
  signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted)abort();
  try{
-  const response=await fetcher(`/api/conversations/${encodeURIComponent(conversationId)}/messages`,{method:'POST',credentials:'same-origin',cache:'no-store',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:attempt.requestId,body:attempt.body,attachments:attempt.files.map(file=>file.id),expectedAccountId:accountId})});
+  const response=await fetcher(`/api/conversations/${encodeURIComponent(conversationId)}/messages`,{method:'POST',credentials:'same-origin',cache:'no-store',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:attempt.requestId,body:attempt.body,attachments:attempt.files.map(file=>file.id),expectedAccountId:accountId,...(attempt.replyToId?{replyToId:attempt.replyToId}:{})})});
   let value;try{value=await response.json()}catch{throw Object.assign(new Error('Sending could not be confirmed. Retry this message safely.'),{status:response.status,ambiguous:true})}
   if(!response.ok)throw Object.assign(new Error(typeof value?.error==='string'?value.error:'The message couldn’t be sent.'),{status:response.status,safeToEdit:response.status===410&&value?.code==='attachments-unavailable'&&value?.safeToEdit===true});
   const message=value?.message,files=privateAttachments(message?.files,conversationId),expected=attempt.files;
