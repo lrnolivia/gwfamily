@@ -82,9 +82,15 @@ html[data-theme][data-platform] .button:is(.danger-action,.sheet-danger):not(#gw
 html[data-theme=dark][data-platform] .button:is(.danger-action,.sheet-danger):not(#gw-specificity),html[data-theme=dark][data-platform] .button:is(.danger-action,.sheet-danger):not(#gw-specificity)>.liquid-glass-tint{--gw-control-color:color-mix(in srgb,var(--destructive) 10%,var(--raised));background:color-mix(in srgb,var(--destructive) 10%,var(--raised))!important}
 html[data-theme=dark][data-platform] .button:is(.danger-action,.sheet-danger):not(#gw-specificity):hover{background:color-mix(in srgb,var(--destructive) 16%,var(--raised))!important}
 
+/* The footer is always the last thing in an editor sheet, and an empty status
+   line takes no room, so nothing sits under the footer to lift it at the end
+   of the scroll. */
+.page-object-tools-body>.sheet-footer{order:1}
+.page-object-tools-body>p[role=status]:empty{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0)}
 /* Phones: the sheet itself no longer pads for the home bar; the sticky footer
-   already does, so the button sits low and doesn't rise at the end of the scroll. */
+   does, sitting just above the home indicator rather than a full inset higher. */
 @media(max-width:700px){html .page-object-tools{padding-bottom:0}
+ html .page-object-tools-body>.sheet-footer{padding-bottom:max(12px,calc(env(safe-area-inset-bottom,0px) - 6px))}
  html .page-object-tools-body{padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
  html .page-object-tools-body>.sheet-footer{margin-bottom:calc(-20px - env(safe-area-inset-bottom,0px))}}
 /* Glass a little less opaque site wide (Lauren, 2026-10-10). iOS glass only;

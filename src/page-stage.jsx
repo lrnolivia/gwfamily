@@ -33,6 +33,14 @@ function readPhoto(img){
 export function PageStage({images=[],blur=false,tint,eyebrow,meta,chips=[],className='',label,page,editing=false,children}){
  const root=useRef(null),chipList=chips.filter(Boolean),photo=images.find(image=>image?.src)||null,framed=Boolean(photo)&&!blur;
  const [ratio,setRatio]=useState(storedRatio),[read,setRead]=useState(null);
+ // Every stage takes Home's photo shape, read straight from Home's photo, so a
+ // page opened first (before Home) is already the same height.
+ const {state}=useApp(),anchor=useStageImages('home',homeStageFallback(state))[0]?.src;
+ useEffect(()=>{
+  if(page==='home'||!anchor)return;let live=true;const img=new Image();
+  img.onload=()=>{if(!live||!img.naturalWidth)return;const r=img.naturalWidth/img.naturalHeight;setRatio(current=>Math.abs(current-r)<.005?current:r);try{localStorage.setItem(RATIO_KEY,String(r))}catch{}};
+  img.src=anchor;return()=>{live=false};
+ },[page,anchor]);
  // Crossfade from the previous page's photo, and slide this page's content in
  // from the side it lies on in the bottom navigation.
  const [previous]=useState(()=>lastStage&&lastStage.page!==page&&framed&&!reducedMotion()?lastStage:null);
@@ -109,6 +117,12 @@ export function PageStage({images=[],blur=false,tint,eyebrow,meta,chips=[],class
 // gallery or video stays in its card with its own controls. Live pages never
 // show the bundled preview photos; with nothing real they get the plain stage.
 const SAMPLE=/^(\.\/)?photos\//;
+// Home's stage photos in order: the primary featured photo, the other featured
+// photos, recent memories, then the preview-only sample.
+export function homeStageFallback(state){
+ const featured=[(state?.featuredPhotos||[]).find(m=>m.id===state.primaryMemoryId),...(state?.featuredPhotos||[])].filter(m=>m?.image);
+ return [...featured.map(m=>({src:m.image,alt:m.title||''})),...(state?.memories||[]).filter(m=>m.image).slice(0,4).map(m=>({src:m.image,alt:m.title||''})),{src:'photos/garden.jpg',alt:'Family smiling together outdoors'}];
+}
 export function useStageImages(page,fallback=[]){
  const {state,data}=useApp(),editor=usePageContent(page),hero=editor?.content?.hero,preview=state?.mode==='preview'||Boolean(data?.preview);
  const allowed=image=>image?.src&&(preview||!SAMPLE.test(image.src));
