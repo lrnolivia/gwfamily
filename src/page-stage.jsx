@@ -17,22 +17,24 @@ const storedRatio=()=>{try{const v=Number(localStorage.getItem(RATIO_KEY));retur
 let lastStage=null;
 // Reads one image into small pixel samples: the top strip behind the header (for
 // the edge extension and the wordmark background) and the whole photo (for the
-// wordmark colors). null when the image can't be read.
-function readPhoto(img){
+// wordmark colors). With cover it reads only the centered part that shows.
+// null when the image can't be read.
+function readPhoto(img,cover=0){
  try{
   const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
-  canvas.width=48;canvas.height=4;ctx.drawImage(img,0,0,img.naturalWidth,Math.max(1,img.naturalHeight*.025),0,0,48,4);
+  const sw=cover?Math.min(img.naturalWidth,img.naturalHeight*cover):img.naturalWidth,sx=(img.naturalWidth-sw)/2;
+  canvas.width=48;canvas.height=4;ctx.drawImage(img,sx,0,sw,Math.max(1,img.naturalHeight*.025),0,0,48,4);
   const edge=canvas.toDataURL('image/png');
   // Behind the wordmark: the top-left of the photo under the theme's top shade.
   const strip=ctx.getImageData(0,0,20,4).data;let r=0,g=0,b=0,n=0;for(let i=0;i<strip.length;i+=4){r+=strip[i];g+=strip[i+1];b+=strip[i+2];n++}
   const shade=document.documentElement.dataset.theme==='light'?[231,239,223]:[9,31,23],bg=[r/n,g/n,b/n].map((v,i)=>.7*v+.3*shade[i]);
-  canvas.width=24;canvas.height=24;ctx.drawImage(img,0,0,24,24);const all=ctx.getImageData(0,0,24,24).data,pixels=[];for(let i=0;i<all.length;i+=4)pixels.push([all[i],all[i+1],all[i+2]]);
+  canvas.width=24;canvas.height=24;ctx.drawImage(img,sx,0,sw,img.naturalHeight,0,0,24,24);const all=ctx.getImageData(0,0,24,24).data,pixels=[];for(let i=0;i<all.length;i+=4)pixels.push([all[i],all[i+1],all[i+2]]);
   return {edge,tone:luminance(bg)>.3?'light':'dark',palette:wordmarkPalette(pixels,bg)};
  }catch{return null}
 }
 export function PageStage({images=[],blur=false,tint,eyebrow,meta,chips=[],className='',label,page,editing=false,children}){
  const root=useRef(null),chipList=chips.filter(Boolean),photo=images.find(image=>image?.src)||null,framed=Boolean(photo)&&!blur;
- const [ratio,setRatio]=useState(storedRatio),[read,setRead]=useState(null);
+ const [ratio,setRatio]=useState(storedRatio),[read,setRead]=useState(null),[loadedImg,setLoadedImg]=useState(null);
  // Every stage takes Home's photo shape, read straight from Home's photo, so a
  // page opened first (before Home) is already the same height.
  const {state}=useApp(),anchor=useStageImages('home',homeStageFallback(state))[0]?.src;
@@ -51,7 +53,7 @@ export function PageStage({images=[],blur=false,tint,eyebrow,meta,chips=[],class
   const timer=setTimeout(()=>{delete html.dataset.stageEnter},700);
   return()=>{clearTimeout(timer);delete html.dataset.stageEnter};
  },[page]);
- useEffect(()=>{lastStage=framed?{page,src:photo.src,edge:read?.edge||lastStage?.edge}:{page,src:null}},[page,framed,photo?.src,read?.edge]);
+ useEffect(()=>{lastStage=framed?{page,src:photo.src,cover:Boolean(read?.cover),edge:read?.edge||lastStage?.edge}:{page,src:null}},[page,framed,photo?.src,read?.edge]);
  // Tuck the stage under the header only when nothing (a notice, the edit
  // toolbar) sits between them; span the screen beside any side rail. While the
  // stage fills the top the header floats on it (html[data-stage-top]).
@@ -85,7 +87,15 @@ export function PageStage({images=[],blur=false,tint,eyebrow,meta,chips=[],class
  const loaded=event=>{const img=event.currentTarget;
   // Home sets the height every stage uses, so its whole family always shows.
   if(page==='home'&&img.naturalWidth){const r=img.naturalWidth/img.naturalHeight;setRatio(r);try{localStorage.setItem(RATIO_KEY,String(r))}catch{}}
-  setRead(readPhoto(img));};
+  setLoadedImg(img);};
+ // A photo wider than the stage fills it (zoomed, centered, sides cropped)
+ // instead of leaving empty space above it. Home's photo sets the shape and
+ // always shows whole.
+ useEffect(()=>{
+  if(!loadedImg?.naturalWidth)return;
+  const r=loadedImg.naturalWidth/loadedImg.naturalHeight,cover=page!=='home'&&r>ratio*1.02?ratio:0;
+  setRead({...readPhoto(loadedImg,cover),cover:Boolean(cover)});
+ },[loadedImg,ratio,page]);
  const bg=src=>({backgroundImage:`url("${String(src).replace(/"/g,'%22')}")`});
  return <section ref={root} className={'page-stage'+(framed?' is-framed':photo?' is-blurred':' is-plain')+(className?' '+className:'')} aria-label={label} style={{...(tint?{'--stage-tint':tint}:{}),'--stage-ratio':ratio}}>
   <div className="page-stage-media" aria-hidden="true">{photo?<span className="page-stage-backdrop" style={bg(photo.src)}/>:null}</div>
@@ -93,9 +103,9 @@ export function PageStage({images=[],blur=false,tint,eyebrow,meta,chips=[],class
    {/* The photo's own top edge, stretched and blurred, continues it up behind the header. */}
    <div className="page-stage-extend" aria-hidden="true">{previous?.edge&&<span key="was" className="page-stage-extend-wash is-leaving" style={{backgroundImage:`url(${previous.edge})`}}/>}{read?.edge&&<span className="page-stage-extend-wash is-current" style={{backgroundImage:`url(${read.edge})`}}/>}</div>
    <div className="page-stage-frame">
-    {previous?.src&&previous.src!==photo.src&&<img key="was" src={previous.src} alt="" aria-hidden="true" className="page-stage-photo is-leaving" draggable={false}/>}
+    {previous?.src&&previous.src!==photo.src&&<img key="was" src={previous.src} alt="" aria-hidden="true" className={'page-stage-photo is-leaving'+(previous.cover?' is-cover':'')} draggable={false}/>}
     {/* The photo itself is never cropped, so everyone in it stays visible. */}
-    <img key={photo.src} src={photo.src} alt={photo.alt||''} className={'page-stage-photo is-current'+(photo.own?' page-hero-asset':'')} decoding="async" fetchpriority="high" draggable={false} onLoad={loaded}/>
+    <img key={photo.src} src={photo.src} alt={photo.alt||''} className={'page-stage-photo is-current'+(read?.cover?' is-cover':'')+(photo.own?' page-hero-asset':'')} decoding="async" fetchpriority="high" draggable={false} onLoad={loaded}/>
    </div>
   </div>}
   {/* Reads the You photo for its wordmark colors without showing it framed. */}
