@@ -63,7 +63,12 @@ try{
   await expect(page.getByRole('region',{name:'Branches & households'}).getByText('Fixture Hearth',{exact:true}).first()).toBeVisible();
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'no horizontal page scroll');
   await page.getByRole('button',{name:/^Start a household/}).first().click();dialog=page.getByRole('dialog',{name:'Start a household',exact:true});
+  // Starting a household asks for its family branch: the surname branch is pre-selected, Not sure yet skips.
+  await expect(dialog.getByRole('group',{name:/Family branch/})).toBeVisible();await expect(dialog.getByRole('radio',{name:/^Quill/})).toBeChecked();await expect(dialog.getByRole('radio',{name:/^Not sure yet/})).not.toBeChecked();
+  await page.screenshot({path:`${output}/${engine}-${width}-${theme}-start-household.png`});
   await dialog.getByRole('textbox',{name:'Household name',exact:true}).fill('Second Fixture Home');await dialog.locator('.sheet-head .sheet-complete').click();await expect(dialog).toHaveCount(0);
+  stored=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)).state,PREVIEW_KEY);
+  assert.deepEqual(stored.branches.find(b=>b.name==='Quill').householdIds,[hearth.id,stored.households.find(h=>h.name==='Second Fixture Home').id]);
   // Household badges; the pending request is not counted.
   await page.goto(base+'/#/profile/'+stored.selfId);const chips=page.locator('.profile-overview .membership-chips, .profile-page .membership-chips').first();
   // Up to two full household names; +N only after two. Never shortened.
