@@ -168,6 +168,9 @@ jobs:
       - name: Fictional eight-preset email previews
         if: ${{ !cancelled() && matrix.group == 'surfaces' && matrix.browser == 'chromium' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         run: GW_EMAIL_QA_OUTPUT=docs/email-preview-qa node tests/email-preview-browser.mjs
+      - name: Approved transactional email rendering (light, dark, fonts blocked)
+        if: ${{ !cancelled() && matrix.group == 'surfaces' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        run: GW_TRANSACTIONAL_EMAIL_QA_OUTPUT=docs/transactional-email-qa node tests/transactional-email-browser.mjs
       - name: Contextual editor geometry and command checks
         if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         id: panel_arrow_editor
@@ -307,6 +310,16 @@ jobs:
           curl -fsS http://127.0.0.1:4195/api/config
           mkdir -p docs/ci-logs
           CI=true GW_MESSAGE_ACTIONS_QA_OUTPUT=docs/message-actions-qa node tests/message-actions-browser.mjs 2>&1 | tee docs/ci-logs/message-actions-browser.log
+      - name: Sent invitations, revoke and request withdrawal browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          # In-memory email stub only; nothing is delivered.
+          GW_INVITATION_FIXTURE=1 GW_FIXTURE_PORT=4196 node backend/tests/fixture-server.mjs > /tmp/gw-sent-invites-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4196/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4196/api/config
+          mkdir -p docs/ci-logs
+          CI=true GW_SENT_INVITES_QA_OUTPUT=docs/sent-invitations-qa node tests/sent-invitations-browser.mjs 2>&1 | tee docs/ci-logs/sent-invitations-browser.log
       - name: Card content arrangement browser checks
         if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 10

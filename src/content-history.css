@@ -31,3 +31,6 @@
 .message-replying{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 12px;border-radius:12px;background:var(--raised);font-size:.875rem}
 .message-edit textarea{width:100%;box-sizing:border-box}
 .direct-message .message-unsent{font-style:italic;opacity:.75}
+.sent-invitations .sent-row{display:grid;gap:8px;padding:12px 14px;border-radius:14px;background:var(--raised)}
+.sent-row>span{display:grid;gap:2px;min-width:0}.sent-row small{color:var(--muted);overflow-wrap:anywhere}.sent-row strong{overflow-wrap:anywhere}
+.sent-row .row{flex-wrap:wrap;gap:8px}
