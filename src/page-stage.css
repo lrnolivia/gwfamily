@@ -1,7 +1,7 @@
 /* Page stage: a full-bleed hero under the floating header, fading into the page.
    Photos are never cropped: the photo shows whole at full width (capped in
-   height), a blurred copy fills any gaps, and a soft mirror of the photo's top
-   edge extends it up behind the header. The heading sits below the photo, over
+   height), a blurred copy fills any gaps, and the photo's own top edge, stretched and
+   blurred, continues it up behind the header. The heading sits below the photo, over
    only its faded bottom edge, so it never covers anyone. */
 /* The stage spans the app column edge to edge (the whole screen on phones).
    The column clips sideways so a stage never causes a horizontal scroll. */
@@ -10,6 +10,7 @@
  --stage-gutter:var(--stage-x,16px);
  --stage-head:calc(var(--gw-app-header-height,78px) + 12px);
  --stage-max:72svh;
+ --stage-feather:56px;
  position:relative;isolation:isolate;display:block;
  width:var(--stage-w,calc(100% + 32px));max-width:none;margin-left:calc(-1 * var(--stage-x,16px));margin-right:0;
  margin-top:0;margin-bottom:8px;overflow:clip;contain:paint;
@@ -39,15 +40,27 @@
 
 /* The photo, whole. Height follows its own shape, capped; contain never crops. */
 .page-stage-figure{position:relative;z-index:-1;pointer-events:none;width:100%;aspect-ratio:var(--stage-ratio,1.333);max-height:var(--stage-max);margin-top:var(--stage-head)}
-.page-stage-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity 1.6s ease;
- -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 10px,#000 76%,transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 10px,#000 76%,transparent 100%)}
+.page-stage-photo{position:absolute;top:0;left:50%;width:min(100%,calc(var(--stage-max) * var(--stage-ratio,1.333)));height:100%;transform:translateX(-50%);object-fit:contain;opacity:0;transition:opacity 1.6s ease;
+ -webkit-mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.55) calc(var(--stage-feather) * .45),#000 var(--stage-feather),#000 76%,transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.55) calc(var(--stage-feather) * .45),#000 var(--stage-feather),#000 76%,transparent 100%)}
 .page-stage-photo.is-current{opacity:1}
-/* Mirror of the photo's top edge, rising behind the header and softening away. */
-.page-stage-mirror{position:absolute;left:0;right:0;bottom:calc(100% - 10px);height:calc(var(--stage-head) + 10px);overflow:hidden;filter:blur(9px) saturate(1.1);opacity:.92;
- -webkit-mask-image:linear-gradient(to top,#000 0,#000 35%,transparent 100%);mask-image:linear-gradient(to top,#000 0,#000 35%,transparent 100%)}
-.page-stage-mirror-box{position:absolute;left:0;right:0;bottom:0;height:min(calc(var(--stage-w,100vw) / var(--stage-ratio,1.333)),var(--stage-max))}
-.page-stage-mirror-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;transform:scaleY(-1);opacity:0;transition:opacity 1.6s ease}
-.page-stage-mirror-photo.is-current{opacity:1}
+/* Wider screens: when the photo is narrower than the stage, its sides feather
+   into the blurred fill too. */
+@media(min-width:700px){.page-stage-photo{
+ -webkit-mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.55) calc(var(--stage-feather) * .45),#000 var(--stage-feather),#000 76%,transparent 100%),linear-gradient(to right,transparent 0,#000 56px,#000 calc(100% - 56px),transparent 100%);
+ -webkit-mask-composite:source-in;
+ mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.55) calc(var(--stage-feather) * .45),#000 var(--stage-feather),#000 76%,transparent 100%),linear-gradient(to right,transparent 0,#000 56px,#000 calc(100% - 56px),transparent 100%);
+ mask-composite:intersect}
+ .page-stage .page-stage-extend{
+ -webkit-mask-image:linear-gradient(to top,#000 0,#000 45%,transparent 100%),linear-gradient(to right,transparent 0,#000 72px,#000 calc(100% - 72px),transparent 100%);
+ -webkit-mask-composite:source-in;
+ mask-image:linear-gradient(to top,#000 0,#000 45%,transparent 100%),linear-gradient(to right,transparent 0,#000 72px,#000 calc(100% - 72px),transparent 100%);
+ mask-composite:intersect}}
+/* Edge extension: the photo's top rows stretched up and blurred, sized to the
+   photo's displayed width, overlapping its feathered top so there's no seam. */
+.page-stage-extend{position:absolute;left:50%;bottom:calc(100% - var(--stage-feather));width:min(100%,calc(var(--stage-max) * var(--stage-ratio,1.333)));height:calc(var(--stage-head) + var(--stage-feather) + 24px);transform:translateX(-50%);overflow:hidden;
+ -webkit-mask-image:linear-gradient(to top,#000 0,#000 45%,transparent 100%);mask-image:linear-gradient(to top,#000 0,#000 45%,transparent 100%)}
+.page-stage-extend-wash{position:absolute;inset:-28px;background-size:100% 100%;background-repeat:no-repeat;filter:blur(22px) saturate(1.08);opacity:0;transition:opacity 1.6s ease}
+.page-stage-extend-wash.is-current{opacity:1}
 
 .page-stage-shade{position:absolute;inset:0;z-index:-2;pointer-events:none;background:
  linear-gradient(to bottom,color-mix(in srgb,var(--bg) 30%,transparent) 0%,transparent 22%,transparent 55%,color-mix(in srgb,var(--bg) 70%,transparent) 82%,var(--bg) 100%)}
@@ -83,7 +96,7 @@ html[data-stage-top][data-stage-tone=light]:not([data-page-edit-mode=true]) .app
 /* Editing holds still: no endless motion while the page is being edited. */
 html[data-page-edit-mode=true] .page-stage-backdrop{animation:none!important}
 @media(prefers-reduced-motion:reduce){
- .page-stage-backdrop,.page-stage-photo,.page-stage-mirror-photo{animation:none!important;transition:none}
+ .page-stage-backdrop,.page-stage-photo,.page-stage-extend-wash{animation:none!important;transition:none}
  .page-stage-media,.page-stage-copy{transform:none;opacity:1}
  .app>.app-header::before,.app>.app-header::after{transition:none}
 }
