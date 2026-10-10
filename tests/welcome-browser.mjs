@@ -30,7 +30,7 @@ try{
   assert.doesNotMatch(look.card,/rgba\([^)]*,\s*0?\.\d+\)|transparent/,'the card is opaque: '+look.card);assert.match(look.blur,/blur\(/);assert.equal(look.focused,true);assert.equal(look.modal,true);
   await page.waitForTimeout(600);await page.screenshot({path:`${output}/${engine}-${width}-${theme}-welcome.png`});
   const historyBefore=await page.evaluate(()=>history.length);
-  await dialog.getByRole('button',{name:'Get started',exact:true}).click();await expect(page.getByRole('heading',{name:'Find your family',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'Your households',exact:true})).toBeVisible();
+  await dialog.getByRole('button',{name:'Get started',exact:true}).click();await expect(page.getByRole('heading',{name:'Find your family',exact:true})).toBeVisible();const card=page.locator('dialog.welcome-overlay');await expect(card.getByRole('button',{name:/^Join your household/})).toBeVisible();await expect(card.getByRole('button',{name:/^Start a household/})).toBeVisible();
   await page.screenshot({path:`${output}/${engine}-${width}-${theme}-family.png`});
   await page.getByRole('button',{name:'Continue',exact:true}).click();await expect(page.getByRole('heading',{name:'Take a quick look around',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Show me around',exact:true}).click();
@@ -52,7 +52,7 @@ try{
   await context.close();}
  // 4. Existing members: one-time optional family refinement reusing the setup UI.
  {const {context,page}=await open(fixture({prompts:{'family-setup':{version:1,status:'due'}}}));await page.goto(base+'/');
-  const dialog=page.getByRole('dialog',{name:'Refine your family',exact:true});await expect(dialog).toBeVisible();await expect(dialog.getByRole('heading',{name:'Your households',exact:true})).toBeVisible();
+  const dialog=page.getByRole('dialog',{name:'Your households',exact:true});await expect(dialog).toBeVisible();await expect(dialog.getByRole('button',{name:/^Join your household/})).toBeVisible();
   await page.screenshot({path:`${output}/${engine}-390-light-refine.png`});
   await dialog.locator('.welcome-footer').getByRole('button',{name:'Not now',exact:true}).click();await expect(dialog).toHaveCount(0);
   let saved=await stored(page);assert.deepEqual(saved.prompts,{'family-setup':{version:1,status:'dismissed'}});
@@ -65,7 +65,30 @@ try{
   await expect(page.locator('dialog.welcome-overlay')).toHaveCount(0);assert.deepEqual((await stored(page)).prompts,{welcome:{version:1,status:'completed'},'family-setup':{version:1,status:'completed'}});
   await page.reload();await expect(page.locator('.react-home')).toBeVisible();await page.waitForTimeout(300);await expect(page.locator('dialog.welcome-overlay')).toHaveCount(0);
   await context.close();}
- // 6. A member without a due prompt never sees either automatically.
+ // 6. Guided refinement, one question per screen: households, a branch for the
+ // household you head, which household shows first, then review. Not now saves
+ // nothing; Done saves the branch and main household together.
+ {const households=[{id:'fx-home',name:'Fixture Hearth',color:null,colorMode:'inherit',photo:null,founderId:'lauren',memberIds:['lauren','monique'],headIds:['lauren'],canManage:true,heritage:[]},{id:'fx-two',name:'Juniper House',color:null,colorMode:'inherit',photo:null,founderId:'monique',memberIds:['monique','lauren'],headIds:['monique'],canManage:false,heritage:[]}];
+  const branches=[{id:'fx-quill',name:'Quill Branch',createdBy:'monique',householdIds:[]},{id:'fx-other',name:'Juniper Branch',createdBy:'monique',householdIds:['fx-two']}];
+  const state=()=>fixture({prompts:{'family-setup':{version:1,status:'due'}},households,householdIds:['fx-home','fx-two'],householdId:'fx-two',branches});
+  for(const save of [false,true]){
+   const {context,page}=await open(state());await page.goto(base+'/');const dialog=page.locator('dialog.welcome-overlay');
+   await expect(dialog.getByRole('heading',{name:'Your households',exact:true})).toBeVisible();await expect(dialog.locator('.family-step-row')).toHaveCount(2);
+   await dialog.getByRole('button',{name:'Continue',exact:true}).click();
+   await expect(dialog.getByRole('heading',{name:'Which family branch is Fixture Hearth part of?',exact:true})).toBeVisible();
+   await expect(dialog.getByRole('radio',{name:/^Quill Branch/})).toBeChecked();await expect(dialog.getByText('Suggested',{exact:true})).toBeVisible();
+   await dialog.getByRole('button',{name:'Continue',exact:true}).click();
+   await expect(dialog.getByRole('heading',{name:'Which household should show first?',exact:true})).toBeVisible();await expect(dialog.getByRole('radio',{name:/^Juniper House/})).toBeChecked();
+   await dialog.getByRole('radio',{name:/^Fixture Hearth/}).check();await dialog.getByRole('button',{name:'Continue',exact:true}).click();
+   await expect(dialog.getByRole('heading',{name:'Look right?',exact:true})).toBeVisible();
+   if(save){await page.screenshot({path:`${output}/${engine}-390-light-refine-review.png`});await dialog.locator('.welcome-footer').getByRole('button',{name:'Done',exact:true}).click()}
+   else await dialog.getByRole('button',{name:'Not now',exact:true}).click();
+   await expect(dialog).toHaveCount(0);const saved=await stored(page);
+   assert.deepEqual(saved.branches.find(b=>b.id==='fx-quill').householdIds,save?['fx-home']:[]);assert.equal(saved.householdId,save?'fx-home':'fx-two');
+   assert.equal(saved.prompts['family-setup'].status,save?'completed':'dismissed');assert.equal(saved.branches.length,2,'no branch is created when one matches');
+   await context.close();
+  }}
+ // 7. A member without a due prompt never sees either automatically.
  {const {context,page}=await open(fixture({prompts:{}}));await page.goto(base+'/');await expect(page.locator('.react-home')).toBeVisible();await page.waitForTimeout(300);await expect(page.locator('dialog.welcome-overlay')).toHaveCount(0);await context.close();}
  assert.deepEqual(writes,[]);assert.deepEqual(errors,[]);
  console.log('welcome browser checks passed ('+engine+')');

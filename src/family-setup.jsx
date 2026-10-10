@@ -53,9 +53,9 @@ function HouseholdSetupRow({household:h,onTask,own=false}){
 }
 // One sheet, one task at a time: close (✕) on the left, confirm (✓) on the right,
 // with the same primary action in the sticky footer.
-function FamilySetupTask({task,onTask,onClose}){
+export function FamilySetupTask({task,onTask,onClose}){
  const {state}=useApp(),branch=(state.branches||[]).find(b=>b.id===task.branchId),household=(state.households||[]).find(h=>h.id===task.householdId);
- const title={branch:branch?.name||'Branch',join:'Ask to join',place:'Add to a branch',attach:'Add household to branch',detach:'Remove from branch','create-household':'Start a household','create-branch':'Create a branch','rename-branch':'Rename branch','remove-branch':'Remove branch'}[task.type];
+ const title={branch:branch?.name||'Branch',join:'Ask to join',place:'Add to a branch',attach:'Add household to branch',detach:'Remove from branch','create-household':'Start a household','find-household':'Join a household','create-branch':'Create a branch','rename-branch':'Rename branch','remove-branch':'Remove branch'}[task.type];
  const back=task.back?()=>onTask(task.back):onClose;
  return <Sheet title={title} onClose={onClose}><div className="stack family-setup-task">{
   task.type==='branch'?<BranchDetails branch={branch} onTask={onTask}/>
@@ -68,6 +68,7 @@ function FamilySetupTask({task,onTask,onClose}){
     disabled={!branch||!canPlaceHousehold(state,household)}>
     <p>{task.type==='attach'?<>Add <strong>{household?.name}</strong> to <strong>{branch?.name}</strong>?</>:<>Remove <strong>{household?.name}</strong> from <strong>{branch?.name}</strong>?</>}</p>
     <p className="field-help">{task.type==='attach'?'Branches group households for browsing. No one joins a household, gains access or becomes a head.':'Only this branch listing changes. The household, its members and its other branches stay as they are.'}</p></ConfirmStep>
+  :task.type==='find-household'?<FindHousehold onTask={onTask} back={back}/>
   :task.type==='create-household'?<CreateHousehold branchId={task.branchId} back={back} onDone={onClose}/>
   :task.type==='create-branch'?<CreateBranch initialName={task.name||''} householdId={task.householdId} back={back} onDone={onClose} onTask={onTask}/>
   :task.type==='rename-branch'?<RenameBranch branch={branch} back={back}/>
@@ -113,6 +114,21 @@ function PlaceHousehold({household,back,onTask}){
   <div className="stack family-setup-results">{choices.map(b=><Control key={b.id} type="button" className="list-row family-setup-row" onClick={()=>onTask({type:'attach',branchId:b.id,householdId:household.id,back:self})}><Glyph name="tree"/><span><strong>{b.name}</strong><p>{b.householdIds.length} {b.householdIds.length===1?'household':'households'}</p></span><span className="arrow"><Glyph name="arrow"/></span></Control>)}
    {!choices.length&&<p className="muted">{query.trim()?'No other branches match.':'No other branches yet.'}</p>}
    {search.canCreate&&<Control type="button" className="list-row family-setup-row family-setup-create" onClick={()=>onTask({type:'create-branch',name:query.trim(),householdId:household.id,back:self})}><Glyph name="plus"/><span><strong>Create “{query.trim()}” with {household.name}</strong><p>Only when the branch doesn’t exist yet</p></span><span className="arrow"><Glyph name="arrow"/></span></Control>}</div>
+  <div className="sheet-footer"><Button secondary onClick={back}>Back</Button></div>
+ </>;
+}
+// Search households to ask to join; the request itself is confirmed on the next screen.
+function FindHousehold({onTask,back}){
+ const {state}=useApp(),[query,setQuery]=useState(''),self={type:'find-household'};
+ const others=(state.households||[]).filter(h=>!memberOf(state,h)),q=query.trim().toLowerCase(),list=q?others.filter(h=>h.name.toLowerCase().includes(q)):others;
+ return <>
+  <p className="field-help">Find your household by name. A head of that household approves your request.</p>
+  <label className="family-setup-search">Search households<input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="A household or family name" autoComplete="off" enterKeyHint="search"/></label>
+  <div className="stack family-setup-results" role="region" aria-live="polite" aria-label="Households">
+   {list.map(h=>joinPending(state,h.id)?<article key={h.id} className="family-setup-household"><div className="family-setup-household-copy"><Glyph name="home"/><span><strong>{h.name}</strong><p>{memberCount(h)}</p></span></div><div className="family-setup-household-actions"><span className="family-setup-status" role="status">Request sent</span></div></article>
+    :<Control key={h.id} type="button" className="list-row family-setup-row" onClick={()=>onTask({type:'join',householdId:h.id,back:self})}><Glyph name="home"/><span><strong>{h.name}</strong><p>{memberCount(h)}</p></span><span className="arrow"><Glyph name="arrow"/></span></Control>)}
+   {!list.length&&<p className="muted">{q?'No households match “'+query.trim()+'”.':'No other households yet.'}</p>}
+  </div>
   <div className="sheet-footer"><Button secondary onClick={back}>Back</Button></div>
  </>;
 }

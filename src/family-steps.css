@@ -1,0 +1,34 @@
+/* Guided family steps inside the welcome card: one question per screen, every
+   option on a platter row, the chosen one tinted with the interface accent. */
+.family-step-list{display:grid;gap:8px;min-width:0;margin:0;padding:0;border:0}
+.family-step-row,.family-step-option,.welcome-body .list-row.family-step-action{display:flex;align-items:center;gap:12px;min-height:60px;padding:12px 14px;border-radius:14px;background:var(--raised);min-width:0;box-sizing:border-box;width:100%}
+.family-step-row>.glyph,.family-step-option>.glyph,.family-step-action>.glyph{flex:none;color:var(--accent)}
+.family-step-row>span:not(.family-step-check),.family-step-option>span,.family-step-action>span:not(.arrow){display:grid;gap:2px;flex:1 1 auto;min-width:0}
+.family-step-row small,.family-step-option small,.family-step-action small{color:var(--muted);font-size:.875rem;overflow-wrap:anywhere}
+.family-step-row.is-pending>.glyph{color:var(--muted)}
+.family-step-check{flex:none;display:grid;place-items:center;width:26px;height:26px;border-radius:8px;background:var(--accent);color:var(--control-text,#fff)}
+.family-step-check>.glyph{width:16px;height:16px}
+.welcome-body .family-step-option{margin:0;font-size:1rem;font-weight:400;color:var(--text);line-height:1.3}
+.family-step-row strong,.family-step-option strong,.family-step-action strong{font-size:1rem;font-weight:700;color:var(--text)}
+.welcome-body .family-step-option small{font-size:.875rem;font-weight:400;color:var(--muted)}
+.family-step-option{cursor:pointer;border:1.5px solid transparent;transition:background .2s ease,border-color .2s ease}
+.family-step-option>input{flex:none;width:20px;height:20px;margin:0;accent-color:var(--accent)}
+.family-step-option.is-selected{background:color-mix(in srgb,var(--accent) 14%,var(--raised));border-color:color-mix(in srgb,var(--accent) 70%,transparent)}
+.family-step-option:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.family-step-tag{justify-self:start;margin-top:4px;padding:2px 9px;border-radius:999px;background:color-mix(in srgb,var(--accent) 18%,var(--surface));color:var(--text);font-size:.75rem;font-style:normal;font-weight:700}
+.family-step-search{display:flex;align-items:center;gap:10px;padding:4px 4px 4px 14px;border-radius:14px;background:var(--raised)}
+.family-step-search>.glyph{flex:none;color:var(--muted)}
+.family-step-search input{flex:1;min-width:0;border:0;background:transparent;box-shadow:none}
+.family-step-summary{display:grid;gap:0;margin:0;padding:4px 14px;border-radius:14px;background:var(--raised)}
+.family-step-summary>div{display:grid;gap:4px;padding:12px 0;border-bottom:1px solid color-mix(in srgb,var(--text) 10%,transparent)}
+.family-step-summary>div:last-child{border-bottom:0}
+.family-step-summary dt{display:flex;align-items:center;gap:10px;font-weight:650;min-width:0}
+.family-step-summary dt>.glyph{flex:none;color:var(--accent)}
+.family-step-summary dd{margin:0 0 0 34px;min-width:0}
+.family-step-change,.family-step-fixed{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px 8px;min-height:36px;padding:0;border:0;background:none;color:var(--text);font:inherit;text-align:start}
+.family-step-change>.glyph,.family-step-fixed>.glyph{flex:none;width:18px;height:18px;color:var(--muted)}
+.family-step-change>span{color:var(--accent);font-weight:700}
+.family-step-fixed{color:var(--muted)}
+.family-step-error{display:flex;gap:10px;align-items:flex-start;margin:0;padding:12px;border-radius:14px;background:color-mix(in srgb,var(--status-danger) 12%,var(--raised));color:var(--text)}
+.family-step-error>.glyph{flex:none;color:var(--status-danger)}
+@media(prefers-reduced-motion:reduce){.family-step-option{transition:none}}
