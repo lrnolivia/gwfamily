@@ -1,0 +1,124 @@
+/* Page stage: a full-bleed hero under the floating header, fading into the page.
+   Photos are never cropped: the photo shows whole at full width (capped in
+   height), a blurred copy fills any gaps, and the photo's own top edge, stretched and
+   blurred, continues it up behind the header. The heading sits below the photo, over
+   only its faded bottom edge, so it never covers anyone. */
+/* The stage spans the screen beside any side rail. The app root clips
+   sideways, so a stage never causes a horizontal scroll. */
+#root:has(.page-stage){overflow-x:clip}
+.page-stage{
+ --stage-gutter:var(--stage-x,max(16px,calc(50vw - 50%)));
+ --stage-head:calc(var(--gw-app-header-height,78px) + 12px);
+ /* Tall photos, but the heading and the page's first controls stay on screen. */
+ --stage-max:min(78svh,calc(100svh - 300px));
+ --stage-feather:32px;
+ /* The photo starts just under the top edge and runs behind the header. */
+ --stage-lift:calc(var(--stage-head) * .4);
+ position:relative;isolation:isolate;display:block;
+ width:var(--stage-w,100vw);max-width:none;margin-left:calc(-1 * var(--stage-x,calc(50vw - 50%)));margin-right:0;
+ margin-top:0;margin-bottom:8px;overflow:clip;contain:paint;
+ color:var(--text);background:var(--bg);
+}
+@media(min-width:700px){.page-stage{--stage-max:min(78vh,calc(100vh - 480px))}}
+/* Under the header only when nothing sits between them. */
+.page-stage.is-tucked{margin-top:calc(-1 * var(--stage-head))}
+.page-stage:not(.is-tucked){--stage-head:16px}
+.page-stage:not(.is-framed){min-height:min(64svh,520px);display:grid;align-content:end}
+@media(min-width:700px){.page-stage:not(.is-framed){min-height:min(56vh,560px)}}
+/* Without a photo the stage stays short; the tint and oak carry it. */
+.page-stage.is-plain{min-height:min(40svh,340px)}
+
+/* Blurred fill (header strip, side gaps, the You page). */
+.page-stage-media{position:absolute;inset:0;z-index:-3;overflow:hidden;pointer-events:none;
+ transform:translateY(calc(var(--stage-p,0) * 14%));will-change:transform}
+.page-stage-backdrop{position:absolute;inset:-48px;background-size:cover;background-position:center;
+ filter:blur(30px) saturate(1.25) brightness(.92);opacity:0;transition:opacity 1.6s ease}
+.page-stage-backdrop.is-current{opacity:1}
+.page-stage-backdrop.drift-a{animation:page-stage-drift-a 28s ease-in-out infinite alternate}
+.page-stage-backdrop.drift-b{animation:page-stage-drift-b 28s ease-in-out infinite alternate}
+@keyframes page-stage-drift-a{from{transform:scale(1.02) translate(0,0)}to{transform:scale(1.12) translate(-2%,-1.5%)}}
+@keyframes page-stage-drift-b{from{transform:scale(1.1) translate(-2%,0)}to{transform:scale(1.02) translate(1.5%,-1%)}}
+.page-stage-art{position:absolute;right:-6%;bottom:18%;width:min(78%,520px);opacity:.2;filter:saturate(.8)}
+.page-stage.is-plain{background:linear-gradient(165deg,color-mix(in srgb,var(--stage-tint,var(--accent)) 34%,var(--bg)) 0%,var(--bg) 78%)}
+
+/* The photo, whole. Height follows its own shape, capped; contain never crops. */
+.page-stage-figure{position:relative;z-index:-1;pointer-events:none;width:100%;aspect-ratio:var(--stage-ratio,1.333);max-height:var(--stage-max);margin-top:var(--stage-lift)}
+.page-stage-photo{position:absolute;top:0;left:50%;width:min(100%,calc(var(--stage-max) * var(--stage-ratio,1.333)));height:100%;transform:translateX(-50%);object-fit:contain;animation:page-stage-photo-in .9s ease both;
+ -webkit-mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.55) calc(var(--stage-feather) * .45),#000 var(--stage-feather),#000 52%,rgba(0,0,0,.72) 68%,rgba(0,0,0,.36) 84%,transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.55) calc(var(--stage-feather) * .45),#000 var(--stage-feather),#000 52%,rgba(0,0,0,.72) 68%,rgba(0,0,0,.36) 84%,transparent 100%)}
+.page-stage-photo.is-current{opacity:1}
+@keyframes page-stage-photo-in{from{opacity:0}to{opacity:1}}
+/* Gallery controls sit on the photo, above the heading block. */
+.page-stage-frame{position:absolute;inset:0;pointer-events:auto}
+/* The stage photo also carries the gallery's asset class; keep it whole here. */
+.page-stage-frame>.page-stage-photo{display:block;max-height:none;aspect-ratio:auto;object-fit:contain;border-radius:0;width:min(100%,calc(var(--stage-max) * var(--stage-ratio,1.333)));height:100%}
+.page-stage-gallery{margin-inline-start:auto;display:flex;align-items:center;gap:2px;padding:4px;border-radius:999px;
+ background:color-mix(in srgb,var(--surface) 78%,transparent);color:var(--text);-webkit-backdrop-filter:blur(14px) saturate(1.2);backdrop-filter:blur(14px) saturate(1.2);box-shadow:0 4px 16px rgba(0,0,0,.12)}
+.page-stage-gallery>button{display:grid;place-items:center;width:40px;height:40px;min-height:40px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--text)}
+.page-stage-gallery>button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.page-stage-gallery>button:disabled{opacity:.45}
+.page-stage-gallery .glyph{width:18px;height:18px}
+.page-stage-gallery-step.is-previous .glyph{transform:scaleX(-1)}
+.page-stage-gallery-count{min-width:44px;text-align:center;font-size:.875rem;font-weight:650;font-variant-numeric:tabular-nums}
+@media(prefers-reduced-transparency:reduce){.page-stage-gallery{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none}}
+/* Wider screens: when the photo is narrower than the stage, its sides feather
+   into the blurred fill too. */
+@media(min-width:700px){.page-stage-photo{
+ -webkit-mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.55) calc(var(--stage-feather) * .45),#000 var(--stage-feather),#000 52%,rgba(0,0,0,.72) 68%,rgba(0,0,0,.36) 84%,transparent 100%),linear-gradient(to right,transparent 0,#000 56px,#000 calc(100% - 56px),transparent 100%);
+ -webkit-mask-composite:source-in;
+ mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.55) calc(var(--stage-feather) * .45),#000 var(--stage-feather),#000 52%,rgba(0,0,0,.72) 68%,rgba(0,0,0,.36) 84%,transparent 100%),linear-gradient(to right,transparent 0,#000 56px,#000 calc(100% - 56px),transparent 100%);
+ mask-composite:intersect}
+ .page-stage .page-stage-extend{
+ -webkit-mask-image:linear-gradient(to top,#000 0,#000 45%,transparent 100%),linear-gradient(to right,transparent 0,#000 72px,#000 calc(100% - 72px),transparent 100%);
+ -webkit-mask-composite:source-in;
+ mask-image:linear-gradient(to top,#000 0,#000 45%,transparent 100%),linear-gradient(to right,transparent 0,#000 72px,#000 calc(100% - 72px),transparent 100%);
+ mask-composite:intersect}}
+/* Edge extension: the photo's top rows stretched up and blurred, sized to the
+   photo's displayed width, overlapping its feathered top so there's no seam. */
+.page-stage-extend{position:absolute;left:50%;bottom:calc(100% - var(--stage-feather));width:min(100%,calc(var(--stage-max) * var(--stage-ratio,1.333)));height:calc(var(--stage-lift) + var(--stage-feather) + 24px);transform:translateX(-50%);overflow:hidden;
+ -webkit-mask-image:linear-gradient(to top,#000 0,#000 45%,transparent 100%);mask-image:linear-gradient(to top,#000 0,#000 45%,transparent 100%)}
+.page-stage-extend-wash{position:absolute;inset:-28px;background-size:100% 100%;background-repeat:no-repeat;filter:blur(22px) saturate(1.08);opacity:0;transition:opacity 1.6s ease}
+.page-stage-extend-wash.is-current{opacity:1}
+
+.page-stage-shade{position:absolute;inset:0;z-index:-2;pointer-events:none;background:
+ linear-gradient(to bottom,color-mix(in srgb,var(--bg) 30%,transparent) 0%,transparent 22%,transparent 46%,color-mix(in srgb,var(--bg) 30%,transparent) 62%,color-mix(in srgb,var(--bg) 70%,transparent) 78%,var(--bg) 94%,var(--bg) 100%)}
+.page-stage.is-blurred .page-stage-shade{background:
+ linear-gradient(to bottom,color-mix(in srgb,var(--stage-tint,var(--accent)) 30%,transparent) 0%,color-mix(in srgb,var(--bg) 35%,transparent) 45%,color-mix(in srgb,var(--bg) 90%,transparent) 80%,var(--bg) 100%)}
+.page-stage.is-blurred .page-stage-backdrop{animation:none}
+
+.page-stage-copy{position:relative;display:grid;gap:8px;padding:calc(var(--stage-head) + 12px) var(--stage-gutter) 18px;min-width:0;
+ opacity:calc(1 - var(--stage-p,0) * 1.25);transform:translateY(calc(var(--stage-p,0) * -24px))}
+/* Framed: the copy follows the photo, overlapping only its faded bottom. */
+.page-stage.is-framed .page-stage-copy{padding-top:0;margin-top:-72px}
+/* The heading block always sits on page color, so eyebrows and headings keep
+   their normal contrast over any photo, in light and dark. */
+.page-stage-copy::before{content:"";position:absolute;inset:-96px 0 0;z-index:-1;pointer-events:none;
+ background:linear-gradient(to bottom,transparent 0,color-mix(in srgb,var(--bg) 35%,transparent) 32px,color-mix(in srgb,var(--bg) 72%,transparent) 64px,color-mix(in srgb,var(--bg) 92%,transparent) 104px,var(--bg) 100%)}
+.page-stage-copy>.intro{margin:0;padding:0;background:none}
+html[data-platform] #main .page-stage-copy h1,.page-stage-copy h1{margin:0;font-size:clamp(2rem,8.5vw,3.25rem);line-height:1.05;letter-spacing:-.02em;text-wrap:balance;overflow-wrap:anywhere}
+.page-stage-copy .intro p{margin:6px 0 0;max-width:46ch}
+.page-stage-eyebrow{margin:0;font-size:.8125rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text)}
+.page-stage-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-top:4px}
+.page-stage-line{font-size:1.0625rem;font-weight:650;color:var(--text)}
+.page-stage-chip{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:4px 12px;border-radius:999px;font-size:.875rem;font-weight:650;
+ background:color-mix(in srgb,var(--surface) 82%,transparent);color:var(--text);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.page-stage-chip>.glyph{width:16px;height:16px;color:var(--accent)}
+
+/* The header floats on the stage: no glass while the stage fills the top.
+   Edit mode keeps the glass so the editing tools stay legible. */
+.app>.app-header::before,.app>.app-header::after{transition:background-color .3s ease,opacity .3s ease}
+html[data-stage-top]:not([data-page-edit-mode=true]) .app>.app-header:not(#gw-specificity)::before,
+html[data-stage-top]:not([data-page-edit-mode=true]) .app>.app-header:not(#gw-specificity)::after{opacity:0}
+/* Background-aware wordmark: the ink follows the photo behind the header. */
+html[data-stage-top][data-stage-tone=dark]:not([data-page-edit-mode=true]) .app>.app-header{--wordmark-green:#f6edcf;--wordmark-amp:#f6edcf;--wordmark-white:#c9dcc4;--wordmark-family:#9fd2ad}
+html[data-stage-top][data-stage-tone=light]:not([data-page-edit-mode=true]) .app>.app-header{--wordmark-green:#1d6b3a;--wordmark-amp:#1d6b3a;--wordmark-white:#164d2b;--wordmark-family:#0f3520}
+html[data-stage-top][data-stage-tone=dark]:not([data-page-edit-mode=true]) .app>.app-header .wordmark{text-shadow:0 1px 10px rgba(0,0,0,.45)}
+html[data-stage-top][data-stage-tone=light]:not([data-page-edit-mode=true]) .app>.app-header .wordmark{text-shadow:0 1px 10px rgba(255,255,255,.55)}
+
+/* Editing holds still: no endless motion while the page is being edited. */
+html[data-page-edit-mode=true] .page-stage-backdrop{animation:none!important}
+@media(prefers-reduced-motion:reduce){
+ .page-stage-backdrop,.page-stage-photo,.page-stage-extend-wash{animation:none!important;transition:none}
+ .page-stage-media,.page-stage-copy{transform:none;opacity:1}
+ .app>.app-header::before,.app>.app-header::after{transition:none}
+}
+@media(prefers-reduced-transparency:reduce){.page-stage-chip{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none}}

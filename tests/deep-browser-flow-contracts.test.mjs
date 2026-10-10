@@ -38,7 +38,9 @@ test('canonical page galleries render real navigation and status only for multip
 
 test('Photo mode verifies a present Home hero and absence of actual gallery controls', () => {
   const browser = read('tests/page-content-browser.mjs');
-  assert.match(browser, /const photoHero = primaryHero\(bob, 'home'\);/);
+  // Viewing, Home's page photo shows whole in the page stage.
+  assert.match(browser, /const photoHero = bob\.locator\('\.page-stage'\);/);
+  assert.match(browser, /photoHero\.locator\('\.page-stage-gallery'\)\)\.toHaveCount\(0\)/);
   assert.match(browser, /expect\(photoHero\)\.toHaveCount\(1\)/);
   assert.match(browser, /expect\(photoHero\.locator\('img\.page-hero-asset'\)\)\.toHaveCount\(1\)/);
   assert.match(browser, /photoHero\.locator\('\.gw-carousel-controls, \.page-gallery-status'\)\)\.toHaveCount\(0\)/);

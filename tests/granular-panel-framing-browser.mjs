@@ -65,10 +65,12 @@ try{
  await expect.poll(()=>framingPreview.locator('img').evaluate(image=>image.complete&&image.naturalWidth>0)).toBe(true);
  await touch(framingPreview,{dx:18,dy:-12});await expect(frame.locator('img')).not.toHaveCSS('object-position','50% 50%');
  await position(frame,24,76);await zoom(frame,1.5);await frame.getByRole('button',{name:'Apply image',exact:true}).click();await save();await page.reload();assert.deepEqual((await getRecord('home')).content.hero.frame,{x:50,y:50,zoom:1,mobile:{x:24,y:76,zoom:1.5}});
+ // Viewing, the page stage shows the whole photo; the card keeps its framed photo for editing.
+ await expect(page.locator('.page-stage .page-stage-photo.is-current')).toBeVisible();await expect(panel('hero').locator('.page-media-content img')).toHaveCount(0);
+ await page.locator('.page-edit-toolbar').getByRole('button',{name:/^(Edit page|Resume page edits)$/}).click();
  await expect(panel('hero').locator('.page-media-content img').first()).toHaveCSS('object-position','24% 76%');
  await page.setViewportSize({width:1280,height:900});
  await expect(panel('hero').locator('.page-media-content img').first()).toHaveCSS('object-position','50% 50%');
- await page.locator('.page-edit-toolbar').getByRole('button',{name:/^(Edit page|Resume page edits)$/}).click();
  await panel('hero').getByRole('button',{name:'Edit Home page media',exact:true}).click();
  await page.locator('.page-object-tools').getByRole('region',{name:'Photo framing',exact:true}).getByRole('button',{name:'Replace media',exact:true}).click();
  await page.getByRole('region',{name:'Page media',exact:true}).getByRole('button',{name:'Adjust original photo framing',exact:true}).click();
@@ -77,6 +79,7 @@ try{
  await save();await page.reload();
  assert.deepEqual((await getRecord('home')).content.hero.frame.mobile,{x:24,y:76,zoom:1.5});
  assert.deepEqual((await getRecord('home')).content.hero.frame.desktop,{x:80,y:20,zoom:1.5});
+ await page.locator('.page-edit-toolbar').getByRole('button',{name:/^(Edit page|Resume page edits)$/}).click();
  await expect(panel('hero').locator('.page-media-content img').first()).toHaveCSS('object-position','80% 20%');
  await page.setViewportSize({width:390,height:844});await expect(panel('hero').locator('.page-media-content img').first()).toHaveCSS('object-position','24% 76%');
  // Intrinsic-height regression: You profile stays at its content height beside taller groups.
