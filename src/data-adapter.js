@@ -122,12 +122,14 @@ function reduceState(state,action){
     case 'EDIT_POST':case 'DELETE_POST':{
       const item=state.posts.find(post=>post.id===action.id);if(!canManageContent(state,item)||item.text!==action.expectedText)return state;
       if(action.type==='DELETE_POST'&&item.memoryId&&state.memories.some(m=>m.id===item.memoryId))return reducer(state,{type:'DELETE_MEMORY',id:item.memoryId});
-      return {...state,posts:action.type==='DELETE_POST'?state.posts.filter(post=>post.id!==action.id):state.posts.map(post=>post.id===action.id?{...post,text:action.text.trim()}:post)};
+      if(action.type==='EDIT_POST'&&action.poll&&item.hasVotes&&(action.poll.question!==undefined||action.poll.options!==undefined))throw Error('Family members already voted, so the question and choices stay as they are.');
+      return {...state,posts:action.type==='DELETE_POST'?state.posts.filter(post=>post.id!==action.id):state.posts.map(post=>post.id===action.id?{...post,text:action.text.trim(),...(action.files?{files:(post.files||[]).filter(f=>action.files.some(x=>x.id===f.id))}:{}),...(action.memberIds?{memberIds:action.memberIds}:{}),...(action.poll&&post.poll?{poll:{...post.poll,...action.poll}}:{})}:post)};
     }
     case 'EDIT_COMMENT':case 'DELETE_COMMENT':{
       const items=state.comments[action.targetId]||[],item=items.find(comment=>comment.id===action.id);if(!canManageContent(state,item)||item.text!==action.expectedText)return state;
       return {...state,comments:{...state.comments,[action.targetId]:action.type==='DELETE_COMMENT'?items.filter(comment=>comment.id!==action.id):items.map(comment=>comment.id===action.id?{...comment,text:action.text.trim()}:comment)}};
     }
+    case 'SET_POST_PIN':{const post=state.posts.find(p=>p.id===action.id);if(!post?.asLeader||!isPreviewLeader(state))throw Error('Only Family Leaders can pin or unpin posts.');return {...state,posts:state.posts.map(p=>p.id===post.id?{...p,pinned:action.pinned}:p)};}
     case 'TOGGLE_REACTION':{
       const current=state.reactions[action.targetId]||[];
       return {...state,reactions:{...state.reactions,[action.targetId]:

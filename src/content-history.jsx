@@ -17,6 +17,13 @@ export function LoadOlder({kind,postId,label}){
  return <div className={'load-older load-older-'+kind}><Button secondary disabled={busy} aria-busy={busy} onClick={load}>{busy?'Loading…':label||(kind==='comments'?`Show earlier comments${more?` (${more})`:''}`:kind==='memories'?'Show older memories':'Show older posts')}</Button></div>;
 }
 
+// Loads one post or memory that is older than the loaded pages (Saved, links).
+export function useDeepLoad(kind,id,present){
+ const {state,data}=useApp(),[status,setStatus]=useState(present?'ready':'idle');
+ useEffect(()=>{if(present){setStatus('ready');return}if(state.mode!=='live'||!id||!data?.loadContent){setStatus('missing');return}let alive=true;setStatus('loading');data.loadContent(kind==='post'?'/api/posts/'+encodeURIComponent(id)+'/bundle':'/api/memories/'+encodeURIComponent(id)).then(page=>{if(alive)setStatus(page?'ready':'missing')});return()=>{alive=false}},[kind,id,present,state.mode,state.selfId]);
+ return status;
+}
+export {SavedPage} from './saved.jsx';
 // Live search also asks the server so older history that is not loaded still matches.
 export function useHistorySearch(query){
  const {state}=useApp(),[result,setResult]=useState(null),text=String(query||'').trim(),live=state.mode==='live'&&text.length>=2&&text.length<=80&&Boolean(state.memoriesCursor||state.postsCursor);

@@ -19,3 +19,9 @@
 .direct-message.is-report-chosen .message-bubble{outline:2px solid var(--destructive);outline-offset:2px}
 .report-messages-bar{position:sticky;bottom:calc(env(safe-area-inset-bottom,0px) + 88px);z-index:3}
 .report-card .report-excerpt.is-messages{white-space:pre-line}
+.saved-search input{width:100%;box-sizing:border-box}
+.saved-row{display:grid;grid-template-columns:48px minmax(0,1fr) auto;align-items:center;gap:12px;min-height:64px;padding:10px 14px;border-radius:14px;background:var(--raised);text-align:start;width:100%;box-sizing:border-box}
+.saved-row>img{width:48px;height:48px;border-radius:10px;object-fit:cover}
+.saved-row>span{display:grid;gap:2px;min-width:0}.saved-row small{color:var(--muted);overflow-wrap:anywhere}
+.post-corrections fieldset{border:0;margin:0;padding:0;min-width:0;display:grid;gap:8px}
+.post-corrections legend{padding:0;margin-bottom:6px;font-weight:700;font-size:.875rem}

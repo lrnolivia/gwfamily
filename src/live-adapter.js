@@ -59,7 +59,7 @@ function reducerAfterAcknowledgement(current,action){try{return reducer({...curr
 export function useFamilyData(){
  const [state,setState]=useState(loadLocalState),[session,setSession]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[actionError,setError]=useState(''),[loadError,setLoadError]=useState(''),[pending,setPending]=useState(false),[draftStorageStatus,setDraftStorageStatus]=useState({ok:true}),[preview,setPreview]=useState(()=>{try{return reviewOnly||sessionStorage.getItem(modeKey)==='preview'}catch{return false}});
  const bootstrapRetry=useRef(false),bootstrapRecovery=useRef(null),refreshRun=useRef({sequence:0,controller:null}),reunionBags=useRef({}),signOutLock=useRef(false);
- const history=useRef({accountId:null,posts:null,memories:null,comments:{}}),linkedResource=useRef(null),epoch=useRef(0),ref=useRef(state),busy=useRef(false),workCount=useRef(0),after=useRef(null),alive=useRef(true),requestBook=useRef({accountId:null,requests:{},confirmed:new Set()});ref.current=state;
+ const history=useRef({accountId:null,posts:null,memories:null,comments:{},kept:[]}),linkedResource=useRef(null),epoch=useRef(0),ref=useRef(state),busy=useRef(false),workCount=useRef(0),after=useRef(null),alive=useRef(true),requestBook=useRef({accountId:null,requests:{},confirmed:new Set()});ref.current=state;
  const save=next=>{
   if(ref.current.mode==='live'&&(next.mode!=='live'||next.selfId!==ref.current.selfId))reunionBags.current={};
   next=shareUnchangedSnapshot(ref.current,next);if(next!==ref.current){ref.current=next;setState(next)}
@@ -91,14 +91,18 @@ export function useFamilyData(){
   try{
    if(h.posts&&next.postsCursor)out=mergePostPage(out,await readApi(historyQuery('/api/feed',{before:next.postsCursor,through:h.posts}),signal));
    if(h.memories&&next.memoriesCursor)out=mergeMemoryPage(out,await readApi(historyQuery('/api/memories',{before:next.memoriesCursor,through:h.memories}),signal));
+   // Items opened from Saved or a deep link stay loaded while this account views them.
+   for(const path of h.kept||[]){try{const page=await readApi(path,signal);out={...mergeMemoryPage(mergePostPage(out,page),page),postsCursor:out.postsCursor,memoriesCursor:out.memoriesCursor}}catch(error){if(error?.name==='AbortError')throw error;if(error?.status===404||error?.status===403)h.kept=h.kept.filter(p=>p!==path)}}
    for(const [postId,through] of Object.entries(h.comments)){const cursor=out.commentHistory?.[postId]?.cursor;if(cursor)out=mergeCommentPage(out,await readApi(historyQuery('/api/posts/'+encodeURIComponent(postId)+'/comment-history',{before:cursor,through}),signal))}
   }catch(error){if(error?.name==='AbortError')throw error}
   return out;
  }
+ // Merges server content (Saved, deep links) without touching paging cursors.
+ async function loadContent(path,{keep=true}={}){const current=ref.current;if(current.mode!=='live')return null;if(history.current.accountId!==current.selfId)history.current={accountId:current.selfId,posts:null,memories:null,comments:{},kept:[]};if(keep)history.current.kept=[path,...history.current.kept.filter(p=>p!==path)].slice(0,8);try{const page=await readApi(path);if(!alive.current||ref.current.selfId!==current.selfId)return null;const cursors={postsCursor:ref.current.postsCursor,memoriesCursor:ref.current.memoriesCursor};save({...mergeMemoryPage(mergePostPage(ref.current,page),page),...cursors});return page}catch(e){if(e.status!==404)setError(e.message);return null}}
  // Loads the next older page of posts, memories or one post's comments.
  async function loadHistory(kind,postId){
   const current=ref.current;if(current.mode!=='live')return false;
-  const h=history.current;if(h.accountId!==current.selfId)history.current={accountId:current.selfId,posts:null,memories:null,comments:{}};
+  const h=history.current;if(h.accountId!==current.selfId)history.current={accountId:current.selfId,posts:null,memories:null,comments:{},kept:[]};
   const cursor=kind==='posts'?current.postsCursor:kind==='memories'?current.memoriesCursor:current.commentHistory?.[postId]?.cursor;if(!cursor)return false;
   const finish=beginPending();
   try{
@@ -241,5 +245,5 @@ export function useFamilyData(){
  }
 
  async function upload(file){if(ref.current.mode==='preview'){const {readPreviewFile}=await import('./uploads.js');return readPreviewFile(file)}const data=new FormData();data.append('file',file);const finish=beginPending();try{return await api('/api/media',{method:'POST',body:data})}finally{finish()}}
- return {state,setMemberView,getCurrentState:()=>ref.current,dispatch,loadHistory,session,config,loading,error:actionError||loadError,pending,preview,enterPreview,leavePreview,refresh,signOut,upload,defer,setError,beginPending,notificationApi,hydrateNotificationResource,releaseNotificationResource:route=>{const link=linkedResource.current;if(link){const expectedId=link.target.kind==='comment'?link.target.containerId:link.target.id,expectedType=link.target.kind==='memory'?'memory':'post';if(route?.id!==expectedId||route?.type!==expectedType)linkedResource.current=null}},draftStorageStatus,hasLocalDrafts:hasLocalDrafts(state)};
+ return {state,setMemberView,getCurrentState:()=>ref.current,dispatch,loadHistory,loadContent,session,config,loading,error:actionError||loadError,pending,preview,enterPreview,leavePreview,refresh,signOut,upload,defer,setError,beginPending,notificationApi,hydrateNotificationResource,releaseNotificationResource:route=>{const link=linkedResource.current;if(link){const expectedId=link.target.kind==='comment'?link.target.containerId:link.target.id,expectedType=link.target.kind==='memory'?'memory':'post';if(route?.id!==expectedId||route?.type!==expectedType)linkedResource.current=null}},draftStorageStatus,hasLocalDrafts:hasLocalDrafts(state)};
 }

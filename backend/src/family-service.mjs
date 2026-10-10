@@ -37,6 +37,26 @@ function songUrl(value){if(!value)return '';const link=webUrl(value,['open.spoti
 function commandPhotoFrame(options){try{return photoFrameForSave(options)}catch(error){throw new UserError(error.message)}}
 export async function ownedFiles(db,actor,files=[]){if(!Array.isArray(files)||files.length>10)throw new UserError('Use up to ten attachments');const out=[];for(const f of files){const id=f.id||(/^\/api\/media\/([a-zA-Z0-9-]+)$/.exec(f.url||'')||[])[1];const row=await db.prepare('SELECT * FROM media WHERE id=? AND owner_id=? AND deleted_at IS NULL').bind(id||'',actor.id).first();if(!row)throw new UserError('Upload the attachment again before saving');out.push({id:row.id,url:'/api/media/'+row.id,name:row.name,type:row.mime_type,size:row.size_bytes})}return out}
 async function accessibleTarget(db,actor,id){if(await readPost(db,actor,id))return true;const comment=await db.prepare('SELECT post_id FROM comments WHERE id=? AND deleted_at IS NULL').bind(id).first();if(comment&&await readPost(db,actor,comment.post_id))return true;return Boolean(await db.prepare('SELECT id FROM memories WHERE id=? AND deleted_at IS NULL').bind(id).first())}
+// Post corrections. Attachments may only be kept, removed or added from the
+// editor's own uploads; tags follow the directory rules. Poll policy: before
+// any vote the author may reword or change choices; after a vote the choices
+// are fixed so recorded votes keep their meaning, and only closing or
+// reopening is allowed. Votes are never deleted by an edit.
+async function postCorrections(db,actor,item,meta,input){
+ const next={...meta};let changed=false;
+ if(input.files!==undefined){if(!Array.isArray(input.files)||input.files.length>10)throw new UserError('Use up to ten attachments');const kept=(meta.files||[]).filter(f=>input.files.some(x=>x?.id&&x.id===f.id)),added=input.files.filter(x=>!(meta.files||[]).some(f=>f.id&&f.id===x?.id));next.files=[...kept,...(added.length?await ownedFiles(db,actor,added):[])];changed=true}
+ if(input.memberIds!==undefined){next.memberIds=await directorySelection(db,input.memberIds,{ancestors:true});changed=true}
+ if(input.poll!==undefined){
+  if(!meta.poll)throw new UserError('This post has no poll',409);const p=input.poll||{};
+  const voted=Boolean(await db.prepare('SELECT 1 FROM poll_votes WHERE post_id=? LIMIT 1').bind(item.id).first());
+  const reshaped=p.question!==undefined&&p.question!==meta.poll.question||p.mode!==undefined&&p.mode!==meta.poll.mode||p.options!==undefined&&JSON.stringify(p.options)!==JSON.stringify(meta.poll.options);
+  if(reshaped&&voted)throw new UserError('Family members already voted, so the question and choices stay as they are. You can close the poll instead.',409);
+  if(reshaped){const options=p.options??meta.poll.options,mode=p.mode??meta.poll.mode;if(!Array.isArray(options)||options.length<2||options.length>12||!['single','multiple'].includes(mode))throw new UserError('A poll needs two to twelve choices');next.poll={...meta.poll,question:text(p.question??meta.poll.question,160,true),options:options.map(x=>text(x,120,true)),mode}}
+  if(p.closed!==undefined){if(typeof p.closed!=='boolean')throw new UserError('Choose open or closed');next.poll={...(next.poll||meta.poll),closed:p.closed}}
+  changed=true;
+ }
+ return changed?next:null;
+}
 export async function familyState(db,actor,reunionId){
  const reunion=await resolveReunion(db,reunionId),reunions=await readReunions(db),cadence=(await db.prepare("SELECT cadence FROM reunion_preferences WHERE id='family'").bind().first())?.cadence||'irregular';
  const members=list(await db.prepare(`SELECT m.*,u.name,u.image,p.bio,p.profile_color,p.theme_song,p.socials_json,p.completed,p.share_age,p.birthday,p.photo_frame_json,COALESCE(json_extract(p.contact_json,'$.allowPhotoSave'),1) AS allow_photo_save FROM members m JOIN user u ON u.id=m.id LEFT JOIN profiles p ON p.member_id=m.id WHERE m.status='active' ORDER BY u.name LIMIT 500`).bind().all());
@@ -135,7 +155,10 @@ export async function command(db,actor,input){
   if(!can(actor,'manage_content',{authorId:item.author_id}))throw new UserError('You do not have permission to change this content',403);
   if(typeof input.expectedText!=='string'||input.expectedText!==item.body)throw new UserError('This content changed while you were editing. Reopen it before trying again.',409);
   const body=deleting?null:text(input.text||'',comment?1500:3000),meta=comment?json(item.files_json,[]):json(item.metadata_json);
-  if(!deleting&&!body&&!(comment?meta.length:meta.files?.length||meta.poll))throw new UserError('Write something or keep an attachment');
+  // Post corrections beyond text: attachments, tags and poll, each optional.
+  const corrected=!comment&&!deleting?await postCorrections(db,actor,item,meta,input):null,nextMeta=corrected||meta;
+  if(!comment&&Number.isInteger(input.expectedRevision)&&input.expectedRevision!==(item.edit_revision||0))throw new UserError('This post changed while you were editing. Reopen it before trying again.',409);
+  if(!deleting&&!body&&!(comment?meta.length:nextMeta.files?.length||nextMeta.poll))throw new UserError('Write something or keep an attachment');
   const guard=uuid();
   q(`INSERT INTO notification_setting_guards(token,valid) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM ${table} WHERE id=? AND deleted_at IS NULL AND body=?) THEN 1 ELSE 0 END`,guard,item.id,input.expectedText);
   if(deleting){
@@ -144,9 +167,19 @@ export async function command(db,actor,input){
    if(memoryId&&await db.prepare('SELECT id FROM memories WHERE id=? AND deleted_at IS NULL').bind(memoryId).first()){const removal=await deleteMemoryStatements(db,actor,memoryId,{source:item.author_id===actor.id?'owner':'moderator'});sql.push(...removal.sql);result.deletionId=removal.deletionId}
    else{const removal=recordDeletion(db,actor,{kind:comment?'comment':'post',targetId:item.id,authorId:item.author_id});sql.push(removal.statement);result.deletionId=removal.id}
    q(`UPDATE ${table} SET deleted_at=CURRENT_TIMESTAMP WHERE id=?`,item.id);
-  }else q(`UPDATE ${table} SET body=? WHERE id=?`,body,item.id);
+  }else if(comment)q('UPDATE comments SET body=? WHERE id=?',body,item.id);
+  else{q("INSERT INTO notification_setting_guards(token,valid) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM posts WHERE id=? AND edit_revision=?) THEN 1 ELSE 0 END",guard+'-revision',item.id,item.edit_revision||0);q('UPDATE posts SET body=?,metadata_json=?,edit_revision=edit_revision+1 WHERE id=?',body,JSON.stringify(nextMeta),item.id);q('DELETE FROM notification_setting_guards WHERE token=?',guard+'-revision')}
   q('DELETE FROM notification_setting_guards WHERE token=?',guard);
   audit(input.type.toLowerCase().replace('_','-'),item.id);break;
+ }
+ case 'SET_POST_PIN':{
+  // Pinning stays a Family Leader announcement power, matching publishing rules.
+  contentWrite=true;if(!actor.isLeader)throw new UserError('Only Family Leaders can pin or unpin posts',403);if(typeof input.pinned!=='boolean')throw new UserError('Choose pin or unpin');
+  const post=await readPost(db,actor,input.id);if(!post)throw new UserError('Post not found',404);const meta=json(post.metadata_json);
+  if(input.pinned&&!meta.asLeader)throw new UserError('Only leader announcements can be pinned',409);if(Boolean(meta.pinned)===input.pinned){result.id=post.id;break}
+  const guard=uuid();q("INSERT INTO notification_setting_guards(token,valid) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM posts WHERE id=? AND edit_revision=? AND deleted_at IS NULL) THEN 1 ELSE 0 END",guard,post.id,post.edit_revision||0);
+  q("UPDATE posts SET metadata_json=json_set(metadata_json,'$.pinned',json(?)),edit_revision=edit_revision+1 WHERE id=?",input.pinned?'true':'false',post.id);q('DELETE FROM notification_setting_guards WHERE token=?',guard);
+  audit(input.pinned?'post-pinned':'post-unpinned',post.id);result.id=post.id;break;
  }
  case 'MARK_ANNOUNCEMENT_SEEN':{const post=await readPost(db,actor,input.id);if(!post||!json(post.metadata_json).firstView)throw new UserError('Announcement not found',404);q('INSERT OR IGNORE INTO announcement_views(post_id,member_id) VALUES(?,?)',post.id,actor.id);break;}
  case 'ADD_COMMENT':{
@@ -166,7 +199,7 @@ export async function command(db,actor,input){
   if(!await accessibleTarget(db,actor,input.id))throw new UserError('Item not found',404);const exists=await db.prepare('SELECT target_id FROM saved_items WHERE member_id=? AND target_id=?').bind(actor.id,input.id).first();if(exists)q('DELETE FROM saved_items WHERE member_id=? AND target_id=?',actor.id,input.id);else q('INSERT INTO saved_items(member_id,target_id) VALUES(?,?)',actor.id,input.id);break;
  }
  case 'POLL_VOTE':{
-  const post=await readPost(db,actor,input.postId),poll=json(post?.metadata_json).poll,options=input.options;
+  const post=await readPost(db,actor,input.postId),poll=json(post?.metadata_json).poll,options=input.options;if(poll?.closed)throw new UserError('This poll is closed',409);
   if(!poll||!Array.isArray(options)||options.length>poll.options.length||options.some(i=>!Number.isInteger(i)||i<0||i>=poll.options.length)||new Set(options).size!==options.length||(poll.mode==='single'&&options.length>1))throw new UserError('Check your poll choices');
   q('INSERT INTO poll_votes(member_id,post_id,options_json) VALUES(?,?,?) ON CONFLICT(member_id,post_id) DO UPDATE SET options_json=excluded.options_json',actor.id,post.id,JSON.stringify(options));break;
  }

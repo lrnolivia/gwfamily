@@ -39,7 +39,7 @@ export async function postBundle(db,actor,rows){
  for(const p of rows){
   const meta=json(p.metadata_json),poll=meta.poll?{...meta.poll,votes:{}}:null;
   if(poll)for(const v of votes)if(v.post_id===p.id&&v.member_id!==actor.id)for(const i of json(v.options_json,[]))poll.votes[i]=(poll.votes[i]||0)+1;
-  out.posts.push({...meta,id:p.id,authorId:p.author_id,groupId:p.group_id,text:p.body,createdAt:stamp(p.created_at),poll});
+  out.posts.push({...meta,id:p.id,authorId:p.author_id,groupId:p.group_id,text:p.body,createdAt:stamp(p.created_at),poll,revision:p.edit_revision||0,hasVotes:votes.some(v=>v.post_id===p.id)});
   const own=comments.filter(c=>c.post_id===p.id);out.comments[p.id]=own.map(commentView);
   const total=own[0]?.total||0;if(total>own.length)out.commentHistory[p.id]={total,cursor:encodeCursor(own[0])};
  }
@@ -81,6 +81,19 @@ export async function searchContent(db,actor,query){
  return {query:q,...await postBundle(db,actor,posts),memories:memories.map(memoryView)};
 }
 
+// Saved: private to its owner and rechecked on every read, so a saved item
+// that was removed or moved into a group the person left simply disappears.
+export async function savedItems(db,actor,{query}={}){
+ const q=typeof query==='string'?query.normalize('NFC').trim():'';if(q.length>80)throw new UserError('Search for up to eighty characters');
+ const like=q?'%'+q.replace(/[\\%_]/g,m=>'\\'+m)+'%':null;
+ const saved=list(await db.prepare('SELECT target_id,rowid AS position FROM saved_items WHERE member_id=? ORDER BY rowid DESC LIMIT 500').bind(actor.id).all()),ids=JSON.stringify(saved.map(s=>s.target_id));
+ const posts=list(await db.prepare(`SELECT p.* FROM posts p WHERE p.id IN (SELECT value FROM json_each(?)) AND ${visiblePostSql}${like?" AND (p.body LIKE ? ESCAPE '\\')":''}`).bind(ids,actor.id,...(like?[like]:[])).all());
+ const comments=list(await db.prepare(`SELECT c.*,p.body AS post_body FROM comments c JOIN posts p ON p.id=c.post_id WHERE c.id IN (SELECT value FROM json_each(?)) AND c.deleted_at IS NULL AND ${visiblePostSql}${like?" AND c.body LIKE ? ESCAPE '\\'":''}`).bind(ids,actor.id,...(like?[like]:[])).all());
+ const memories=list(await db.prepare(`SELECT m.* FROM memories m WHERE m.id IN (SELECT value FROM json_each(?)) AND m.deleted_at IS NULL${like?" AND (COALESCE(json_extract(m.data_json,'$.title'),'') LIKE ? ESCAPE '\\' OR COALESCE(json_extract(m.data_json,'$.event'),'') LIKE ? ESCAPE '\\')":''}`).bind(ids,...(like?[like,like]:[])).all());
+ const order=new Map(saved.map(s=>[s.target_id,s.position]));
+ const items=[...posts.filter(p=>!memories.some(m=>m.id===p.id)).map(p=>({kind:'post',id:p.id})),...comments.map(c=>({kind:'comment',id:c.id,postId:c.post_id,text:c.body,authorId:c.author_id,postExcerpt:excerpt(c.post_body)})),...memories.map(m=>({kind:'memory',id:m.id}))].sort((a,b)=>order.get(b.id)-order.get(a.id));
+ return {query:q,items,...await postBundle(db,actor,posts),memories:memories.map(memoryView)};
+}
 const excerpt=value=>{const text=String(value||'').replace(/\s+/g,' ').trim();return text.length>160?text.slice(0,157)+'…':text};
 // Removed content stays private to its group: membership is checked even after deletion.
 const groupReadable=async(db,actor,groupId)=>!groupId||Boolean(await db.prepare('SELECT 1 FROM family_group_members WHERE group_id=? AND member_id=?').bind(groupId,actor.id).first());
@@ -157,5 +170,9 @@ export function registerContentHistory(app){
  app.get('/api/posts/:id/comment-history',run(c=>commentPage(c.env.DB,c.get('actor'),c.req.param('id'),{before:c.req.query('before'),through:c.req.query('through'),limit:c.req.query('limit')})));
  app.get('/api/search',run(c=>searchContent(c.env.DB,c.get('actor'),c.req.query('q'))));
  app.get('/api/moderation/reports',run(c=>reportQueue(c.env.DB,c.get('actor'),{status:c.req.query('status')||'open'})));
+ // Single items for deep links to history that is not loaded yet.
+ app.get('/api/posts/:id/bundle',run(async c=>{const post=await readPost(c.env.DB,c.get('actor'),c.req.param('id'));if(!post)throw new UserError('Post not found',404);return postBundle(c.env.DB,c.get('actor'),[post])}));
+ app.get('/api/memories/:id',run(async c=>{const row=await c.env.DB.prepare('SELECT * FROM memories WHERE id=? AND deleted_at IS NULL').bind(c.req.param('id')).first();if(!row)throw new UserError('Memory not found',404);return {memories:[memoryView(row)]}}));
+ app.get('/api/saved',run(c=>savedItems(c.env.DB,c.get('actor'),{query:c.req.query('q')})));
  app.get('/api/content/removed',run(c=>recentlyRemoved(c.env.DB,c.get('actor'))));
 }
