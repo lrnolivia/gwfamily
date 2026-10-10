@@ -90,7 +90,9 @@ html[data-theme=dark][data-platform] .button:is(.danger-action,.sheet-danger):no
 /* Glass a little less opaque site wide (Lauren, 2026-10-10). iOS glass only;
    Android stays flat and Reduce Transparency keeps solid surfaces. */
 @media(prefers-reduced-transparency:no-preference){
- html[data-theme][data-platform=ios] :is(.gw-glass-menu,.sheet-glass):not(#gw-specificity)>.liquid-glass-tint{background:color-mix(in srgb,var(--surface) 86%,transparent)!important}
+ html[data-theme][data-platform=ios] .sheet-glass:not(#gw-specificity)>.liquid-glass-tint,
+ html[data-theme=dark][data-platform=ios] .gw-glass-menu:not(#gw-specificity)>.liquid-glass-tint{background:color-mix(in srgb,var(--surface) 86%,transparent)!important}
+ /* Light menus stay near-opaque (96%) for readability over busy pages. */
  html[data-platform=ios] .bottom.liquid-glass:not(#gw-specificity)>.liquid-glass-tint{background:rgba(9,31,23,.64)!important}
  html[data-platform=ios][data-theme=light] .bottom.liquid-glass:not(#gw-specificity)>.liquid-glass-tint{background:rgba(204,232,212,.45)!important}
  html[data-platform=ios] :is(.app>.app-header,.page-navigation-header):not(#gw-specificity)::before{background:color-mix(in srgb,var(--bg) 80%,transparent)}
