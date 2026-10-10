@@ -10,6 +10,7 @@ import {commandFingerprint} from './command-identity.mjs';
 import {directorySelection as validateDirectorySelection} from './member-directory.mjs';
 import {merchandiseOptions,orderLines} from './merchandise.mjs';
 import {householdState,householdCommand} from './households.mjs';
+import {successionCommand,successionState} from './household-succession.mjs';
 import {branchState,branchCommand} from './branches.mjs';
 import {promptState,promptCommand} from './member-prompts.mjs';
 import {adultOn,publicBirthdays,ageOn} from './birthdays.mjs';
@@ -76,7 +77,7 @@ export async function familyState(db,actor,reunionId){
  // Featured photos older than the first memory page still load, so Home never loses them.
  for(const f of featured)if(!state.memories.some(m=>m.id===f.memory_id))state.memories.push(memoryView({id:f.memory_id,author_id:f.author_id,data_json:f.data_json,created_at:f.created_at}));
  state.featuredPhotos=featured.flatMap(f=>{const m=state.memories.find(m=>m.id===f.memory_id&&m.image===f.media_url);return m?[m]:[]});state.featuredMemoryIds=state.featuredPhotos.map(m=>m.id);state.primaryMemoryId=featured.find(f=>f.is_primary&&state.featuredMemoryIds.includes(f.memory_id))?.memory_id||null;
- Object.assign(state,await householdState(db,actor));Object.assign(state,await branchState(db,actor));Object.assign(state,await promptState(db,actor));
+ Object.assign(state,await householdState(db,actor),await successionState(db,actor));Object.assign(state,await branchState(db,actor));Object.assign(state,await promptState(db,actor));
  for(const m of state.memorials)if(!m.canEdit)m.canEdit=state.households.some(h=>h.canManage&&h.heritage.some(e=>e.personKind==='ancestor'&&e.personId===m.id));
  return state;
 }
@@ -252,7 +253,7 @@ export async function command(db,actor,input){
   }
   q('DELETE FROM notification_setting_guards WHERE token=?',guard);audit('moderation-'+input.status,report.target_id);break;
  }
- default:{try{const h=await memorialCommand(db,actor,input,q,audit)||await householdCommand(db,actor,input,q,audit)||await branchCommand(db,actor,input,q,audit)||await promptCommand(db,actor,input,q);if(!h)throw new UserError('This action is not supported');Object.assign(result,h)}catch(e){if(e instanceof UserError)throw e;if(e.status)throw new UserError(e.message,e.status);throw e}break;}
+ default:{try{const h=await memorialCommand(db,actor,input,q,audit)||await householdCommand(db,actor,input,q,audit)||await successionCommand(db,actor,input,q,audit,sql)||await branchCommand(db,actor,input,q,audit)||await promptCommand(db,actor,input,q);if(!h)throw new UserError('This action is not supported');Object.assign(result,h)}catch(e){if(e instanceof UserError)throw e;if(e.status)throw new UserError(e.message,e.status);throw e}break;}
  }
  q('INSERT INTO command_receipts(member_id,request_id,result_json,operation,fingerprint) VALUES(?,?,?,?,?)',actor.id,input.requestId,JSON.stringify(result),input.type,fingerprint);
  try{await db.batch(sql)}catch(error){const completed=await db.prepare('SELECT * FROM command_receipts WHERE member_id=? AND request_id=?').bind(actor.id,input.requestId).first();if(completed){if(completed.fingerprint&&(completed.fingerprint!==fingerprint||completed.operation!==input.type))throw new UserError('This request identifier was already used for different content',409);return json(completed.result_json)}if(String(error.message).includes('valid=1'))throw new UserError(contentWrite?'This content changed while you were editing. Reopen it before trying again.':REUNION_SCOPED_COMMANDS.has(input.type)||REUNION_LIFECYCLE_COMMANDS.has(input.type)?'The reunion changed while you were editing. Refresh and try again.':'Notification settings changed on another device. Refresh and try again.',409);throw error}

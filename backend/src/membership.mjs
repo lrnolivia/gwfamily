@@ -35,7 +35,11 @@ export async function membershipCommand(db,actor,input,fingerprint){
   if(!['active','suspended'].includes(input.status))fail('Choose active or paused access');
   roles=Array.isArray(input.roles)?[...new Set(input.roles)]:[];
   if(roles.some(role=>!['admin','moderator','planner','treasurer'].includes(role)))fail('Check the selected roles');
-  status=input.status;canPost=input.canPost===true?1:0;isLeader=target.is_leader;removedAt=null;removedBy=null;action='membership-'+status;
+  if(input.leader!==undefined&&typeof input.leader!=='boolean')fail('Choose whether this member is a Family Leader');
+  // Family Leader is granted and revoked only explicitly. Removal clears it and
+  // restoration never brings it back; an admin must grant it again here.
+  if(input.leader===true&&input.status!=='active')fail('Only active members can be Family Leaders');
+  status=input.status;canPost=input.canPost===true?1:0;isLeader=input.leader===undefined?target.is_leader:input.leader?1:0;removedAt=null;removedBy=null;action='membership-'+status+(isLeader!==target.is_leader?(isLeader?'-leader-granted':'-leader-revoked'):'');
  }
  const result={ok:true,id:target.id,status:removedAt?'removed':status,membershipRevision:target.membership_revision+1};
  const next={...target,status,roles_json:JSON.stringify(roles),can_post:canPost,is_leader:isLeader,removed_at:removedAt,removed_by:removedBy,membership_revision:result.membershipRevision};

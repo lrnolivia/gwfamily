@@ -1,5 +1,5 @@
 import {isPreviewLeader,isMemberView} from './member-view-model.js';
-import {canAccessLeaderTools} from './leader-access.js';
+import {canOpenPlannerTools} from './leader-access.js';
 import {ReunionSelector,ReunionYearManager} from './reunion-years.jsx';
 import {reunionQuery} from './reunion-model.js';
 import {CalendarEventsManager} from './calendar-events.jsx';
@@ -13,7 +13,7 @@ import {DetailsForm} from './planner.jsx';
 export function LeaderTools({section='overview'}){
  const {state,go,theme}=useApp(),preview=state.mode==='preview',caps=state.capabilities||{},canPlan=isPreviewLeader(state)||caps.manageReunion,canPeople=isPreviewLeader(state)||caps.manageMembers,canFees=isPreviewLeader(state)||caps.treasurer,canCalendar=canManageCalendar(state);
  const [data,setData]=useState(null),[error,setError]=useState(''),[refresh,setRefresh]=useState(0);
- const allowed=canAccessLeaderTools(state)&&(canPlan||canPeople||canFees||canCalendar);
+ const allowed=canOpenPlannerTools(state)&&(canPlan||canPeople||canFees||canCalendar);
  useEffect(()=>{if(!allowed||section==='calendar'||!canPlan&&!canPeople&&!canFees)return;let alive=true;setData(null);setError('');if(preview){setData(leaderPreview(state));return}api(reunionQuery('/api/manage',state.selectedReunionId)).then(value=>{if(alive)setData(value)}).catch(e=>{if(alive)setError(e.message)});return()=>{alive=false}},[allowed,preview,refresh,section,state.selfId,state.selectedReunionId,preview?state:null]);
  if(!allowed)return <section className="stack"><h1>Your account</h1><p>This page isn’t available for your account.</p><Button secondary onClick={()=>go({type:'you'})}>Back to You</Button></section>;
  const tabs=[['overview','Overview','grid'],canPlan&&['details','Reunion details','calendar'],canCalendar&&['calendar','Schedule','calendar'],canPeople&&['members','People','people'],canPlan&&['shirts','Merchandise','shirt'],(canFees||canPlan)&&['fees','Fees','wallet']].filter(Boolean),active=!canPlan&&!canPeople&&!canFees&&canCalendar?'calendar':tabs.some(([id])=>id===section)?section:'overview';

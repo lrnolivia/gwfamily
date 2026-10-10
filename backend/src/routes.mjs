@@ -14,6 +14,7 @@ import {registerPageContent,publishedPageReferencesMedia} from './page-content.m
 import {registerMessaging} from './messaging.mjs';
 import {registerHouseholdInvites} from './household-invites.mjs';
 import {registerContentHistory} from './content-history.mjs';
+import {registerHouseholdSuccession} from './household-succession.mjs';
 import {adultOn} from './birthdays.mjs';
 import {UserError,command,familyState,json,readPost,validDate} from './family-service.mjs';
 import {authEnvironment,authReady,createRateStorage} from './auth.mjs';
@@ -60,7 +61,7 @@ export function registerPublic(app,authFactory){
   try{await e.DB.batch([e.DB.prepare('INSERT INTO media(id,owner_id,object_key,name,mime_type,size_bytes) VALUES(?,?,?,?,?,?)').bind(id,session.user.id,key,'Profile photo',file.type,file.size),e.DB.prepare('UPDATE user SET image=?,updatedAt=? WHERE id=?').bind(url,Date.now(),session.user.id)])}catch(error){await e.R2.delete(key);throw error}return c.json({url},201);
  });
 }
-export function registerFamily(app){registerFamilyCalendar(app);registerPhotoDiscussions(app);registerPushRoutes(app);registerEmailNotifications(app);registerNotifications(app);registerHouseholdInvites(app);registerFamilyInvitations(app);registerMessaging(app);registerPageContent(app);registerContentHistory(app);
+export function registerFamily(app){registerFamilyCalendar(app);registerPhotoDiscussions(app);registerPushRoutes(app);registerEmailNotifications(app);registerNotifications(app);registerHouseholdInvites(app);registerFamilyInvitations(app);registerMessaging(app);registerPageContent(app);registerContentHistory(app);registerHouseholdSuccession(app);
  app.get('/api/calendar',async c=>{try{return c.json(await readCalendar(c.env.DB,c.get('actor'),c.req.query('reunionId')))}catch(error){if(error.status)throw new UserError(error.message,error.status);throw error}});
  app.get('/api/state',async c=>c.json(await familyState(c.env.DB,c.get('actor'),c.req.query('reunionId'))));
  app.post('/api/commands',async c=>c.json(await command(c.env.DB,c.get('actor'),await c.req.json())));
@@ -71,7 +72,7 @@ export function registerFamily(app){registerFamilyCalendar(app);registerPhotoDis
  app.get('/api/manage',async c=>{
   const actor=c.get('actor');if(!can(actor,'manage_reunion')&&!can(actor,'manage_members')&&!can(actor,'confirm_fees'))throw new UserError('Planner permission required',403);
   const reunion=await resolveReunion(c.env.DB,c.req.query('reunionId'));
-  const members=can(actor,'manage_members')?(await c.env.DB.prepare('SELECT m.id,m.status,m.roles_json,m.can_post,m.removed_at,m.membership_revision,u.name,u.email,(SELECT inviter.name FROM family_invitations i JOIN user inviter ON inviter.id=i.sender_id WHERE i.accepted_by=m.id ORDER BY i.accepted_at ASC LIMIT 1) AS invited_by_name FROM members m JOIN user u ON u.id=m.id ORDER BY m.created_at').bind().all()).results:[];
+  const members=can(actor,'manage_members')?(await c.env.DB.prepare('SELECT m.id,m.status,m.roles_json,m.can_post,m.is_leader,m.removed_at,m.membership_revision,u.name,u.email,(SELECT inviter.name FROM family_invitations i JOIN user inviter ON inviter.id=i.sender_id WHERE i.accepted_by=m.id ORDER BY i.accepted_at ASC LIMIT 1) AS invited_by_name FROM members m JOIN user u ON u.id=m.id ORDER BY m.created_at').bind().all()).results:[];
   const rsvps=can(actor,'manage_reunion')?(await c.env.DB.prepare('SELECT r.*,u.name FROM reunion_rsvps r JOIN user u ON u.id=r.member_id WHERE r.reunion_id=?').bind(reunion.id).all()).results:[];
   const claims=can(actor,'manage_reunion')?(await c.env.DB.prepare('SELECT c.*,u.name FROM shirt_claims c JOIN user u ON u.id=c.member_id WHERE c.reunion_id=? ORDER BY c.created_at DESC').bind(reunion.id).all()).results:[];
   const fees=can(actor,'confirm_fees')?(await c.env.DB.prepare('SELECT f.*,u.name FROM fee_reports f JOIN user u ON u.id=f.member_id WHERE f.reunion_id=? ORDER BY f.created_at DESC').bind(reunion.id).all()).results:[];
