@@ -3,23 +3,29 @@
    height), a blurred copy fills any gaps, and a soft mirror of the photo's top
    edge extends it up behind the header. The heading sits below the photo, over
    only its faded bottom edge, so it never covers anyone. */
+/* The stage spans the app column edge to edge (the whole screen on phones).
+   The column clips sideways so a stage never causes a horizontal scroll. */
+.app:has(.page-stage){overflow-x:clip}
 .page-stage{
- --stage-gutter:max(16px,calc((100vw - 990px)/2 + 16px));
+ --stage-gutter:var(--stage-x,16px);
  --stage-head:calc(var(--gw-app-header-height,78px) + 12px);
  --stage-max:72svh;
  position:relative;isolation:isolate;display:block;
- width:100vw;max-width:100vw;margin-inline:calc(50% - 50vw);
- margin-top:calc(-1 * var(--stage-head));margin-bottom:8px;overflow:hidden;
+ width:var(--stage-w,calc(100% + 32px));max-width:none;margin-left:calc(-1 * var(--stage-x,16px));margin-right:0;
+ margin-top:0;margin-bottom:8px;overflow:clip;contain:paint;
  color:var(--text);background:var(--bg);
 }
 @media(min-width:700px){.page-stage{--stage-max:64vh}}
+/* Under the header only when nothing sits between them. */
+.page-stage.is-tucked{margin-top:calc(-1 * var(--stage-head))}
+.page-stage:not(.is-tucked){--stage-head:16px}
 .page-stage:not(.is-framed){min-height:min(64svh,520px);display:grid;align-content:end}
 @media(min-width:700px){.page-stage:not(.is-framed){min-height:min(56vh,560px)}}
 /* Without a photo the stage stays short; the tint and oak carry it. */
 .page-stage.is-plain{min-height:min(40svh,340px)}
 
 /* Blurred fill (header strip, side gaps, the You page). */
-.page-stage-media{position:absolute;inset:0;z-index:-3;overflow:hidden;
+.page-stage-media{position:absolute;inset:0;z-index:-3;overflow:hidden;pointer-events:none;
  transform:translateY(calc(var(--stage-p,0) * 14%));will-change:transform}
 .page-stage-backdrop{position:absolute;inset:-48px;width:calc(100% + 96px);height:calc(100% + 96px);object-fit:cover;
  filter:blur(30px) saturate(1.25) brightness(.92);opacity:0;transition:opacity 1.6s ease}
@@ -32,14 +38,14 @@
 .page-stage.is-plain{background:linear-gradient(165deg,color-mix(in srgb,var(--stage-tint,var(--accent)) 34%,var(--bg)) 0%,var(--bg) 78%)}
 
 /* The photo, whole. Height follows its own shape, capped; contain never crops. */
-.page-stage-figure{position:relative;z-index:-1;width:100%;aspect-ratio:var(--stage-ratio,1.333);max-height:var(--stage-max);margin-top:var(--stage-head)}
+.page-stage-figure{position:relative;z-index:-1;pointer-events:none;width:100%;aspect-ratio:var(--stage-ratio,1.333);max-height:var(--stage-max);margin-top:var(--stage-head)}
 .page-stage-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity 1.6s ease;
  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 10px,#000 76%,transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 10px,#000 76%,transparent 100%)}
 .page-stage-photo.is-current{opacity:1}
 /* Mirror of the photo's top edge, rising behind the header and softening away. */
 .page-stage-mirror{position:absolute;left:0;right:0;bottom:calc(100% - 10px);height:calc(var(--stage-head) + 10px);overflow:hidden;filter:blur(9px) saturate(1.1);opacity:.92;
  -webkit-mask-image:linear-gradient(to top,#000 0,#000 35%,transparent 100%);mask-image:linear-gradient(to top,#000 0,#000 35%,transparent 100%)}
-.page-stage-mirror-box{position:absolute;left:0;right:0;bottom:0;height:min(calc(100vw / var(--stage-ratio,1.333)),var(--stage-max))}
+.page-stage-mirror-box{position:absolute;left:0;right:0;bottom:0;height:min(calc(var(--stage-w,100vw) / var(--stage-ratio,1.333)),var(--stage-max))}
 .page-stage-mirror-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;transform:scaleY(-1);opacity:0;transition:opacity 1.6s ease}
 .page-stage-mirror-photo.is-current{opacity:1}
 
@@ -67,13 +73,15 @@ html[data-platform] #main .page-stage-copy h1,.page-stage-copy h1{margin:0;font-
    Edit mode keeps the glass so the editing tools stay legible. */
 .app>.app-header::before,.app>.app-header::after{transition:background-color .3s ease,opacity .3s ease}
 html[data-stage-top]:not([data-page-edit-mode=true]) .app>.app-header:not(#gw-specificity)::before,
-html[data-stage-top]:not([data-page-edit-mode=true]) .app>.app-header:not(#gw-specificity)::after{background:transparent!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;opacity:0}
+html[data-stage-top]:not([data-page-edit-mode=true]) .app>.app-header:not(#gw-specificity)::after{opacity:0}
 /* Background-aware wordmark: the ink follows the photo behind the header. */
 html[data-stage-top][data-stage-tone=dark]:not([data-page-edit-mode=true]) .app>.app-header{--wordmark-green:#f6edcf;--wordmark-amp:#f6edcf;--wordmark-white:#c9dcc4;--wordmark-family:#9fd2ad}
 html[data-stage-top][data-stage-tone=light]:not([data-page-edit-mode=true]) .app>.app-header{--wordmark-green:#1d6b3a;--wordmark-amp:#1d6b3a;--wordmark-white:#164d2b;--wordmark-family:#0f3520}
 html[data-stage-top][data-stage-tone=dark]:not([data-page-edit-mode=true]) .app>.app-header .wordmark{text-shadow:0 1px 10px rgba(0,0,0,.45)}
 html[data-stage-top][data-stage-tone=light]:not([data-page-edit-mode=true]) .app>.app-header .wordmark{text-shadow:0 1px 10px rgba(255,255,255,.55)}
 
+/* Editing holds still: no endless motion while the page is being edited. */
+html[data-page-edit-mode=true] .page-stage-backdrop{animation:none!important}
 @media(prefers-reduced-motion:reduce){
  .page-stage-backdrop,.page-stage-photo,.page-stage-mirror-photo{animation:none!important;transition:none}
  .page-stage-media,.page-stage-copy{transform:none;opacity:1}
