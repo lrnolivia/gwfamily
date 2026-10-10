@@ -3,22 +3,23 @@
    height), a blurred copy fills any gaps, and the photo's own top edge, stretched and
    blurred, continues it up behind the header. The heading sits below the photo, over
    only its faded bottom edge, so it never covers anyone. */
-/* The stage spans the app column edge to edge (the whole screen on phones).
-   The column clips sideways so a stage never causes a horizontal scroll. */
-.app:has(.page-stage){overflow-x:clip}
+/* The stage spans the screen beside any side rail. The app root clips
+   sideways, so a stage never causes a horizontal scroll. */
+#root:has(.page-stage){overflow-x:clip}
 .page-stage{
- --stage-gutter:var(--stage-x,16px);
+ --stage-gutter:var(--stage-x,max(16px,calc(50vw - 50%)));
  --stage-head:calc(var(--gw-app-header-height,78px) + 12px);
- --stage-max:78svh;
+ /* Tall photos, but the heading and the page's first controls stay on screen. */
+ --stage-max:min(78svh,calc(100svh - 300px));
  --stage-feather:32px;
  /* The photo starts just under the top edge and runs behind the header. */
  --stage-lift:calc(var(--stage-head) * .4);
  position:relative;isolation:isolate;display:block;
- width:var(--stage-w,calc(100% + 32px));max-width:none;margin-left:calc(-1 * var(--stage-x,16px));margin-right:0;
+ width:var(--stage-w,100vw);max-width:none;margin-left:calc(-1 * var(--stage-x,calc(50vw - 50%)));margin-right:0;
  margin-top:0;margin-bottom:8px;overflow:clip;contain:paint;
  color:var(--text);background:var(--bg);
 }
-@media(min-width:700px){.page-stage{--stage-max:78vh}}
+@media(min-width:700px){.page-stage{--stage-max:min(78vh,calc(100vh - 480px))}}
 /* Under the header only when nothing sits between them. */
 .page-stage.is-tucked{margin-top:calc(-1 * var(--stage-head))}
 .page-stage:not(.is-tucked){--stage-head:16px}
@@ -30,7 +31,7 @@
 /* Blurred fill (header strip, side gaps, the You page). */
 .page-stage-media{position:absolute;inset:0;z-index:-3;overflow:hidden;pointer-events:none;
  transform:translateY(calc(var(--stage-p,0) * 14%));will-change:transform}
-.page-stage-backdrop{position:absolute;inset:-48px;width:calc(100% + 96px);height:calc(100% + 96px);object-fit:cover;
+.page-stage-backdrop{position:absolute;inset:-48px;background-size:cover;background-position:center;
  filter:blur(30px) saturate(1.25) brightness(.92);opacity:0;transition:opacity 1.6s ease}
 .page-stage-backdrop.is-current{opacity:1}
 .page-stage-backdrop.drift-a{animation:page-stage-drift-a 28s ease-in-out infinite alternate}
@@ -42,9 +43,23 @@
 
 /* The photo, whole. Height follows its own shape, capped; contain never crops. */
 .page-stage-figure{position:relative;z-index:-1;pointer-events:none;width:100%;aspect-ratio:var(--stage-ratio,1.333);max-height:var(--stage-max);margin-top:var(--stage-lift)}
-.page-stage-photo{position:absolute;top:0;left:50%;width:min(100%,calc(var(--stage-max) * var(--stage-ratio,1.333)));height:100%;transform:translateX(-50%);object-fit:contain;opacity:0;transition:opacity 1.6s ease;
+.page-stage-photo{position:absolute;top:0;left:50%;width:min(100%,calc(var(--stage-max) * var(--stage-ratio,1.333)));height:100%;transform:translateX(-50%);object-fit:contain;animation:page-stage-photo-in .9s ease both;
  -webkit-mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.55) calc(var(--stage-feather) * .45),#000 var(--stage-feather),#000 52%,rgba(0,0,0,.72) 68%,rgba(0,0,0,.36) 84%,transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,rgba(0,0,0,.55) calc(var(--stage-feather) * .45),#000 var(--stage-feather),#000 52%,rgba(0,0,0,.72) 68%,rgba(0,0,0,.36) 84%,transparent 100%)}
 .page-stage-photo.is-current{opacity:1}
+@keyframes page-stage-photo-in{from{opacity:0}to{opacity:1}}
+/* Gallery controls sit on the photo, above the heading block. */
+.page-stage-frame{position:absolute;inset:0;pointer-events:auto}
+/* The stage photo also carries the gallery's asset class; keep it whole here. */
+.page-stage-frame>.page-stage-photo{display:block;max-height:none;aspect-ratio:auto;object-fit:contain;border-radius:0;width:min(100%,calc(var(--stage-max) * var(--stage-ratio,1.333)));height:100%}
+.page-stage-gallery{margin-inline-start:auto;display:flex;align-items:center;gap:2px;padding:4px;border-radius:999px;
+ background:color-mix(in srgb,var(--surface) 78%,transparent);color:var(--text);-webkit-backdrop-filter:blur(14px) saturate(1.2);backdrop-filter:blur(14px) saturate(1.2);box-shadow:0 4px 16px rgba(0,0,0,.12)}
+.page-stage-gallery>button{display:grid;place-items:center;width:40px;height:40px;min-height:40px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--text)}
+.page-stage-gallery>button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.page-stage-gallery>button:disabled{opacity:.45}
+.page-stage-gallery .glyph{width:18px;height:18px}
+.page-stage-gallery-step.is-previous .glyph{transform:scaleX(-1)}
+.page-stage-gallery-count{min-width:44px;text-align:center;font-size:.875rem;font-weight:650;font-variant-numeric:tabular-nums}
+@media(prefers-reduced-transparency:reduce){.page-stage-gallery{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none}}
 /* Wider screens: when the photo is narrower than the stage, its sides feather
    into the blurred fill too. */
 @media(min-width:700px){.page-stage-photo{
