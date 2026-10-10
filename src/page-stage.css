@@ -51,6 +51,8 @@ html[data-stage-enter=from-left] :is(.page-stage-copy,.page-stage ~ *,.page-navi
 .page-stage-frame{position:absolute;inset:0;pointer-events:auto}
 /* The stage photo also carries the gallery's asset class; keep it whole here. */
 .page-stage-frame>.page-stage-photo{display:block;max-height:none;aspect-ratio:auto;object-fit:contain;border-radius:0;width:min(100%,calc(var(--stage-max) * var(--stage-ratio,1.333)));height:100%}
+/* Wider than the stage: fill it, centered, so there's no empty band above the photo. */
+.page-stage-frame>.page-stage-photo.is-cover{object-fit:cover;object-position:50% 50%}
 /* Wider screens: when the photo is narrower than the stage, its sides feather
    into the blurred fill too. */
 @media(min-width:700px){.page-stage-photo{
