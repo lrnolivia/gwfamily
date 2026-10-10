@@ -19,13 +19,18 @@ export function PageStage({images=[],blur=false,tint,eyebrow,meta,chips=[],class
   let timer=0;const tick=()=>{if(document.visibilityState==='visible')setIndex(i=>(i+1)%list.length)};
   timer=setInterval(tick,CYCLE_MS);return()=>clearInterval(timer);
  },[key]);
- // Ease the stage back as the page scrolls; a CSS variable drives it.
+ // While the stage fills the top of the screen the header floats on it
+ // (html[data-stage-top]); past it the header's glass returns. The stage also
+ // eases back as the page scrolls, unless Reduce Motion is on.
  useEffect(()=>{
-  const el=root.current;if(!el||reducedMotion())return;
-  let frame=0;const update=()=>{frame=0;const h=el.offsetHeight||1,p=Math.min(1,Math.max(0,window.scrollY/h));el.style.setProperty('--stage-p',p.toFixed(3))};
+  const el=root.current,html=document.documentElement;if(!el)return;
+  const still=reducedMotion();let frame=0;
+  const update=()=>{frame=0;const h=el.offsetHeight||1,y=window.scrollY;
+   if(y<h-(parseFloat(getComputedStyle(html).getPropertyValue('--gw-app-header-height'))||78)-24)html.dataset.stageTop='true';else delete html.dataset.stageTop;
+   if(!still)el.style.setProperty('--stage-p',Math.min(1,Math.max(0,y/h)).toFixed(3))};
   const onScroll=()=>{if(!frame)frame=requestAnimationFrame(update)};
-  update();window.addEventListener('scroll',onScroll,{passive:true});
-  return()=>{window.removeEventListener('scroll',onScroll);if(frame)cancelAnimationFrame(frame)};
+  update();window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll);
+  return()=>{window.removeEventListener('scroll',onScroll);window.removeEventListener('resize',onScroll);if(frame)cancelAnimationFrame(frame);delete html.dataset.stageTop};
  },[]);
  return <section ref={root} className={'page-stage'+(list.length?' has-photo':' is-plain')+(blur?' is-blurred':'')+(className?' '+className:'')} aria-label={label} style={tint?{'--stage-tint':tint}:undefined}>
   <div className="page-stage-media" aria-hidden={list.every(image=>!image.alt)||undefined}>
