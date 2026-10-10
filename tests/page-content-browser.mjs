@@ -836,9 +836,11 @@ try {
     assert.equal((await api(bob, firstGallery.content.hero.media[1].url)).status, 404);
     await navigate(bob, 'home');
     await expect(bob.locator('img.page-hero-asset')).toHaveCount(1);
-    const photoHero = primaryHero(bob, 'home');
+    // Viewing, the page photo shows whole in the page stage, without gallery controls.
+    const photoHero = bob.locator('.page-stage');
     await expect(photoHero).toHaveCount(1);
     await expect(photoHero.locator('img.page-hero-asset')).toHaveCount(1);
+    await expect(photoHero.locator('.page-stage-gallery')).toHaveCount(0);
     await expect(photoHero.locator('.gw-carousel-controls, .page-gallery-status')).toHaveCount(0);
     for (const name of ['Previous page photo', 'Next page photo', 'Play page photos', 'Pause page photos']) {
       await expect(photoHero.getByRole('button', {name, exact: true})).toHaveCount(0);

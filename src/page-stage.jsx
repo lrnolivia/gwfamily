@@ -109,9 +109,11 @@ export function PageStage({images=[],blur=false,tint,eyebrow,meta,chips=[],class
 }
 
 // Photos for a page's stage: the page's own photo or gallery when a leader set
-// one, otherwise the fallbacks the page passes (featured photos, memories).
+// one, otherwise the fallbacks the page passes (featured photos, memories). A
+// page video stays in its card, so the stage keeps its plain look then.
 export function useStageImages(page,fallback=[]){
  const editor=usePageContent(page),hero=editor?.content?.hero;
+ if(hero?.mode==='video')return [];
  const own=hero&&hero.mode!=='default'&&hero.mode!=='video'?(hero.media||[]).map(file=>({src:safePageMediaUrl(file.url,editor.preview),alt:file.alt||''})).filter(image=>image.src):[];
  return own.length?own:fallback.filter(image=>image?.src);
 }
