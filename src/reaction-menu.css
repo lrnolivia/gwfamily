@@ -26,14 +26,14 @@ html[data-theme][data-platform] .post-overflow-pop .post-menu-report{margin-top:
 /* Management actions share a separated section; color reinforces their labels. */
 .post-overflow-pop .post-menu-section{margin-top:4px;padding-top:4px;border-top:1px solid var(--line)}
 html[data-theme][data-platform] .post-overflow-pop .post-menu-edit{color:var(--status-success)!important}
-html[data-theme][data-platform] .post-overflow-pop .post-menu-delete{color:var(--status-danger)!important}
+html[data-theme][data-platform] .post-overflow-pop .post-menu-delete{color:var(--destructive)!important}
 .comment-actions .content-options-trigger{flex:0 0 44px;width:44px;height:44px;padding:10px;margin-left:auto}
 .comment-actions{align-items:center}
 .content-change{display:grid;gap:12px;width:100%;min-width:0;text-align:left;color:var(--text);background:var(--surface);border-radius:16px;padding:12px}
 .content-change label{display:grid;gap:8px}.content-change textarea{min-width:0;width:100%;resize:vertical;box-sizing:border-box}
 .content-change p{margin:0;font-size:.875rem}.content-change-actions{display:flex;justify-content:flex-end;gap:8px}
 .content-change-actions button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:10px 14px;border-radius:14px;background:var(--raised);color:var(--text)}
-.content-change-actions .content-delete-confirm{color:var(--status-danger)}
+.content-change-actions .content-delete-confirm{color:var(--destructive)}
 html[data-theme][data-platform] .comment-actions{display:flex;flex-wrap:nowrap;gap:4px;align-items:center;min-width:0}
 html[data-theme][data-platform] .comment-actions>.small-reaction-chips{display:flex;flex:1 1 auto;min-width:0;flex-wrap:nowrap;overflow-x:auto;align-items:center}
 html[data-theme][data-platform] .comment-actions .reaction-pill,html[data-theme][data-platform] .comment-actions .react-trigger{flex:0 0 auto;min-height:44px}

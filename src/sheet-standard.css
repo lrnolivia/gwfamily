@@ -19,8 +19,8 @@ html .sheet-footer{box-shadow:0 40px 0 0 var(--surface),0 80px 0 0 var(--surface
 .page-object-tools-body>.sheet-footer{margin-bottom:-20px}
 /* Destructive actions sit side by side on a danger-tinted surface. */
 .sheet-footer.page-editor-destructive-group{border-top:0;margin-top:0;padding-top:12px}
-html[data-theme] .sheet-footer .page-editor-remove{background:color-mix(in srgb,var(--status-danger) 16%,var(--raised));color:var(--status-danger);border-radius:14px}
-html[data-theme] .sheet-footer .page-editor-remove:hover{background:color-mix(in srgb,var(--status-danger) 24%,var(--raised))}
+html[data-theme] .sheet-footer .page-editor-remove{background:color-mix(in srgb,var(--destructive) 16%,var(--raised));color:var(--destructive);border-radius:14px}
+html[data-theme] .sheet-footer .page-editor-remove:hover{background:color-mix(in srgb,var(--destructive) 24%,var(--raised))}
 
 /* Phones: popups that scroll open as bottom sheets, matching the editor sheets. */
 @media(max-width:700px){
@@ -49,8 +49,8 @@ html .profile-menu .profile-summary .member-view-eye{order:0;margin:0;width:36px
 html .profile-menu .profile-summary .live-member-view>p{flex-basis:100%;margin:0}
 
 /* Destructive actions in any sheet footer share the danger surface. */
-html[data-theme] .sheet-footer .button.sheet-danger{background:color-mix(in srgb,var(--status-danger) 16%,var(--raised));color:var(--status-danger);border-radius:14px}
-html[data-theme] .sheet-footer .button.sheet-danger:hover{background:color-mix(in srgb,var(--status-danger) 24%,var(--raised))}
+html[data-theme] .sheet-footer .button.sheet-danger{background:color-mix(in srgb,var(--destructive) 16%,var(--raised));color:var(--destructive);border-radius:14px}
+html[data-theme] .sheet-footer .button.sheet-danger:hover{background:color-mix(in srgb,var(--destructive) 24%,var(--raised))}
 @media(forced-colors:active){html .sheet-footer .button.sheet-danger{border:1px solid CanvasText}}
 
 /* Editor tools header scrolls content beneath it. Glass: the same translucent
@@ -61,8 +61,8 @@ html[data-theme][data-platform]:not([data-platform=ios]) .page-object-tools-head
 @media(prefers-reduced-transparency:reduce){html[data-platform=ios] .page-object-tools-heading{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none}}
 
 /* Destructive confirmations outside sheet footers use the same danger surface. */
-html[data-theme] .button.danger-action{background:color-mix(in srgb,var(--status-danger) 16%,var(--raised));color:var(--status-danger);border-radius:14px}
-html[data-theme] .button.danger-action:hover{background:color-mix(in srgb,var(--status-danger) 24%,var(--raised))}
+html[data-theme] .button.danger-action{background:color-mix(in srgb,var(--destructive) 16%,var(--raised));color:var(--destructive);border-radius:14px}
+html[data-theme] .button.danger-action:hover{background:color-mix(in srgb,var(--destructive) 24%,var(--raised))}
 @media(forced-colors:active){html .button.danger-action{border:1px solid CanvasText}}
 
 /* Save rows inside sheets are the sticky bottom action row too. */
@@ -71,13 +71,31 @@ html[data-theme] .button.danger-action:hover{background:color-mix(in srgb,var(--
 /* Shirt options sit on one platter; light destructive text actions read as danger. */
 .size-platter{display:grid;gap:12px;padding:14px;border-radius:14px;background:var(--raised)}
 .size-platter>.size-list:empty{display:none}
-html[data-theme] .text-button.danger-text{color:var(--status-danger)}
+html[data-theme] .text-button.danger-text{color:var(--destructive)}
 
 /* Danger buttons must win over the primary-button rule (which is more specific),
    glass tint included; :not(#gw-specificity) raises specificity only. */
-html[data-theme][data-platform] .button:is(.danger-action,.sheet-danger):not(#gw-specificity){--gw-control-color:color-mix(in srgb,var(--status-danger) 16%,var(--raised));background:color-mix(in srgb,var(--status-danger) 16%,var(--raised))!important;color:var(--status-danger)!important;border-color:transparent!important;box-shadow:none!important;text-shadow:none!important}
-html[data-theme][data-platform] .button:is(.danger-action,.sheet-danger):not(#gw-specificity):hover{background:color-mix(in srgb,var(--status-danger) 24%,var(--raised))!important}
-html[data-theme][data-platform] .button:is(.danger-action,.sheet-danger):not(#gw-specificity)>.liquid-glass-tint{background:color-mix(in srgb,var(--status-danger) 16%,var(--raised))!important}
+html[data-theme][data-platform] .button:is(.danger-action,.sheet-danger):not(#gw-specificity){--gw-control-color:color-mix(in srgb,var(--destructive) 16%,var(--raised));background:color-mix(in srgb,var(--destructive) 16%,var(--raised))!important;color:var(--destructive)!important;border-color:transparent!important;box-shadow:none!important;text-shadow:none!important}
+html[data-theme][data-platform] .button:is(.danger-action,.sheet-danger):not(#gw-specificity):hover{background:color-mix(in srgb,var(--destructive) 24%,var(--raised))!important}
+html[data-theme][data-platform] .button:is(.danger-action,.sheet-danger):not(#gw-specificity)>.liquid-glass-tint{background:color-mix(in srgb,var(--destructive) 16%,var(--raised))!important}
 /* Dark: a lighter tint keeps the danger text at AA on every preset (Coral pink/Stone were 4.4:1). */
-html[data-theme=dark][data-platform] .button:is(.danger-action,.sheet-danger):not(#gw-specificity),html[data-theme=dark][data-platform] .button:is(.danger-action,.sheet-danger):not(#gw-specificity)>.liquid-glass-tint{--gw-control-color:color-mix(in srgb,var(--status-danger) 10%,var(--raised));background:color-mix(in srgb,var(--status-danger) 10%,var(--raised))!important}
-html[data-theme=dark][data-platform] .button:is(.danger-action,.sheet-danger):not(#gw-specificity):hover{background:color-mix(in srgb,var(--status-danger) 16%,var(--raised))!important}
+html[data-theme=dark][data-platform] .button:is(.danger-action,.sheet-danger):not(#gw-specificity),html[data-theme=dark][data-platform] .button:is(.danger-action,.sheet-danger):not(#gw-specificity)>.liquid-glass-tint{--gw-control-color:color-mix(in srgb,var(--destructive) 10%,var(--raised));background:color-mix(in srgb,var(--destructive) 10%,var(--raised))!important}
+html[data-theme=dark][data-platform] .button:is(.danger-action,.sheet-danger):not(#gw-specificity):hover{background:color-mix(in srgb,var(--destructive) 16%,var(--raised))!important}
+
+/* Phones: the sheet itself no longer pads for the home bar; the sticky footer
+   already does, so the button sits low and doesn't rise at the end of the scroll. */
+@media(max-width:700px){html .page-object-tools{padding-bottom:0}
+ html .page-object-tools-body{padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+ html .page-object-tools-body>.sheet-footer{margin-bottom:calc(-20px - env(safe-area-inset-bottom,0px))}}
+/* Glass a little less opaque site wide (Lauren, 2026-10-10). iOS glass only;
+   Android stays flat and Reduce Transparency keeps solid surfaces. */
+@media(prefers-reduced-transparency:no-preference){
+ html[data-theme][data-platform=ios] .sheet-glass:not(#gw-specificity)>.liquid-glass-tint,
+ html[data-theme=dark][data-platform=ios] .gw-glass-menu:not(#gw-specificity)>.liquid-glass-tint{background:color-mix(in srgb,var(--surface) 86%,transparent)!important}
+ /* Light menus stay near-opaque (96%) for readability over busy pages. */
+ html[data-platform=ios] .bottom.liquid-glass:not(#gw-specificity)>.liquid-glass-tint{background:rgba(9,31,23,.64)!important}
+ html[data-platform=ios][data-theme=light] .bottom.liquid-glass:not(#gw-specificity)>.liquid-glass-tint{background:rgba(204,232,212,.45)!important}
+ html[data-platform=ios] :is(.app>.app-header,.page-navigation-header):not(#gw-specificity)::before{background:color-mix(in srgb,var(--bg) 80%,transparent)}
+ html[data-platform=ios] .page-back.page-back:not(#gw-specificity){background:color-mix(in srgb,var(--raised) 80%,transparent)}
+ html[data-platform=ios] .page-object-tools-heading:not(#gw-specificity){background:color-mix(in srgb,var(--surface) 72%,transparent)}
+}
