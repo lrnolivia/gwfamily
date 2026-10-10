@@ -14,6 +14,10 @@ export function useCompactChrome(){
  useEffect(()=>{let frame;const update=()=>{frame=null;setCompact(window.scrollY>96)},schedule=()=>{if(frame==null)frame=requestAnimationFrame(update)};window.addEventListener('scroll',schedule,{passive:true});window.addEventListener('resize',schedule);return()=>{window.removeEventListener('scroll',schedule);window.removeEventListener('resize',schedule);if(frame!=null)cancelAnimationFrame(frame)}},[]);
  return compact;
 }
+// How far a page's content is mid-slide (the page stage slides in from the side).
+// The title icon rides the same slide, so it is placed where the title will
+// rest, not where it happens to be in the middle of the motion.
+function slideOffset(node){let x=0,y=0;for(let n=node.parentElement;n&&n.id!=='main';n=n.parentElement){const t=getComputedStyle(n).transform;if(t&&t!=='none'){const m=new DOMMatrixReadOnly(t);x+=m.m41;y+=m.m42}}return {x,y}}
 export function PageNavigationHeader({previous,compact}){
  // This component mounts with the real header after sign-in/bootstrap. The
  // app's initial render may have no header to measure yet.
@@ -34,10 +38,10 @@ export function PageNavigationHeader({previous,compact}){
   if(!heading||compact){setPosition(null);return;}
   const original=heading.getAttribute('data-page-back-anchor');heading.setAttribute('data-page-back-anchor','true');
   let frame;
-  const measure=()=>{frame=null;const host=headerRef.current;if(!host||!heading.isConnected)return;const titleBox=heading.getBoundingClientRect(),hostBox=host.getBoundingClientRect(),style=getComputedStyle(heading),line=Math.min(titleBox.height,parseFloat(style.lineHeight)||parseFloat(style.fontSize)*1.2||titleBox.height),next={top:titleBox.top-hostBox.top+(parseFloat(style.paddingTop)||0)+(line-44)/2,left:titleBox.left-hostBox.left};/* Centered on the first line, so a wrapping title keeps its icon beside the top line. */setPosition(current=>current&&Math.abs(current.top-next.top)<.5&&Math.abs(current.left-next.left)<.5?current:next)};
+  const measure=()=>{frame=null;const host=headerRef.current;if(!host||!heading.isConnected)return;const titleBox=heading.getBoundingClientRect(),hostBox=host.getBoundingClientRect(),style=getComputedStyle(heading),slide=slideOffset(heading),line=Math.min(titleBox.height,parseFloat(style.lineHeight)||parseFloat(style.fontSize)*1.2||titleBox.height),next={top:titleBox.top-slide.y-hostBox.top+(parseFloat(style.paddingTop)||0)+(line-44)/2,left:titleBox.left-slide.x-hostBox.left};/* Centered on the first line, so a wrapping title keeps its icon beside the top line. */setPosition(current=>current&&Math.abs(current.top-next.top)<.5&&Math.abs(current.left-next.left)<.5?current:next)};
   const schedule=()=>{if(frame==null)frame=requestAnimationFrame(measure)};
-  measure();const observer=new ResizeObserver(schedule);observer.observe(heading);observer.observe(document.getElementById('main'));window.addEventListener('scroll',schedule,{passive:true});window.addEventListener('resize',schedule);
-  return()=>{observer.disconnect();window.removeEventListener('scroll',schedule);window.removeEventListener('resize',schedule);if(frame!=null)cancelAnimationFrame(frame);if(original===null)heading.removeAttribute('data-page-back-anchor');else heading.setAttribute('data-page-back-anchor',original)};
+  const main=document.getElementById('main');measure();const observer=new ResizeObserver(schedule);observer.observe(heading);observer.observe(main);main.addEventListener('animationend',schedule);window.addEventListener('scroll',schedule,{passive:true});window.addEventListener('resize',schedule);
+  return()=>{observer.disconnect();main.removeEventListener('animationend',schedule);window.removeEventListener('scroll',schedule);window.removeEventListener('resize',schedule);if(frame!=null)cancelAnimationFrame(frame);if(original===null)heading.removeAttribute('data-page-back-anchor');else heading.setAttribute('data-page-back-anchor',original)};
  },[heading,compact]);
  const chat=route.type==='chat'?messaging.conversations?.find(item=>item.id===route.id):null;
  const title=page.content?.text?.heading||headerTitles[route.type]||(chat?conversationTitle(chat,state.selfId):route.type==='chat'?'Conversation':pageIdentity(route,state)),destination=previous||{type:'home'},unread=backUnread(previous,messaging),label='Back to '+pageIdentity(destination,state)+(unread?', '+unread+' unread':'');
