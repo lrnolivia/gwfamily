@@ -320,6 +320,15 @@ jobs:
           curl -fsS http://127.0.0.1:4196/api/config
           mkdir -p docs/ci-logs
           CI=true GW_SENT_INVITES_QA_OUTPUT=docs/sent-invitations-qa node tests/sent-invitations-browser.mjs 2>&1 | tee docs/ci-logs/sent-invitations-browser.log
+      - name: Child record, memorial archive and account request browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          GW_FIXTURE_PORT=4197 node backend/tests/fixture-server.mjs > /tmp/gw-lifecycle-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4197/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4197/api/config
+          mkdir -p docs/ci-logs
+          CI=true GW_LIFECYCLE_QA_OUTPUT=docs/lifecycle-qa node tests/lifecycle-browser.mjs 2>&1 | tee docs/ci-logs/lifecycle-browser.log
       - name: Card content arrangement browser checks
         if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 10

@@ -67,7 +67,7 @@ export async function successionCommand(db,actor,input,q,audit,sql){
 export async function successionState(db,actor){
  const transfers=rows(await db.prepare("SELECT t.* FROM household_founder_transfers t WHERE t.status='pending' AND (t.to_id=? OR t.initiated_by=? OR t.from_id=? OR EXISTS(SELECT 1 FROM household_members hm WHERE hm.household_id=t.household_id AND hm.member_id=? AND hm.role='head'))").bind(actor.id,actor.id,actor.id,actor.id).all());
  const out={founderTransfers:transfers.map(t=>({id:t.id,householdId:t.household_id,fromId:t.from_id,toId:t.to_id,initiatedBy:t.initiated_by,kind:t.kind,reason:t.kind==='recovery'&&(t.to_id===actor.id||can(actor,'manage_members'))?t.reason:'',createdAt:t.created_at}))};
- if(can(actor,'manage_members')){const need=[];for(const h of rows(await db.prepare('SELECT * FROM households ORDER BY name').all())){const why=await recoveryNeed(db,h);if(why)need.push({householdId:h.id,reason:why})}out.householdRecovery=need}
+ if(can(actor,'manage_members')){const need=[];for(const h of rows(await db.prepare('SELECT * FROM households WHERE archived_at IS NULL ORDER BY name').all())){const why=await recoveryNeed(db,h);if(why)need.push({householdId:h.id,reason:why})}out.householdRecovery=need}
  return out;
 }
 export function registerHouseholdSuccession(app){app.get('/api/households/:id/history',async c=>{try{return c.json({history:await householdHistory(c.env.DB,c.get('actor'),c.req.param('id'))})}catch(e){if(e.status)return c.json({error:e.message},e.status);throw e}})}

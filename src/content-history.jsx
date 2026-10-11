@@ -5,6 +5,7 @@ import {api} from './live-adapter.js';
 import {canRemoveMemory,removalLabel} from './content-history-model.js';
 import {isPreviewLeader} from './member-view-model.js';
 import './content-history.css';
+import {ArchivedItems} from './lifecycle.jsx';
 
 // "Show older" for the feed, Memories or one conversation. Live only: preview
 // sample data is a single page.
@@ -48,7 +49,7 @@ export function RemovedItemsPage(){
  async function restore(item){if(busy)return;setBusy(item.id);setError('');try{if(await dispatch({type:'RESTORE_CONTENT',id:item.id})){setRefresh(n=>n+1);if(item.kind==='memory')go({type:'memory',id:item.targetId})}else setError('That item could not be restored. Try again.')}catch(e){setError(e.message)}finally{setBusy('')}}
  return <section className="stack removed-page"><h1>Recently removed</h1><p className="muted">Removed posts, comments and memories stay recoverable for {live?.days||30} days. Files are kept until then.</p>{preview&&<p className="note">Preview: removals and restores stay on this device.</p>}
   {error&&<p className="form-error" role="alert">{error}</p>}
-  {items===null&&!error?<p role="status">Loading…</p>:items?.length?<ul className="card removed-list">{items.map(item=><li key={item.id} className="removed-row"><Glyph name={item.kind==='memory'?'image':'chat'}/><span><strong>{removalLabel(item.kind)}{item.source==='report'?' · removed after a report':item.source==='moderator'?' · removed by a moderator':''}</strong><small>{item.excerpt||'No preview available'} · {formatTime(item.removedAt)}</small></span><Button secondary disabled={!!busy} onClick={()=>restore(item)}>{busy===item.id?'Restoring…':'Restore'}</Button></li>)}</ul>:<p className="muted">Nothing has been removed recently.</p>}
+  <ArchivedItems/>{items===null&&!error?<p role="status">Loading…</p>:items?.length?<ul className="card removed-list">{items.map(item=><li key={item.id} className="removed-row"><Glyph name={item.kind==='memory'?'image':'chat'}/><span><strong>{removalLabel(item.kind)}{item.source==='report'?' · removed after a report':item.source==='moderator'?' · removed by a moderator':''}</strong><small>{item.excerpt||'No preview available'} · {formatTime(item.removedAt)}</small></span><Button secondary disabled={!!busy} onClick={()=>restore(item)}>{busy===item.id?'Restoring…':'Restore'}</Button></li>)}</ul>:<p className="muted">Nothing has been removed recently.</p>}
  </section>;
 }
 

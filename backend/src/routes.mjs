@@ -103,9 +103,9 @@ export function registerFamily(app){registerFamilyCalendar(app);registerPhotoDis
    if(!allowed){const memories=(await db.prepare('SELECT data_json FROM memories WHERE deleted_at IS NULL').bind().all()).results;allowed=memories.some(m=>json(m.data_json).image==='/api/media/'+row.id)}
    if(!allowed){const contacts=(await db.prepare("SELECT p.member_id,p.contact_json FROM profiles p JOIN members m ON m.id=p.member_id WHERE m.status='active'").bind().all()).results;allowed=contacts.some(p=>{const v=json(p.contact_json);return v.photo==='/api/media/'+row.id&&v.optIn===true&&(v.visibility==='All approved family members'||v.visibility==='Family leaders'&&actor.isLeader||v.visibility==='Selected family members'&&v.selectedIds?.includes(actor.id))})}
   }
-  if(!allowed)allowed=!!await db.prepare('SELECT id FROM households WHERE photo_url=?').bind('/api/media/'+row.id).first();
+  if(!allowed)allowed=!!await db.prepare('SELECT id FROM households WHERE photo_url=? AND archived_at IS NULL').bind('/api/media/'+row.id).first();
   if(!allowed){const products=(await db.prepare('SELECT data_json FROM products WHERE active=1 AND deleted_at IS NULL').bind().all()).results;allowed=products.some(p=>json(p.data_json).photo==='/api/media/'+row.id)}
-  if(!allowed)allowed=!!await db.prepare("SELECT id FROM memorials WHERE json_extract(profile_json,'$.photo')=?").bind('/api/media/'+row.id).first();
+  if(!allowed)allowed=!!await db.prepare("SELECT id FROM memorials WHERE json_extract(profile_json,'$.photo')=? AND archived_at IS NULL").bind('/api/media/'+row.id).first();
   if(!allowed)allowed=await publishedPageReferencesMedia(db,actor,row.id);
   if(!allowed)allowed=await photoCommentsReferenceMedia(db,actor,row.id);
   if(!allowed)throw new UserError('File not found',404);const object=await c.env.R2.get(row.object_key);if(!object)throw new UserError('File not found',404);

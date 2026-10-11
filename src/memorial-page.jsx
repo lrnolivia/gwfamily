@@ -1,3 +1,4 @@
+import {ArchiveControl} from './lifecycle.jsx';
 import React,{useRef,useState} from 'react';
 import {Button,Control,Glyph,Popover,useApp} from './ui-core.jsx';
 import {ViewSwitcher} from './view-switcher.jsx';
@@ -7,7 +8,7 @@ import {memorialClaims,memorialMemories,memorialYears,mayEditMemorial} from './m
 import './memorial-page.css';
 export function MemorialPage({id}){
  const {state,route,replaceRoute,go,openSheet,theme,personalThemes}=useApp();
- const person=(state.memorials||[]).find(p=>p.id===id),[menu,setMenu]=useState(false),menuRef=useRef(null);
+ const person=(state.memorials||[]).find(p=>p.id===id),[menu,setMenu]=useState(false),[archiving,setArchiving]=useState(false),menuRef=useRef(null);
  if(!person)return <section className="stack"><h1>Memorial unavailable</h1><p>This memorial may no longer be shared with you.</p><Button secondary onClick={()=>go({type:'family',tab:'tree'})}>Return to Family</Button></section>;
  const memories=memorialMemories(state,person),claims=memorialClaims(state,id),years=memorialYears(person),tab=route.tab==='tributes'?'tributes':'memories',editable=mayEditMemorial(state,person);
  const quote=typeof person.quote==='string'?person.quote.trim():'';
@@ -24,7 +25,7 @@ export function MemorialPage({id}){
     <p className="memorial-remembered">Remembered by {claims.length?[...new Set(claims.map(h=>h.name))].join(', '):'the Green & White family'}.</p>
    </div>
   </header>
-  <Popover open={menu} onClose={()=>setMenu(false)} anchor={menuRef.current}><div className="memorial-options" role="menu"><button role="menuitem" type="button" onClick={()=>{setMenu(false);openSheet({type:'memorial-edit',id,returnFocus:menuRef.current})}}><Glyph name="edit"/>Edit memorial</button></div></Popover>
+  <Popover open={menu} onClose={()=>setMenu(false)} anchor={menuRef.current}><div className="memorial-options" role="menu"><button role="menuitem" type="button" onClick={()=>{setMenu(false);openSheet({type:'memorial-edit',id,returnFocus:menuRef.current})}}><Glyph name="edit"/>Edit memorial</button><button role="menuitem" type="button" onClick={()=>{setMenu(false);setArchiving(true)}}><Glyph name="close"/>Archive memorial…</button></div></Popover>{archiving&&<ArchiveControl startConfirm label="Archive memorial" detail="It will be hidden from the family tree until someone who manages it restores it from Recently removed." done="Memorial archived." action={{type:'ARCHIVE_MEMORIAL',id}} onCancel={()=>setArchiving(false)} after={()=>go({type:'family',tab:'tree'})}/>}
   {person.story&&<section className="memorial-life-story"><h2>A life remembered</h2><p>{person.story}</p></section>}
   <ViewSwitcher label="Memorial sections" value={tab} onChange={next=>replaceRoute({...route,tab:next})} options={[['memories','Memories','image'],['tributes','Tributes','heart']]}/>
   {tab==='memories'?<section className="memorial-memories" aria-label="Tagged memories">{memories.length?<div className="memorial-memory-grid">{memories.map(memory=><Control key={memory.id} className="memorial-memory-tile" onClick={()=>go({type:'memory',id:memory.id})} aria-label={memory.title||'Open family memory'}>{memory.image&&<img loading="lazy" src={memory.image} alt=""/>}<span>{memory.title||'A family memory'}</span></Control>)}</div>:<div className="memorial-empty"><Glyph name="image"/><h2>Memories live here</h2><p>Photos and memories tagged with {person.name.split(' ')[0]} will appear here.</p></div>}</section>:<section className="memorial-tributes" aria-label="Family tributes"><h2>Leave a little love</h2><PhotoViewer kind="memorial" id={id} discussionOnly/></section>}
