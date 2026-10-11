@@ -22,6 +22,7 @@ import {UserError,command,familyState,json,readPost,validDate} from './family-se
 import {authEnvironment,authReady,createRateStorage} from './auth.mjs';
 import {publicAuthConfig} from './auth-providers.mjs';
 import {can} from './policy.mjs';
+import {uploadFormat,signatureMatches} from './upload-formats.mjs';
 export function registerPublic(app,authFactory){
  registerInvitationEntry(app,authFactory);
  app.get('/api/config',c=>{const e=authEnvironment(c.env);return c.json({...publicAuthConfig(e,authReady(e)),familyInvitations:invitationsEnabled(e),familyInvitationEmail:invitationsEnabled(e)&&Boolean(e.EMAIL),emailNotifications:e.EMAIL_SCHEMA_VERSION==='1',pushEnrollmentPrompt:e.PUSH_ENROLLMENT_PROMPT_ENABLED==='true'})});
@@ -84,9 +85,10 @@ export function registerFamily(app){registerFamilyCalendar(app);registerPhotoDis
   const actor=c.get('actor'),db=c.env.DB,bucket=c.env.R2;if(!bucket)throw new UserError('Media storage is not configured',503);
   const rate=await createRateStorage(db).consume('upload:'+actor.id,{window:3600,max:30});if(!rate.allowed)throw new UserError('Upload limit reached. Please try again later.',429);
   const form=await c.req.formData(),file=form.get('file');if(!file||typeof file.arrayBuffer!=='function'||file.size===0||file.size>20*1024*1024)throw new UserError('Choose a file under 20 MB');
-  const allowed=['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/webm','audio/mpeg','audio/mp4','audio/ogg','audio/wav','application/pdf','text/plain'];if(!allowed.includes(file.type))throw new UserError('Use a supported photo, video, audio, PDF, or text file');
+  // The same format list the pickers use; the first bytes must match the type.
+  if(!uploadFormat(file.type))throw new UserError('Use a supported photo, video, audio, PDF, Word or text file');
   const data=await file.arrayBuffer(),head=new Uint8Array(data,0,Math.min(16,data.byteLength)),sig=String.fromCharCode(...head);
-  if(file.type==='image/png'&&!(head[0]===137&&sig.slice(1,4)==='PNG')||file.type==='image/jpeg'&&!(head[0]===255&&head[1]===216)||file.type==='image/gif'&&!sig.startsWith('GIF8')||file.type==='image/webp'&&!(sig.startsWith('RIFF')&&sig.slice(8,12)==='WEBP')||file.type==='application/pdf'&&!sig.startsWith('%PDF-'))throw new UserError('The file contents do not match its type');
+  if(!signatureMatches(file.type,head))throw new UserError('The file contents do not match its type');
   const id=crypto.randomUUID(),key=`family/${actor.id}/${id}`,name=String(file.name||'Attachment').replace(/[\x00-\x1f\x7f/\\]/g,'_').slice(0,150);
   await bucket.put(key,data,{httpMetadata:{contentType:file.type}});
   try{await db.prepare('INSERT INTO media(id,owner_id,object_key,name,mime_type,size_bytes) VALUES(?,?,?,?,?,?)').bind(id,actor.id,key,name,file.type,file.size).run()}catch(error){await bucket.delete(key);throw error}
@@ -109,7 +111,7 @@ export function registerFamily(app){registerFamilyCalendar(app);registerPhotoDis
   if(!allowed)allowed=await publishedPageReferencesMedia(db,actor,row.id);
   if(!allowed)allowed=await photoCommentsReferenceMedia(db,actor,row.id);
   if(!allowed)throw new UserError('File not found',404);const object=await c.env.R2.get(row.object_key);if(!object)throw new UserError('File not found',404);
-  const inline=/^(image\/(png|jpeg|gif|webp)|video\/|audio\/)/.test(row.mime_type);return new Response(object.body,{headers:{'Content-Type':row.mime_type,'Content-Length':String(row.size_bytes),'Content-Disposition':`${inline?'inline':'attachment'}; filename*=UTF-8''${encodeURIComponent(row.name)}`,'X-Content-Type-Options':'nosniff','Cache-Control':'private, no-store','Content-Security-Policy':inline?"default-src 'none'; img-src 'self' data:; media-src 'self' blob:; style-src 'unsafe-inline'; sandbox allow-same-origin":"default-src 'none'; sandbox"}});
+  const inline=uploadFormat(row.mime_type)?.inline===true;return new Response(object.body,{headers:{'Content-Type':row.mime_type,'Content-Length':String(row.size_bytes),'Content-Disposition':`${inline?'inline':'attachment'}; filename*=UTF-8''${encodeURIComponent(row.name)}`,'X-Content-Type-Options':'nosniff','Cache-Control':'private, no-store','Content-Security-Policy':inline?"default-src 'none'; img-src 'self' data:; media-src 'self' blob:; style-src 'unsafe-inline'; sandbox allow-same-origin":"default-src 'none'; sandbox"}});
  });
 }
 

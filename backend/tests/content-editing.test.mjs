@@ -42,3 +42,9 @@ test('only Family Leaders pin and unpin leader announcements',async()=>{
  await send(DB,leader,'SET_POST_PIN',{id:a.id,pinned:true});assert.equal((await meta(DB,a.id)).pinned,true);
  await assert.rejects(()=>send(DB,leader,'SET_POST_PIN',{id:plain.id,pinned:true}),e=>e.status===409);
 });
+test('a music link survives posting and reloads from the server; forged link fields are ignored',async()=>{
+ const {DB}=await setup();const id='a'.repeat(22);
+ const p=await send(DB,alice,'ADD_POST',{post:{text:'Fictional song',link:{url:'https://open.spotify.com/track/'+id,embed:'https://evil.example/frame',service:'Fake'}}});
+ const post=(await familyState(DB,bob)).posts.find(x=>x.id===p.id);assert.deepEqual(post.link,{service:'Spotify',url:'https://open.spotify.com/track/'+id,embed:'https://open.spotify.com/embed/track/'+id,type:'track'});
+ const q=await send(DB,alice,'ADD_POST',{post:{text:'No link',link:{url:'https://evil.example/x'}}});assert.equal((await familyState(DB,bob)).posts.find(x=>x.id===q.id).link,undefined);
+});

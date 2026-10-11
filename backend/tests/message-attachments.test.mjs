@@ -23,6 +23,7 @@ const stubUrl=dataModule(`
  export const invitationsEnabled=()=>false,provisionalAllowed=async()=>false,registerInvitationEntry=()=>{},registerFamilyInvitations=()=>{};
  export const registerPushRoutes=()=>{},registerNotifications=()=>{},registerEmailNotifications=()=>{},registerPageContent=()=>{},registerHouseholdInvites=()=>{},registerFamilyCalendar=()=>{},registerContentHistory=()=>{},registerHouseholdSuccession=()=>{},registerChatSafety=()=>{},registerInvitationManagement=()=>{};
  export const publishedPageReferencesMedia=async()=>false,readCalendar=async()=>({});
+ export {uploadFormat,signatureMatches} from '${new URL('../../src/upload-formats.js',import.meta.url).href}';
  // Photo target authorization has its own real-route suite; this private-message isolation boundary exposes no photo references.
  export const registerPhotoDiscussions=()=>{},photoCommentsReferenceMedia=async()=>false;
 `);

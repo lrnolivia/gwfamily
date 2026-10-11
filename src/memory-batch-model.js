@@ -1,10 +1,12 @@
+import {MEMORY_TYPES} from './upload-formats.js';
 // Several memory files added at once. Each file moves through
 // queued → uploading → saving → saved, or stops at upload-failed / save-failed.
 // A retry only repeats the step that failed: a saved upload and its memory id
 // are kept, so retrying never uploads the same file twice or creates a second
 // memory for it.
 export const MEMORY_BATCH_LIMIT=10;
-export const MEMORY_FILE_TYPES=/^(image\/(png|jpeg|webp|gif|avif)|video\/(mp4|webm)|audio\/[\w.+-]+|application\/pdf)$/;
+// Same list the server accepts for memories (photo, video, audio or PDF).
+export const MEMORY_FILE_TYPES={test:type=>MEMORY_TYPES.has(type)};
 export function createMemoryBatch(files,newId=()=>crypto.randomUUID()){
  const list=[...files];
  return {items:list.slice(0,MEMORY_BATCH_LIMIT).map((file,i)=>({key:newId(),memoryId:newId(),file,name:file?.name||'File '+(i+1),status:'queued',upload:null,metadata:null,error:''})),skipped:Math.max(0,list.length-MEMORY_BATCH_LIMIT)};
@@ -45,7 +47,7 @@ export async function stepBatchItem(item,{upload,save,canSave=()=>true},patch){
  let current=item;
  if(!current.upload){
   patch({status:'uploading',error:''});
-  try{if(!MEMORY_FILE_TYPES.test(current.file?.type||''))throw Error('Choose a photo, MP4 or WebM video, audio, or PDF memory.');const done=await upload(current.file);current={...current,...done};patch(done)}
+  try{if(!MEMORY_FILE_TYPES.test(current.file?.type||''))throw Error('Choose a photo, video, audio or PDF memory.');const done=await upload(current.file);current={...current,...done};patch(done)}
   catch(e){patch({status:'upload-failed',error:e?.message||'Upload failed.'});return {...current,status:'upload-failed'}}
  }
  if(!canSave()){patch({status:'save-failed',error:'You switched accounts.'});return {...current,status:'save-failed'}}

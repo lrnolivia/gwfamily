@@ -3,7 +3,9 @@ import {PostCorrections,correctionsFor,correctionChanges} from './post-correctio
 import {MemberMiniCard,MemberIdentityControl} from './person-identity.jsx';
 import {PageMarkdownBody,PageMarkdownEditor} from './page-markdown.jsx';
 import {TaggedFamily} from './member-tags.jsx';
-import {readPreviewFile} from './uploads.js';
+import {readPreviewFile,uploadEach} from './uploads.js';
+import {ATTACHMENT_ACCEPT} from './upload-formats.js';
+import {FailedUploads} from './failed-uploads.jsx';
 import {profilePalette} from './profile-model.js';
 import {BackgroundEffect,BackgroundMedia,posterStyle} from './backgrounds.jsx';
 import React,{useEffect,useLayoutEffect,useRef,useState} from 'react';
@@ -36,9 +38,11 @@ export function ReactionBar({targetId,small=false,countsOnly=false,triggerOnly=f
 
 export function FileView({file,photoTarget}){const {go}=useApp();if(!file)return null;return <div className="local-file">{file.type?.startsWith('image/')?photoTarget?<Control className="photo-open" aria-label={'Open '+(file.name||'photo')} onClick={()=>go(photoTarget)}><img src={file.url} alt={file.name||'Attached image'}/></Control>:<><img src={file.url} alt={file.name||'Attached image'}/><a className="photo-save-link" href={file.url} download={file.name}>Save photo</a></>:file.type?.startsWith('video/')?<video src={file.url} controls/>:file.type?.startsWith('audio/')?<audio src={file.url} controls/>:<a href={file.url} download={file.name}><Glyph name="image"/>{file.name}</a>}</div>}
 export function ComposerBox({kind='comments',targetId,parentId=null,onSubmit,placeholder='Write a comment…'}){
- const {state,dispatch,setToast,data}=useApp(),key=parentId||targetId,value=kind==='post'?state.drafts.post:state.drafts[kind]?.[key]||'',ref=useRef(null),lock=useRef(false),alive=useRef(true),[sending,setSending]=useState(false),[uploading,setUploading]=useState(false),fileKey=kind+':'+key,files=state.drafts.files?.[fileKey]||[];
+ const {state,dispatch,setToast,data}=useApp(),key=parentId||targetId,value=kind==='post'?state.drafts.post:state.drafts[kind]?.[key]||'',ref=useRef(null),lock=useRef(false),alive=useRef(true),[sending,setSending]=useState(false),[uploading,setUploading]=useState(false),[failed,setFailed]=useState([]),fileKey=kind+':'+key,files=state.drafts.files?.[fileKey]||[];
  const current=useRef({value,files});current.current={value,files};
  const setFiles=value=>dispatch({type:'SET_DRAFT_FILES',key:fileKey,files:typeof value==='function'?value(current.current.files):value});
+ // Each file uploads on its own: successes stay attached, failures wait for Retry or Remove.
+ async function upload(selected){if(!selected.length||lock.current)return;lock.current=true;setUploading(true);const finish=data?.beginPending?.();try{const result=await uploadEach(selected,state.mode);if(result.uploaded.length)setFiles(existing=>[...existing,...result.uploaded]);if(alive.current)setFailed(list=>[...list,...result.failed]);if(result.failed.length)setToast({kind:'error',message:result.failed.length===1?result.failed[0].error:`${result.failed.length} files didn’t upload. Retry or remove them below.`})}finally{lock.current=false;if(alive.current)setUploading(false);finish?.()}}
  const presence=useTypingPresence({scope:'posts',id:targetId,enabled:kind!=='post'&&!!state.posts?.some(post=>post.id===targetId)});
  useEffect(()=>{alive.current=true;return()=>{alive.current=false}},[]);
  const send=async()=>{
@@ -60,13 +64,10 @@ export function ComposerBox({kind='comments',targetId,parentId=null,onSubmit,pla
     else if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();send()}
     else if(!e.metaKey&&!e.ctrlKey&&!e.altKey&&(e.key.length===1||['Backspace','Delete','Enter','Process'].includes(e.key)))presence.signal();
    }}/><Control type="button" className="attach-direct" disabled={sending||uploading} aria-label="Attach media or file" onClick={()=>ref.current?.parentElement?.querySelector('input[type=file]')?.click()}><Glyph name="plus"/></Control>
-   <input className="sr-only" type="file" multiple disabled={sending||uploading} accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt" onChange={async e=>{
-    const selected=[...e.target.files];e.target.value='';if(!selected.length||lock.current)return;
-    lock.current=true;setUploading(true);const finish=data?.beginPending?.();
-    try{const uploaded=await Promise.all(selected.map(file=>readPreviewFile(file,state.mode)));setFiles(existing=>[...existing,...uploaded])}
-    catch(error){setToast({kind:'error',message:error.message})}finally{lock.current=false;if(alive.current)setUploading(false);finish?.()}
-   }}/><Control type="button" className="send-button" aria-label={sending?'Sending':'Send'} aria-busy={sending} onClick={send} disabled={sending||uploading||(!value.trim()&&!files.length)}>{sending?<ActivityDots label="Sending…" compact/>:<Glyph name="send"/>}</Control></div>
+   <input className="sr-only" type="file" multiple disabled={sending||uploading} accept={ATTACHMENT_ACCEPT} onChange={e=>{const selected=[...e.target.files];e.target.value='';void upload(selected)}}/>
+<Control type="button" className="send-button" aria-label={sending?'Sending':'Send'} aria-busy={sending} onClick={send} disabled={sending||uploading||(!value.trim()&&!files.length)}>{sending?<ActivityDots label="Sending…" compact/>:<Glyph name="send"/>}</Control></div>
   {uploading&&<ActivityDots label="Uploading attachment…" className="composer-upload-status"/>}
+  <FailedUploads items={failed} busy={sending||uploading} onRetry={item=>{setFailed(list=>list.filter(x=>x!==item));void upload([item.file])}} onRemove={item=>setFailed(list=>list.filter(x=>x!==item))}/>
   {files.map((file,index)=><div className="draft-file" key={file.url||index}><span>{file.name}</span><Control type="button" disabled={sending||uploading} aria-label={'Remove '+file.name} onClick={()=>setFiles(value=>value.filter((_,n)=>n!==index))}><Glyph name="close"/></Control></div>)}
  </div>
 }
