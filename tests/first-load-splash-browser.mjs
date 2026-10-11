@@ -20,6 +20,7 @@ for(const [width,height,theme,motion] of [[390,844,'light','no-preference'],[390
  const paused=await page.locator('.first-load-wind').evaluate(svg=>svg.animationsPaused());assert.equal(paused,motion==='reduce');
  assert.equal(await page.locator('.first-load-trail').count(),6);
  const paths=await page.locator('.first-load-flight').evaluateAll(gs=>gs.map(g=>g.querySelector('.first-load-trail').getAttribute('d')===g.querySelector('animateMotion').getAttribute('path')));assert.ok(paths.every(Boolean));
+ const box=await page.locator('.first-load').boundingBox();assert.ok(Math.abs(box.y+box.height/2-height/2)<2,'splash group centered in viewport');assert.equal(await page.locator('.app>footer').count(),0);assert.equal(await page.getByRole('button',{name:'Fresh Start',exact:true}).count(),0);
  await page.screenshot({path:`docs/splash-qa/splash-${width}-${theme}.png`,fullPage:true});
  release();await page.locator('.first-load').waitFor({state:'detached'});assert.deepEqual(errors,[]);
  results.push({width,height,theme,motion,ok:true});await page.close();

@@ -23,3 +23,13 @@ test('decorative leaves respect reduced motion and document visibility',()=>{
  assert.match(source,/first-load-leaf-veins/);
  assert.doesNotMatch(css,/@keyframes[^}]*\b(?:width|height|left|top):/);
 });
+
+test('loading owns the whole viewport and omits footer and Fresh Start',()=>{
+ const app=readFileSync(new URL('../src/react-app.jsx',import.meta.url),'utf8');
+ assert.match(css,/min-height:100dvh/);
+ assert.doesNotMatch(css,/55dvh/);
+ assert.match(app,/!showFirstLoad&&<footer>/);
+ const splash=source.slice(source.indexOf('export function FirstLoad('),source.indexOf('export function FirstLoadRehearsal'));
+ assert.doesNotMatch(splash,/onFreshStart|Fresh Start/);
+ assert.match(splash,/Try again/);
+});
