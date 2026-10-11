@@ -168,6 +168,9 @@ jobs:
       - name: Fictional eight-preset email previews
         if: ${{ !cancelled() && matrix.group == 'surfaces' && matrix.browser == 'chromium' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         run: GW_EMAIL_QA_OUTPUT=docs/email-preview-qa node tests/email-preview-browser.mjs
+      - name: Approved transactional email rendering (light, dark, fonts blocked)
+        if: ${{ !cancelled() && matrix.group == 'surfaces' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        run: GW_TRANSACTIONAL_EMAIL_QA_OUTPUT=docs/transactional-email-qa node tests/transactional-email-browser.mjs
       - name: Contextual editor geometry and command checks
         if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         id: panel_arrow_editor
@@ -212,6 +215,11 @@ jobs:
         run: |
           mkdir -p docs/ci-logs
           node scripts/ci-test-summary.mjs recovery-browser --browser tests/recovery-browser.mjs 2>&1 | tee docs/ci-logs/recovery-browser.log
+      - name: Tree loading splash browser checks
+        if: ${{ !cancelled() && matrix.group == 'navigation' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        run: |
+          mkdir -p docs/ci-logs
+          node tests/first-load-splash-browser.mjs 2>&1 | tee docs/ci-logs/first-load-splash-browser.log
       - name: Hotfix browser checks
         if: ${{ !cancelled() && matrix.group == 'navigation' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         run: |
@@ -261,6 +269,80 @@ jobs:
           curl -fsS http://127.0.0.1:4188/api/config
           mkdir -p docs/ci-logs
           CI=true node scripts/ci-test-summary.mjs content-actions-browser --browser tests/content-actions-browser.mjs 2>&1 | tee docs/ci-logs/content-actions-browser.log
+      - name: Memory removal, report queue and history paging browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          # Separate fictional database with history beyond the first page.
+          GW_HISTORY_FIXTURE=1 GW_FIXTURE_PORT=4191 node backend/tests/fixture-server.mjs > /tmp/gw-history-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4191/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4191/api/config
+          mkdir -p docs/ci-logs
+          CI=true GW_HISTORY_QA_OUTPUT=docs/content-history-qa node tests/content-history-browser.mjs 2>&1 | tee docs/ci-logs/content-history-browser.log
+      - name: Organizer reach, Family Leader and founding-head handover browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          GW_FIXTURE_PORT=4192 node backend/tests/fixture-server.mjs > /tmp/gw-roles-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4192/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4192/api/config
+          mkdir -p docs/ci-logs
+          CI=true GW_ROLES_QA_OUTPUT=docs/roles-succession-qa node tests/roles-succession-browser.mjs 2>&1 | tee docs/ci-logs/roles-succession-browser.log
+      - name: Chat block and message report browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          GW_FIXTURE_PORT=4193 node backend/tests/fixture-server.mjs > /tmp/gw-chat-safety-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4193/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4193/api/config
+          mkdir -p docs/ci-logs
+          CI=true GW_CHAT_SAFETY_QA_OUTPUT=docs/chat-safety-qa node tests/chat-safety-browser.mjs 2>&1 | tee docs/ci-logs/chat-safety-browser.log
+      - name: Saved, post corrections, poll lock and pin browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          GW_FIXTURE_PORT=4194 node backend/tests/fixture-server.mjs > /tmp/gw-saved-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4194/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4194/api/config
+          mkdir -p docs/ci-logs
+          CI=true GW_SAVED_QA_OUTPUT=docs/saved-editing-qa node tests/saved-editing-browser.mjs 2>&1 | tee docs/ci-logs/saved-editing-browser.log
+      - name: Message reply, edit, unsend and mute browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          GW_FIXTURE_PORT=4195 node backend/tests/fixture-server.mjs > /tmp/gw-message-actions-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4195/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4195/api/config
+          mkdir -p docs/ci-logs
+          CI=true GW_MESSAGE_ACTIONS_QA_OUTPUT=docs/message-actions-qa node tests/message-actions-browser.mjs 2>&1 | tee docs/ci-logs/message-actions-browser.log
+      - name: Sent invitations, revoke and request withdrawal browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          # In-memory email stub only; nothing is delivered.
+          GW_INVITATION_FIXTURE=1 GW_FIXTURE_PORT=4196 node backend/tests/fixture-server.mjs > /tmp/gw-sent-invites-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4196/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4196/api/config
+          mkdir -p docs/ci-logs
+          CI=true GW_SENT_INVITES_QA_OUTPUT=docs/sent-invitations-qa node tests/sent-invitations-browser.mjs 2>&1 | tee docs/ci-logs/sent-invitations-browser.log
+      - name: Child record, memorial archive and account request browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          GW_FIXTURE_PORT=4197 node backend/tests/fixture-server.mjs > /tmp/gw-lifecycle-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4197/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4197/api/config
+          mkdir -p docs/ci-logs
+          CI=true GW_LIFECYCLE_QA_OUTPUT=docs/lifecycle-qa node tests/lifecycle-browser.mjs 2>&1 | tee docs/ci-logs/lifecycle-browser.log
+      - name: Upload formats, partial success and music link browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          GW_FIXTURE_PORT=4198 node backend/tests/fixture-server.mjs > /tmp/gw-uploads-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4198/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4198/api/config
+          mkdir -p docs/ci-logs
+          CI=true GW_UPLOADS_QA_OUTPUT=docs/uploads-qa node tests/uploads-browser.mjs 2>&1 | tee docs/ci-logs/uploads-browser.log
       - name: Card content arrangement browser checks
         if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 10

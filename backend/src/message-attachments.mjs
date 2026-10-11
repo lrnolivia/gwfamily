@@ -65,7 +65,7 @@ export function attachmentGuardSql(ids,conversationId,ownerId,now,messageId=null
 export async function loadMessageAttachments(db,actorId,messages,accessFor){
  const byId=new Map();if(!messages.length)return byId;
  const selected=JSON.stringify(messages.map(row=>row.id));
- const found=(await db.prepare(`SELECT a.* FROM conversation_attachments a JOIN messages ms ON ms.id=a.message_id AND ms.conversation_id=a.conversation_id AND ms.author_id=a.owner_id WHERE a.message_id IN (SELECT value FROM json_each(?)) AND a.state='ready' AND ${accessFor('a.conversation_id')} ORDER BY a.message_id,a.message_ordinal,a.id`).bind(selected,actorId).all()).results||[];
+ const found=(await db.prepare(`SELECT a.* FROM conversation_attachments a JOIN messages ms ON ms.id=a.message_id AND ms.conversation_id=a.conversation_id AND ms.author_id=a.owner_id WHERE a.message_id IN (SELECT value FROM json_each(?)) AND a.state='ready' AND ${accessFor('a.conversation_id')} AND (ms.unsent_at IS NULL OR ms.author_id=?) ORDER BY a.message_id,a.message_ordinal,a.id`).bind(selected,actorId,actorId).all()).results||[];
  for(const row of found){const items=byId.get(row.message_id)||[];items.push(serializeAttachment(row));byId.set(row.message_id,items)}return byId;
 }
 // Only expired or explicitly cancelled unbound objects are erased. Metadata
@@ -110,7 +110,7 @@ export function registerMessageAttachments(app,{UserError,accessSql,accessFor,co
   const cancelled=await db.prepare("UPDATE conversation_attachments SET state='cancelled',cleanup_after=NULL WHERE id=? AND message_id IS NULL RETURNING object_key").bind(row.id).first();
   if(cancelled)await bucket.delete(cancelled.object_key);
  };
- const authorizedRow=async(db,actor,id,attachmentId)=>db.prepare(`SELECT a.* FROM conversation_attachments a WHERE a.id=? AND a.conversation_id=? AND a.state='ready' AND ${accessFor('a.conversation_id')} AND ((a.message_id IS NULL AND a.owner_id=? AND a.expires_at>MAX(?,CAST((julianday('now')-2440587.5)*86400000 AS INTEGER))) OR EXISTS(SELECT 1 FROM messages ms WHERE ms.id=a.message_id AND ms.conversation_id=a.conversation_id AND ms.author_id=a.owner_id))`).bind(attachmentId,id,actor.id,actor.id,Date.now()).first();
+ const authorizedRow=async(db,actor,id,attachmentId)=>db.prepare(`SELECT a.* FROM conversation_attachments a WHERE a.id=? AND a.conversation_id=? AND a.state='ready' AND ${accessFor('a.conversation_id')} AND ((a.message_id IS NULL AND a.owner_id=? AND a.expires_at>MAX(?,CAST((julianday('now')-2440587.5)*86400000 AS INTEGER))) OR EXISTS(SELECT 1 FROM messages ms WHERE ms.id=a.message_id AND ms.conversation_id=a.conversation_id AND ms.author_id=a.owner_id AND (ms.unsent_at IS NULL OR ms.author_id=?)))`).bind(attachmentId,id,actor.id,actor.id,Date.now(),actor.id).first();
  app.post('/api/conversations/:id/attachments',async c=>{
   const db=c.env.DB,actor=c.get('actor'),id=c.req.param('id'),bucket=c.env.R2;await conversation(db,actor,id);if(!bucket)throw new UserError('Private attachment storage is not configured',503);
   let form;try{form=await c.req.formData()}catch(error){if(error?.name==='BodyLimitError')throw error;throw new UserError('Use a multipart attachment upload')}

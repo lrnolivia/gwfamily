@@ -121,12 +121,24 @@ function reduceState(state,action){
     }
     case 'EDIT_POST':case 'DELETE_POST':{
       const item=state.posts.find(post=>post.id===action.id);if(!canManageContent(state,item)||item.text!==action.expectedText)return state;
-      return {...state,posts:action.type==='DELETE_POST'?state.posts.filter(post=>post.id!==action.id):state.posts.map(post=>post.id===action.id?{...post,text:action.text.trim()}:post)};
+      if(action.type==='DELETE_POST'&&item.memoryId&&state.memories.some(m=>m.id===item.memoryId))return reducer(state,{type:'DELETE_MEMORY',id:item.memoryId});
+      if(action.type==='EDIT_POST'&&action.poll&&item.hasVotes&&(action.poll.question!==undefined||action.poll.options!==undefined))throw Error('Family members already voted, so the question and choices stay as they are.');
+      return {...state,posts:action.type==='DELETE_POST'?state.posts.filter(post=>post.id!==action.id):state.posts.map(post=>post.id===action.id?{...post,text:action.text.trim(),...(action.files?{files:(post.files||[]).filter(f=>action.files.some(x=>x.id===f.id))}:{}),...(action.memberIds?{memberIds:action.memberIds}:{}),...(action.poll&&post.poll?{poll:{...post.poll,...action.poll}}:{})}:post)};
     }
     case 'EDIT_COMMENT':case 'DELETE_COMMENT':{
       const items=state.comments[action.targetId]||[],item=items.find(comment=>comment.id===action.id);if(!canManageContent(state,item)||item.text!==action.expectedText)return state;
       return {...state,comments:{...state.comments,[action.targetId]:action.type==='DELETE_COMMENT'?items.filter(comment=>comment.id!==action.id):items.map(comment=>comment.id===action.id?{...comment,text:action.text.trim()}:comment)}};
     }
+    // Preview lifecycle: local, resettable, nothing erased.
+    case 'REMOVE_DEPENDENT':{const child=state.members.find(m=>m.id===action.id&&m.managedBy===state.selfId);if(!child)throw Error('Household member not found.');return {...state,members:state.members.filter(m=>m!==child),removedDependents:[{id:child.id,name:child.name,removedAt:new Date().toISOString(),item:child},...(state.removedDependents||[])]};}
+    case 'RESTORE_DEPENDENT':{const r=(state.removedDependents||[]).find(d=>d.id===action.id);if(!r)throw Error('This record was already restored.');return {...state,members:[...state.members,r.item],removedDependents:state.removedDependents.filter(d=>d!==r)};}
+    case 'ARCHIVE_MEMORIAL':{const m=state.memorials.find(x=>x.id===action.id);if(!m||!mayEditMemorial(state,m))throw Error('You cannot archive this memorial in the current preview role.');return {...state,memorials:state.memorials.filter(x=>x!==m),archivedMemorials:[{id:m.id,name:m.name,archivedAt:new Date().toISOString(),item:m},...(state.archivedMemorials||[])]};}
+    case 'RESTORE_MEMORIAL':{const a=(state.archivedMemorials||[]).find(x=>x.id===action.id);if(!a)throw Error('Already restored.');return {...state,memorials:[...state.memorials,a.item],archivedMemorials:state.archivedMemorials.filter(x=>x!==a)};}
+    case 'ARCHIVE_HOUSEHOLD':{const h=(state.households||[]).find(x=>x.id===action.householdId);if(!h||h.founderId!==state.selfId)throw Error('Only the founding head can archive this household.');if(h.memberIds.some(id=>id!==state.selfId))throw Error('Others still belong to this household.');return {...state,households:state.households.filter(x=>x!==h),householdIds:(state.householdIds||[]).filter(id=>id!==h.id),householdId:state.householdId===h.id?null:state.householdId,archivedHouseholds:[{id:h.id,name:h.name,archivedAt:new Date().toISOString(),item:h},...(state.archivedHouseholds||[])]};}
+    case 'RESTORE_HOUSEHOLD':{const a=(state.archivedHouseholds||[]).find(x=>x.id===action.householdId);if(!a)throw Error('Already restored.');return {...state,households:[...state.households,a.item],archivedHouseholds:state.archivedHouseholds.filter(x=>x!==a)};}
+    case 'REQUEST_ACCOUNT_DATA':{if((state.accountRequests||[]).some(r=>r.kind===action.kind&&r.status==='open'))throw Error('You already have an open request of this kind.');return {...state,accountRequests:[{id:'preview-request-'+(state.lastId+1),kind:action.kind,note:action.note||'',status:'open',createdAt:new Date().toISOString()},...(state.accountRequests||[])],lastId:state.lastId+1};}
+    case 'WITHDRAW_ACCOUNT_REQUEST':return {...state,accountRequests:(state.accountRequests||[]).map(r=>r.id===action.id?{...r,status:'withdrawn'}:r)};
+    case 'SET_POST_PIN':{const post=state.posts.find(p=>p.id===action.id);if(!post?.asLeader||!isPreviewLeader(state))throw Error('Only Family Leaders can pin or unpin posts.');return {...state,posts:state.posts.map(p=>p.id===post.id?{...p,pinned:action.pinned}:p)};}
     case 'TOGGLE_REACTION':{
       const current=state.reactions[action.targetId]||[];
       return {...state,reactions:{...state.reactions,[action.targetId]:
@@ -136,6 +148,16 @@ function reduceState(state,action){
       state.favorites.filter(x=>x!==action.id):[...state.favorites,action.id]};
     case 'RENAME_GROUP':return {...state,groups:state.groups.map(g=>g.id===action.id?{...g,name:action.name,nameEdited:true}:g)};
     case 'FEATURE_MEMORY':{const ids=new Set(state.featuredMemoryIds||[]);if(action.approved)ids.add(action.id);else ids.delete(action.id);return {...state,featuredMemoryIds:[...ids],primaryMemoryId:action.primary?action.id:state.primaryMemoryId===action.id&&!action.approved?null:state.primaryMemoryId,featuredPhotos:state.memories.filter(m=>ids.has(m.id))}};
+    // Preview removal is recoverable on this device only, matching the live soft delete.
+    case 'DELETE_MEMORY':{
+      const memory=state.memories.find(m=>m.id===action.id);if(!memory)throw Error('This memory is no longer available.');if(!canEditMemoryDetails(state,memory))throw Error('Only the uploader or a moderator can remove this memory.');
+      const posts=state.posts.filter(p=>p.id===memory.id||p.memoryId===memory.id),removal={id:'preview-removal-'+(state.lastId+1),kind:'memory',targetId:memory.id,source:memory.authorId===state.selfId?'owner':'moderator',removedAt:Date.now(),excerpt:memory.title||'Shared a memory',item:memory,posts};
+      return {...state,memories:state.memories.filter(m=>m.id!==memory.id),posts:state.posts.filter(p=>!posts.includes(p)),featuredMemoryIds:(state.featuredMemoryIds||[]).filter(id=>id!==memory.id),primaryMemoryId:state.primaryMemoryId===memory.id?null:state.primaryMemoryId,previewRemoved:[removal,...(state.previewRemoved||[])],lastId:state.lastId+1};
+    }
+    case 'RESTORE_CONTENT':{
+      const removal=(state.previewRemoved||[]).find(r=>r.id===action.id);if(!removal)throw Error('This item was already restored or is no longer available.');
+      return {...state,memories:removal.item?[removal.item,...state.memories]:state.memories,posts:[...removal.posts||[],...state.posts].sort((a,b)=>b.createdAt-a.createdAt),previewRemoved:state.previewRemoved.filter(r=>r!==removal)};
+    }
     case 'SAVE_MEMORY':if(!canEditMemoryDetails(state,state.memories.find(m=>m.id===action.memory.id)))throw Error('Only the uploader or a moderator can edit this memory.');return {...state,memories:state.memories.map(m=>m.id===action.memory.id?action.memory:m)};
     case 'ADD_MEMORY':return {...state,memories:[...state.memories,{...action.memory,id:action.memory.id||'memory-'+(state.lastId+1)}],lastId:state.lastId+1};
     case 'POLL_VOTE':return {...state,pollSelections:{...state.pollSelections,[action.postId]:action.options}};

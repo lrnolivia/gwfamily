@@ -3,6 +3,8 @@ import {photoCommandStatements} from './photo-discussions.mjs';
 import {MEMBERSHIP_COMMANDS,membershipCommand} from './membership.mjs';
 import {photoFrameForSave,storedPhotoFrame} from './photo-framing.mjs';
 import {normalizePayment} from '../../src/payment-model.js';
+import {MEMORY_TYPES} from '../../src/upload-formats.js';
+import {linkInfo} from '../../src/music-link-model.js';
 import {reunionSettingsId,readReunions,resolveReunion as resolveReunionRecord,guardReunionWrite,reunionCommand,REUNION_SCOPED_COMMANDS,REUNION_LIFECYCLE_COMMANDS} from './reunions.mjs';
 import {CALENDAR_COMMANDS,calendarCommand,calendarDetailsFor,calendarLeader} from './calendar.mjs';
 import {listNotifications,notificationSettingsStatements} from './notification-service.mjs';
@@ -10,11 +12,14 @@ import {commandFingerprint} from './command-identity.mjs';
 import {directorySelection as validateDirectorySelection} from './member-directory.mjs';
 import {merchandiseOptions,orderLines} from './merchandise.mjs';
 import {householdState,householdCommand} from './households.mjs';
+import {successionCommand,successionState} from './household-succession.mjs';
+import {lifecycleCommand,lifecycleState} from './lifecycle.mjs';
 import {branchState,branchCommand} from './branches.mjs';
 import {promptState,promptCommand} from './member-prompts.mjs';
 import {adultOn,publicBirthdays,ageOn} from './birthdays.mjs';
 import { can, validateShirtSelection,shouldNotify } from './policy.mjs';
 import { createRateStorage } from './auth.mjs';
+import {FIRST_MEMORIES,FIRST_POSTS,deleteMemoryStatements,feedPage,memoryPage,memoryView,recordDeletion,restoreStatements} from './content-history.mjs';
 
 export class UserError extends Error { constructor(message,status=400){super(message);this.status=status} }
 const resolveReunion=(...args)=>resolveReunionRecord(...args).catch(e=>{if(e.status)throw new UserError(e.message,e.status);throw e});
@@ -35,16 +40,33 @@ function songUrl(value){if(!value)return '';const link=webUrl(value,['open.spoti
 function commandPhotoFrame(options){try{return photoFrameForSave(options)}catch(error){throw new UserError(error.message)}}
 export async function ownedFiles(db,actor,files=[]){if(!Array.isArray(files)||files.length>10)throw new UserError('Use up to ten attachments');const out=[];for(const f of files){const id=f.id||(/^\/api\/media\/([a-zA-Z0-9-]+)$/.exec(f.url||'')||[])[1];const row=await db.prepare('SELECT * FROM media WHERE id=? AND owner_id=? AND deleted_at IS NULL').bind(id||'',actor.id).first();if(!row)throw new UserError('Upload the attachment again before saving');out.push({id:row.id,url:'/api/media/'+row.id,name:row.name,type:row.mime_type,size:row.size_bytes})}return out}
 async function accessibleTarget(db,actor,id){if(await readPost(db,actor,id))return true;const comment=await db.prepare('SELECT post_id FROM comments WHERE id=? AND deleted_at IS NULL').bind(id).first();if(comment&&await readPost(db,actor,comment.post_id))return true;return Boolean(await db.prepare('SELECT id FROM memories WHERE id=? AND deleted_at IS NULL').bind(id).first())}
+// Post corrections. Attachments may only be kept, removed or added from the
+// editor's own uploads; tags follow the directory rules. Poll policy: before
+// any vote the author may reword or change choices; after a vote the choices
+// are fixed so recorded votes keep their meaning, and only closing or
+// reopening is allowed. Votes are never deleted by an edit.
+async function postCorrections(db,actor,item,meta,input){
+ const next={...meta};let changed=false;
+ if(input.files!==undefined){if(!Array.isArray(input.files)||input.files.length>10)throw new UserError('Use up to ten attachments');const kept=(meta.files||[]).filter(f=>input.files.some(x=>x?.id&&x.id===f.id)),added=input.files.filter(x=>!(meta.files||[]).some(f=>f.id&&f.id===x?.id));next.files=[...kept,...(added.length?await ownedFiles(db,actor,added):[])];changed=true}
+ if(input.memberIds!==undefined){next.memberIds=await directorySelection(db,input.memberIds,{ancestors:true});changed=true}
+ if(input.poll!==undefined){
+  if(!meta.poll)throw new UserError('This post has no poll',409);const p=input.poll||{};
+  const voted=Boolean(await db.prepare('SELECT 1 FROM poll_votes WHERE post_id=? LIMIT 1').bind(item.id).first());
+  const reshaped=p.question!==undefined&&p.question!==meta.poll.question||p.mode!==undefined&&p.mode!==meta.poll.mode||p.options!==undefined&&JSON.stringify(p.options)!==JSON.stringify(meta.poll.options);
+  if(reshaped&&voted)throw new UserError('Family members already voted, so the question and choices stay as they are. You can close the poll instead.',409);
+  if(reshaped){const options=p.options??meta.poll.options,mode=p.mode??meta.poll.mode;if(!Array.isArray(options)||options.length<2||options.length>12||!['single','multiple'].includes(mode))throw new UserError('A poll needs two to twelve choices');next.poll={...meta.poll,question:text(p.question??meta.poll.question,160,true),options:options.map(x=>text(x,120,true)),mode}}
+  if(p.closed!==undefined){if(typeof p.closed!=='boolean')throw new UserError('Choose open or closed');next.poll={...(next.poll||meta.poll),closed:p.closed}}
+  changed=true;
+ }
+ return changed?next:null;
+}
 export async function familyState(db,actor,reunionId){
  const reunion=await resolveReunion(db,reunionId),reunions=await readReunions(db),cadence=(await db.prepare("SELECT cadence FROM reunion_preferences WHERE id='family'").bind().first())?.cadence||'irregular';
  const members=list(await db.prepare(`SELECT m.*,u.name,u.image,p.bio,p.profile_color,p.theme_song,p.socials_json,p.completed,p.share_age,p.birthday,p.photo_frame_json,COALESCE(json_extract(p.contact_json,'$.allowPhotoSave'),1) AS allow_photo_save FROM members m JOIN user u ON u.id=m.id LEFT JOIN profiles p ON p.member_id=m.id WHERE m.status='active' ORDER BY u.name LIMIT 500`).bind().all());
  const me=await db.prepare('SELECT * FROM profiles WHERE member_id=?').bind(actor.id).first();
  const groups=list(await db.prepare('SELECT g.* FROM family_groups g JOIN family_group_members gm ON gm.group_id=g.id WHERE gm.member_id=? ORDER BY g.name').bind(actor.id).all());
  const groupMembers=list(await db.prepare('SELECT gm.* FROM family_group_members gm WHERE gm.group_id IN (SELECT group_id FROM family_group_members WHERE member_id=?)').bind(actor.id).all());
- const posts=list(await db.prepare(`SELECT p.* FROM posts p WHERE ${visiblePostSql} ORDER BY p.created_at DESC,p.id DESC LIMIT 100`).bind(actor.id).all());
- const comments=list(await db.prepare(`SELECT c.* FROM comments c JOIN posts p ON p.id=c.post_id WHERE c.deleted_at IS NULL AND ${visiblePostSql} ORDER BY c.created_at,c.id LIMIT 1000`).bind(actor.id).all());
- const reactions=list(await db.prepare(`SELECT r.* FROM reactions r LEFT JOIN comments c ON c.id=r.comment_id JOIN posts p ON p.id=COALESCE(r.post_id,c.post_id) WHERE ${visiblePostSql} AND (c.id IS NULL OR c.deleted_at IS NULL)`).bind(actor.id).all());
- const votes=list(await db.prepare(`SELECT v.* FROM poll_votes v JOIN posts p ON p.id=v.post_id WHERE ${visiblePostSql}`).bind(actor.id).all());
+ const feed=await feedPage(db,actor,{limit:FIRST_POSTS});
  const dependents=list(await db.prepare('SELECT * FROM dependents WHERE guardian_id=? AND deleted_at IS NULL').bind(actor.id).all());
  const prefs=await db.prepare('SELECT * FROM notification_preferences WHERE member_id=?').bind(actor.id).first();
  const details=calendarDetailsFor(json((await db.prepare('SELECT data_json FROM reunion_settings WHERE id=?').bind(reunionSettingsId(reunion.id)).first())?.data_json),actor);
@@ -54,31 +76,31 @@ export async function familyState(db,actor,reunionId){
  const planningOrders=list(await db.prepare('SELECT id,status,lines_json,created_at FROM shirt_claims WHERE reunion_id=? AND member_id=? ORDER BY created_at DESC,id DESC').bind(reunion.id,actor.id).all());
  const planningFees=list(await db.prepare('SELECT id,status,created_at FROM fee_reports WHERE reunion_id=? AND member_id=? ORDER BY created_at DESC,id DESC').bind(reunion.id,actor.id).all());
  const inbox=await listNotifications(db,actor,{limit:100});const notices=inbox.notifications;
- const saved=list(await db.prepare('SELECT target_id FROM saved_items WHERE member_id=?').bind(actor.id).all());
- const memories=list(await db.prepare('SELECT * FROM memories WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 200').bind().all());
+ // Saved references to removed or no-longer-visible content stay stored but are not shown.
+ const saved=list(await db.prepare(`SELECT s.target_id FROM saved_items s WHERE s.member_id=? AND (EXISTS(SELECT 1 FROM posts p WHERE p.id=s.target_id AND ${visiblePostSql}) OR EXISTS(SELECT 1 FROM comments c JOIN posts p ON p.id=c.post_id WHERE c.id=s.target_id AND c.deleted_at IS NULL AND ${visiblePostSql}) OR EXISTS(SELECT 1 FROM memories m WHERE m.id=s.target_id AND m.deleted_at IS NULL))`).bind(actor.id,actor.id,actor.id).all());
+ const memoryHistory=await memoryPage(db,{limit:FIRST_MEMORIES});
  const products=list(await db.prepare('SELECT * FROM products WHERE reunion_id=? AND active=1 AND deleted_at IS NULL ORDER BY name').bind(reunion.id).all());
  const reports=can(actor,'moderate')?list(await db.prepare('SELECT * FROM moderation_reports ORDER BY created_at DESC LIMIT 100').bind().all()):[];
- const memorials=list(await db.prepare('SELECT * FROM memorials').bind().all()),memorialAccess=await memorialPermissions(db,actor);
+ const memorials=list(await db.prepare('SELECT * FROM memorials WHERE archived_at IS NULL').bind().all()),memorialAccess=await memorialPermissions(db,actor);
  const relationships=list(await db.prepare('SELECT from_id,to_id,kind FROM family_relationships').bind().all());
  const birthdayCalendar=await publicBirthdays(db);
  const announcementViews=list(await db.prepare('SELECT post_id FROM announcement_views WHERE member_id=?').bind(actor.id).all()).map(v=>v.post_id);
  const state={reunions,selectedReunionId:reunion.id,activeReunionId:reunions.find(r=>r.status==='active')?.id,reunionCadence:cadence,announcementViews,birthdayCalendar,birthdayCelebration:Boolean(me?.birthday_celebration),viewAsMember:actor.viewAsMember===true,mode:'live',schema:3,feedFilter:'all',peopleFilter:'all',memoryFilters:{},onboarding:'done',selfId:actor.id,capabilities:{leaderTools:can(actor,'leader_tools'),editPages:can(actor,'edit_pages'),manageCalendar:calendarLeader(actor),post:can(actor,'post'),manageReunion:can(actor,'manage_reunion'),moderate:can(actor,'moderate'),manageMembers:can(actor,'manage_members'),treasurer:can(actor,'confirm_fees')},profileComplete:Boolean(me?.completed),
  members:members.map(m=>({id:m.id,name:m.name,photo:m.image,allowPhotoSave:m.allow_photo_save!==0,photoFrame:storedPhotoFrame(m.photo_frame_json),bio:m.bio||'',profileColor:m.profile_color||'#4f996c',themeSong:m.theme_song||'',socials:json(m.socials_json),circle:m.member_group==='loved_ones'?'loved':'family',leader:!!m.is_leader,moderator:json(m.roles_json,[]).some(r=>['admin','moderator'].includes(r)),groupId:groupMembers.find(g=>g.member_id===m.id)?.group_id||null,registered:true,origin:'live',...(m.share_age&&ageOn(m.birthday)!==null?{age:ageOn(m.birthday)}:{}),...(m.id===actor.id?{birthday:me?.birthday,gender:me?.gender,shareAge:!!me?.share_age}:{} )})).concat(dependents.map(d=>({id:d.id,name:d.name,birthday:d.birthday,gender:d.gender,managedBy:actor.id,circle:'family',origin:'dependent',registered:false}))),
  groups:groups.map(g=>({id:g.id,name:g.name,memberIds:groupMembers.filter(m=>m.group_id===g.id).map(m=>m.member_id)})),
- posts:posts.map(p=>{const meta=json(p.metadata_json);const poll=meta.poll?{...meta.poll,votes:{}}:null;if(poll)for(const v of votes.filter(v=>v.post_id===p.id&&v.member_id!==actor.id))for(const i of json(v.options_json,[]))poll.votes[i]=(poll.votes[i]||0)+1;return {...meta,id:p.id,authorId:p.author_id,groupId:p.group_id,text:p.body,createdAt:stamp(p.created_at),poll}}),
- comments:Object.fromEntries(posts.map(p=>[p.id,comments.filter(c=>c.post_id===p.id).map(c=>({id:c.id,parentId:c.parent_id,authorId:c.author_id,text:c.body,files:json(c.files_json,[]),createdAt:stamp(c.created_at)}))])),
- reactions:{},reactionCounts:{},reactionMembers:{},pollSelections:Object.fromEntries(votes.filter(v=>v.member_id===actor.id).map(v=>[v.post_id,json(v.options_json,[])])),
- memories:memories.map(m=>({...json(m.data_json),id:m.id,authorId:m.author_id})),products:products.map(p=>({...json(p.data_json),id:p.id,name:p.name,description:p.description})),
+ ...feed,
+ memories:memoryHistory.memories,memoriesCursor:memoryHistory.memoriesCursor,products:products.map(p=>({...json(p.data_json),id:p.id,name:p.name,description:p.description})),
  memorialAccess,memorials:memorials.map(m=>({id:m.id,name:m.name,maidenName:m.maiden_name,founder:!!m.founder,story:m.story,...json(m.profile_json),sourceMemberId:m.source_member_id,createdBy:m.created_by,canEdit:can(actor,'manage_members')||actor.isLeader===true||m.created_by===actor.id})),relationships:relationships.map(r=>({from:r.from_id,to:r.to_id,type:r.kind})),
  notifications:notices,readNotices:notices.filter(n=>n.readAt).map(n=>n.id),notificationUnreadCount:inbox.unreadCount,notificationSettings:inbox.settings,notificationReadAllCutoff:inbox.readAllCutoff,
  notificationScope:prefs?.scope==='loved_ones'?'loved':prefs?.scope||'leaders',selectedNotificationIds:json(prefs?.selected_ids_json,[]),
  favorites:saved.map(s=>s.target_id),contact:json(me?.contact_json),drafts:{post:'',comments:{},replies:{},files:{}},compose:{},bag:[],order:claim?{id:claim.id,status:claim.status,items:json(claim.lines_json,[]),trackingUrl:claim.tracking_url,claimedAt:stamp(claim.created_at)}:null,
  planningRecords:{accountId:actor.id,reunionId:reunion.id,orders:planningOrders.map(o=>({id:o.id,status:o.status,items:json(o.lines_json,[]),createdAt:stamp(o.created_at)})),feeReports:planningFees.map(f=>({id:f.id,status:f.status,createdAt:stamp(f.created_at)}))},
  details,payment:details.payment||{paypal:'',cashApp:'',amount:''},fees:fees?.status||'unpaid',rsvp,reports:reports.map(r=>({id:r.id,targetId:r.target_id,reason:r.reason,status:r.status})),inviteDrafts:[],lastId:0};
- for(const r of reactions){const id=r.post_id||r.comment_id;state.reactionMembers[id]??={};(state.reactionMembers[id][r.emoji]??=[]).push(r.member_id);state.reactionCounts[id]??={};state.reactionCounts[id][r.emoji]=(state.reactionCounts[id][r.emoji]||0)+1;if(r.member_id===actor.id)(state.reactions[id]??=[]).push(r.emoji)}
- const featured=list(await db.prepare('SELECT f.* FROM featured_memories f JOIN memories m ON m.id=f.memory_id WHERE m.deleted_at IS NULL ORDER BY f.is_primary DESC,f.approved_at DESC').bind().all());
+ const featured=list(await db.prepare('SELECT f.*,m.author_id,m.data_json,m.created_at FROM featured_memories f JOIN memories m ON m.id=f.memory_id WHERE m.deleted_at IS NULL ORDER BY f.is_primary DESC,f.approved_at DESC').bind().all());
+ // Featured photos older than the first memory page still load, so Home never loses them.
+ for(const f of featured)if(!state.memories.some(m=>m.id===f.memory_id))state.memories.push(memoryView({id:f.memory_id,author_id:f.author_id,data_json:f.data_json,created_at:f.created_at}));
  state.featuredPhotos=featured.flatMap(f=>{const m=state.memories.find(m=>m.id===f.memory_id&&m.image===f.media_url);return m?[m]:[]});state.featuredMemoryIds=state.featuredPhotos.map(m=>m.id);state.primaryMemoryId=featured.find(f=>f.is_primary&&state.featuredMemoryIds.includes(f.memory_id))?.memory_id||null;
- Object.assign(state,await householdState(db,actor));Object.assign(state,await branchState(db,actor));Object.assign(state,await promptState(db,actor));
+ Object.assign(state,await householdState(db,actor),await successionState(db,actor),await lifecycleState(db,actor));Object.assign(state,await branchState(db,actor));Object.assign(state,await promptState(db,actor));
  for(const m of state.memorials)if(!m.canEdit)m.canEdit=state.households.some(h=>h.canManage&&h.heritage.some(e=>e.personKind==='ancestor'&&e.personId===m.id));
  return state;
 }
@@ -125,7 +147,7 @@ export async function command(db,actor,input){
   const memberIds=await directorySelection(db,p.memberIds??[],{ancestors:true});
   const asLeader=p.asLeader===true;if((asLeader||p.pinned||p.firstView)&&!actor.isLeader)throw new UserError('Only leaders can publish leader announcements',403);if((p.pinned||p.firstView)&&!asLeader)throw new UserError('Choose Post as Leader to pin or announce this post');
   const background=typeof p.background==='string'&&p.background.length<100&&/^[a-zA-Z0-9#|, .()-]*$/.test(p.background)?p.background:null;
-  result.id=uuid();q('INSERT INTO posts(id,author_id,group_id,body,metadata_json) VALUES(?,?,?,?,?)',result.id,actor.id,p.groupId||null,body,JSON.stringify({...(p.textFormat==='markdown'?{textFormat:'markdown'}:{}),files,poll,background,backgroundMedia,memberIds,asLeader,pinned:asLeader&&p.pinned===true,firstView:asLeader&&p.firstView===true}));break;
+  result.id=uuid();q('INSERT INTO posts(id,author_id,group_id,body,metadata_json) VALUES(?,?,?,?,?)',result.id,actor.id,p.groupId||null,body,JSON.stringify({...(p.textFormat==='markdown'?{textFormat:'markdown'}:{}),files,poll,background,backgroundMedia,memberIds,asLeader,...(linkInfo(p.link?.url)?{link:linkInfo(p.link.url)}:{}),pinned:asLeader&&p.pinned===true,firstView:asLeader&&p.firstView===true}));break;
  }
  case 'EDIT_POST':case 'DELETE_POST':case 'EDIT_COMMENT':case 'DELETE_COMMENT':{
   contentWrite=true;
@@ -136,12 +158,31 @@ export async function command(db,actor,input){
   if(!can(actor,'manage_content',{authorId:item.author_id}))throw new UserError('You do not have permission to change this content',403);
   if(typeof input.expectedText!=='string'||input.expectedText!==item.body)throw new UserError('This content changed while you were editing. Reopen it before trying again.',409);
   const body=deleting?null:text(input.text||'',comment?1500:3000),meta=comment?json(item.files_json,[]):json(item.metadata_json);
-  if(!deleting&&!body&&!(comment?meta.length:meta.files?.length||meta.poll))throw new UserError('Write something or keep an attachment');
+  // Post corrections beyond text: attachments, tags and poll, each optional.
+  const corrected=!comment&&!deleting?await postCorrections(db,actor,item,meta,input):null,nextMeta=corrected||meta;
+  if(!comment&&Number.isInteger(input.expectedRevision)&&input.expectedRevision!==(item.edit_revision||0))throw new UserError('This post changed while you were editing. Reopen it before trying again.',409);
+  if(!deleting&&!body&&!(comment?meta.length:nextMeta.files?.length||nextMeta.poll))throw new UserError('Write something or keep an attachment');
   const guard=uuid();
   q(`INSERT INTO notification_setting_guards(token,valid) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM ${table} WHERE id=? AND deleted_at IS NULL AND body=?) THEN 1 ELSE 0 END`,guard,item.id,input.expectedText);
-  if(deleting)q(`UPDATE ${table} SET deleted_at=CURRENT_TIMESTAMP WHERE id=?`,item.id);else q(`UPDATE ${table} SET body=? WHERE id=?`,body,item.id);
+  if(deleting){
+   const memoryId=!comment&&meta.memoryId;
+   // A memory's feed post never leaves alone: removing it removes the memory too, recoverably.
+   if(memoryId&&await db.prepare('SELECT id FROM memories WHERE id=? AND deleted_at IS NULL').bind(memoryId).first()){const removal=await deleteMemoryStatements(db,actor,memoryId,{source:item.author_id===actor.id?'owner':'moderator'});sql.push(...removal.sql);result.deletionId=removal.deletionId}
+   else{const removal=recordDeletion(db,actor,{kind:comment?'comment':'post',targetId:item.id,authorId:item.author_id});sql.push(removal.statement);result.deletionId=removal.id}
+   q(`UPDATE ${table} SET deleted_at=CURRENT_TIMESTAMP WHERE id=?`,item.id);
+  }else if(comment)q('UPDATE comments SET body=? WHERE id=?',body,item.id);
+  else{q("INSERT INTO notification_setting_guards(token,valid) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM posts WHERE id=? AND edit_revision=?) THEN 1 ELSE 0 END",guard+'-revision',item.id,item.edit_revision||0);q('UPDATE posts SET body=?,metadata_json=?,edit_revision=edit_revision+1 WHERE id=?',body,JSON.stringify(nextMeta),item.id);q('DELETE FROM notification_setting_guards WHERE token=?',guard+'-revision')}
   q('DELETE FROM notification_setting_guards WHERE token=?',guard);
   audit(input.type.toLowerCase().replace('_','-'),item.id);break;
+ }
+ case 'SET_POST_PIN':{
+  // Pinning stays a Family Leader announcement power, matching publishing rules.
+  contentWrite=true;if(!actor.isLeader)throw new UserError('Only Family Leaders can pin or unpin posts',403);if(typeof input.pinned!=='boolean')throw new UserError('Choose pin or unpin');
+  const post=await readPost(db,actor,input.id);if(!post)throw new UserError('Post not found',404);const meta=json(post.metadata_json);
+  if(input.pinned&&!meta.asLeader)throw new UserError('Only leader announcements can be pinned',409);if(Boolean(meta.pinned)===input.pinned){result.id=post.id;break}
+  const guard=uuid();q("INSERT INTO notification_setting_guards(token,valid) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM posts WHERE id=? AND edit_revision=? AND deleted_at IS NULL) THEN 1 ELSE 0 END",guard,post.id,post.edit_revision||0);
+  q("UPDATE posts SET metadata_json=json_set(metadata_json,'$.pinned',json(?)),edit_revision=edit_revision+1 WHERE id=?",input.pinned?'true':'false',post.id);q('DELETE FROM notification_setting_guards WHERE token=?',guard);
+  audit(input.pinned?'post-pinned':'post-unpinned',post.id);result.id=post.id;break;
  }
  case 'MARK_ANNOUNCEMENT_SEEN':{const post=await readPost(db,actor,input.id);if(!post||!json(post.metadata_json).firstView)throw new UserError('Announcement not found',404);q('INSERT OR IGNORE INTO announcement_views(post_id,member_id) VALUES(?,?)',post.id,actor.id);break;}
  case 'ADD_COMMENT':{
@@ -161,7 +202,7 @@ export async function command(db,actor,input){
   if(!await accessibleTarget(db,actor,input.id))throw new UserError('Item not found',404);const exists=await db.prepare('SELECT target_id FROM saved_items WHERE member_id=? AND target_id=?').bind(actor.id,input.id).first();if(exists)q('DELETE FROM saved_items WHERE member_id=? AND target_id=?',actor.id,input.id);else q('INSERT INTO saved_items(member_id,target_id) VALUES(?,?)',actor.id,input.id);break;
  }
  case 'POLL_VOTE':{
-  const post=await readPost(db,actor,input.postId),poll=json(post?.metadata_json).poll,options=input.options;
+  const post=await readPost(db,actor,input.postId),poll=json(post?.metadata_json).poll,options=input.options;if(poll?.closed)throw new UserError('This poll is closed',409);
   if(!poll||!Array.isArray(options)||options.length>poll.options.length||options.some(i=>!Number.isInteger(i)||i<0||i>=poll.options.length)||new Set(options).size!==options.length||(poll.mode==='single'&&options.length>1))throw new UserError('Check your poll choices');
   q('INSERT INTO poll_votes(member_id,post_id,options_json) VALUES(?,?,?) ON CONFLICT(member_id,post_id) DO UPDATE SET options_json=excluded.options_json',actor.id,post.id,JSON.stringify(options));break;
  }
@@ -221,18 +262,37 @@ export async function command(db,actor,input){
  }
  case 'ADD_MEMORY':case 'SAVE_MEMORY':{
   requireCan(actor,'post');const m=input.memory||{};if(m.id&&!/^[a-zA-Z0-9-]{8,80}$/.test(m.id))throw new UserError('Invalid memory identifier');if(input.type==='SAVE_MEMORY'){const old=await db.prepare('SELECT author_id FROM memories WHERE id=? AND deleted_at IS NULL').bind(m.id||'').first();if(!old)throw new UserError('Memory not found',404);if(old.author_id!==actor.id&&!can(actor,'moderate'))throw new UserError('You cannot edit this memory',403)}
-  const oldMemory=input.type==='SAVE_MEMORY'?await db.prepare('SELECT data_json FROM memories WHERE id=?').bind(m.id).first():null;const sameImage=oldMemory&&json(oldMemory.data_json).image===m.image;const files=sameImage?[{url:m.image,type:json(oldMemory.data_json).mediaType||'image/jpeg'}]:await ownedFiles(db,actor,[{url:m.image}]);if(!/^(image|video|audio)\//.test(files[0].type)&&files[0].type!=='application/pdf')throw new UserError('Choose a photo, video, audio or PDF memory');const memberIds=await directorySelection(db,m.memberIds??[],{ancestors:true});
+  const oldMemory=input.type==='SAVE_MEMORY'?await db.prepare('SELECT data_json FROM memories WHERE id=?').bind(m.id).first():null;const sameImage=oldMemory&&json(oldMemory.data_json).image===m.image;const files=sameImage?[{url:m.image,type:json(oldMemory.data_json).mediaType||'image/jpeg'}]:await ownedFiles(db,actor,[{url:m.image}]);if(!MEMORY_TYPES.has(files[0].type))throw new UserError('Choose a photo, video, audio or PDF memory');const memberIds=await directorySelection(db,m.memberIds??[],{ancestors:true});
   const capturedDate=m.capturedDate||'';if(capturedDate&&(!/^\d{4}-\d{2}-\d{2}$/.test(capturedDate)||capturedDate<'1600-01-01'||capturedDate>new Date().toISOString().slice(0,10)||Number.isNaN(Date.parse(capturedDate+'T12:00:00Z'))||new Date(capturedDate+'T12:00:00Z').toISOString().slice(0,10)!==capturedDate))throw new UserError('Check the memory date');
   const value={title:text(m.title||'',120),image:files[0].url,mediaType:files[0].type,...(files[0].type.startsWith('image/')?{photoFrame:commandPhotoFrame({frame:m.photoFrame,photo:files[0].url,previousPhoto:oldMemory?json(oldMemory.data_json).image:null,previousFrame:oldMemory?json(oldMemory.data_json).photoFrame:undefined})}:{}),capturedDate,dateStatus:['suggested','confirmed','approximate'].includes(m.dateStatus)?m.dateStatus:'unknown',dateSource:text(m.dateSource||'',60),category:text(m.category||'',60),event:text(m.event||'',100),year:text(m.year||'',4),milestone:text(m.milestone||'',100),tags:Array.isArray(m.tags)?m.tags.slice(0,20).map(x=>text(x,40)):[],memberIds};result.id=m.id||uuid();if(input.type==='ADD_MEMORY'){q('INSERT INTO memories(id,author_id,data_json) VALUES(?,?,?)',result.id,actor.id,JSON.stringify(value));q('INSERT INTO posts(id,author_id,body,metadata_json) VALUES(?,?,?,?)',result.id,actor.id,value.title||'Shared a memory',JSON.stringify({files,memoryId:result.id,memberIds}))}else{q('UPDATE memories SET data_json=? WHERE id=?',JSON.stringify(value),result.id);q('UPDATE posts SET body=?,metadata_json=? WHERE id=?',value.title||'Shared a memory',JSON.stringify({files,memoryId:result.id,memberIds}),result.id);if(!sameImage)q('DELETE FROM featured_memories WHERE memory_id=?',result.id)}break;
+ }
+ case 'DELETE_MEMORY':{
+  contentWrite=true;const removal=await deleteMemoryStatements(db,actor,text(input.id,80,true));sql.push(...removal.sql);result.deletionId=removal.deletionId;audit('delete-memory',input.id);break;
+ }
+ case 'RESTORE_CONTENT':{
+  contentWrite=true;const restored=await restoreStatements(db,actor,input.id);sql.push(...restored.sql);Object.assign(result,{kind:restored.kind,targetId:restored.targetId});audit('restore-'+restored.kind,restored.targetId);break;
  }
  case 'REPORT':{
   if(input.photoTarget){const prepared=await photoCommandStatements(db,actor,input);sql.push(...prepared.sql);Object.assign(result,prepared.result);break;}
   if(!await accessibleTarget(db,actor,input.targetId))throw new UserError('Item not found',404);result.id=uuid();q('INSERT INTO moderation_reports(id,reporter_id,target_id,reason) VALUES(?,?,?,?)',result.id,actor.id,input.targetId,text(input.reason,1000,true));break;
  }
  case 'MODERATE':{
-  requireCan(actor,'moderate');const report=await db.prepare('SELECT * FROM moderation_reports WHERE id=?').bind(input.id).first();if(!report)throw new UserError('Report not found',404);if(!['removed','dismissed'].includes(input.status))throw new UserError('Choose a moderation decision');q('UPDATE moderation_reports SET status=?,resolved_by=? WHERE id=?',input.status,actor.id,report.id);if(input.status==='removed'){q('UPDATE posts SET deleted_at=CURRENT_TIMESTAMP WHERE id=?',report.target_id);q('UPDATE comments SET deleted_at=CURRENT_TIMESTAMP WHERE id=?',report.target_id);q('UPDATE photo_comments SET deleted_at=? WHERE id=?',Date.now(),report.target_id);q('UPDATE memories SET deleted_at=CURRENT_TIMESTAMP WHERE id=?',report.target_id)}audit('moderation-'+input.status,report.target_id);break;
+  requireCan(actor,'moderate');const report=await db.prepare('SELECT * FROM moderation_reports WHERE id=?').bind(input.id).first();
+  // Private-message reports resolve without any access to the conversation itself.
+  if(!report&&input.kind==='message'){const mr=await db.prepare('SELECT id,status FROM message_reports WHERE id=?').bind(String(input.id||'')).first();if(!mr)throw new UserError('Report not found',404);if(!['handled','dismissed'].includes(input.status))throw new UserError('Choose handled or dismissed');if(mr.status!=='open')throw new UserError('Another moderator already resolved this report',409);const guard=uuid();q("INSERT INTO notification_setting_guards(token,valid) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM message_reports WHERE id=? AND status='open') THEN 1 ELSE 0 END",guard,mr.id);q('UPDATE message_reports SET status=?,resolved_by=?,resolved_at=CURRENT_TIMESTAMP WHERE id=?',input.status,actor.id,mr.id);q('DELETE FROM notification_setting_guards WHERE token=?',guard);audit('message-report-'+input.status,mr.id);break}
+  if(!report)throw new UserError('Report not found',404);if(!['removed','dismissed'].includes(input.status))throw new UserError('Choose a moderation decision');if(report.status!=='open')throw new UserError('Another moderator already resolved this report',409);
+  // The guard keeps two moderators from resolving the same report twice.
+  const guard=uuid();q("INSERT INTO notification_setting_guards(token,valid) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM moderation_reports WHERE id=? AND status='open') THEN 1 ELSE 0 END",guard,report.id);
+  q('UPDATE moderation_reports SET status=?,resolved_by=?,resolved_at=CURRENT_TIMESTAMP WHERE id=?',input.status,actor.id,report.id);
+  if(input.status==='removed'){
+   const target=report.target_id,memory=await db.prepare('SELECT id FROM memories WHERE id=? AND deleted_at IS NULL').bind(target).first(),post=memory?null:await db.prepare('SELECT id,author_id,metadata_json FROM posts WHERE id=? AND deleted_at IS NULL').bind(target).first(),linked=post&&json(post.metadata_json).memoryId,comment=memory||post?null:await db.prepare('SELECT id,author_id FROM comments WHERE id=? AND deleted_at IS NULL').bind(target).first();
+   if(memory||linked){const removal=await deleteMemoryStatements(db,actor,memory?target:linked,{source:'report',reportId:report.id});sql.push(...removal.sql);result.deletionId=removal.deletionId}
+   else if(post||comment){const item=post||comment,removal=recordDeletion(db,actor,{kind:post?'post':'comment',targetId:target,authorId:item.author_id,source:'report',reportId:report.id});sql.push(removal.statement);result.deletionId=removal.id;q(`UPDATE ${post?'posts':'comments'} SET deleted_at=CURRENT_TIMESTAMP WHERE id=?`,target)}
+   else q('UPDATE photo_comments SET deleted_at=? WHERE id=? AND deleted_at IS NULL',Date.now(),target);
+  }
+  q('DELETE FROM notification_setting_guards WHERE token=?',guard);audit('moderation-'+input.status,report.target_id);break;
  }
- default:{try{const h=await memorialCommand(db,actor,input,q,audit)||await householdCommand(db,actor,input,q,audit)||await branchCommand(db,actor,input,q,audit)||await promptCommand(db,actor,input,q);if(!h)throw new UserError('This action is not supported');Object.assign(result,h)}catch(e){if(e instanceof UserError)throw e;if(e.status)throw new UserError(e.message,e.status);throw e}break;}
+ default:{try{const h=await memorialCommand(db,actor,input,q,audit)||await householdCommand(db,actor,input,q,audit)||await successionCommand(db,actor,input,q,audit,sql)||await lifecycleCommand(db,actor,input,q,audit)||await branchCommand(db,actor,input,q,audit)||await promptCommand(db,actor,input,q);if(!h)throw new UserError('This action is not supported');Object.assign(result,h)}catch(e){if(e instanceof UserError)throw e;if(e.status)throw new UserError(e.message,e.status);throw e}break;}
  }
  q('INSERT INTO command_receipts(member_id,request_id,result_json,operation,fingerprint) VALUES(?,?,?,?,?)',actor.id,input.requestId,JSON.stringify(result),input.type,fingerprint);
  try{await db.batch(sql)}catch(error){const completed=await db.prepare('SELECT * FROM command_receipts WHERE member_id=? AND request_id=?').bind(actor.id,input.requestId).first();if(completed){if(completed.fingerprint&&(completed.fingerprint!==fingerprint||completed.operation!==input.type))throw new UserError('This request identifier was already used for different content',409);return json(completed.result_json)}if(String(error.message).includes('valid=1'))throw new UserError(contentWrite?'This content changed while you were editing. Reopen it before trying again.':REUNION_SCOPED_COMMANDS.has(input.type)||REUNION_LIFECYCLE_COMMANDS.has(input.type)?'The reunion changed while you were editing. Refresh and try again.':'Notification settings changed on another device. Refresh and try again.',409);throw error}

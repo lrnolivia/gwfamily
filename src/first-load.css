@@ -1,7 +1,6 @@
-/* The established GW font, color, Glass/Flat, and control tokens remain in use.
-   Loading is deliberately unframed: no welcome card or account-setup ceremony. */
+/* The existing oak artwork, site typography and theme stay in charge. */
 .app.is-first-load main{display:grid;align-items:center;min-height:55dvh}
-.first-load{display:grid;justify-items:center;align-content:center;gap:20px;text-align:center;padding:40px 16px;color:var(--text);min-width:0}
+.first-load{display:grid;justify-items:center;align-content:center;gap:24px;text-align:center;padding:32px 16px;color:var(--text);min-width:0}
 .first-load h1{margin:0;max-width:24ch;font-size:clamp(1.5rem,4vw,2rem);line-height:1.25;text-wrap:balance}
 .first-load-actions{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:12px}
 .first-load .text-button,.first-load-rehearsal-bar .text-button{min-height:44px;padding:8px 12px}
@@ -18,3 +17,17 @@
 .first-load-rehearsal input{caret-color:var(--accent)}
 .first-load-rehearsal ::selection{background:var(--accent);color:var(--ink)}
 @media(max-width:420px){.first-load{padding:32px 8px}.first-load-rehearsal{padding-top:8px}.first-load-rehearsal-bar{align-items:flex-start;gap:8px}.first-load-rehearsal-bar .text-button{padding-inline:0}}
+
+/* A contained scene keeps drifting leaves clear of copy, controls and chrome. */
+.first-load-grove{position:relative;width:min(100%,30rem);aspect-ratio:16/10;isolation:isolate;overflow:hidden;pointer-events:none}
+.first-load-trees{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center}
+.first-load-caption{margin:0;max-width:30ch;font-family:var(--gw-heading-font,inherit);font-size:clamp(1.0625rem,3.8vw,1.375rem);line-height:1.5;text-wrap:balance;color:var(--text)}
+.first-load-wind{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.first-load-flight{opacity:0}
+.first-load-trail{stroke:var(--text);stroke-width:1;stroke-linecap:round;opacity:.18}
+.first-load-leaf-shape{fill:#71844f}
+.first-load-flight:nth-child(2n) .first-load-leaf-shape{fill:#c7ae77}
+.first-load-flight:nth-child(3n) .first-load-leaf-shape{fill:#a7784c}
+.first-load-leaf-veins{stroke:#f6edcf;stroke-opacity:.3;stroke-width:.65;stroke-linecap:round;stroke-linejoin:round}
+@media(prefers-reduced-motion:reduce){.first-load-wind{display:none}}
+@media(max-height:550px){.first-load-grove{width:min(65vw,18rem)}.first-load{gap:12px;padding-block:16px}}

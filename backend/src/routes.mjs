@@ -13,11 +13,16 @@ import {registerNotifications} from './notification-routes.mjs';
 import {registerPageContent,publishedPageReferencesMedia} from './page-content.mjs';
 import {registerMessaging} from './messaging.mjs';
 import {registerHouseholdInvites} from './household-invites.mjs';
+import {registerContentHistory} from './content-history.mjs';
+import {registerChatSafety} from './chat-safety.mjs';
+import {registerInvitationManagement} from './invitation-management.mjs';
+import {registerHouseholdSuccession} from './household-succession.mjs';
 import {adultOn} from './birthdays.mjs';
 import {UserError,command,familyState,json,readPost,validDate} from './family-service.mjs';
 import {authEnvironment,authReady,createRateStorage} from './auth.mjs';
 import {publicAuthConfig} from './auth-providers.mjs';
 import {can} from './policy.mjs';
+import {uploadFormat,signatureMatches} from './upload-formats.mjs';
 export function registerPublic(app,authFactory){
  registerInvitationEntry(app,authFactory);
  app.get('/api/config',c=>{const e=authEnvironment(c.env);return c.json({...publicAuthConfig(e,authReady(e)),familyInvitations:invitationsEnabled(e),familyInvitationEmail:invitationsEnabled(e)&&Boolean(e.EMAIL),emailNotifications:e.EMAIL_SCHEMA_VERSION==='1',pushEnrollmentPrompt:e.PUSH_ENROLLMENT_PROMPT_ENABLED==='true'})});
@@ -59,7 +64,7 @@ export function registerPublic(app,authFactory){
   try{await e.DB.batch([e.DB.prepare('INSERT INTO media(id,owner_id,object_key,name,mime_type,size_bytes) VALUES(?,?,?,?,?,?)').bind(id,session.user.id,key,'Profile photo',file.type,file.size),e.DB.prepare('UPDATE user SET image=?,updatedAt=? WHERE id=?').bind(url,Date.now(),session.user.id)])}catch(error){await e.R2.delete(key);throw error}return c.json({url},201);
  });
 }
-export function registerFamily(app){registerFamilyCalendar(app);registerPhotoDiscussions(app);registerPushRoutes(app);registerEmailNotifications(app);registerNotifications(app);registerHouseholdInvites(app);registerFamilyInvitations(app);registerMessaging(app);registerPageContent(app);
+export function registerFamily(app){registerFamilyCalendar(app);registerPhotoDiscussions(app);registerPushRoutes(app);registerEmailNotifications(app);registerNotifications(app);registerHouseholdInvites(app);registerFamilyInvitations(app);registerChatSafety(app);registerMessaging(app);registerPageContent(app);registerContentHistory(app);registerInvitationManagement(app);registerHouseholdSuccession(app);
  app.get('/api/calendar',async c=>{try{return c.json(await readCalendar(c.env.DB,c.get('actor'),c.req.query('reunionId')))}catch(error){if(error.status)throw new UserError(error.message,error.status);throw error}});
  app.get('/api/state',async c=>c.json(await familyState(c.env.DB,c.get('actor'),c.req.query('reunionId'))));
  app.post('/api/commands',async c=>c.json(await command(c.env.DB,c.get('actor'),await c.req.json())));
@@ -70,7 +75,7 @@ export function registerFamily(app){registerFamilyCalendar(app);registerPhotoDis
  app.get('/api/manage',async c=>{
   const actor=c.get('actor');if(!can(actor,'manage_reunion')&&!can(actor,'manage_members')&&!can(actor,'confirm_fees'))throw new UserError('Planner permission required',403);
   const reunion=await resolveReunion(c.env.DB,c.req.query('reunionId'));
-  const members=can(actor,'manage_members')?(await c.env.DB.prepare('SELECT m.id,m.status,m.roles_json,m.can_post,m.removed_at,m.membership_revision,u.name,u.email,(SELECT inviter.name FROM family_invitations i JOIN user inviter ON inviter.id=i.sender_id WHERE i.accepted_by=m.id ORDER BY i.accepted_at ASC LIMIT 1) AS invited_by_name FROM members m JOIN user u ON u.id=m.id ORDER BY m.created_at').bind().all()).results:[];
+  const members=can(actor,'manage_members')?(await c.env.DB.prepare('SELECT m.id,m.status,m.roles_json,m.can_post,m.is_leader,m.removed_at,m.membership_revision,u.name,u.email,(SELECT inviter.name FROM family_invitations i JOIN user inviter ON inviter.id=i.sender_id WHERE i.accepted_by=m.id ORDER BY i.accepted_at ASC LIMIT 1) AS invited_by_name FROM members m JOIN user u ON u.id=m.id ORDER BY m.created_at').bind().all()).results:[];
   const rsvps=can(actor,'manage_reunion')?(await c.env.DB.prepare('SELECT r.*,u.name FROM reunion_rsvps r JOIN user u ON u.id=r.member_id WHERE r.reunion_id=?').bind(reunion.id).all()).results:[];
   const claims=can(actor,'manage_reunion')?(await c.env.DB.prepare('SELECT c.*,u.name FROM shirt_claims c JOIN user u ON u.id=c.member_id WHERE c.reunion_id=? ORDER BY c.created_at DESC').bind(reunion.id).all()).results:[];
   const fees=can(actor,'confirm_fees')?(await c.env.DB.prepare('SELECT f.*,u.name FROM fee_reports f JOIN user u ON u.id=f.member_id WHERE f.reunion_id=? ORDER BY f.created_at DESC').bind(reunion.id).all()).results:[];
@@ -80,9 +85,10 @@ export function registerFamily(app){registerFamilyCalendar(app);registerPhotoDis
   const actor=c.get('actor'),db=c.env.DB,bucket=c.env.R2;if(!bucket)throw new UserError('Media storage is not configured',503);
   const rate=await createRateStorage(db).consume('upload:'+actor.id,{window:3600,max:30});if(!rate.allowed)throw new UserError('Upload limit reached. Please try again later.',429);
   const form=await c.req.formData(),file=form.get('file');if(!file||typeof file.arrayBuffer!=='function'||file.size===0||file.size>20*1024*1024)throw new UserError('Choose a file under 20 MB');
-  const allowed=['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/webm','audio/mpeg','audio/mp4','audio/ogg','audio/wav','application/pdf','text/plain'];if(!allowed.includes(file.type))throw new UserError('Use a supported photo, video, audio, PDF, or text file');
+  // The same format list the pickers use; the first bytes must match the type.
+  if(!uploadFormat(file.type))throw new UserError('Use a supported photo, video, audio, PDF, Word or text file');
   const data=await file.arrayBuffer(),head=new Uint8Array(data,0,Math.min(16,data.byteLength)),sig=String.fromCharCode(...head);
-  if(file.type==='image/png'&&!(head[0]===137&&sig.slice(1,4)==='PNG')||file.type==='image/jpeg'&&!(head[0]===255&&head[1]===216)||file.type==='image/gif'&&!sig.startsWith('GIF8')||file.type==='image/webp'&&!(sig.startsWith('RIFF')&&sig.slice(8,12)==='WEBP')||file.type==='application/pdf'&&!sig.startsWith('%PDF-'))throw new UserError('The file contents do not match its type');
+  if(!signatureMatches(file.type,head))throw new UserError('The file contents do not match its type');
   const id=crypto.randomUUID(),key=`family/${actor.id}/${id}`,name=String(file.name||'Attachment').replace(/[\x00-\x1f\x7f/\\]/g,'_').slice(0,150);
   await bucket.put(key,data,{httpMetadata:{contentType:file.type}});
   try{await db.prepare('INSERT INTO media(id,owner_id,object_key,name,mime_type,size_bytes) VALUES(?,?,?,?,?,?)').bind(id,actor.id,key,name,file.type,file.size).run()}catch(error){await bucket.delete(key);throw error}
@@ -99,13 +105,13 @@ export function registerFamily(app){registerFamilyCalendar(app);registerPhotoDis
    if(!allowed){const memories=(await db.prepare('SELECT data_json FROM memories WHERE deleted_at IS NULL').bind().all()).results;allowed=memories.some(m=>json(m.data_json).image==='/api/media/'+row.id)}
    if(!allowed){const contacts=(await db.prepare("SELECT p.member_id,p.contact_json FROM profiles p JOIN members m ON m.id=p.member_id WHERE m.status='active'").bind().all()).results;allowed=contacts.some(p=>{const v=json(p.contact_json);return v.photo==='/api/media/'+row.id&&v.optIn===true&&(v.visibility==='All approved family members'||v.visibility==='Family leaders'&&actor.isLeader||v.visibility==='Selected family members'&&v.selectedIds?.includes(actor.id))})}
   }
-  if(!allowed)allowed=!!await db.prepare('SELECT id FROM households WHERE photo_url=?').bind('/api/media/'+row.id).first();
+  if(!allowed)allowed=!!await db.prepare('SELECT id FROM households WHERE photo_url=? AND archived_at IS NULL').bind('/api/media/'+row.id).first();
   if(!allowed){const products=(await db.prepare('SELECT data_json FROM products WHERE active=1 AND deleted_at IS NULL').bind().all()).results;allowed=products.some(p=>json(p.data_json).photo==='/api/media/'+row.id)}
-  if(!allowed)allowed=!!await db.prepare("SELECT id FROM memorials WHERE json_extract(profile_json,'$.photo')=?").bind('/api/media/'+row.id).first();
+  if(!allowed)allowed=!!await db.prepare("SELECT id FROM memorials WHERE json_extract(profile_json,'$.photo')=? AND archived_at IS NULL").bind('/api/media/'+row.id).first();
   if(!allowed)allowed=await publishedPageReferencesMedia(db,actor,row.id);
   if(!allowed)allowed=await photoCommentsReferenceMedia(db,actor,row.id);
   if(!allowed)throw new UserError('File not found',404);const object=await c.env.R2.get(row.object_key);if(!object)throw new UserError('File not found',404);
-  const inline=/^(image\/(png|jpeg|gif|webp)|video\/|audio\/)/.test(row.mime_type);return new Response(object.body,{headers:{'Content-Type':row.mime_type,'Content-Length':String(row.size_bytes),'Content-Disposition':`${inline?'inline':'attachment'}; filename*=UTF-8''${encodeURIComponent(row.name)}`,'X-Content-Type-Options':'nosniff','Cache-Control':'private, no-store','Content-Security-Policy':inline?"default-src 'none'; img-src 'self' data:; media-src 'self' blob:; style-src 'unsafe-inline'; sandbox allow-same-origin":"default-src 'none'; sandbox"}});
+  const inline=uploadFormat(row.mime_type)?.inline===true;return new Response(object.body,{headers:{'Content-Type':row.mime_type,'Content-Length':String(row.size_bytes),'Content-Disposition':`${inline?'inline':'attachment'}; filename*=UTF-8''${encodeURIComponent(row.name)}`,'X-Content-Type-Options':'nosniff','Cache-Control':'private, no-store','Content-Security-Policy':inline?"default-src 'none'; img-src 'self' data:; media-src 'self' blob:; style-src 'unsafe-inline'; sandbox allow-same-origin":"default-src 'none'; sandbox"}});
  });
 }
 

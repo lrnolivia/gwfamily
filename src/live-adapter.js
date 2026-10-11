@@ -7,6 +7,7 @@ import {initialReadRecovery,recoverableInitialRead,readWithRecovery} from './liv
 import {documentReadLifecycle} from './document-read-lifecycle.js';
 import {initialState,loadLocalState,saveLocalState,reducer} from './data-adapter.js';
 import {mergeNotificationResource} from './notification-model.js';
+import {mergePostPage,mergeMemoryPage,mergeCommentPage,historyQuery} from './content-history-model.js';
 import {clearChatDrafts} from './messaging-model.js';
 import {saveLiveDrafts,readLiveDrafts,clearLiveDrafts,retainDraftAccount,hasLocalDrafts,commandFingerprint,readCommandRequests,saveCommandRequests,preserveNewerDrafts} from './draft-storage.js';
 export async function api(path,options={}){
@@ -58,7 +59,7 @@ function reducerAfterAcknowledgement(current,action){try{return reducer({...curr
 export function useFamilyData(){
  const [state,setState]=useState(loadLocalState),[session,setSession]=useState(null),[config,setConfig]=useState(null),[loading,setLoading]=useState(true),[actionError,setError]=useState(''),[loadError,setLoadError]=useState(''),[pending,setPending]=useState(false),[draftStorageStatus,setDraftStorageStatus]=useState({ok:true}),[preview,setPreview]=useState(()=>{try{return reviewOnly||sessionStorage.getItem(modeKey)==='preview'}catch{return false}});
  const bootstrapRetry=useRef(false),bootstrapRecovery=useRef(null),refreshRun=useRef({sequence:0,controller:null}),reunionBags=useRef({}),signOutLock=useRef(false);
- const linkedResource=useRef(null),epoch=useRef(0),ref=useRef(state),busy=useRef(false),workCount=useRef(0),after=useRef(null),alive=useRef(true),requestBook=useRef({accountId:null,requests:{},confirmed:new Set()});ref.current=state;
+ const history=useRef({accountId:null,posts:null,memories:null,comments:{},kept:[]}),linkedResource=useRef(null),epoch=useRef(0),ref=useRef(state),busy=useRef(false),workCount=useRef(0),after=useRef(null),alive=useRef(true),requestBook=useRef({accountId:null,requests:{},confirmed:new Set()});ref.current=state;
  const save=next=>{
   if(ref.current.mode==='live'&&(next.mode!=='live'||next.selfId!==ref.current.selfId))reunionBags.current={};
   next=shareUnchangedSnapshot(ref.current,next);if(next!==ref.current){ref.current=next;setState(next)}
@@ -81,6 +82,37 @@ export function useFamilyData(){
   if(exists)return next;
   try{const result=await notificationApi.open(link.noticeId,link.accountId);if(linkedResource.current!==link)return next;if(!result.available||result.accountId&&result.accountId!==next.selfId){linkedResource.current=null;return next}return mergeNotificationResource(next,result)}
   catch{if(linkedResource.current===link)linkedResource.current=null;return next}
+ }
+ // Older history the person already opened survives each refresh: one closed-range
+ // read per list reloads it, so removed items disappear and nothing duplicates.
+ async function withHistory(next,signal){
+  const h=history.current;if(next.mode!=='live'||h.accountId!==next.selfId)return next;
+  let out=next;
+  try{
+   if(h.posts&&next.postsCursor)out=mergePostPage(out,await readApi(historyQuery('/api/feed',{before:next.postsCursor,through:h.posts}),signal));
+   if(h.memories&&next.memoriesCursor)out=mergeMemoryPage(out,await readApi(historyQuery('/api/memories',{before:next.memoriesCursor,through:h.memories}),signal));
+   // Items opened from Saved or a deep link stay loaded while this account views them.
+   for(const path of h.kept||[]){try{const page=await readApi(path,signal);out={...mergeMemoryPage(mergePostPage(out,page),page),postsCursor:out.postsCursor,memoriesCursor:out.memoriesCursor}}catch(error){if(error?.name==='AbortError')throw error;if(error?.status===404||error?.status===403)h.kept=h.kept.filter(p=>p!==path)}}
+   for(const [postId,through] of Object.entries(h.comments)){const cursor=out.commentHistory?.[postId]?.cursor;if(cursor)out=mergeCommentPage(out,await readApi(historyQuery('/api/posts/'+encodeURIComponent(postId)+'/comment-history',{before:cursor,through}),signal))}
+  }catch(error){if(error?.name==='AbortError')throw error}
+  return out;
+ }
+ // Merges server content (Saved, deep links) without touching paging cursors.
+ async function loadContent(path,{keep=true}={}){const current=ref.current;if(current.mode!=='live')return null;if(history.current.accountId!==current.selfId)history.current={accountId:current.selfId,posts:null,memories:null,comments:{},kept:[]};if(keep)history.current.kept=[path,...history.current.kept.filter(p=>p!==path)].slice(0,8);try{const page=await readApi(path);if(!alive.current||ref.current.selfId!==current.selfId)return null;const cursors={postsCursor:ref.current.postsCursor,memoriesCursor:ref.current.memoriesCursor};save({...mergeMemoryPage(mergePostPage(ref.current,page),page),...cursors});return page}catch(e){if(e.status!==404)setError(e.message);return null}}
+ // Loads the next older page of posts, memories or one post's comments.
+ async function loadHistory(kind,postId){
+  const current=ref.current;if(current.mode!=='live')return false;
+  const h=history.current;if(h.accountId!==current.selfId)history.current={accountId:current.selfId,posts:null,memories:null,comments:{},kept:[]};
+  const cursor=kind==='posts'?current.postsCursor:kind==='memories'?current.memoriesCursor:current.commentHistory?.[postId]?.cursor;if(!cursor)return false;
+  const finish=beginPending();
+  try{
+   const path=kind==='posts'?historyQuery('/api/feed',{before:cursor}):kind==='memories'?historyQuery('/api/memories',{before:cursor}):historyQuery('/api/posts/'+encodeURIComponent(postId)+'/comment-history',{before:cursor});
+   const page=await readApi(path);if(!alive.current||ref.current.selfId!==current.selfId)return false;
+   if(kind==='posts'){history.current.posts=page.oldestCursor||history.current.posts;save(mergePostPage(ref.current,page))}
+   else if(kind==='memories'){history.current.memories=page.oldestCursor||history.current.memories;save(mergeMemoryPage(ref.current,page))}
+   else{history.current.comments[postId]=page.oldestCursor||history.current.comments[postId];save(mergeCommentPage(ref.current,page))}
+   return true;
+  }catch(e){setError(e.message);return false}finally{finish()}
  }
  function hydrateNotificationResource(result,{accountId,noticeId}={}){
   if(ref.current.selfId!==accountId||ref.current.mode!=='live'||!result?.available||result.accountId&&result.accountId!==accountId)return false;
@@ -108,7 +140,7 @@ export function useFamilyData(){
     if(sess.user?.id&&ref.current.mode==='live'&&sess.user.id!==ref.current.selfId){
      linkedResource.current=null;clearChatDrafts(ref.current.selfId);retainDraftAccount(null);requestBook.current={accountId:null,requests:{},confirmed:new Set()};save(initialState());
     }
-    const next=await withLinkedResource(await readApi(reunionQuery('/api/state',reunionId||(ref.current.mode==='live'?ref.current.selectedReunionId:null)),controller.signal));if(current()){
+    const next=await withHistory(await withLinkedResource(await readApi(reunionQuery('/api/state',reunionId||(ref.current.mode==='live'?ref.current.selectedReunionId:null)),controller.signal)),controller.signal);if(current()){
      if(sess.user?.id&&next.selfId!==sess.user.id)throw Object.assign(new Error('Your signed-in account changed. Refresh to continue.'),{status:409});
      const sameAccount=ref.current.mode==='live'&&ref.current.selfId===next.selfId;
      if(ref.current.mode==='live'&&ref.current.selfId!==next.selfId){linkedResource.current=null;clearChatDrafts(ref.current.selfId)}
@@ -165,7 +197,7 @@ export function useFamilyData(){
     cancelRefresh();const run=refreshRun.current,sequence=run.sequence,controller=new AbortController();run.controller=controller;
     const currentRead=()=>alive.current&&generation===epoch.current&&sequence===refreshRun.current.sequence&&ref.current.selfId===before.selfId;
     try{
-     const server=await withLinkedResource(await readApi(reunionQuery('/api/state',ref.current.mode==='live'?ref.current.selectedReunionId:null),controller.signal));
+     const server=await withHistory(await withLinkedResource(await readApi(reunionQuery('/api/state',ref.current.mode==='live'?ref.current.selectedReunionId:null),controller.signal)),controller.signal);
      if(currentRead()){if(server.selfId!==before.selfId){await refresh()}else{const latest=Object.fromEntries(localFields.map(key=>[key,ref.current[key]]));save({...server,...latest});setLoadError('')}}
     }catch{if(currentRead())setLoadError('Your change was saved. The latest view could not load; it will refresh when the connection returns.')}
     finally{if(sequence===refreshRun.current.sequence)run.controller=null}
@@ -182,7 +214,7 @@ export function useFamilyData(){
   const before=ref.current;if(id===before.selectedReunionId)return true;
   cancelRefresh();const run=refreshRun.current,sequence=run.sequence,controller=new AbortController();run.controller=controller;const generation=epoch.current,finish=beginPending();setError('');
   try{
-   const next=await readApi(reunionQuery('/api/state',id),controller.signal);
+   const next=await withHistory(await readApi(reunionQuery('/api/state',id),controller.signal),controller.signal);
    if(!alive.current||generation!==epoch.current||sequence!==refreshRun.current.sequence||ref.current.selfId!==before.selfId)return false;
    if(next.selfId!==before.selfId||next.selectedReunionId!==id)throw Error('Your account or reunion changed. Refresh before continuing.');
    reunionBags.current[before.selfId+':'+before.selectedReunionId]=before.bag;
@@ -213,5 +245,5 @@ export function useFamilyData(){
  }
 
  async function upload(file){if(ref.current.mode==='preview'){const {readPreviewFile}=await import('./uploads.js');return readPreviewFile(file)}const data=new FormData();data.append('file',file);const finish=beginPending();try{return await api('/api/media',{method:'POST',body:data})}finally{finish()}}
- return {state,setMemberView,getCurrentState:()=>ref.current,dispatch,session,config,loading,error:actionError||loadError,pending,preview,enterPreview,leavePreview,refresh,signOut,upload,defer,setError,beginPending,notificationApi,hydrateNotificationResource,releaseNotificationResource:route=>{const link=linkedResource.current;if(link){const expectedId=link.target.kind==='comment'?link.target.containerId:link.target.id,expectedType=link.target.kind==='memory'?'memory':'post';if(route?.id!==expectedId||route?.type!==expectedType)linkedResource.current=null}},draftStorageStatus,hasLocalDrafts:hasLocalDrafts(state)};
+ return {state,setMemberView,getCurrentState:()=>ref.current,dispatch,loadHistory,loadContent,session,config,loading,error:actionError||loadError,pending,preview,enterPreview,leavePreview,refresh,signOut,upload,defer,setError,beginPending,notificationApi,hydrateNotificationResource,releaseNotificationResource:route=>{const link=linkedResource.current;if(link){const expectedId=link.target.kind==='comment'?link.target.containerId:link.target.id,expectedType=link.target.kind==='memory'?'memory':'post';if(route?.id!==expectedId||route?.type!==expectedType)linkedResource.current=null}},draftStorageStatus,hasLocalDrafts:hasLocalDrafts(state)};
 }

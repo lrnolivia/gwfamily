@@ -1,4 +1,4 @@
-import {signInCodeEmail,signInLinkEmail} from './email-template.mjs';
+import {signInCodeEmail,signInLinkEmail} from './transactional-email.mjs';
 import {googleAccess} from './google-access.mjs';
 import {accessProvider} from './access-providers.mjs';
 import {microsoftAccess} from './microsoft-access.mjs';
@@ -52,12 +52,10 @@ export function authOptions(rawEnv,diagnosticContext={}) {
       ...(accessProviderConfig(env,'microsoft')?[microsoftAccess(env,{consumeRate:(key,rule)=>createRateStorage(env.DB).consume(key,rule)})]:[]),
       ...(accessProviderConfig(env,'yahoo')?[accessProvider(env,'yahoo')]:[]),
       emailOTP({expiresIn:600,otpLength:6,allowedAttempts:3,storeOTP:'hashed',sendVerificationOTP:async({email,otp})=>
-        send(email,'Your Green & White sign-in code',`Your code is ${otp}. It expires in 10 minutes. If you did not request this, ignore this email.`,
-          signInCodeEmail(otp))}),
+        {const mail=signInCodeEmail(otp,{origin:env.AUTH_ORIGIN});return send(email,mail.subject,mail.text,mail.html)}}),
       magicLink({expiresIn:600,storeToken:'hashed',sendMagicLink:async({email,url})=>{
         const safe = new URL(url); if(safe.origin!==env.AUTH_ORIGIN)throw new Error('Invalid sign-in origin');
-        return send(email,'Sign in to Green & White',`Sign in: ${safe.href}\nThis link works once and expires in 10 minutes. If you did not request it, ignore this email.`,
-          signInLinkEmail(safe.href));
+        const mail=signInLinkEmail(safe.href,{origin:env.AUTH_ORIGIN});return send(email,mail.subject,mail.text,mail.html);
       }})
     ],user:{deleteUser:{enabled:false}}
   };

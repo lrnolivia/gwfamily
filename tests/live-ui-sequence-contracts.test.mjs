@@ -69,7 +69,8 @@ test('Live approval follows the actual shared focused review and awaits active r
   assert.match(row, /openSheet\(\{type:'leader-member-review'/);
   assert.match(row, /'Review Membership':'Manage Membership'/);
   assert.match(row, /view==='pending'&&<Button/);
-  assert.match(manage, /onSave\(\{type:'APPROVE_MEMBER',id:m\.id,status,roles,canPost:approvalPosting\(m\.status,status,post\)\}\)/);
+  // Leader is sent only when changed, so ordinary approval stays identical.
+  assert.match(manage, /onSave\(\{type:'APPROVE_MEMBER',id:m\.id,status,roles,canPost:approvalPosting\(m\.status,status,post\),\.\.\.\(leader!==Boolean\(m\.is_leader\)\?\{leader:leader&&status==='active'\}:\{\}\)\}\)/);
   assert.match(app, /'leader-member-review':s.member\?\.status==='pending'/);
   assert.match(app, /case'leader-member-review':return <MemberReview[^;]*onSaved=\{\(\)=>openSheet\(null\)\}/);
   assert.match(sheet, /<dialog[^>]*aria-labelledby=\{titleId\}/);

@@ -1,10 +1,10 @@
 import {requestDiagnosticContext} from './error-diagnostics.mjs';
 import {UserError,json} from './family-service.mjs';
 import {authEnvironment,authReady,createRateStorage} from './auth.mjs';
-import {familyEmail} from './email-template.mjs';
+import {familyInviteEmail} from './transactional-email.mjs';
+import {pendingDuplicate} from './invitation-management.mjs';
 const tokenPattern=/^[a-f0-9]{64}$/;
 const hash=async value=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))).map(v=>v.toString(16).padStart(2,'0')).join('');
-const escape=value=>String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 export const invitationsEnabled=env=>env.FAMILY_INVITATIONS_ENABLED==='true';
 export async function invitationWelcome(request,env){
  const headers={'Content-Type':'application/json','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'};
@@ -96,10 +96,11 @@ export function registerFamilyInvitations(app){
   const actor=c.get('actor'),value=await c.req.json();if(value.expectedAccountId!==actor.id)throw new UserError('Your sign-in changed. Reload before continuing.',409);
   const email=String(value.email||'').trim().toLowerCase();if(email&&(email.length>254||!/^\S+@[^\s@]+\.[^\s@]+$/.test(email)))throw new UserError('Enter a valid email address');
   if(value.sendEmail===true&&(!email||!c.env.EMAIL))throw new UserError('Email invitations are not available',503);
+  if(await pendingDuplicate(c.env.DB,{kind:'family',senderId:actor.id,email}))throw new UserError('You already have a waiting invitation for this email. Resend or revoke it from Invitations.',409);
   const limit=await createRateStorage(c.env.DB).consume('family-invite:'+actor.id,{window:86400,max:10});if(!limit.allowed)throw new UserError('Please wait before creating more invitations',429);
   const token=crypto.randomUUID().replaceAll('-','')+crypto.randomUUID().replaceAll('-',''),id=crypto.randomUUID(),now=Date.now(),expiresAt=now+7*86400000,url=c.env.AUTH_ORIGIN+'/#/family-invite/'+token;
   await c.env.DB.prepare('INSERT INTO family_invitations(id,sender_id,recipient_email,token_hash,expires_at,created_at) VALUES(?,?,?,?,?,?)').bind(id,actor.id,email||null,await hash(token),expiresAt,now).run();
-  if(value.sendEmail===true){try{await c.env.EMAIL.send({from:{email:'family@greenwhitefamily.com',name:'Green & White Family'},to:email,subject:'You’re invited to Green & White Family',text:`Join our family space: ${url}\nSign in${email?' with '+email:''}, complete your profile, and accept the invitation. An organizer still approves your membership. This link expires in seven days.`,html:familyEmail({title:'You’re invited.',preview:'Join your family on Green & White',body:`<p>A family member invited you to Green & White. Sign in, complete your profile, and accept the invitation. An organizer still approves membership.</p><p><a href="${escape(url)}">View invitation</a></p><p>This link expires in seven days.</p>`})})}catch{await c.env.DB.prepare('UPDATE family_invitations SET revoked_at=? WHERE id=?').bind(Date.now(),id).run();throw new UserError('Email delivery could not be confirmed. The invitation has been revoked.',502)}}
+  if(value.sendEmail===true){try{const mail=familyInviteEmail({url,origin:c.env.AUTH_ORIGIN});await c.env.EMAIL.send({from:{email:'family@greenwhitefamily.com',name:'Green & White Family'},to:email,subject:mail.subject,text:mail.text,html:mail.html})}catch{await c.env.DB.prepare('UPDATE family_invitations SET revoked_at=? WHERE id=?').bind(Date.now(),id).run();throw new UserError('Email delivery could not be confirmed. The invitation has been revoked.',502)}}
   return c.json({id,url,expiresAt,emailSent:value.sendEmail===true},201);
  });
 }

@@ -21,8 +21,9 @@ const stubUrl=dataModule(`
  export const command=async()=>({}),familyState=async()=>({}),validDate=()=>true,adultOn=()=>true;
  export const can=()=>false,canRehearseFirstLoad=()=>false;
  export const invitationsEnabled=()=>false,provisionalAllowed=async()=>false,registerInvitationEntry=()=>{},registerFamilyInvitations=()=>{};
- export const registerPushRoutes=()=>{},registerNotifications=()=>{},registerEmailNotifications=()=>{},registerPageContent=()=>{},registerHouseholdInvites=()=>{},registerFamilyCalendar=()=>{};
+ export const registerPushRoutes=()=>{},registerNotifications=()=>{},registerEmailNotifications=()=>{},registerPageContent=()=>{},registerHouseholdInvites=()=>{},registerFamilyCalendar=()=>{},registerContentHistory=()=>{},registerHouseholdSuccession=()=>{},registerChatSafety=()=>{},registerInvitationManagement=()=>{};
  export const publishedPageReferencesMedia=async()=>false,readCalendar=async()=>({});
+ export {uploadFormat,signatureMatches} from '${new URL('../../src/upload-formats.js',import.meta.url).href}';
  // Photo target authorization has its own real-route suite; this private-message isolation boundary exposes no photo references.
  export const registerPhotoDiscussions=()=>{},photoCommentsReferenceMedia=async()=>false;
 `);
@@ -58,8 +59,8 @@ function database(){
  CREATE TABLE members(id TEXT PRIMARY KEY REFERENCES user(id),status TEXT,is_leader INTEGER DEFAULT 0,roles_json TEXT DEFAULT '[]');
  CREATE TABLE profiles(member_id TEXT PRIMARY KEY REFERENCES members(id),completed INTEGER,birthday TEXT);
  CREATE TABLE conversations(id TEXT PRIMARY KEY,type TEXT,name TEXT,owner_id TEXT,created_at TEXT,archived_at TEXT,direct_key TEXT UNIQUE);
- CREATE TABLE conversation_members(conversation_id TEXT REFERENCES conversations(id),member_id TEXT REFERENCES members(id),status TEXT,role TEXT DEFAULT 'member',read_sequence INTEGER DEFAULT 0,invited_by TEXT,invited_at TEXT,joined_at TEXT,PRIMARY KEY(conversation_id,member_id));
- CREATE TABLE messages(id TEXT PRIMARY KEY,conversation_id TEXT REFERENCES conversations(id),author_id TEXT REFERENCES members(id),body TEXT NOT NULL CHECK(length(trim(body)) BETWEEN 1 AND 4000),created_at TEXT,sequence INTEGER,UNIQUE(conversation_id,sequence));
+ CREATE TABLE conversation_members(conversation_id TEXT REFERENCES conversations(id),member_id TEXT REFERENCES members(id),status TEXT,role TEXT DEFAULT 'member',read_sequence INTEGER DEFAULT 0,invited_by TEXT,invited_at TEXT,joined_at TEXT,notifications_muted INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(conversation_id,member_id));
+ CREATE TABLE messages(id TEXT PRIMARY KEY,conversation_id TEXT REFERENCES conversations(id),author_id TEXT REFERENCES members(id),body TEXT NOT NULL CHECK(length(trim(body)) BETWEEN 1 AND 4000),created_at TEXT,sequence INTEGER,edited_at TEXT,unsent_at TEXT,reply_to_id TEXT,changed_at TEXT,UNIQUE(conversation_id,sequence));
  CREATE TABLE messaging_requests(member_id TEXT,request_id TEXT,operation TEXT,fingerprint TEXT,resource_id TEXT,PRIMARY KEY(member_id,request_id,operation));
  CREATE TABLE typing_presence(scope_kind TEXT,scope_id TEXT,member_id TEXT,expires_at INTEGER,PRIMARY KEY(scope_kind,scope_id,member_id));
  CREATE TABLE media(id TEXT PRIMARY KEY,owner_id TEXT,object_key TEXT,name TEXT,mime_type TEXT,size_bytes INTEGER,deleted_at TEXT);
