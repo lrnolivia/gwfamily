@@ -34,8 +34,8 @@ try{
   await returning.reload({waitUntil:'domcontentloaded'});
   const loading=returning.getByRole('region',{name:'Opening your family space…',exact:true});
   await expect(loading).toBeVisible();await expect(loading.getByRole('heading',{name:'Opening your family space…',exact:true})).toBeVisible();
-  await expect(loading.getByRole('status',{name:'Loading GW',exact:true})).toBeVisible();await expect(loading.locator('.activity-dots-visual>span')).toHaveCount(3);
-  assert.deepEqual(await loading.locator('.activity-dots-visual>span').evaluateAll(elements=>elements.map(element=>getComputedStyle(element).animationName)),['none','none','none'],'quiet loading respects reduced motion');
+  await expect(loading.getByRole('status',{name:'Loading GW',exact:true})).toBeVisible();await expect(loading.locator('.first-load-caption')).toHaveText('A little closer to your people.');await expect(loading.locator('.first-load-leaf')).toHaveCount(6);
+  await expect(loading.locator('.first-load-wind')).toBeHidden();assert.equal(await loading.locator('.first-load-wind').evaluate(svg=>svg.animationsPaused()),true,'tree loading respects reduced motion');
   await expect(returning.locator('.app')).toHaveClass(/is-first-load/);await expect(returning.locator('.onboard,.welcome-mark,.onboarding-progress')).toHaveCount(0);
   assert.equal(await returning.getByRole('navigation',{name:'Main navigation'}).count(),0);assert.equal(await returning.getByRole('heading',{name:'Family feed',exact:true}).count(),0);
   releaseConfig();await returning.getByRole('button',{name:'Email me a code',exact:true}).waitFor();await expect(loading).toHaveCount(0);await expect(returning.locator('.onboard')).toBeVisible();

@@ -215,6 +215,11 @@ jobs:
         run: |
           mkdir -p docs/ci-logs
           node scripts/ci-test-summary.mjs recovery-browser --browser tests/recovery-browser.mjs 2>&1 | tee docs/ci-logs/recovery-browser.log
+      - name: Tree loading splash browser checks
+        if: ${{ !cancelled() && matrix.group == 'navigation' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        run: |
+          mkdir -p docs/ci-logs
+          node tests/first-load-splash-browser.mjs 2>&1 | tee docs/ci-logs/first-load-splash-browser.log
       - name: Hotfix browser checks
         if: ${{ !cancelled() && matrix.group == 'navigation' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         run: |
