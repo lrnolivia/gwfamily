@@ -14,7 +14,7 @@ const splashLeaves=[
  ['M140 132 C185 96 210 144 186 174 S250 207 305 251','-.4s','8.6s'],
  ['M265 70 C299 31 354 58 332 90 S380 126 440 180','-3.4s','9.4s']
 ];
-export function FirstLoad({busy=true,error='',onRetry,onFreshStart,onReturn}){
+export function FirstLoad({busy=true,error='',onRetry,onReturn}){
  const wind=useRef(null);
  const [hidden,setHidden]=useState(()=>typeof document!=='undefined'&&document.hidden);
  useEffect(()=>{const update=()=>setHidden(document.hidden);document.addEventListener('visibilitychange',update);return()=>document.removeEventListener('visibilitychange',update)},[]);
@@ -43,7 +43,7 @@ export function FirstLoad({busy=true,error='',onRetry,onFreshStart,onReturn}){
   </div>
   <h1 id="first-load-heading" className={busy?'sr-only':undefined}>{busy?'Opening your family space…':error?'Your family space couldn’t open.':'Your family space is ready.'}</h1>
   {busy&&<><p className="first-load-caption">A little closer to your people.</p><span className="sr-only" role="status" aria-label="Loading GW">Loading GW</span></>}{error&&!busy&&<p role="alert">{error}</p>}
-  {(onReturn||onFreshStart||error&&onRetry)&&<div className="first-load-actions">{error&&onRetry&&!busy&&<Button onClick={onRetry}>Try again</Button>}{onReturn&&<Button onClick={onReturn}>Return to GW</Button>}{onFreshStart&&<Control type="button" className="text-button" onClick={onFreshStart}>Fresh Start</Control>}</div>}
+  {(onReturn||error&&onRetry)&&<div className="first-load-actions">{error&&onRetry&&!busy&&<Button onClick={onRetry}>Try again</Button>}{onReturn&&<Button onClick={onReturn}>Return to GW</Button>}</div>}
  </section>;
 }
 
