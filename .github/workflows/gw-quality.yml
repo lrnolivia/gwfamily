@@ -18,6 +18,7 @@ jobs:
     timeout-minutes: 15
     outputs:
       archive_sha: ${{ steps.build_manifest.outputs.archive_sha }}
+      archive_name: ${{ steps.build_manifest.outputs.archive_name }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -72,10 +73,11 @@ jobs:
           find dist backend/build -type f -print0 | sort -z | xargs -0 sha256sum > gw-build.sha256
           sha256sum -c gw-build.sha256 > /dev/null
           tar -czf gw-built-source.tar.gz dist backend/build gw-build.sha256 gw-source-sha.txt
+          printf 'archive_name=gw-built-source-%s-%s\n' "$GW_SOURCE_SHA" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
           printf 'archive_sha=%s\n' "$(sha256sum gw-built-source.tar.gz | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
-          name: gw-built-source-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          name: ${{ steps.build_manifest.outputs.archive_name }}
           path: gw-built-source.tar.gz
           if-no-files-found: error
           retention-days: 7
@@ -128,7 +130,7 @@ jobs:
         working-directory: backend
       - uses: actions/download-artifact@v4
         with:
-          name: gw-built-source-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          name: ${{ needs.shared.outputs.archive_name }}
           path: .gw-built-source
       - name: Verify and restore the shared build
         id: restore_build
