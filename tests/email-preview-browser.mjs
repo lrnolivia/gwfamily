@@ -5,6 +5,8 @@ import {createServer} from 'node:http';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {resolve,extname} from 'node:path';
 import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const {PNG}=createRequire(import.meta.url)('playwright-core/lib/utilsBundle');
 import {notificationEmail} from '../backend/src/family-update-email.mjs';
 import {EMAIL_FONT_ASSETS} from '../backend/src/family-email-theme.mjs';
 const root=resolve('docs/family-email-preview'),output=resolve(process.env.GW_EMAIL_QA_OUTPUT||'../email-preview-evidence');
@@ -21,11 +23,16 @@ try{
  const inspect=async(fixture,width,fallback=false)=>{
   const id=fixture.id+(fallback?'-fallback':'');await page.setViewportSize({width,height:1000});await page.goto(`${base}/${id}.html`);await page.evaluate(()=>document.fonts.ready);
   await expect(page.getByRole('heading',{level:1})).toHaveText(fixture.subject);await expect(page.getByRole('link',{name:'Open family app'})).toHaveAttribute('href','https://greenwhitefamily.com/');
-  const geometry=await page.evaluate(()=>({overflow:document.documentElement.scrollWidth>innerWidth,fonts:[...document.fonts].map(x=>({family:x.family,status:x.status})),tables:[...document.querySelectorAll('table')].every(x=>x.getAttribute('role')==='presentation'),images:[...document.images].map(x=>x.complete&&x.naturalWidth>0)}));
+  const geometry=await page.evaluate(()=>{const table=document.querySelector('table.email-surface'),cell=table.rows[0].cells[0],t=getComputedStyle(table),c=getComputedStyle(cell);return {overflow:document.documentElement.scrollWidth>innerWidth,fonts:[...document.fonts].map(x=>({family:x.family,status:x.status})),tables:[...document.querySelectorAll('table')].every(x=>x.getAttribute('role')==='presentation'),images:[...document.images].map(x=>x.complete&&x.naturalWidth>0),radius:[t,c].flatMap(s=>[s.borderTopLeftRadius,s.borderTopRightRadius,s.borderBottomLeftRadius,s.borderBottomRightRadius]),borderCollapse:t.borderCollapse,background:getComputedStyle(document.body).backgroundColor,surface:t.backgroundColor,cell:c.backgroundColor}});
   assert.equal(geometry.overflow,false,`${id} ${width} overflow`);assert.equal(geometry.tables,true);assert.ok(geometry.images.every(Boolean));
+  assert.deepEqual(geometry.radius,Array(8).fill('24px'),`${id}: all table/cell corners`);assert.equal(geometry.borderCollapse,'separate');assert.equal(geometry.surface,geometry.cell);
+  // Inspect painted corners as well as CSS: each cutout must expose the surrounding background.
+  const png=PNG.sync.read(await page.locator('table.email-surface').screenshot()),pixel=(x,y)=>[...png.data.subarray((y*png.width+x)*4,(y*png.width+x)*4+3)],background=geometry.background.match(/\d+/g).map(Number);
+  for(const [x,y] of [[1,1],[png.width-2,1],[1,png.height-2],[png.width-2,png.height-2]])assert.deepEqual(pixel(x,y),background,`${id} ${width}: painted rounded corner`);
+  assert.deepEqual(pixel(Math.floor(png.width/2),1),geometry.surface.match(/\d+/g).map(Number),`${id}: the center retains the approved surface fill`);
   if(!fallback){const name=fixture.headingFont==='sans'?'Momo Trust Display':'DM Serif Text';assert.ok(geometry.fonts.some(x=>x.family===name&&x.status==='loaded'),`${id} heading font`);assert.ok(geometry.fonts.some(x=>x.family==='Inter'&&x.status==='loaded'))}else{assert.equal(geometry.fonts.length,0);assert.equal(geometry.images.length,0)}
   await page.getByRole('link',{name:'Open family app'}).focus();assert.equal(await page.evaluate(()=>document.activeElement.tagName),'A');
-  results.push({id,width,overflow:false,fontsLoaded:!fallback,fallback,linksChecked:true});
+  results.push({id,width,overflow:false,fontsLoaded:!fallback,fallback,linksChecked:true,roundedCorners:4,cornerPixelsMatchBackground:true});
   await page.evaluate(()=>document.activeElement.blur());
   if(width===390&&['green-light-sans-notification','green-dark-sans-announcement','blue-dark-serif-announcement','yellow-light-sans-notification'].includes(fixture.id))await page.screenshot({path:`${output}/${id}-${width}.png`,fullPage:true});
  };
