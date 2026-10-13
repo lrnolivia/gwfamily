@@ -1,0 +1,11 @@
+/* Light action elevation follows the active palette; dark materials retain their depth. */
+html[data-theme=light]{--gw-action-shadow:0 2px 8px color-mix(in srgb,var(--text) 6%,transparent);--gw-action-glass-shadow:0 2px 10px color-mix(in srgb,var(--text) 4%,transparent)}
+html[data-theme=light] :is(.button,.icon-button,.filter-trigger,.fab,.heading-font-option,.page-mode-done,.page-edit-tools>summary){box-shadow:var(--gw-action-shadow)!important}
+html[data-theme=light] .on-floating-surface:is(.button,.icon-button,.filter-trigger){box-shadow:var(--gw-action-shadow)!important}
+html[data-theme=light] .gw-optic-control>.glass-shadow{box-shadow:var(--gw-action-glass-shadow)!important}
+
+/* Secondary editing actions must remain readable on pale surfaces. */
+html[data-theme=light] .page-edit-entry-button{background:var(--raised);color:var(--text);box-shadow:var(--gw-action-shadow);border:1px solid var(--decorative-line,var(--line))}
+.leader-post-options{min-width:0;margin:16px 0 0;padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--raised);display:grid;gap:12px}
+.leader-post-options legend{padding-inline:6px;font-weight:650}
+.leader-post-options .check-row{min-height:44px;margin:0;align-items:center;gap:12px}

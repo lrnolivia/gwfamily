@@ -1,0 +1,91 @@
+{
+  "approval": "these are perfect. you can send them. let them know we simplified the flow to three full screen screenshots. only for mobile.",
+  "mobileOnly": true,
+  "figmaFile": "ovUWQhaEiWYjMDSIfBbCnn",
+  "assets": [
+    {
+      "name": "ios-1-light",
+      "nodeId": "59:7091",
+      "width": 430,
+      "height": 932,
+      "sha256": "da3bd2ecd4333f0de3740883fb03511a503846b724e810e03b0a439057e73abd"
+    },
+    {
+      "name": "ios-2-light",
+      "nodeId": "59:7109",
+      "width": 430,
+      "height": 932,
+      "sha256": "1972e6887df2fa7cc90f267cc8246bf9ee634ea0114d55a8415ca21344041633"
+    },
+    {
+      "name": "ios-3-light",
+      "nodeId": "59:7127",
+      "width": 430,
+      "height": 932,
+      "sha256": "488b7812a790b0601929f8a6516d300bc66b82b8294c79b7ca202f2506120238"
+    },
+    {
+      "name": "ios-1-dark",
+      "nodeId": "59:7499",
+      "width": 430,
+      "height": 932,
+      "sha256": "0300a98e4336afce047a8a36e1297147d14e996bf5916de5b77a7fc21c7f1cd0"
+    },
+    {
+      "name": "ios-2-dark",
+      "nodeId": "59:7517",
+      "width": 430,
+      "height": 932,
+      "sha256": "5820dbe8159437285d7f322af460bc4c07a9e15984ea3eb4115f61a470b65876"
+    },
+    {
+      "name": "ios-3-dark",
+      "nodeId": "59:7535",
+      "width": 430,
+      "height": 932,
+      "sha256": "93b2e6acc2ac691eab02dd89bc46f62f6780eab3a873e6afb451c0da62122fdc"
+    },
+    {
+      "name": "android-1-light",
+      "nodeId": "59:4788",
+      "width": 412,
+      "height": 892,
+      "sha256": "eeee155cf842fc4abb51a59f67b3a149efef5ed26712524554baf1891df888df"
+    },
+    {
+      "name": "android-2-light",
+      "nodeId": "59:4873",
+      "width": 412,
+      "height": 892,
+      "sha256": "f7b1f3534334929f519f347ed57357d9e539fb4d45fe78d8c3be40688a83f324"
+    },
+    {
+      "name": "android-3-light",
+      "nodeId": "59:5520",
+      "width": 412,
+      "height": 892,
+      "sha256": "544b6693c386c4ec4fa2706af4dd9d76ae83a9f27f296573d0fd21e5e5ae2cd7"
+    },
+    {
+      "name": "android-1-dark",
+      "nodeId": "59:5628",
+      "width": 412,
+      "height": 892,
+      "sha256": "b760f8ae24741962a89abc8f8135ec9aa06b5eb8af2c25dc8c6d4051b461b3a8"
+    },
+    {
+      "name": "android-2-dark",
+      "nodeId": "59:5699",
+      "width": 412,
+      "height": 892,
+      "sha256": "b40b1158390c3c4d1a4a215f793044e0f5641e3523cdb380e90e36a644a202ff"
+    },
+    {
+      "name": "android-3-dark",
+      "nodeId": "59:6246",
+      "width": 412,
+      "height": 892,
+      "sha256": "c2584a59dfefb7a88348408caa3b6fe34e31418aaa30ad27df2bcde5439d168a"
+    }
+  ]
+}

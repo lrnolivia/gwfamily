@@ -1,0 +1,82 @@
+import {isPreviewLeader,isMemberView} from './member-view-model.js';
+import {PaymentMethodsManager} from './payment-methods.jsx';
+import {reunionQuery,reunionArchived} from './reunion-model.js';
+import {membershipStatus} from './membership-model.js';
+import {leaderPreview} from './leader-preview.js';
+import {MerchandiseManager} from './merchandise-manager.jsx';
+import React,{useEffect,useRef,useState} from 'react';
+import {api} from './live-adapter.js';
+import {Button,Control,Glyph,useApp,useSheetForm} from './ui-core.jsx';
+import {PersonIdentity} from './person-identity.jsx';
+import './manage-family-people.css';
+import './membership-review-polish.css';
+import {approvalPosting} from './membership-posting-default.mjs';
+import {MembershipPeople} from './membership-people.jsx';
+export function ManageFamily({section,embedded=false}){
+ const {state,dispatch,openSheet}=useApp(),[remoteItems,setItems]=useState(null),[error,setError]=useState(''),[tab,setTab]=useState(section||'members');
+ const preview=state.mode==='preview',accountKey=state.mode+':'+state.selfId,scopeKey=accountKey+':'+state.selectedReunionId,account=useRef(accountKey),request=useRef({sequence:0,controller:null});account.current=scopeKey;
+ const stateRef=useRef(state);stateRef.current=state;
+ const items=preview?leaderPreview(state):remoteItems?.scopeKey===scopeKey?remoteItems.items:null;
+ const load=()=>{
+  if(preview)return new Promise(resolve=>setTimeout(()=>resolve(leaderPreview(stateRef.current)),0));
+  const expectedAccount=scopeKey,run=request.current;run.controller?.abort();const sequence=++run.sequence,controller=new AbortController();run.controller=controller;setError('');
+  const current=()=>account.current===expectedAccount&&request.current.sequence===sequence&&!controller.signal.aborted;
+  return api(reunionQuery('/api/manage',state.selectedReunionId),{signal:controller.signal}).then(items=>{if(current()){setItems({scopeKey:expectedAccount,items});return items}return null}).catch(error=>{if(current())setError(error.message)}).finally(()=>{if(run.sequence===sequence)run.controller=null});
+ };
+ useEffect(()=>{load();return()=>{request.current.sequence++;request.current.controller?.abort()}},[preview?state:scopeKey]);useEffect(()=>{if(section)setTab(section)},[section]);
+ const act=async action=>{if(account.current!==scopeKey)return false;setError('');const saved=await dispatch(action);if(saved&&account.current===scopeKey)await load();return saved};
+ const readMembers=async()=>{const refreshed=await load();if(!refreshed?.members)throw Error('Memberships could not be refreshed.');return refreshed.members};
+ const options=[(isPreviewLeader(state)||state.capabilities?.manageMembers)&&['members','People'],(isPreviewLeader(state)||state.capabilities?.manageReunion)&&['rsvp','RSVPs'],(isPreviewLeader(state)||state.capabilities?.manageReunion)&&['shirts','Merchandise'],(isPreviewLeader(state)||state.capabilities?.treasurer||state.capabilities?.manageReunion)&&['fees','Fees']].filter(Boolean);
+ const active=options.some(option=>option[0]===tab)?tab:options[0]?.[0];if(!options.length)return <p>You don’t have access to these tools.</p>;
+ return <section className="stack">{!embedded&&<><h2>Family organizer</h2><div className="segmented" role="tablist" aria-label="Organizer tools">{options.map(([id,label])=><Control type="button" key={id} role="tab" aria-selected={active===id} onClick={()=>setTab(id)}>{label}</Control>)}</div></>}{error&&<p role="alert">{error}</p>}{!items?(error?<Button secondary onClick={load}>Try again</Button>:<p role="status">Loading family details…</p>):<>
+ {active==='members'&&<MembershipPeople key={scopeKey} members={items.members} onSave={act} readMembers={readMembers}/>}
+ {active==='rsvp'&&<div className="card stack"><h3>Household replies</h3>{items.rsvps.map(reply=><div className="manage-report-row" key={reply.member_id||reply.memberId}><PersonIdentity memberId={reply.member_id||reply.memberId} fallbackName={reply.name}><p>{reply.status} · {reply.count} {reply.count===1?'person':'people'}</p></PersonIdentity></div>)}{!items.rsvps.length&&<p>No replies yet.</p>}</div>}
+ {active==='shirts'&&<MerchandiseManager items={items} onRefresh={load}/>}
+ {active==='fees'&&<><PaymentMethodsManager key={scopeKey}/>{(isPreviewLeader(state)||state.capabilities?.treasurer)&&<div className="card stack"><h3>Payment reports</h3><p className="muted">Check the actual payment service before confirming receipt.</p>{items.fees.map(fee=><div key={fee.id} className="stack manage-report-row"><PersonIdentity memberId={fee.member_id||fee.memberId} fallbackName={fee.name}><p>{fee.status}</p></PersonIdentity>{fee.status==='reported'&&!reunionArchived(state)&&<div className="card-actions"><Button secondary onClick={()=>act({type:'CONFIRM_FEE',id:fee.id,status:'rejected'})}>Not received</Button><Button onClick={()=>act({type:'CONFIRM_FEE',id:fee.id,status:'confirmed'})}>Receipt verified</Button></div>}</div>)}{!items.fees.length&&<p>No payments reported yet.</p>}</div>}</>}
+ </>}</section>
+}
+function readOrganizerRoles(value){
+ try{const roles=JSON.parse(value||'[]');return Array.isArray(roles)&&roles.every(role=>['admin','moderator','planner','treasurer'].includes(role))?[...new Set(roles)]:null}catch{return null}
+}
+// Body only. App owns the single shared Sheet so focus, dismissal, and first-view
+// announcements use the existing modal stack, never a second local dialog.
+export function MemberReview({member:m,selfId,accountKey,onSave,onSaved}){
+ const {state,data}=useApp(),[roles,setRoles]=useState(()=>readOrganizerRoles(m.roles_json)),[post,setPost]=useState(Boolean(m.can_post)),[leader,setLeader]=useState(Boolean(m.is_leader)),[saving,setSaving]=useState(false),[error,setError]=useState(''),[confirming,setConfirming]=useState(null),saveLock=useRef(false),cancelButton=useRef(null),removalTrigger=useRef(null),previousConfirmation=useRef(null);
+ useEffect(()=>{if(confirming)cancelButton.current?.focus();else if(previousConfirmation.current)removalTrigger.current?.focus();previousConfirmation.current=confirming},[confirming]);
+ const removed=membershipStatus(m)==='removed';
+ const allowed=accountKey===state.mode+':'+state.selfId&&(isPreviewLeader(state)||state.capabilities?.manageMembers)&&m.id!==selfId;
+ const formId=useSheetForm({label:!removed&&!confirming&&m.status==='active'?'Save membership':null,busy:saving,disabled:!allowed||roles===null||saving,dirty:!removed&&(JSON.stringify(roles)!==JSON.stringify(readOrganizerRoles(m.roles_json))||post!==Boolean(m.can_post)||leader!==Boolean(m.is_leader))});
+ async function save(status){
+  if(saveLock.current||!allowed||removed||confirming||roles===null||!onSave)return;
+  saveLock.current=true;setSaving(true);setError('');
+  try{if(await onSave({type:'APPROVE_MEMBER',id:m.id,status,roles,canPost:approvalPosting(m.status,status,post),...(leader!==Boolean(m.is_leader)?{leader:leader&&status==='active'}:{})}))onSaved?.();else setError('Membership could not be saved. Your changes are still here; try again.')}
+  catch{setError('Membership could not be saved. Your changes are still here; try again.')}
+  finally{saveLock.current=false;setSaving(false)}
+ }
+ async function changeMembership(type){
+  if(saveLock.current||!allowed||!onSave||confirming!==type)return;
+  saveLock.current=true;setSaving(true);setError('');
+  try{
+   const saved=await onSave({type,id:m.id,confirmedMemberId:m.id,expectedAccountId:state.selfId,expectedRevision:m.membership_revision??0});
+   if(saved)onSaved?.();else setError('Membership could not be changed. Review the message and try again.');
+  }catch{setError('Membership could not be changed. Review the message and try again.')}
+  finally{saveLock.current=false;setSaving(false)}
+ }
+ return <form id={formId} className="stack membership-review" aria-busy={saving} onSubmit={event=>{event.preventDefault();if(!removed&&!confirming&&m.status==='active')void save('active')}}>
+  <PersonIdentity memberId={m.id} fallbackName={m.name}><p className="muted small">{m.email} · {membershipStatus(m)}</p></PersonIdentity>
+  {!allowed?<p role="alert">This membership can’t be edited with your current account.</p>:confirming?<section className="stack membership-confirmation" aria-label={confirming==='REMOVE_MEMBER'?'Confirm member removal':'Confirm membership restoration'}>
+   <h3>{confirming==='REMOVE_MEMBER'?`Remove ${m.name}?`:`Restore ${m.name} for review?`}</h3>
+   <p>{m.name} ({m.email})</p>
+   {confirming==='REMOVE_MEMBER'?<><p>This removes their family membership and blocks access to private family posts, messages, and details. Their sign-in account, existing posts, messages, orders, and payment records will be kept.</p><p>An admin can restore this person for review later. Restoration requires a separate approval before they regain family access. No removal email is sent.</p>{state.mode==='preview'&&<p className="muted small">This changes local sample data only. Reset preview to undo all sample changes.</p>}</>:<p>This brings the membership back as pending. Family access, posting permission, and organizer roles stay off until an admin separately approves them.</p>}
+   <div className="card-actions"><Button ref={cancelButton} secondary disabled={saving} onClick={()=>{setConfirming(null);setError('')}}>Cancel</Button><Button className={confirming==='REMOVE_MEMBER'?'membership-remove':''} disabled={saving} onClick={()=>changeMembership(confirming)}>{saving?'Saving…':confirming==='REMOVE_MEMBER'?'Confirm removal':'Restore for review'}</Button></div>
+  </section>:removed?<section className="stack"><p>This membership has been removed. Their account and historical records are preserved.</p><Button ref={removalTrigger} secondary disabled={saving} onClick={()=>setConfirming('RESTORE_MEMBER')}>Restore membership</Button></section>:<>
+   <p className="membership-basics"><Glyph name="chat"/>Approved members can post, comment, and share memories.</p>
+   {m.status==='active'&&<label className="check-row membership-posting-setting"><input type="checkbox" disabled={saving} checked={post} onChange={event=>setPost(event.target.checked)}/>Allow family-feed posts</label>}
+   <fieldset className="organizer-role-options"><legend>Organizer roles <span className="field-optional">Optional</span></legend>{roles===null?<p role="alert">Organizer roles could not be read. Close this review and refresh before editing.</p>:['admin','moderator','planner','treasurer'].map(role=><label key={role} className="check-row"><input type="checkbox" disabled={saving} checked={roles.includes(role)} onChange={event=>setRoles(current=>event.target.checked?[...new Set([...current,role])]:current.filter(value=>value!==role))}/><span><strong>{role[0].toUpperCase()+role.slice(1)}</strong><small>{{admin:'Membership and settings',moderator:'Posts and conversations',planner:'Reunion plans and events',treasurer:'Fees and payments'}[role]}</small></span></label>)}</fieldset>
+   {m.status==='active'&&<label className="check-row membership-leader-setting"><input type="checkbox" disabled={saving} checked={leader} onChange={event=>setLeader(event.target.checked)}/><span><strong>Family Leader</strong><small>Leader announcements, shared pages and Leader Tools. Removing a membership clears this; restoring never brings it back.</small></span></label>}
+   <div className="form-save"><Button className="membership-primary" disabled={saving||roles===null} onClick={()=>save('active')}>{saving?'Saving…':m.status==='active'?'Save membership':'Approve membership'}</Button></div>
+   <details className="membership-removal"><summary><Glyph name="more"/>More actions</summary>{m.status==='active'&&<Button secondary disabled={saving||roles===null} onClick={()=>save('suspended')}>Pause access</Button>}<Button ref={removalTrigger} secondary className="membership-remove" disabled={saving} onClick={()=>{setConfirming('REMOVE_MEMBER');setError('')}}>Remove member</Button><p className="muted small">Revoke family access while keeping their account and history. You’ll confirm the person first.</p></details>
+  </>}
+  {(error||data?.error)&&<p role="alert">{data?.error||error}</p>}
+ </form>
+}

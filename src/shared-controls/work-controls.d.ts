@@ -1,0 +1,13 @@
+export const controlBarVersion:'1.1.0';
+export type Choice={value:string;label:string;icon?:string};
+export type ControlVariant='work'|'media'|'files';
+export const controlBarVariants:Readonly<Record<ControlVariant,Readonly<{searchLabel:string;placeholder:string;viewOptions:Choice[]}>>>;
+export const workControlLabels:Readonly<Record<string,string>>;
+export const workControlDefaults:Readonly<{filter:string;search:string;sort:string;direction:string}>;
+export function workControlGlyph(name:string):string;
+export function normalizeWorkControlQuery(input?:Record<string,unknown>):Record<string,unknown>;
+export function applyWorkControlChoice<T extends Record<string,unknown>>(query:T,key:string,value:string):T;
+export function renderControlShell(options?:{variant?:ControlVariant;search?:string;placeholder?:string;searchLabel?:string;view?:string;viewOptions?:Choice[];filterTitle?:string;organizeTitle?:string;filterContent?:string;organizeContent?:string;openMenus?:Iterable<string>;hideOrganize?:boolean;glyph?:(name:string)=>string}):string;
+export function renderControlFooter(options?:{menu?:string;hint?:string;doneLabel?:string;glyph?:(name:string)=>string}):string;
+export function renderControlChoiceGroup(options:{key:string;label:string;value:string;options:Choice[];glyph?:(name:string)=>string}):string;
+export function renderWorkControls(options?:Record<string,unknown>):string;

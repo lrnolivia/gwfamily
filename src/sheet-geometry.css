@@ -1,0 +1,51 @@
+/* All unanchored Sheet dialogs share one visible-viewport center. Anchored
+   Popover/ChoiceControl menus keep their independent anchor placement. Use
+   symmetric safe margins so keyboard and zoom offsets never move the center. */
+html[data-platform] #sheet[open]{
+ --sheet-margin-x:max(12px,env(safe-area-inset-left,0px),env(safe-area-inset-right,0px));
+ --sheet-margin-y:max(12px,env(safe-area-inset-top,0px),env(safe-area-inset-bottom,0px));
+ --sheet-max-width:calc(var(--vv-width,100vw) - var(--sheet-margin-x)*2);
+ --sheet-max-height:calc(var(--vv-height,100dvh) - var(--sheet-margin-y)*2);
+ position:fixed;top:calc(var(--vv-top,0px) + var(--vv-height,100dvh)/2);
+ left:calc(var(--vv-left,0px) + var(--vv-width,100vw)/2);
+ right:auto;bottom:auto;transform:translate(-50%,-50%);margin:0;
+ width:min(680px,var(--sheet-max-width));max-width:var(--sheet-max-width);
+ height:auto;min-height:0;max-height:var(--sheet-max-height);
+ display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box;border-radius:28px;
+ padding:20px;background:var(--surface);backdrop-filter:none;-webkit-backdrop-filter:none;
+ animation:gw-centered-sheet-enter 180ms ease-out;
+}
+html[data-platform] #sheet[open] .sheet-head{flex:0 0 auto}
+html[data-platform] #sheet[open] #sheet-body{
+ flex:1 1 auto;min-height:0;max-height:none;
+ overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;
+}
+/* Comment threads retain their own scroll region and pinned composer. */
+html[data-platform] #sheet.comments-surface[open]{height:min(620px,var(--sheet-max-height))}
+html[data-platform] #sheet.comments-surface[open] #sheet-body{overflow:hidden;flex:1 1 0}
+/* A transform animation would override the two-axis centering. Fade only. */
+@keyframes gw-centered-sheet-enter{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){html[data-platform] #sheet[open]{animation:none!important}}
+
+/* Left true-completion and right close are consistent across every Sheet. */
+html[data-platform] #sheet[open] .sheet-head{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:12px;align-items:center}
+html[data-platform] #sheet[open] .sheet-head h2{min-width:0;overflow-wrap:anywhere;text-align:center;font-size:clamp(1.1rem,4vw,1.5rem)}
+.sheet-action-placeholder{width:44px;height:44px}
+.sheet-discard-confirm{display:grid;gap:12px;padding:16px;margin-bottom:16px;border:1px solid var(--accent);border-radius:16px;background:var(--raised)}
+.sheet-discard-confirm .row{flex-wrap:wrap}
+
+html[data-platform] #sheet[open] .sheet-head{gap:16px;margin-bottom:24px;min-height:44px}
+html[data-platform] #sheet[open] .sheet-head h2{margin:0;font-size:clamp(1.1rem,3.5vw,1.35rem);line-height:1.3}
+html[data-platform] #sheet[open] .sheet-head #close{width:44px;height:44px;min-width:44px;min-height:44px;padding:13px;border:0!important;border-radius:50%!important;background:var(--surface);box-shadow:none!important}
+html[data-platform] #sheet[open] .sheet-head #close::before,html[data-platform] #sheet[open] .sheet-head #close::after{display:none}
+html[data-platform] #sheet[open] .sheet-head #close .glyph{width:18px;height:18px}
+html[data-platform] #sheet[open] .sheet-head #close:hover{background:var(--raised)}
+html[data-platform] #sheet[open] .sheet-head #close:focus-visible{outline:2px solid var(--control);outline-offset:2px}
+
+html[data-platform] button.quiet-close{width:44px;height:44px;min-width:44px;min-height:44px;padding:13px;border:0!important;border-radius:50%!important;background:var(--surface)!important;box-shadow:none!important}
+html[data-platform] button.quiet-close::before,html[data-platform] button.quiet-close::after,button.quiet-close>.glass-shadow,button.quiet-close>.liquid-glass-effect,button.quiet-close>.liquid-glass-tint,button.quiet-close>.liquid-glass-shine{display:none!important}
+button.quiet-close .glyph{width:18px;height:18px}
+html[data-platform] button.quiet-close:hover{background:var(--raised)!important}
+button.quiet-close:focus-visible{outline:2px solid var(--control);outline-offset:2px}
+
+.sheet-head[data-movable]{cursor:grab;touch-action:none;user-select:none}.sheet-head[data-movable]:active{cursor:grabbing}.sheet-head[data-movable]:focus-visible{outline:2px solid var(--control);outline-offset:3px;border-radius:12px}

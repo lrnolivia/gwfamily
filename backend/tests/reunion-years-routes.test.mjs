@@ -1,0 +1,19 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {database,seed} from './test-db.mjs';
+import {createApp} from '../src/worker.mjs';
+function setup(){const {sqlite,DB}=database();seed(sqlite);const env={DB,BETTER_AUTH_SECRET:'fixture-only-no-real-secret',AUTH_ORIGIN:'https://fixture.invalid'},app=createApp(()=>({api:{async getSession({headers}){return {user:{id:headers.get('X-Test-User')||'alice',emailVerified:true}}}},handler(){return new Response('unused')}}));const request=(path,method='GET',body,user='alice')=>app.request(env.AUTH_ORIGIN+path,{method,headers:{'X-Test-User':user,Origin:env.AUTH_ORIGIN,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})},env);const write=(type,extra={},user='owner')=>request('/api/commands','POST',{type,requestId:crypto.randomUUID(),...extra},user);return {sqlite,request,write}}
+test('state, management, legacy shirt API and invalid scope are independently year-bound',async()=>{
+ const {request,write}=setup();assert.equal((await write('CREATE_REUNION',{year:2028})).status,200);
+ await write('RSVP',{reunionId:'legacy',value:{status:'Planning to come',count:4}},'alice');await write('RSVP',{reunionId:'reunion-2028',value:{status:'Can’t make it',count:1}},'alice');await write('SET_FEES',{reunionId:'legacy',value:'reported'},'alice');
+ assert.equal((await request('/api/shirts/claims','POST',{reunionId:'reunion-2028',lines:[{productId:'forest',size:'M',quantity:1}]})).status,400);
+ assert.equal((await request('/api/shirts/claims','POST',{reunionId:'legacy',lines:[{productId:'forest',size:'M',quantity:1}]})).status,201);
+ const current=await(await request('/api/state?reunionId=legacy')).json(),future=await(await request('/api/state?reunionId=reunion-2028')).json();assert.equal(current.rsvp.count,4);assert.equal(future.rsvp.count,1);assert.equal(future.fees,'unpaid');assert.equal(future.order,null);assert.equal(future.planningRecords.reunionId,'reunion-2028');
+ const manage=await(await request('/api/manage?reunionId=reunion-2028','GET',null,'owner')).json();assert.equal(manage.reunionId,'reunion-2028');assert.equal(manage.rsvps.length,1);assert.equal(manage.fees.length,0);assert.equal(manage.claims.length,0);assert.equal((await(await request('/api/shirts/claims?reunionId=reunion-2028')).json()).claims.length,0);
+ assert.equal((await request('/api/state?reunionId=not-real')).status,404);assert.equal((await request('/api/manage?reunionId=bad!','GET',null,'owner')).status,400);assert.equal((await request('/api/manage?reunionId=legacy')).status,403);
+});
+test('fee/order/reunion notifications open their own stored year after a different year becomes active',async()=>{
+ const {sqlite,request,write}=setup();await write('CREATE_REUNION',{year:2028});const fee=await(await write('SET_FEES',{reunionId:'legacy',value:'reported'},'alice')).json();const order=await(await write('CLAIM_ORDER',{reunionId:'legacy',lines:[{productId:'forest',size:'M',quantity:1}]},'alice')).json();await write('DETAILS',{reunionId:'legacy',value:{location:'Fixture hall'}});await write('ACTIVATE_REUNION',{id:'reunion-2028'});
+ const notice=sqlite.prepare("SELECT id FROM notifications WHERE recipient_id='owner' AND resource_kind='fee' AND resource_id=?").get(fee.id);assert.ok(notice);const result=await(await request('/api/notifications/'+notice.id+'/open','GET',null,'owner')).json();assert.equal(result.available,true);assert.equal(result.target.reunionId,'legacy');
+ for(const [kind,id,user]of [['order',order.id,'owner'],['reunion','current','alice']]){const n=sqlite.prepare('SELECT id FROM notifications WHERE recipient_id=? AND resource_kind=? AND resource_id=?').get(user,kind,id);assert.ok(n);const opened=await(await request('/api/notifications/'+n.id+'/open','GET',null,user)).json();assert.equal(opened.available,true);assert.equal(opened.target.reunionId,'legacy');}
+});

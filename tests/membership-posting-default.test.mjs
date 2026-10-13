@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {approvalPosting} from '../src/membership-posting-default.mjs';
+test('explicit pending approval grants ordinary posting without organizer-role changes',()=>{assert.equal(approvalPosting('pending','active',false),true);assert.equal(approvalPosting('pending','suspended',false),false)});
+test('existing restrictions and restoration are preserved',()=>{for(const status of ['active','suspended','removed'])for(const next of ['active','pending','suspended'])for(const permission of [false,true])assert.equal(approvalPosting(status,next,permission),permission)});

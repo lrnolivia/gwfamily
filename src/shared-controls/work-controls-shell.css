@@ -1,0 +1,24 @@
+/* Portable shell adapter for products without CTRL's existing canonical shell.
+ * CTRL retains the source-backed shell in components.css/polish.css unchanged.
+ * Load before work-controls.css and consumer token overrides.
+ */
+.browse-controls.work-view-controls{display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px;padding:12px;border-radius:18px;background:var(--work-control-choice,var(--color-surface,#1c1b19));color:var(--work-control-text,var(--color-text,#f2f1ee));font:inherit;min-width:0;margin-bottom:20px}
+.browse-controls .work-control-summary{display:flex;flex:1 1 480px;align-items:center;min-width:0;gap:10px}
+.browse-controls .work-search-compact{flex:1 1 200px;min-width:0;margin:0}
+.browse-controls .work-search-compact input{box-sizing:border-box;width:100%;min-width:0;min-height:46px;padding:10px 12px;border:0;border-radius:12px;background:var(--work-control-surface,var(--color-raised,#292724));color:inherit;font:inherit;font-size:20px;box-shadow:none}
+.browse-controls .work-view-switch{display:flex;flex-wrap:nowrap;gap:2px;padding:3px;border-radius:12px;background:var(--work-control-canvas,var(--color-canvas,#151412));flex:none}
+.browse-controls .work-view-switch button{display:inline-grid;place-items:center;box-sizing:border-box;min-width:44px;min-height:44px;padding:7px 12px;border:0;border-radius:10px;font:inherit;font-size:13px;background:transparent;color:inherit}
+.browse-controls .work-view-switch button[aria-pressed=true]{background:var(--work-control-surface,var(--color-raised,#292724));box-shadow:0 2px 7px #0002}
+.browse-controls .work-control-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;align-items:start}
+.browse-controls .work-control-pair.single-control{grid-template-columns:minmax(0,1fr)}
+.browse-controls .work-control-menu{position:relative;margin:0;min-width:0}
+.browse-controls .browse-menu-trigger{display:flex;align-items:center;gap:7px;width:100%;min-height:44px;box-sizing:border-box;padding:10px 13px;border:0;border-radius:12px;background:var(--work-control-surface,var(--color-raised,#292724));color:inherit;font:inherit;font-size:13px;cursor:pointer;text-align:left}
+.browse-controls .browse-menu-trigger>span:nth-child(2){min-width:0;overflow-wrap:anywhere}
+.browse-controls .browse-menu-trigger>.filter-shared-glyph:last-child{transform:rotate(90deg)}
+.browse-controls .browse-menu-trigger[aria-expanded=true]>.filter-shared-glyph:last-child{transform:rotate(-90deg)}
+.browse-controls .filter-shared-glyph{display:inline-flex;flex:none;align-items:center;justify-content:center}
+.browse-controls .filter-shared-glyph svg{width:18px;height:18px;flex:none}
+.browse-controls .browse-control-panel[hidden]{display:none}
+.browse-controls :is(button,input,select):focus-visible{outline:2px solid var(--work-control-done,#f2f1ee);outline-offset:3px}
+@media(max-width:600px){.browse-controls .work-control-summary{flex-basis:100%;gap:8px}.browse-controls .work-control-pair{grid-template-columns:minmax(0,1fr)}}
+@media(prefers-reduced-motion:reduce){.browse-controls *{transition:none!important;animation:none!important}}

@@ -1,0 +1,444 @@
+name: GW Family quality
+on:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: gw-quality-${{ github.ref }}
+  cancel-in-progress: true
+defaults:
+  run:
+    shell: bash
+jobs:
+  shared:
+    name: Shared tests and build
+    env:
+      GW_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      archive_sha: ${{ steps.build_manifest.outputs.archive_sha }}
+      archive_name: ${{ steps.build_manifest.outputs.archive_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.3'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: node tests/prepare-assets.mjs
+      - id: frontend_build
+        run: |
+          mkdir -p docs/ci-logs
+          npm run build 2>&1 | tee docs/ci-logs/frontend-build.log
+      - name: Complete frontend tests
+        if: ${{ !cancelled() && steps.frontend_build.outcome == 'success' }}
+        run: |
+          mkdir -p docs/ci-logs
+          node scripts/ci-test-summary.mjs frontend 2>&1 | tee docs/ci-logs/frontend.log
+      - id: backend_install
+        if: ${{ !cancelled() }}
+        run: npm ci --ignore-scripts
+        working-directory: backend
+      - name: Mandatory pinned auth schema gate
+        id: auth_schema
+        if: ${{ !cancelled() && steps.backend_install.outcome == 'success' }}
+        working-directory: backend
+        run: |
+          mkdir -p docs/ci-logs
+          node scripts/check-auth-schema-fixture.mjs 2>&1 | tee docs/ci-logs/auth-schema.log
+      - id: backend_build
+        if: ${{ !cancelled() && steps.backend_install.outcome == 'success' && steps.auth_schema.outcome == 'success' }}
+        run: |
+          mkdir -p docs/ci-logs
+          node ../scripts/ci-test-summary.mjs backend 2>&1 | tee docs/ci-logs/backend.log
+          node ../scripts/ci-test-summary.mjs backend-build --build 2>&1 | tee docs/ci-logs/backend-build.log
+        working-directory: backend
+      - name: Build year-safe recovery artifact
+        if: ${{ !cancelled() && steps.backend_build.outcome == 'success' }}
+        working-directory: backend
+        run: |
+          mkdir -p docs/ci-logs
+          node scripts/build-year-safe-rollback.mjs 2>&1 | tee docs/ci-logs/year-safe-rollback.log
+      - name: Seal exact source build
+        id: build_manifest
+        run: |
+          test "$(git rev-parse HEAD)" = "$GW_SOURCE_SHA"
+          printf '%s\n' "$GW_SOURCE_SHA" > gw-source-sha.txt
+          find dist backend/build -type f -print0 | sort -z | xargs -0 sha256sum > gw-build.sha256
+          sha256sum -c gw-build.sha256 > /dev/null
+          tar -czf gw-built-source.tar.gz dist backend/build gw-build.sha256 gw-source-sha.txt
+          printf 'archive_name=gw-built-source-%s-%s\n' "$GW_SOURCE_SHA" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+          printf 'archive_sha=%s\n' "$(sha256sum gw-built-source.tar.gz | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.build_manifest.outputs.archive_name }}
+          path: gw-built-source.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+      - name: Retain shared check and build evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gw-family-shared-qa-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          path: |
+            docs/ci-logs
+            backend/docs/ci-logs
+            gw-build.sha256
+            gw-source-sha.txt
+            backend/build/worker.mjs
+            backend/build/worker-provenance.json
+            backend/build/site-worker.mjs
+            backend/build/site-worker-provenance.json
+            backend/build/year-safe-rollback.mjs
+            backend/build/year-safe-rollback-provenance.json
+          retention-days: 7
+  verify:
+    needs: shared
+    if: ${{ !cancelled() }}
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+        group: [surfaces, navigation, editors, api]
+    env:
+      GW_BROWSER: ${{ matrix.browser }}
+      GW_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      GW_BUILD_ARCHIVE_SHA: ${{ needs.shared.outputs.archive_sha }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Require passing shared checks
+        run: test '${{ needs.shared.result }}' = 'success'
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.3'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm ci --ignore-scripts
+        working-directory: backend
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.shared.outputs.archive_name }}
+          path: .gw-built-source
+      - name: Verify and restore the shared build
+        id: restore_build
+        run: |
+          test "$(git rev-parse HEAD)" = "$GW_SOURCE_SHA"
+          test -n "$GW_BUILD_ARCHIVE_SHA"
+          printf '%s  %s\n' "$GW_BUILD_ARCHIVE_SHA" .gw-built-source/gw-built-source.tar.gz | sha256sum -c -
+          tar -xzf .gw-built-source/gw-built-source.tar.gz
+          test "$(cat gw-source-sha.txt)" = "$GW_SOURCE_SHA"
+          sha256sum -c gw-build.sha256 > /dev/null
+      - id: browser_install
+        if: ${{ !cancelled() && steps.restore_build.outcome == 'success' }}
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Ordinary onboarding source geometry
+        if: ${{ !cancelled() && matrix.group == 'surfaces' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        run: GW_ONBOARDING_QA_OUTPUT=docs/onboarding-qa node tests/onboarding-browser.mjs
+      - name: Isolated device push settings regression
+        if: ${{ !cancelled() && matrix.group == 'surfaces' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        run: GW_PUSH_QA_OUTPUT=docs/push-settings-qa node tests/push-settings-browser.mjs
+      - name: Approved guide, Home plan, memorial and safe reload integration
+        if: ${{ !cancelled() && matrix.group == 'surfaces' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 5
+        run: |
+          node tests/editor-field-regression-browser.mjs
+          node tests/reunion-schedule-editor-browser.mjs
+          GW_MEMBERSHIP_QA_OUTPUT=docs/membership-qa node tests/membership-panel-browser.mjs
+          GW_V4_QA_OUTPUT=docs/install-v4-qa node tests/install-v4-browser.mjs
+          GW_HOME_QA_OUTPUT=docs/home-reunion-qa node tests/home-reunion-browser.mjs
+          GW_MEMORIAL_QA_OUTPUT=docs/memorial-qa node tests/memorial-update-browser.mjs
+      - name: Branches, welcome, family refinement and memory uploads
+        if: ${{ !cancelled() && matrix.group == 'surfaces' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          GW_FAMILY_SETUP_QA_OUTPUT=docs/family-setup-qa node tests/family-setup-browser.mjs
+          GW_WELCOME_QA_OUTPUT=docs/welcome-qa node tests/welcome-browser.mjs
+          GW_MEMORY_BATCH_QA_OUTPUT=docs/memory-batch-qa node tests/memory-batch-browser.mjs
+      - name: Fictional eight-preset email previews
+        if: ${{ !cancelled() && matrix.group == 'surfaces' && matrix.browser == 'chromium' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        run: GW_EMAIL_QA_OUTPUT=docs/email-preview-qa node tests/email-preview-browser.mjs
+      - name: Approved transactional email rendering (light, dark, fonts blocked)
+        if: ${{ !cancelled() && matrix.group == 'surfaces' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        run: GW_TRANSACTIONAL_EMAIL_QA_OUTPUT=docs/transactional-email-qa node tests/transactional-email-browser.mjs
+      - name: Contextual editor geometry and command checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        id: panel_arrow_editor
+        timeout-minutes: 6
+        run: |
+          GW_FIXTURE_PORT=4188 node backend/tests/fixture-server.mjs > /tmp/gw-editor-geometry-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4188/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4188/api/config
+          mkdir -p docs/ci-logs
+          CI=true node scripts/ci-test-summary.mjs editor-geometry-browser --browser tests/editor-geometry-browser.mjs 2>&1 | tee docs/ci-logs/editor-geometry-browser.log
+      - name: Device-aware navigation geometry checks
+        id: navigation_geometry
+        if: ${{ !cancelled() && matrix.group == 'navigation' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory dist > /tmp/gw-http.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS --connect-timeout 1 --max-time 2 http://127.0.0.1:4173/ > /dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS --connect-timeout 1 --max-time 2 http://127.0.0.1:4173/ > /dev/null
+          mkdir -p docs/ci-logs
+          CI=true node scripts/ci-test-summary.mjs navigation-insets-browser --browser tests/navigation-insets-browser.mjs 2>&1 | tee docs/ci-logs/navigation-insets-browser.log
+      - name: Guided install and optional help checks
+        id: guide_help
+        if: ${{ !cancelled() && matrix.group == 'navigation' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          mkdir -p docs/ci-logs
+          CI=true node scripts/ci-test-summary.mjs install-tutorial-browser --browser tests/install-tutorial-browser.mjs 2>&1 | tee docs/ci-logs/install-tutorial-browser.log
+      - name: Shared page editor browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        id: shared_page_editor
+        timeout-minutes: 10
+        run: |
+          node backend/tests/page-content-fixture-server.mjs > /tmp/gw-page-content-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4176/api/config && break; sleep 1; done
+          mkdir -p docs/ci-logs
+          CI=true node scripts/ci-test-summary.mjs page-content-browser --browser tests/page-content-browser.mjs 2>&1 | tee docs/ci-logs/page-content-browser.log
+      - name: Full recovery browser checks
+        if: ${{ !cancelled() && matrix.group == 'navigation' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        run: |
+          mkdir -p docs/ci-logs
+          node scripts/ci-test-summary.mjs recovery-browser --browser tests/recovery-browser.mjs 2>&1 | tee docs/ci-logs/recovery-browser.log
+      - name: Tree loading splash browser checks
+        if: ${{ !cancelled() && matrix.group == 'navigation' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        run: |
+          mkdir -p docs/ci-logs
+          node tests/first-load-splash-browser.mjs 2>&1 | tee docs/ci-logs/first-load-splash-browser.log
+      - name: Hotfix browser checks
+        if: ${{ !cancelled() && matrix.group == 'navigation' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS --connect-timeout 1 --max-time 2 http://127.0.0.1:4173/ > /dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS --connect-timeout 1 --max-time 2 http://127.0.0.1:4173/ > /dev/null
+          mkdir -p docs/ci-logs
+          node scripts/ci-test-summary.mjs hotfix-browser --browser tests/hotfix-browser.mjs 2>&1 | tee docs/ci-logs/hotfix-browser.log
+      - name: Live API integration browser checks
+        if: ${{ !cancelled() && matrix.group == 'api' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        run: |
+          node backend/tests/fixture-server.mjs > /tmp/gw-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4174/api/config && break; sleep 1; done
+          mkdir -p docs/ci-logs
+          node scripts/ci-test-summary.mjs media-browser --browser tests/media-browser.mjs 2>&1 | tee docs/ci-logs/media-browser.log
+      - name: Live API application browser checks
+        if: ${{ !cancelled() && matrix.group == 'api' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        run: |
+          curl -fsS --connect-timeout 1 --max-time 2 http://127.0.0.1:4174/api/config
+          mkdir -p docs/ci-logs
+          node scripts/ci-test-summary.mjs live-browser --browser tests/live-browser.mjs 2>&1 | tee docs/ci-logs/live-browser.log
+      - name: Private communications browser checks
+        if: ${{ !cancelled() && matrix.group == 'api' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 10
+        run: |
+          node backend/tests/communications-fixture-server.mjs > /tmp/gw-communications-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4175/api/config && break; sleep 1; done
+          mkdir -p docs/ci-logs
+          CI=true node scripts/ci-test-summary.mjs communications-browser --browser tests/communications-browser.mjs 2>&1 | tee docs/ci-logs/communications-browser.log
+      - name: Panel movement and photo framing browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 10
+        run: |
+          if ! curl -fsS http://127.0.0.1:4176/api/config; then
+            node backend/tests/page-content-fixture-server.mjs > /tmp/gw-page-content-fixture.log 2>&1 &
+            for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4176/api/config && break; sleep 1; done
+          fi
+          curl -fsS http://127.0.0.1:4176/api/config
+          mkdir -p docs/ci-logs
+          CI=true node scripts/ci-test-summary.mjs granular-panel-framing-browser --browser tests/granular-panel-framing-browser.mjs 2>&1 | tee docs/ci-logs/granular-panel-framing-browser.log
+      - name: Post and comment management browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          curl -fsS http://127.0.0.1:4188/api/config
+          mkdir -p docs/ci-logs
+          CI=true node scripts/ci-test-summary.mjs content-actions-browser --browser tests/content-actions-browser.mjs 2>&1 | tee docs/ci-logs/content-actions-browser.log
+      - name: Memory removal, report queue and history paging browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          # Separate fictional database with history beyond the first page.
+          GW_HISTORY_FIXTURE=1 GW_FIXTURE_PORT=4191 node backend/tests/fixture-server.mjs > /tmp/gw-history-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4191/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4191/api/config
+          mkdir -p docs/ci-logs
+          CI=true GW_HISTORY_QA_OUTPUT=docs/content-history-qa node tests/content-history-browser.mjs 2>&1 | tee docs/ci-logs/content-history-browser.log
+      - name: Organizer reach, Family Leader and founding-head handover browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          GW_FIXTURE_PORT=4192 node backend/tests/fixture-server.mjs > /tmp/gw-roles-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4192/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4192/api/config
+          mkdir -p docs/ci-logs
+          CI=true GW_ROLES_QA_OUTPUT=docs/roles-succession-qa node tests/roles-succession-browser.mjs 2>&1 | tee docs/ci-logs/roles-succession-browser.log
+      - name: Chat block and message report browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          GW_FIXTURE_PORT=4193 node backend/tests/fixture-server.mjs > /tmp/gw-chat-safety-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4193/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4193/api/config
+          mkdir -p docs/ci-logs
+          CI=true GW_CHAT_SAFETY_QA_OUTPUT=docs/chat-safety-qa node tests/chat-safety-browser.mjs 2>&1 | tee docs/ci-logs/chat-safety-browser.log
+      - name: Saved, post corrections, poll lock and pin browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          GW_FIXTURE_PORT=4194 node backend/tests/fixture-server.mjs > /tmp/gw-saved-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4194/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4194/api/config
+          mkdir -p docs/ci-logs
+          CI=true GW_SAVED_QA_OUTPUT=docs/saved-editing-qa node tests/saved-editing-browser.mjs 2>&1 | tee docs/ci-logs/saved-editing-browser.log
+      - name: Message reply, edit, unsend and mute browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          GW_FIXTURE_PORT=4195 node backend/tests/fixture-server.mjs > /tmp/gw-message-actions-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4195/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4195/api/config
+          mkdir -p docs/ci-logs
+          CI=true GW_MESSAGE_ACTIONS_QA_OUTPUT=docs/message-actions-qa node tests/message-actions-browser.mjs 2>&1 | tee docs/ci-logs/message-actions-browser.log
+      - name: Sent invitations, revoke and request withdrawal browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          # In-memory email stub only; nothing is delivered.
+          GW_INVITATION_FIXTURE=1 GW_FIXTURE_PORT=4196 node backend/tests/fixture-server.mjs > /tmp/gw-sent-invites-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4196/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4196/api/config
+          mkdir -p docs/ci-logs
+          CI=true GW_SENT_INVITES_QA_OUTPUT=docs/sent-invitations-qa node tests/sent-invitations-browser.mjs 2>&1 | tee docs/ci-logs/sent-invitations-browser.log
+      - name: Child record, memorial archive and account request browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          GW_FIXTURE_PORT=4197 node backend/tests/fixture-server.mjs > /tmp/gw-lifecycle-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4197/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4197/api/config
+          mkdir -p docs/ci-logs
+          CI=true GW_LIFECYCLE_QA_OUTPUT=docs/lifecycle-qa node tests/lifecycle-browser.mjs 2>&1 | tee docs/ci-logs/lifecycle-browser.log
+      - name: Upload formats, partial success and music link browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          GW_FIXTURE_PORT=4198 node backend/tests/fixture-server.mjs > /tmp/gw-uploads-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4198/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4198/api/config
+          mkdir -p docs/ci-logs
+          CI=true GW_UPLOADS_QA_OUTPUT=docs/uploads-qa node tests/uploads-browser.mjs 2>&1 | tee docs/ci-logs/uploads-browser.log
+      - name: Card content arrangement browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 10
+        run: |
+          # Separate synthetic database: earlier suites must not consume this
+          # editor session's production-equivalent page-write rate allowance.
+          GW_FIXTURE_PORT=4179 node backend/tests/fixture-server.mjs > /tmp/gw-card-content-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4179/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4179/api/config
+          mkdir -p docs/ci-logs
+          GW_PAGE_CONTENT_URL=http://127.0.0.1:4179 CI=true node scripts/ci-test-summary.mjs card-content-layout-browser --browser tests/card-content-layout-browser.mjs 2>&1 | tee docs/ci-logs/card-content-layout-browser.log
+      - name: Invitation and provisional access browser checks
+        if: ${{ !cancelled() && matrix.group == 'api' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          node backend/tests/family-invitations-fixture-server.mjs > /tmp/gw-invitation-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4177/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4177/api/config
+          mkdir -p docs/ci-logs
+          CI=true node scripts/ci-test-summary.mjs family-invitations-browser --browser tests/family-invitations-browser.mjs 2>&1 | tee docs/ci-logs/family-invitations-browser.log
+      - name: Choice and Send keyboard checks
+        if: ${{ !cancelled() && matrix.group == 'navigation' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          mkdir -p docs/ci-logs
+          CI=true node scripts/ci-test-summary.mjs choice-control-browser --browser tests/choice-control-browser.mjs 2>&1 | tee docs/ci-logs/choice-control-browser.log
+      - name: Durable activity inbox checks
+        if: ${{ !cancelled() && matrix.group == 'navigation' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          if ! curl -fsS http://127.0.0.1:4173/; then
+            python3 -m http.server 4173 --bind 127.0.0.1 --directory dist > /tmp/gw-http.log 2>&1 &
+            for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ && break; sleep 1; done
+          fi
+          mkdir -p docs/ci-logs
+          CI=true node scripts/ci-test-summary.mjs notifications-browser --browser tests/notifications-browser.mjs 2>&1 | tee docs/ci-logs/notifications-browser.log
+      - name: Safari same-tab memory upload reload regression
+        if: ${{ !cancelled() && matrix.group == 'api' && matrix.browser == 'webkit' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 5
+        run: |
+          if ! curl -fsS http://127.0.0.1:4174/api/config; then
+            node backend/tests/fixture-server.mjs > /tmp/gw-fixture.log 2>&1 &
+            for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4174/api/config && break; sleep 1; done
+          fi
+          mkdir -p docs/ci-logs
+          node scripts/ci-test-summary.mjs webkit-memory-reload --browser tests/webkit-memory-reload.mjs 2>&1 | tee docs/ci-logs/webkit-memory-reload.log
+      - name: WebKit isolated navigation diagnostics
+        if: ${{ !cancelled() && matrix.group == 'surfaces' && matrix.browser == 'webkit' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          mkdir -p docs/ci-logs
+          node scripts/ci-test-summary.mjs webkit-diagnostics --browser tests/webkit-diagnostics.mjs 2>&1 | tee docs/ci-logs/webkit-diagnostics.log
+      - name: Retain fixture server logs
+        if: always()
+        run: |
+          mkdir -p docs/ci-logs
+          for log in /tmp/gw-*.log; do
+            if test -f "$log"; then cp "$log" docs/ci-logs/; fi
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gw-family-qa-${{ github.sha }}-${{ matrix.browser }}-${{ matrix.group }}
+          path: |
+            docs/ci-logs
+            gw-build.sha256
+            gw-source-sha.txt
+            docs/recovery-qa
+            docs/live-qa
+            docs/communications-qa
+            docs/navigation-qa
+            docs/page-content-qa
+            docs/card-content-qa
+            docs/invitation-qa
+            docs/choice-control-qa
+            docs/help-qa
+            docs/notifications-qa
+            docs/schedule-editor-qa
+            docs/editor-geometry-qa
+            docs/onboarding-qa
+            docs/family-setup-qa
+            docs/welcome-qa
+            docs/memory-batch-qa
+            docs/push-settings-qa
+            docs/install-v4-qa
+            docs/home-reunion-qa
+            docs/memorial-qa
+            docs/membership-qa
+            docs/email-preview-qa
+            docs/content-actions-qa
+            backend/build/worker.mjs
+            backend/build/worker-provenance.json
+            backend/build/site-worker.mjs
+            backend/build/site-worker-provenance.json
+            backend/build/year-safe-rollback.mjs
+            backend/build/year-safe-rollback-provenance.json
+          retention-days: 7

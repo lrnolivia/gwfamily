@@ -1,0 +1,547 @@
+/* ═══════════════════════════════════════════════════════════════
+   Liquid Glass Core - 4-layer physically accurate material
+   Usage:
+     <div class="liquid-glass [lg-macro] [lg-regular] [lg-interactive]">
+       <div class="liquid-glass-effect" />
+       <div class="liquid-glass-tint" />
+       <div class="liquid-glass-shine" />
+       <div class="liquid-glass-content">{content}</div>
+     </div>
+
+   Variants (Apple HIG: exactly two, never mixed in one interface):
+     default          "clear" - highly translucent, minimal blur; for
+                      media-rich backdrops. Add .lg-dimmed over bright
+                      content (Apple prescribes a 35% dimming layer).
+     .lg-regular      frosted adaptive variant - heavier blur + more
+                      opaque tint; for text-heavy surfaces.
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Apple canonical motion curves */
+  --ease-apple-out: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-apple-morph: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-apple-liquid: cubic-bezier(0.3, 0, 0, 1.3);
+  --ease-apple-magnetic: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Rim geometry — see .liquid-glass-shine::before for the measurements.
+     These live on :root, not on .liquid-glass, because chrome surfaces that
+     borrow the ring are not inside a container, and an unresolved var() in a
+     gradient invalidates the whole background rather than the one colour: the
+     rim does not fall back, it disappears. */
+  --lg-rim-lit: 0.33;
+  --lg-rim-dark: 0.36;
+  --lg-rim-hold: 1px;
+  --lg-rim-fade: 15px;
+  --lg-rim-side: 6px;
+}
+
+/* NOTHING HERE MAY CREATE A BACKDROP ROOT.
+
+   `backdrop-filter` samples the backdrop image of its nearest Backdrop Root,
+   and per Filter Effects 1 that root is formed by `isolation: isolate`, by
+   paint containment (`contain: paint`, and empirically `contain: layout` in
+   Blink), by `content-visibility: auto` (which implies paint containment), and
+   by any `transform`/`opacity < 1`/`mask`/`will-change` on an ancestor. When
+   the container forms one, the effect layer inside it has nothing behind it to
+   sample and the filter silently resolves to a no-op — no error, no warning,
+   just a flat tint over a perfectly sharp background.
+
+   Through 2.0.0 this rule carried `isolation: isolate`, `contain: layout paint`
+   and `content-visibility: auto` together, so the material never rendered at
+   all. Measured against a 12px striped backdrop: the card retained 69% of the
+   backdrop's stripe amplitude with those properties present and 1.2% without.
+   Everything else in this file — the refraction LUT, the dispersion graph, the
+   Fresnel rim — was compositing over an unfiltered backdrop.
+
+   Do not reintroduce them. `content-visibility: auto` in particular is a real
+   off-screen win and reads as free; it is not, it costs the entire effect. */
+.liquid-glass {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--lg-radius, 22px); /* iOS squircle */
+  /* Material tokens - override per element or per variant */
+  --lg-blur: 6px;
+  --lg-saturate: 143%;
+  --lg-brightness: 0.75;
+  --lg-contrast: 1.02;
+  --lg-refract: url(#lg-refract-sm);
+  /* Illumination direction for the specular rim (0deg = up, clockwise).
+     315deg = Apple's canonical top-left key light; the cursor hook
+     rotates it live so the lights "move in space" (WWDC 219). */
+  --lg-light-angle: 315deg;
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.06),
+    0 8px 24px -8px rgba(0, 0, 0, 0.4),
+    0 2px 6px -2px rgba(0, 0, 0, 0.3);
+  /* box-shadow only — nothing transforms on hover, and dropping `transform`
+     here keeps a timed ease from perpetually chasing the per-frame velocity
+     squash transform (--sv) on macro cards. Visually identical. */
+  transition: box-shadow 0.25s var(--ease-apple-out);
+}
+
+/* True superellipse corners where supported (Chrome 139+).
+   border-radius rounds with circular arcs; the real material uses
+   continuous-curvature squircles. Progressive enhancement - the
+   displacement map's SDF corners remain circular, a divergence the
+   bezel gradient absorbs.
+   corner-shape does NOT inherit, and `border-radius: inherit` carries the
+   radius only, so every layer that inherits the radius must opt in or it
+   draws a circular arc ~0.19r inside the squircle silhouette and the
+   corners read as a doubled outline. `inherit` chains: the shine resolves
+   to the container's shape, and its ::before then resolves to the shine's. */
+@supports (corner-shape: squircle) {
+  .liquid-glass {
+    corner-shape: squircle;
+  }
+  .liquid-glass-shine,
+  .liquid-glass-shine::before,
+  .liquid-glass::before,
+  .liquid-glass::after {
+    corner-shape: inherit;
+  }
+}
+
+a.liquid-glass:hover,
+.liquid-glass:hover {
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.1),
+    0 12px 32px -8px rgba(0, 0, 0, 0.5),
+    0 4px 10px -2px rgba(0, 0, 0, 0.35);
+}
+
+/* Macros: Apple's "thicker glass" for large surfaces — deeper shadows,
+   larger-scale lensing (#lg-refract), stronger rim (below). */
+.lg-macro {
+  --lg-refract: url(#lg-refract);
+}
+
+/* Regular variant: frosted + adaptive-luminosity (WWDC 219: "blurs and
+   adjusts the luminosity of background content to maintain legibility").
+   Use for text-heavy components; keep the default clear variant for
+   glass floating over media. */
+.lg-regular {
+  --lg-blur: 10px;
+  --lg-saturate: 172%;
+  --lg-brightness: 0.67;
+  --lg-contrast: 1.02;
+}
+
+/* Layer 0: backdrop refraction (all surfaces get SVG displacement).
+   --lg-refract carries the filter reference so the per-element lens
+   hook can swap in its own url(#lg-lens-*) via inline style. */
+.liquid-glass-effect {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-saturate)) brightness(var(--lg-brightness)) contrast(var(--lg-contrast));
+  backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-saturate)) brightness(var(--lg-brightness)) contrast(var(--lg-contrast));
+  /* The lensing rides on a plain element `filter`, applied to the result of the
+     backdrop-filter above, rather than as a term inside it. Three reasons:
+
+     1. `filter` has no vendor prefix, so a minifier has nothing to collapse.
+        Through 2.0.0 the displacement was a term in `backdrop-filter`, which
+        meant the prefixed and unprefixed declarations carried DIFFERENT values;
+        lightningcss (Next 16's minifier, and a Vite option) reads them as a
+        prefix pair, keeps the last one, and drops the other. It emitted
+        `-webkit-backdrop-filter` with the blur-only value and deleted the
+        unprefixed declaration carrying the lensing — so minified consumers got
+        no refraction, and on Chrome 152+, which removed the `-webkit-` alias,
+        no backdrop-filter at all.
+     2. Same-value prefix pairs survive that pass intact, which is why the two
+        declarations above are now identical.
+     3. Gecko can't apply an feImage/feDisplacementMap graph to a *backdrop*,
+        but it applies SVG filters to elements fine — so Firefox now gets the
+        refraction instead of the blur-only fallback it used to fall back to.
+
+     A dangling reference degrades to a no-op (verified in Chrome 152): if the
+     filter component is not mounted, the blur still renders. */
+  filter: var(--lg-refract);
+}
+
+/* Opt-in perf lever (v1.1.0) — blur-only inner cards.
+   The default keeps url(#lg-refract-sm) on inner cards (unchanged look).
+   For consumers who want lighter scroll cost, set html.lg-blur-only (global)
+   or add .lg-blur-only to an individual .liquid-glass: its inner-card effect
+   drops the SVG displacement and runs blur-only. .lg-macro surfaces keep their
+   #lg-refract displacement either way. Purely additive — nothing changes unless
+   you opt in. */
+html.lg-blur-only .liquid-glass:not(.lg-macro),
+.liquid-glass.lg-blur-only:not(.lg-macro) {
+  --lg-refract: none;
+}
+
+/* Layer 1: base tint — a LIGHT, NEUTRAL scrim, and the reason the material
+   reads on a black backdrop.
+
+   Sampling macOS 26 Control Center across two wallpapers — a near-black desktop
+   and a violet one — the material follows a single compressive line:
+
+       glass_L = 0.58 * backdrop_L + 34
+
+   so black (L 9) lifts 4.3x to L 37 while an already-light ground (L 53) barely
+   moves, at 1.13x. One curve, which is why their panels look the same on any
+   wallpaper. In compositing terms the slope IS --lg-brightness and the intercept
+   IS this alpha: 34/255 = 0.134, giving brightness 0.58/(1-0.134) = 0.67.
+
+   The slope was 0.48 through 3.0.0, fitted against a near-black desktop and a
+   dim violet wallpaper. Both are dark enough that a flat slab and a genuinely
+   transmissive panel score almost the same, so that fit pinned the intercept
+   correctly and left the slope under-determined. A third reference — Control
+   Center over a bright blue starfield — separated them: Apple's panel carries
+   58% of the backdrop's across-panel variation (correlation +0.69 against the
+   wallpaper directly above it) where 0.48 with a 16px blur carried 38%, which
+   reads as a slab rather than glass. Measure TRANSMISSION on a bright backdrop
+   before touching these; luminance alone will not catch it.
+
+   The scrim is neutral because the material adds no colour of its own — over a
+   black desktop those panels measure rgb(36,37,40), chroma 4 against a chroma-3
+   ground. All colour comes from the backdrop, which is also why --lg-saturate
+   has to run high: it puts back what dimming and a white scrim take out, landing
+   glass chroma on the measured 1:1 with the backdrop.
+
+   Through 2.0.0 this was rgba(28,28,32,0.3) — a DARK scrim, which inverts the
+   curve's intercept. Over black it gave L 8 where Apple gives 37, so the panel
+   vanished; over anything bright it read as a grey cover rather than glass. */
+.liquid-glass-tint {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.067);
+  transition: filter 0.2s var(--ease-apple-out);
+}
+.lg-macro > .liquid-glass-tint {
+  background: rgba(255, 255, 255, 0.067);
+}
+html:not(.dark) .liquid-glass-tint {
+  background: rgba(255, 255, 255, 0.4);
+}
+html:not(.dark) .lg-macro > .liquid-glass-tint {
+  background: rgba(255, 255, 255, 0.4);
+}
+/* Regular variant: markedly more opaque (Apple regular glass is closer
+   to a surface than a window; iOS 26.1 pushed opacity further) */
+/* The measured intercept. Control Center is Apple's regular variant, so these
+   are the numbers the fit above came from; the clear defaults carry half the
+   scrim, which is an extrapolation of the same form rather than a measurement. */
+.lg-regular > .liquid-glass-tint,
+.lg-regular.lg-macro > .liquid-glass-tint {
+  background: rgba(255, 255, 255, 0.134);
+}
+html:not(.dark) .lg-regular > .liquid-glass-tint,
+html:not(.dark) .lg-regular.lg-macro > .liquid-glass-tint {
+  background: rgba(248, 248, 250, 0.66);
+}
+
+/* Dimming layer — Apple HIG: clear glass over bright media needs a dark
+   dimming layer of 35% opacity for legibility. */
+.lg-dimmed > .liquid-glass-tint::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+/* Layer 2: inset rim highlights - the "lit bezel".
+   Base bezel: Fresnel-shaped. Reflectance R(θ) = ½(rs² + rp²) rises from
+   4% at normal incidence to 100% at the grazing rim, so the ring is a
+   thin bright core (the near-grazing band) with a fast feathered decay.
+   Top-to-bottom 0.18 : 0.25 asymmetry keeps the convex read. */
+.liquid-glass-shine {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  /* The shoulder under the hairline: one pixel in, the measured lift is already
+     down to +21 and it reaches the interior by ~16px. BOTH horizontal edges are
+     bright — the underside of a slab gathers light, it does not shadow, and the
+     dark bottom bevel this replaces read as a drop shadow rather than glass. */
+  box-shadow:
+    inset 0 16px 16px -16px rgba(255, 255, 255, 0.3),
+    inset 0 -16px 16px -16px rgba(255, 255, 255, 0.3);
+}
+/* Light mode has no equivalent reference capture. Over a pale material the
+   specular edge has nowhere to go, so the border is carried by the dark side
+   rim instead and that one has to take proportionally more weight. */
+html:not(.dark) .liquid-glass-shine {
+  --lg-rim-lit: 1;
+  --lg-rim-dark: 0.3;
+  box-shadow:
+    inset 0 16px 16px -16px rgba(255, 255, 255, 0.75),
+    inset 0 -16px 16px -16px rgba(255, 255, 255, 0.6);
+}
+.lg-macro > .liquid-glass-shine {
+  box-shadow:
+    inset 0 22px 22px -22px rgba(255, 255, 255, 0.32),
+    inset 0 -22px 22px -22px rgba(255, 255, 255, 0.32);
+}
+html:not(.dark) .lg-macro > .liquid-glass-shine {
+  box-shadow:
+    inset 0 22px 22px -22px rgba(255, 255, 255, 0.8),
+    inset 0 -22px 22px -22px rgba(255, 255, 255, 0.65);
+}
+
+/* Specular ring (::before on the shine layer).
+
+   Traced pixel by pixel around the perimeter of four Control Center surfaces,
+   Apple's bezel is lit on a FIXED VERTICAL AXIS, not radially:
+
+     top edge      bright specular hairline, ~1px core   L 153 over L 56  (+97)
+     bottom edge   an identical bright hairline          L 153            (+97)
+     left / right  a DARK hairline, ~1px                 L  17            (-39)
+
+   Bright holds until the surface normal is ~37deg off vertical and dark until
+   ~30deg off horizontal, so the crossover lives inside the corner arc — which
+   for a ~38px radius is about 15px of bright falloff and 6px of dark falloff.
+   The dark layer is listed first so it composites on top and wins at the
+   corners, which is exactly where the normal turns horizontal.
+
+   Resolution matters when checking this: a retina capture puts the rim's peak
+   at 153, but integrated over one CSS pixel it is 129 over a 57 interior, and
+   tuning to the raw peak lands the rim ~40% hot.
+
+   A conic gradient cannot express this. It spreads one moving highlight around
+   all four edges, so the flanks brighten as the light angle sweeps past them
+   and the horizontal edges dim — the opposite of the measurement. The conic is
+   kept for .lg-interactive, where Apple genuinely does move the highlight
+   (effectIsInteractive); it is no longer the resting state.
+
+   Ring is cut with the mask-composite trick. */
+.liquid-glass-shine::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background:
+    linear-gradient(
+      to right,
+      rgba(0, 0, 0, var(--lg-rim-dark)) 0,
+      rgba(0, 0, 0, 0) var(--lg-rim-side),
+      rgba(0, 0, 0, 0) calc(100% - var(--lg-rim-side)),
+      rgba(0, 0, 0, var(--lg-rim-dark)) 100%
+    ),
+    linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, var(--lg-rim-lit)) 0,
+      rgba(255, 255, 255, var(--lg-rim-lit)) var(--lg-rim-hold),
+      rgba(255, 255, 255, 0) var(--lg-rim-fade),
+      rgba(255, 255, 255, 0) calc(100% - var(--lg-rim-fade)),
+      rgba(255, 255, 255, var(--lg-rim-lit)) calc(100% - var(--lg-rim-hold)),
+      rgba(255, 255, 255, var(--lg-rim-lit)) 100%
+    );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  transition: opacity 0.25s var(--ease-apple-out);
+}
+/* Interactive surfaces keep the travelling highlight — the one place Apple
+   actually moves it. --lg-light-angle still drives it, so the cursor hook is
+   unchanged; it simply no longer affects resting glass. */
+.lg-interactive > .liquid-glass-shine::before {
+  background: conic-gradient(
+    from calc(var(--lg-light-angle, 315deg) + 90deg),
+    rgba(255, 255, 255, 0.05) 0deg,
+    rgba(255, 255, 255, 0.32) 90deg,
+    rgba(255, 255, 255, 0.05) 180deg,
+    rgba(255, 255, 255, 0.6) 270deg,
+    rgba(255, 255, 255, 0.05) 360deg
+  );
+  opacity: 0.9;
+}
+html:not(.dark) .lg-interactive > .liquid-glass-shine::before {
+  background: conic-gradient(
+    from calc(var(--lg-light-angle, 315deg) + 90deg),
+    rgba(255, 255, 255, 0.25) 0deg,
+    rgba(255, 255, 255, 0.65) 90deg,
+    rgba(255, 255, 255, 0.25) 180deg,
+    rgba(255, 255, 255, 0.95) 270deg,
+    rgba(255, 255, 255, 0.25) 360deg
+  );
+}
+
+/* Layer 3: content sits above all material layers */
+.liquid-glass-content {
+  position: relative;
+  z-index: 3;
+}
+
+/* Noise grain (::before) - static, soft-light blend */
+.liquid-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: 0.035;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+html:not(.dark) .liquid-glass::before {
+  opacity: 0.05;
+  mix-blend-mode: multiply;
+}
+
+/* Cursor-tracking glow (::after) - appears on hover.
+   Doubles as the self-illumination bloom for .lg-interactive. */
+.liquid-glass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: radial-gradient(
+    160px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(255, 255, 255, 0.04),
+    rgba(255, 255, 255, 0.01) 40%,
+    transparent 70%
+  );
+  mix-blend-mode: screen;
+}
+.liquid-glass:hover::after { opacity: 1; }
+html:not(.dark) .liquid-glass::after {
+  background: radial-gradient(
+    160px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(255, 255, 255, 0.12),
+    rgba(255, 255, 255, 0.04) 40%,
+    transparent 70%
+  );
+  mix-blend-mode: soft-light;
+}
+
+/* ── Interactive gel (.lg-interactive) ─────────────────────────────
+   Apple's .interactive() glass "instantly flexes and energizes with
+   light" on touch (WWDC 219): spring scale-up, rim energize, and
+   self-illumination spreading from the press point. */
+.lg-interactive {
+  cursor: pointer;
+  scale: 1;
+  transition:
+    box-shadow 0.25s var(--ease-apple-out),
+    scale 0.35s var(--ease-apple-magnetic);
+}
+.lg-interactive:active {
+  scale: 1.02;
+  transition:
+    box-shadow 0.25s var(--ease-apple-out),
+    scale 0.12s var(--ease-apple-out);
+}
+/* Self-illumination: internal glow blooms from under the pointer */
+.lg-interactive:active::after {
+  opacity: 1;
+  transition: opacity 0.12s ease-out;
+  background: radial-gradient(
+    280px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(255, 255, 255, 0.12),
+    rgba(255, 255, 255, 0.04) 45%,
+    transparent 78%
+  );
+}
+html:not(.dark) .lg-interactive:active::after {
+  background: radial-gradient(
+    280px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(255, 255, 255, 0.3),
+    rgba(255, 255, 255, 0.1) 45%,
+    transparent 78%
+  );
+}
+/* Rim energize + tint brighten on press */
+.lg-interactive:active > .liquid-glass-shine::before {
+  opacity: 1;
+}
+.lg-interactive:active > .liquid-glass-tint {
+  filter: brightness(1.35);
+}
+
+/* .lg-mobile-flat - strips the wrapper on mobile (keeps nested cards) */
+@media (max-width: 639px) {
+  .liquid-glass.lg-mobile-flat {
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+  }
+  .lg-mobile-flat > .liquid-glass-effect,
+  .lg-mobile-flat > .liquid-glass-tint,
+  .lg-mobile-flat > .liquid-glass-shine {
+    display: none !important;
+  }
+  .lg-mobile-flat::after,
+  .lg-mobile-flat::before {
+    display: none !important;
+  }
+  .lg-mobile-flat > .liquid-glass-content {
+    padding: 0 !important;
+  }
+}
+
+/* Touch-device gates - disable expensive effects */
+@media (hover: none), (pointer: coarse) {
+  .liquid-glass::after,
+  .liquid-glass:hover::after {
+    display: none !important;
+  }
+  .liquid-glass,
+  .lg-macro {
+    --lg-refract: none;
+  }
+}
+
+/* Glass-off mode - strips every .liquid-glass container entirely */
+html.glass-off .liquid-glass {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  overflow: visible !important;
+}
+html.glass-off .liquid-glass-effect,
+html.glass-off .liquid-glass-tint,
+html.glass-off .liquid-glass-shine,
+html.glass-off .liquid-glass::before,
+html.glass-off .liquid-glass::after {
+  display: none !important;
+}
+
+/* Accessibility: Apple maps Reduce Transparency to a frostier, more
+   opaque material rather than stripping it (WWDC 219). */
+@media (prefers-reduced-transparency: reduce) {
+  /* Frostier and flat: heavier blur, and the lensing off entirely. `none` is a
+     valid whole value for `filter`, which is why the displacement moving out of
+     the backdrop-filter list lets this be a token flip. */
+  .liquid-glass,
+  .lg-macro {
+    --lg-refract: none;
+  }
+  .liquid-glass-effect,
+  .lg-macro > .liquid-glass-effect {
+    -webkit-backdrop-filter: blur(24px) saturate(120%);
+    backdrop-filter: blur(24px) saturate(120%);
+  }
+  .liquid-glass-tint {
+    background: rgba(28, 28, 32, 0.85) !important;
+  }
+  html:not(.dark) .liquid-glass-tint {
+    background: rgba(250, 250, 252, 0.9) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liquid-glass,
+  a.liquid-glass:hover,
+  .liquid-glass:hover {
+    transition: none !important;
+  }
+  .lg-interactive,
+  .lg-interactive:active {
+    scale: none !important;
+    transition: none !important;
+  }
+}

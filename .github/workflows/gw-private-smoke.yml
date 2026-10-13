@@ -1,0 +1,27 @@
+name: GW private VM smoke
+on:
+  workflow_dispatch:
+    inputs:
+      approved_sha:
+        description: Exact reviewed main commit SHA approved on the VM
+        required: true
+        type: string
+permissions: {}
+concurrency:
+  group: gw-private-vm-smoke
+  cancel-in-progress: false
+jobs:
+  smoke:
+    if: github.repository == 'lrnolivia/gwfamily' && github.actor == 'lrnolivia' && inputs.approved_sha == github.sha
+    runs-on: [gw-private-smoke]
+    timeout-minutes: 10
+    steps:
+      - name: Verify isolated guest
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(nproc)" -eq 4
+          test "$(. /etc/os-release; echo "$ID")" = ubuntu
+          printf 'Approved smoke commit: %s\n' "$GITHUB_SHA"
+          uname -sr
+          echo 'GW isolated VM smoke passed'

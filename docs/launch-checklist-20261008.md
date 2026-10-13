@@ -1,0 +1,24 @@
+# Consolidated GW launch checklist
+
+One candidate includes all of Lauren's approved current requests. This is a working checklist, not a release receipt. No partial deployment may be described as complete.
+
+| Scope | Source status | Required acceptance |
+| --- | --- | --- |
+| Parent onboarding, invitations and People/household hotfixes through live 9cf36a31 | Onboarding through 6012149d integrated; final household source integration in progress | Three signup providers, first-name invitation welcome, More/install behavior, Members +, sequential multi-select invitation/failed-only retry, Pending requests inside Members, explicit email submission, actual People manager button |
+| Device push correction | Published 8e6654d, consolidated regression retained | Registered browser survives reopen/reload; stale/revoked subscription handled; bounded error references; no account crossover or external test send |
+| Eight-preset email and editor controls | Source integrated, email dispatch defaults off | Explicit consent, privacy/account guards, eight current palettes, readable templates, panel/control behavior; 0022 required before activating email |
+| Returning device and selective reset | Local models and initial UI wiring | Local name/thumbnail/last provider only; sign-in still authenticates; Use another account; confirmation/Cancel; server sign-out success before local removal; exact GW storage/cache/SW scope; unrelated data and online family data retained |
+| About/credit and You/Family invitation cards | Source integrated | Compact existing modal, notices retained, loew.fi credit link, desktop/tablet sidebar and mobile last placement, focus return |
+| Authorized shared contact actions | Pending | Compact glyph badges for only shared DTO fields, mail/phone/address/site/social actions, accessibility, current theme/material |
+| Shared mini-profile interaction and typography | Pending | Home author/avatar, comments/reactions, contacts and member lists; selected Momo/DM Serif including portals/light/dark/Glass/Flat; unavailable/removed guard, keyboard/focus return; photo/comments/reactions/save retained; selection controls separate |
+| Household hero/children/ancestor editing | Pending | Coherent photo/title/count/manage header; children's records in a proper card; responsive ancestor form; ellipsis Edit opens full authorized memorial editor including title and optional birth/death years |
+| Compact guide artwork v3 | Local exact 216 PNG/25 SVG integration; 20 targeted checks pass | Intrinsic compact ratios and real alpha, no added blur/mask/crop/matte; 32% source dim; targets unobscured; tablet/OS/More/modal/install controls and nine color sets/light/dark updates preserved |
+| Living multi-household membership | Local 0023/API and primary preference; 11 targeted checks pass | Preserve A on joining B; household-scoped roles/requests/duplicates/leave; explicit primary selection and stable defaults; recipient consent/heads/private children; migration rehearsal/recoverability/concurrency and full browser proof |
+| In-app notification action toasts | Pending | Newly arriving authorized activity only, safe contextual actions, no replay of initial history, account/permission/duplicate guards and keyboard access |
+| Signup/returning push enable prompt framework | Pending, activation must default OFF | Explicit feature flag; once per account/device after signup or next return; Enable/Not now; supported/denied/subscribed/install states; permission only from gesture; actual verified delivery required for activation, not shipment of disabled code |
+| Shared panel/form parity and bottom fade | Pending audit | Existing control language, scoped layout parity; subtle surface-colored edge only when more content remains, pointer-transparent, reduced motion, no covered last content/fixed actions |
+| Source/build/runtime release | Pending | One meaningful exact-head full hosted run after consolidated source; sealed build/source hashes; recoverable source and runtime; fresh auth schema, consistent backup and required migration gate; preserve current bindings/secrets/flags/real onboarding data; verified live postflight |
+
+The production D1 gate remains unresolved after an earlier error 7403 despite the current authorized OAuth token advertising `d1:write` and account Super Administrator membership. No denied or cancelled action is replayed and no new credentials are created. Migration 0023 is required for living multi-household writes. Migration 0022 is required to enable the email channel. The push prompt remains off until end-to-end delivery is verified; this does not block shipping its disabled framework or independent in-app notification toasts.
+
+Rollback after multi-household writes must preserve all memberships and primary preferences. Do not restore an old single-household database or rerun old migrations. Use a compatible runtime/read-only recovery and a forward repair when necessary.

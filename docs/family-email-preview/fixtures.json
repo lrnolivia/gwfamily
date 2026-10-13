@@ -1,0 +1,518 @@
+{
+  "fictional": true,
+  "sends": 0,
+  "fixtures": [
+    {
+      "id": "red-light-sans-notification",
+      "name": "red",
+      "theme": "light",
+      "headingFont": "sans",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "red-light-sans-announcement",
+      "name": "red",
+      "theme": "light",
+      "headingFont": "sans",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "red-light-serif-notification",
+      "name": "red",
+      "theme": "light",
+      "headingFont": "serif",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "red-light-serif-announcement",
+      "name": "red",
+      "theme": "light",
+      "headingFont": "serif",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "red-dark-sans-notification",
+      "name": "red",
+      "theme": "dark",
+      "headingFont": "sans",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "red-dark-sans-announcement",
+      "name": "red",
+      "theme": "dark",
+      "headingFont": "sans",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "red-dark-serif-notification",
+      "name": "red",
+      "theme": "dark",
+      "headingFont": "serif",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "red-dark-serif-announcement",
+      "name": "red",
+      "theme": "dark",
+      "headingFont": "serif",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "orange-light-sans-notification",
+      "name": "orange",
+      "theme": "light",
+      "headingFont": "sans",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "orange-light-sans-announcement",
+      "name": "orange",
+      "theme": "light",
+      "headingFont": "sans",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "orange-light-serif-notification",
+      "name": "orange",
+      "theme": "light",
+      "headingFont": "serif",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "orange-light-serif-announcement",
+      "name": "orange",
+      "theme": "light",
+      "headingFont": "serif",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "orange-dark-sans-notification",
+      "name": "orange",
+      "theme": "dark",
+      "headingFont": "sans",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "orange-dark-sans-announcement",
+      "name": "orange",
+      "theme": "dark",
+      "headingFont": "sans",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "orange-dark-serif-notification",
+      "name": "orange",
+      "theme": "dark",
+      "headingFont": "serif",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "orange-dark-serif-announcement",
+      "name": "orange",
+      "theme": "dark",
+      "headingFont": "serif",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "yellow-light-sans-notification",
+      "name": "yellow",
+      "theme": "light",
+      "headingFont": "sans",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "yellow-light-sans-announcement",
+      "name": "yellow",
+      "theme": "light",
+      "headingFont": "sans",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "yellow-light-serif-notification",
+      "name": "yellow",
+      "theme": "light",
+      "headingFont": "serif",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "yellow-light-serif-announcement",
+      "name": "yellow",
+      "theme": "light",
+      "headingFont": "serif",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "yellow-dark-sans-notification",
+      "name": "yellow",
+      "theme": "dark",
+      "headingFont": "sans",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "yellow-dark-sans-announcement",
+      "name": "yellow",
+      "theme": "dark",
+      "headingFont": "sans",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "yellow-dark-serif-notification",
+      "name": "yellow",
+      "theme": "dark",
+      "headingFont": "serif",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "yellow-dark-serif-announcement",
+      "name": "yellow",
+      "theme": "dark",
+      "headingFont": "serif",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "green-light-sans-notification",
+      "name": "green",
+      "theme": "light",
+      "headingFont": "sans",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "green-light-sans-announcement",
+      "name": "green",
+      "theme": "light",
+      "headingFont": "sans",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "green-light-serif-notification",
+      "name": "green",
+      "theme": "light",
+      "headingFont": "serif",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "green-light-serif-announcement",
+      "name": "green",
+      "theme": "light",
+      "headingFont": "serif",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "green-dark-sans-notification",
+      "name": "green",
+      "theme": "dark",
+      "headingFont": "sans",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "green-dark-sans-announcement",
+      "name": "green",
+      "theme": "dark",
+      "headingFont": "sans",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "green-dark-serif-notification",
+      "name": "green",
+      "theme": "dark",
+      "headingFont": "serif",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "green-dark-serif-announcement",
+      "name": "green",
+      "theme": "dark",
+      "headingFont": "serif",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "blue-light-sans-notification",
+      "name": "blue",
+      "theme": "light",
+      "headingFont": "sans",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "blue-light-sans-announcement",
+      "name": "blue",
+      "theme": "light",
+      "headingFont": "sans",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "blue-light-serif-notification",
+      "name": "blue",
+      "theme": "light",
+      "headingFont": "serif",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "blue-light-serif-announcement",
+      "name": "blue",
+      "theme": "light",
+      "headingFont": "serif",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "blue-dark-sans-notification",
+      "name": "blue",
+      "theme": "dark",
+      "headingFont": "sans",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "blue-dark-sans-announcement",
+      "name": "blue",
+      "theme": "dark",
+      "headingFont": "sans",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "blue-dark-serif-notification",
+      "name": "blue",
+      "theme": "dark",
+      "headingFont": "serif",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "blue-dark-serif-announcement",
+      "name": "blue",
+      "theme": "dark",
+      "headingFont": "serif",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "violet-light-sans-notification",
+      "name": "violet",
+      "theme": "light",
+      "headingFont": "sans",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "violet-light-sans-announcement",
+      "name": "violet",
+      "theme": "light",
+      "headingFont": "sans",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "violet-light-serif-notification",
+      "name": "violet",
+      "theme": "light",
+      "headingFont": "serif",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "violet-light-serif-announcement",
+      "name": "violet",
+      "theme": "light",
+      "headingFont": "serif",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "violet-dark-sans-notification",
+      "name": "violet",
+      "theme": "dark",
+      "headingFont": "sans",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "violet-dark-sans-announcement",
+      "name": "violet",
+      "theme": "dark",
+      "headingFont": "sans",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "violet-dark-serif-notification",
+      "name": "violet",
+      "theme": "dark",
+      "headingFont": "serif",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "violet-dark-serif-announcement",
+      "name": "violet",
+      "theme": "dark",
+      "headingFont": "serif",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "coral-pink-light-sans-notification",
+      "name": "coral-pink",
+      "theme": "light",
+      "headingFont": "sans",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "coral-pink-light-sans-announcement",
+      "name": "coral-pink",
+      "theme": "light",
+      "headingFont": "sans",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "coral-pink-light-serif-notification",
+      "name": "coral-pink",
+      "theme": "light",
+      "headingFont": "serif",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "coral-pink-light-serif-announcement",
+      "name": "coral-pink",
+      "theme": "light",
+      "headingFont": "serif",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "coral-pink-dark-sans-notification",
+      "name": "coral-pink",
+      "theme": "dark",
+      "headingFont": "sans",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "coral-pink-dark-sans-announcement",
+      "name": "coral-pink",
+      "theme": "dark",
+      "headingFont": "sans",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "coral-pink-dark-serif-notification",
+      "name": "coral-pink",
+      "theme": "dark",
+      "headingFont": "serif",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "coral-pink-dark-serif-announcement",
+      "name": "coral-pink",
+      "theme": "dark",
+      "headingFont": "serif",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "stone-light-sans-notification",
+      "name": "stone",
+      "theme": "light",
+      "headingFont": "sans",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "stone-light-sans-announcement",
+      "name": "stone",
+      "theme": "light",
+      "headingFont": "sans",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "stone-light-serif-notification",
+      "name": "stone",
+      "theme": "light",
+      "headingFont": "serif",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "stone-light-serif-announcement",
+      "name": "stone",
+      "theme": "light",
+      "headingFont": "serif",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "stone-dark-sans-notification",
+      "name": "stone",
+      "theme": "dark",
+      "headingFont": "sans",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "stone-dark-sans-announcement",
+      "name": "stone",
+      "theme": "dark",
+      "headingFont": "sans",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    },
+    {
+      "id": "stone-dark-serif-notification",
+      "name": "stone",
+      "theme": "dark",
+      "headingFont": "serif",
+      "kind": "notification",
+      "subject": "A little family news."
+    },
+    {
+      "id": "stone-dark-serif-announcement",
+      "name": "stone",
+      "theme": "dark",
+      "headingFont": "serif",
+      "kind": "announcement",
+      "subject": "Good things are coming."
+    }
+  ]
+}

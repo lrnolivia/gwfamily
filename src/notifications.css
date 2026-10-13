@@ -1,0 +1,71 @@
+/* Extends the approved Glass/Flat surfaces with inherited system fonts and
+   personal-palette tokens. Notification content never introduces a new theme. */
+.notification-entry{position:relative}
+/* Keep the bell clear and its material layers stationary. Only the inbox body
+   scrolls; geometry caps the border box to one safe side of the trigger. */
+.notification-popover{
+ --notification-safe-top:var(--gw-safe-top,env(safe-area-inset-top,0px));
+ --notification-safe-right:var(--gw-safe-right,env(safe-area-inset-right,0px));
+ --notification-safe-bottom:var(--gw-safe-bottom,env(safe-area-inset-bottom,0px));
+ --notification-safe-left:var(--gw-safe-left,env(safe-area-inset-left,0px));
+ box-sizing:border-box;width:max-content;min-width:0;min-height:0;
+}
+.notification-popover.gw-glass-menu[popover],.notification-popover.gw-material-menu[popover]{overflow:hidden}
+.notification-popover.gw-glass-menu>.liquid-glass-content{max-height:none;overflow:visible;min-height:0}
+.notification-popover .notification-panel.pop-content{max-height:var(--notification-content-max-height,none);overflow:auto;overscroll-behavior:contain;min-height:0}
+.notification-badge{position:absolute;right:-3px;top:-4px;min-width:18px;min-height:18px;padding:2px 4px;border-radius:12px;font-size:.65rem;font-weight:700;line-height:14px;background:#b9253a;color:#fff4ee;animation:gw-notification-pulse 2.6s ease-in-out infinite;border:2px solid var(--bg);font-variant-numeric:tabular-nums}
+.notification-panel{box-sizing:border-box;width:min(390px,calc(100vw - 32px));max-width:100%;display:grid;gap:16px;min-width:0}
+.notification-panel h3,.notification-settings h2,.notification-settings h3{font-family:var(--flat-font,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif)!important;font-weight:650;font-size:1.125rem;letter-spacing:-.015em;line-height:1.35;margin:0}
+.notification-panel-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.notification-panel-heading>div{min-width:0}.notification-panel-heading p{margin:5px 0 0;font-variant-numeric:tabular-nums}.notification-panel-heading>.icon-button{flex:none}
+.notification-list-controls{display:flex;align-items:flex-end;flex-wrap:wrap;justify-content:space-between;gap:8px 12px}
+.notification-list-controls .choice-control{margin:0}.notification-bulk-actions{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}.notification-bulk-actions>.text-button{min-height:44px;white-space:normal;text-align:left;padding:8px 0}
+.notification-inbox{list-style:none;padding:0;margin:0;min-width:0}
+.notification-row{padding:12px;border:0;border-block-start:0;min-width:0;border-radius:16px;background:var(--raised);margin-block:8px}
+.notification-row-content{min-width:0}.notification-open{display:flex;gap:12px;width:100%;max-width:100%;min-width:0;background:transparent;color:var(--text);border:0;border-radius:12px;text-align:left;padding:6px 2px}
+.notification-open:hover{background:var(--surface)}.notification-open:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.notification-category-icon{flex:0 0 28px;display:grid;place-items:start center;padding-top:3px;color:var(--muted)}.notification-category-icon .glyph{height:22px;width:22px}
+.notification-copy{min-width:0;display:grid;gap:5px;flex:1}.notification-title{font-weight:650;font-size:.9375rem;line-height:1.4;overflow-wrap:anywhere}.notification-summary{font-size:.8125rem;color:var(--muted);line-height:1.5;overflow-wrap:anywhere}
+.notification-unread-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-inline-start:8px;vertical-align:middle}.notification-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:.6875rem;line-height:1.5;color:var(--muted)}.notification-meta time{font-variant-numeric:tabular-nums}
+.notification-row-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-inline-start:42px;margin-top:3px}.notification-row-actions .text-button{font-size:.75rem;min-height:44px;padding:8px 2px;white-space:normal}.notification-row.is-read .notification-title{font-weight:500}
+.notification-error,.notification-preview,.notification-off-note{font-size:.8125rem;line-height:1.5;overflow-wrap:anywhere;padding:12px 14px;border-radius:12px;background:var(--surface)}.notification-error{border:1px solid var(--line)}.notification-error p,.notification-preview p{margin:0}.notification-error .text-button,.notification-preview .text-button{min-height:44px;margin-top:4px;text-align:left;padding:8px 0}.notification-preview{color:var(--muted)}.notification-off-note{margin:0}
+.notification-empty{text-align:center;padding:20px 12px 28px;display:grid;justify-items:center;gap:8px}.notification-empty>.glyph{width:26px;height:26px;color:var(--muted)}.notification-empty p{margin:0;font-size:.9375rem}.notification-empty>span{line-height:1.5}.notification-message-note{margin:0;padding-top:4px;line-height:1.5}.notification-load-more{max-width:100%;white-space:normal}
+.notification-settings{min-width:0;max-width:680px;margin-inline:auto}.notification-settings-intro{font-size:.9375rem;line-height:1.6;margin:0;color:var(--muted)}.notification-settings-section{min-width:0;padding-block:24px 0;border-block-start:1px solid var(--line);display:grid;gap:16px}.notification-settings-section p{margin:0;line-height:1.5}.notification-category-options{display:grid;min-width:0}
+.notification-category-choice{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px 20px;min-height:64px;padding:16px 0;border-block-end:1px solid var(--line)}
+.notification-category-choice:last-child{border-block-end:0}
+.notification-category-copy{display:grid;gap:5px;min-width:0}
+.notification-category-copy strong{font-size:.9375rem;font-weight:600;line-height:1.4}
+.notification-category-copy>span{font-size:.8125rem;font-weight:400;line-height:1.5;color:var(--muted)}
+.notification-channel-choices{display:grid;grid-template-columns:repeat(3,minmax(72px,1fr));gap:4px;min-width:0}
+.notification-channel-choice{display:flex;align-items:center;justify-content:center;gap:7px;min-width:44px;min-height:44px;margin:0;padding:8px;border-radius:10px;color:var(--text);font-size:.8125rem;font-weight:500;line-height:1.4;cursor:pointer}
+.notification-channel-choice input[type=checkbox]{flex:0 0 18px;width:18px;height:18px;min-height:18px;margin:0;padding:0;accent-color:var(--accent);cursor:inherit}
+.notification-channel-choice:hover:has(input:not(:disabled)){background:var(--surface)}
+.notification-channel-choice:has(input:disabled){cursor:default;color:var(--muted)}
+.notification-channel-choice:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.notification-channel-choice input:focus-visible{outline:none}
+@media(max-width:580px){.notification-category-choice{grid-template-columns:minmax(0,1fr);gap:8px}.notification-channel-choices{grid-template-columns:repeat(3,minmax(0,1fr))}.notification-channel-choice{justify-content:flex-start}}
+.notification-device-status{padding-bottom:8px}.notification-settings .choice-chips{flex-wrap:wrap}.notification-settings .choice-chip-face{white-space:normal}
+.notification-panel button:disabled,.notification-settings button:disabled{cursor:default}.notification-panel ::selection,.notification-settings ::selection{background:var(--control,var(--accent));color:var(--control-text,var(--ink))}.notification-panel,.notification-settings{caret-color:var(--accent);scrollbar-color:var(--muted) transparent}
+@media(max-width:360px){.notification-panel{width:calc(100vw - 36px)}.notification-list-controls{align-items:flex-start}.notification-row-actions{padding-inline-start:0}.notification-category-choice{gap:12px}}
+@media(prefers-reduced-motion:reduce){.notification-panel *,.notification-settings *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+html[data-theme] :is(.notification-panel,.notification-settings),html[data-theme] :is(.notification-panel,.notification-settings) :is(button,input,textarea,select){font-family:var(--flat-font,system-ui)!important}
+
+.notification-settings-page{width:100%;max-width:760px;min-width:0;margin-inline:auto;padding-block:8px 32px;gap:28px}
+.notification-settings-page-heading{display:grid;gap:8px;min-width:0}
+.notification-settings-page-heading h1{margin:0;line-height:1.15;overflow-wrap:anywhere}
+.notification-settings-page-heading h1:focus{outline:none}
+.notification-settings-page-heading p{margin:0;color:var(--muted);line-height:1.5;max-width:65ch}
+.notification-settings-page .notification-settings{max-width:none;width:100%;margin-inline:0}
+.notification-settings-page .notification-settings-section{scroll-margin-block-start:96px}
+.notification-settings-page .notification-device-status button{width:fit-content;max-width:100%;min-height:44px;white-space:normal}
+@media(max-width:520px){.notification-settings-page{gap:24px;padding-block-end:24px}.notification-settings-page .notification-device-status button{width:100%}}
+
+.notification-device-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}.notification-device-heading h2{margin:0;min-width:0}.notification-settings-page .notification-device-info{flex:0 0 44px;width:44px;min-width:44px;height:44px;padding:10px}.notification-device-status [hidden]{display:none}
+
+@keyframes gw-notification-pulse{0%,100%{box-shadow:0 0 0 0 rgba(185,37,58,.1)}50%{box-shadow:0 0 8px 3px rgba(185,37,58,.32)}}@media(prefers-reduced-motion:reduce){.notification-badge{animation:none}}
+/* Outranks the 42px Glass icon-button default so the info control keeps a 44px target. */
+html[data-platform] .notification-settings-page .notification-device-info.icon-button{flex:0 0 44px;width:44px;min-width:44px;height:44px;min-height:44px}
+
+/* Quiet supporting information; status and errors stay outside the disclosure. */
+.notification-device-details{min-width:0;padding:16px;border-radius:14px;background:var(--surface)}
+.notification-push-preview{display:grid;gap:8px;margin-top:16px;max-width:100%}.notification-push-preview .check-row{display:flex;align-items:center;gap:12px;min-height:44px;margin:0;font-weight:500}.notification-push-preview .check-row input{width:20px;height:20px;flex:none;accent-color:var(--green)}.notification-push-preview p{margin:0;overflow-wrap:anywhere}

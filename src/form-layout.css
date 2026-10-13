@@ -1,0 +1,34 @@
+/* Compact image fields lead only the first few fields. The rest of the form
+   keeps its full reading width and the established GW control/theme tokens. */
+.form-density-scope{container:gw-form / inline-size}
+.form-image-intro{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:16px;min-width:0}
+.form-image-fields{container:gw-fields / inline-size;display:grid;gap:16px;min-width:0;align-content:start}
+.form-image-fields>*{min-width:0;max-width:100%}
+.form-image-control{display:grid;gap:8px;width:136px;max-width:100%;min-width:0}
+.form-image-control .image-upload-preview{width:100%;aspect-ratio:1;min-height:0;max-height:none}
+.form-image-control .image-upload-action{flex-direction:column;gap:4px;padding:8px;max-width:calc(100% - 16px);font-size:.75rem;line-height:1.3;text-align:center}
+.form-image-control .image-upload-action>.glyph{width:18px;height:18px}
+.form-image-control .image-upload-placeholder{justify-content:flex-end;padding:8px;font-size:.6875rem;line-height:1.3}
+.form-image-control .image-upload-placeholder>.glyph{display:none}
+.form-image-control>.text-button{justify-self:start;min-height:44px;padding:6px 0;font-size:.8125rem}
+.form-image-control .check-row{font-size:.8125rem;font-weight:400;line-height:1.4}
+.form-image-control .check-row span{min-width:0}
+.profile-style-copy{display:grid;align-content:center;gap:8px;min-height:136px;min-width:0;color:var(--text)}
+.profile-style-copy strong{font:400 1.5rem/1.2 "DM Serif Text",Georgia,serif;overflow-wrap:anywhere}
+.profile-style-copy p{margin:0;color:var(--muted);font-size:.8125rem;line-height:1.5}
+.form-density-scope .form-label{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;min-width:0}
+.form-short-row{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;min-width:0}
+.form-short-row>*{min-width:0;max-width:100%}
+.form-image-fields .form-short-row{grid-template-columns:minmax(0,1fr)}
+.form-media-control{display:grid;gap:8px;min-width:0;max-width:100%}
+.form-media-label{font-size:.8125rem;font-weight:650;color:var(--text)}
+.memory-edit-compact-media{display:block;width:100%;max-width:100%;max-height:136px;border-radius:14px;object-fit:contain;background:var(--raised)}
+.form-media-control>.button{min-height:44px;font-size:.8125rem;white-space:normal}
+.form-media-control .field-help{margin:0}
+.profile-edit-form .profile-colors{margin-top:0!important}
+@container gw-form (min-width:25rem){
+ .form-image-intro{grid-template-columns:136px minmax(0,1fr);gap:20px}
+ .form-short-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+}
+@container gw-fields (min-width:24rem){.form-image-fields .form-short-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.form-image-intro,.form-image-fields,.form-short-row{gap:16px}}

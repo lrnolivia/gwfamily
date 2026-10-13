@@ -1,0 +1,1 @@
+CREATE TABLE announcement_views(post_id TEXT NOT NULL REFERENCES posts(id),member_id TEXT NOT NULL REFERENCES members(id),seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(post_id,member_id));

@@ -1,0 +1,21 @@
+/* Product tokens and domain content; geometry belongs to version-pinned shared UI. */
+.browse-controls.work-view-controls{--work-control-surface:color-mix(in srgb,var(--raised) 94%,var(--text));--work-control-choice:var(--raised);--work-control-canvas:var(--bg);--work-control-text:var(--text);--work-control-muted:var(--muted);--work-control-accent:var(--control,var(--accent));--work-control-on-accent:var(--control-text,var(--ink));--work-control-done:var(--control,var(--accent));--work-control-on-done:var(--control-text,var(--ink));border:1px solid var(--decorative-line,var(--line));font:inherit}
+.browse-controls.work-view-controls{row-gap:8px}
+.browse-controls .work-controls-footer{flex-wrap:wrap}
+.browse-controls.work-view-controls{--work-control-search:color-mix(in srgb,var(--raised) 84%,var(--text))}
+[data-theme=light] .browse-controls.work-view-controls{--work-control-search:var(--surface)}
+.browse-controls .work-search-compact input{background:var(--work-control-search)}
+.browse-controls .work-search-compact input:placeholder-shown{color:var(--work-control-muted);-webkit-text-fill-color:var(--work-control-muted)}
+.browse-controls .work-search-compact input::placeholder{color:var(--work-control-muted);-webkit-text-fill-color:var(--work-control-muted);opacity:1}
+.browse-controls .work-search-compact input::-webkit-input-placeholder{color:var(--work-control-muted);-webkit-text-fill-color:var(--work-control-muted);opacity:1}
+.browse-controls .memory-filters{display:grid;grid-template-columns:minmax(0,1fr);overflow:visible;gap:14px}
+.browse-controls .memory-filters>.button{width:auto;justify-self:start}
+.browse-controls :is(input,button,select):focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+@media(max-width:699.98px){.browse-controls .work-control-summary{flex-wrap:wrap}.browse-controls .work-search-compact{flex:1 1 100%}.browse-controls .work-view-switch{justify-content:space-between;flex:1 1 100%}.browse-controls .work-view-switch button{flex:1}}
+
+.browse-controls.work-view-controls{border:0;border-radius:12px;gap:8px;background:var(--raised)}
+.browse-controls.work-view-controls .work-search-compact input{background:var(--work-control-search);border:0}
+html[data-theme][data-platform] .browse-controls :is(button,input,.filter-trigger){border:0!important}
+
+/* Keep browse controls clear of both sticky chrome and the bottom navigation. */
+.browse-controls :is(button,input,select){scroll-margin-block-start:calc(var(--gw-app-header-offset,96px) + 72px);scroll-margin-block-end:calc(var(--gw-nav-bottom,18px) + 100px)}

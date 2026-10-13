@@ -1,0 +1,18 @@
+/* Memory metadata stays close to its photo; supporting fields have one clear entry. */
+.memory-details-form .form-image-control{width:160px;gap:10px}
+.memory-details-form .form-image-control>.button{width:100%;min-height:44px;padding:10px 12px;gap:8px;font-size:.8125rem;white-space:nowrap}
+.memory-details-form .form-image-control>.button .glyph{width:18px;height:18px}
+.memory-details-form .form-image-control .image-upload-action{flex-direction:row;gap:6px;border-radius:12px;padding:8px 12px}
+.memory-details-form .form-image-fields{gap:20px}
+.memory-details-form .form-short-row{align-items:start}
+.memory-details-disclosure{gap:12px}
+.memory-details-disclosure .inline-disclosure-trigger{width:100%;justify-self:stretch;min-height:52px;padding:14px 16px;border-radius:16px;text-align:left}
+.memory-details-disclosure .inline-disclosure-trigger .liquid-glass-content{width:100%}
+.memory-details-disclosure .inline-disclosure-trigger .glyph:last-child{margin-left:auto;transform:rotate(90deg)}
+.memory-details-disclosure .inline-disclosure-trigger[aria-expanded=true] .glyph:last-child{transform:rotate(-90deg)}
+.memory-details-disclosure .inline-disclosure-summary{padding-inline:16px}
+.memory-details-disclosure .inline-disclosure-content{padding:4px 4px 8px}
+.memory-details-form .memory-event-fields{display:grid;gap:16px}
+@container gw-form (min-width:25rem){.memory-details-form .form-image-intro{grid-template-columns:160px minmax(0,1fr)}}
+@container gw-form (min-width:30rem){.memory-event-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.memory-event-fields>label:first-child{grid-column:1/-1}}
+@media(max-width:420px){.memory-details-form .form-image-control{width:100%}.memory-details-form .image-upload-preview{width:100%;aspect-ratio:3/2}.memory-details-form .form-image-intro{gap:20px}}

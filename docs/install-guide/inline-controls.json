@@ -1,0 +1,112 @@
+{
+  "figmaUrl": "https://www.figma.com/design/ovUWQhaEiWYjMDSIfBbCnn/?node-id=96-3625",
+  "assets": [
+    {
+      "name": "ios-page-menu",
+      "nodeId": "96:3628",
+      "sourceNodeId": "40:1567",
+      "width": 24,
+      "height": 24,
+      "kind": "symbol",
+      "file": "ios-page-menu.svg",
+      "sha256": "24869446fe878c0f1126bdbb655e22b00f888898d7b59fea4a7e82d189520caf",
+      "figmaUrl": "https://www.figma.com/design/ovUWQhaEiWYjMDSIfBbCnn/?node-id=96-3628"
+    },
+    {
+      "name": "ios-share",
+      "nodeId": "96:3631",
+      "sourceNodeId": "40:1601",
+      "width": 24,
+      "height": 24,
+      "kind": "symbol",
+      "file": "ios-share.svg",
+      "sha256": "a80ec026a2abdacfe0fd5d18afd8cb5f68958cdbde037facc93db1e5dbaa2cd3",
+      "figmaUrl": "https://www.figma.com/design/ovUWQhaEiWYjMDSIfBbCnn/?node-id=96-3631"
+    },
+    {
+      "name": "ios-add-to-home-screen",
+      "nodeId": "96:3634",
+      "sourceNodeId": "40:1849",
+      "width": 24,
+      "height": 24,
+      "kind": "symbol",
+      "file": "ios-add-to-home-screen.svg",
+      "sha256": "a2ff0fcd8a78faa0d82203bd58f4e24b9f57629463f304d76154c020074c7b7d",
+      "figmaUrl": "https://www.figma.com/design/ovUWQhaEiWYjMDSIfBbCnn/?node-id=96-3634"
+    },
+    {
+      "name": "android-more",
+      "nodeId": "96:3637",
+      "sourceNodeId": "59:3675",
+      "width": 24,
+      "height": 24,
+      "kind": "symbol",
+      "file": "android-more.svg",
+      "sha256": "a456d0f8df66cddc499980f6af2a775740974318c61b9e8b10dd9636163d7cca",
+      "figmaUrl": "https://www.figma.com/design/ovUWQhaEiWYjMDSIfBbCnn/?node-id=96-3637"
+    },
+    {
+      "name": "android-add-to-home-screen",
+      "nodeId": "96:3641",
+      "sourceNodeId": "59:3720",
+      "width": 24,
+      "height": 24,
+      "kind": "symbol",
+      "file": "android-add-to-home-screen.svg",
+      "sha256": "209d427e391fa823894bf871a69aeed0906e4aaa611ad8555bbc5c2cc54f3008",
+      "figmaUrl": "https://www.figma.com/design/ovUWQhaEiWYjMDSIfBbCnn/?node-id=96-3641"
+    },
+    {
+      "name": "ios-add-light",
+      "nodeId": "96:3646",
+      "sourceNodeId": "38:1838",
+      "labelNodeId": "40:1868",
+      "width": 64,
+      "height": 44,
+      "kind": "native-action",
+      "theme": "light",
+      "file": "ios-add-light.svg",
+      "sha256": "f8d609d1b20ea65429d7206ee94653dedf215a7d695b28f96e3e9818855d791e",
+      "figmaUrl": "https://www.figma.com/design/ovUWQhaEiWYjMDSIfBbCnn/?node-id=96-3646"
+    },
+    {
+      "name": "ios-add-dark",
+      "nodeId": "96:3655",
+      "sourceNodeId": "38:2341",
+      "labelNodeId": "40:1870",
+      "width": 64,
+      "height": 44,
+      "kind": "native-action",
+      "theme": "dark",
+      "file": "ios-add-dark.svg",
+      "sha256": "34cea5580a7c09b410c5483ff98392c987a98a01d16381b5c3f758536a845d4d",
+      "figmaUrl": "https://www.figma.com/design/ovUWQhaEiWYjMDSIfBbCnn/?node-id=96-3655"
+    },
+    {
+      "name": "android-install-light",
+      "nodeId": "96:3664",
+      "sourceNodeId": "I59:5591;59251:2412;59:5615",
+      "labelNodeId": null,
+      "width": 82,
+      "height": 48,
+      "kind": "native-action",
+      "theme": "light",
+      "file": "android-install-light.svg",
+      "sha256": "b858bce084d500783dc48403eea375d775e1fc146a1ad1f20168e48125f58c7a",
+      "figmaUrl": "https://www.figma.com/design/ovUWQhaEiWYjMDSIfBbCnn/?node-id=96-3664"
+    },
+    {
+      "name": "android-install-dark",
+      "nodeId": "96:3671",
+      "sourceNodeId": "I59:6317;59251:2412;59:6340",
+      "labelNodeId": null,
+      "width": 82,
+      "height": 48,
+      "kind": "native-action",
+      "theme": "dark",
+      "file": "android-install-dark.svg",
+      "sha256": "17e6db4d3b779f8ceacb8d9119ccdfae30a69afb976e58fd2f1d86cb0965668b",
+      "figmaUrl": "https://www.figma.com/design/ovUWQhaEiWYjMDSIfBbCnn/?node-id=96-3671"
+    }
+  ]
+}

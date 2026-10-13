@@ -1,0 +1,25 @@
+{
+  "name": "grnwht",
+  "private": true,
+  "version": "0.3.1",
+  "scripts": {
+    "build": "node scripts/build-sign-in-assets.mjs && esbuild src/service-worker.js --bundle --format=iife --outfile=dist/sw.js && esbuild src/react-app.jsx --bundle --format=iife --jsx=automatic --outfile=dist/react-app.js && node scripts/build-favicon.mjs && node scripts/version-assets.mjs",
+    "test": "node --import ./tests/test-environment-guard.mjs --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@paper-design/shaders-react": "0.0.81",
+    "@sohumsuthar/liquid-glass": "3.1.0",
+    "@tiptap/core": "3.30.3",
+    "@tiptap/markdown": "3.30.3",
+    "@tiptap/pm": "3.30.3",
+    "@tiptap/react": "3.30.3",
+    "@tiptap/starter-kit": "3.30.3",
+    "exifr": "7.1.3",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.57.0",
+    "esbuild": "0.25.10"
+  }
+}

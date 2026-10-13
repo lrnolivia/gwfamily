@@ -1,0 +1,63 @@
+import {signInCodeEmail,signInLinkEmail} from './transactional-email.mjs';
+import {googleAccess} from './google-access.mjs';
+import {accessProvider} from './access-providers.mjs';
+import {microsoftAccess} from './microsoft-access.mjs';
+import {accessProviderConfig,configuredAuthProviders,accessProviderRateRules} from './auth-providers.mjs';
+import { betterAuth } from 'better-auth';
+import { emailOTP, magicLink } from 'better-auth/plugins';
+import {createAuthDiagnosticLogger} from './error-diagnostics.mjs';
+import {instrumentAuthD1} from './auth-d1-diagnostics.mjs';
+
+export function authEnvironment(env) {
+  return { ...env, DB: env.DB || env.D1,
+    BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET || env.PAYLOAD_SECRET,
+    AUTH_ORIGIN: env.AUTH_ORIGIN || 'https://greenwhitefamily.com' };
+}
+export function authReady(env) {
+  const e = authEnvironment(env);
+  return Boolean(e.DB && e.BETTER_AUTH_SECRET && /^https:\/\//.test(e.AUTH_ORIGIN));
+}
+export function createRateStorage(db) {
+  return { async consume(key, rule) {
+    const now = Date.now(), until = now + rule.window * 1000;
+    const row = await db.prepare(`INSERT INTO app_rate_limits(key,count,reset_at) VALUES(?,1,?)
+      ON CONFLICT(key) DO UPDATE SET count=CASE WHEN reset_at<=? THEN 1 ELSE count+1 END,
+      reset_at=CASE WHEN reset_at<=? THEN excluded.reset_at ELSE reset_at END RETURNING count,reset_at`)
+      .bind(key, until, now, now).first();
+    return {allowed: row.count <= rule.max, retryAfter: row.count <= rule.max ? null : Math.max(1,Math.ceil((row.reset_at-now)/1000))};
+  }};
+}
+export function authOptions(rawEnv,diagnosticContext={}) {
+  const env = authEnvironment(rawEnv);
+  if (!authReady(env)) throw new Error('Authentication is not configured');
+  const providers = {};
+  if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) providers.google = {clientId:env.GOOGLE_CLIENT_ID,clientSecret:env.GOOGLE_CLIENT_SECRET};
+  if (env.APPLE_CLIENT_ID && env.APPLE_CLIENT_SECRET) providers.apple = {clientId:env.APPLE_CLIENT_ID,clientSecret:env.APPLE_CLIENT_SECRET};
+  if (configuredAuthProviders(env).some(p=>p.id==='microsoft'&&p.mode==='native')) providers.microsoft = {clientId:env.MICROSOFT_CLIENT_ID,clientSecret:env.MICROSOFT_CLIENT_SECRET,tenantId:env.MICROSOFT_TENANT_ID,requireEmailVerification:true};
+  const send = async (email,subject,text,html) => {
+    if (!env.EMAIL || env.AUTH_EMAIL_ENABLED !== 'true') throw new Error('Email sign-in is not enabled');
+    await env.EMAIL.send({from:{email:'family@greenwhitefamily.com',name:'Green & White Family'},to:email,subject,text,html});
+  };
+  return {
+    logger:createAuthDiagnosticLogger(diagnosticContext),
+    database: instrumentAuthD1(env.DB,diagnosticContext), secret: env.BETTER_AUTH_SECRET, baseURL: env.AUTH_ORIGIN,
+    trustedOrigins:[env.AUTH_ORIGIN,...(providers.apple?['https://appleid.apple.com']:[])], emailAndPassword:{enabled:false}, socialProviders:providers,
+    account:{accountLinking:{enabled:false}},
+    session:{expiresIn:60*60*24*7,updateAge:60*60*24,cookieCache:{enabled:false}},
+    advanced:{useSecureCookies:true,ipAddress:{ipAddressHeaders:['cf-connecting-ip']},database:{validateSchema:false}},
+    rateLimit:{enabled:true,window:60,max:30,customStorage:createRateStorage(env.DB),customRules:{
+      ...accessProviderRateRules(env),'/microsoft-proof/send-code':{window:300,max:6},'/microsoft-proof/complete':{window:300,max:10},'/microsoft-proof/cancel':{window:300,max:10},'/sign-in/magic-link':{window:300,max:3},'/email-otp/send-verification-otp':{window:300,max:3},'/sign-in/email-otp':{window:300,max:8}
+    }},
+    plugins:[...(accessProviderConfig(env,'google')?[googleAccess(env)]:[]),
+      ...(accessProviderConfig(env,'microsoft')?[microsoftAccess(env,{consumeRate:(key,rule)=>createRateStorage(env.DB).consume(key,rule)})]:[]),
+      ...(accessProviderConfig(env,'yahoo')?[accessProvider(env,'yahoo')]:[]),
+      emailOTP({expiresIn:600,otpLength:6,allowedAttempts:3,storeOTP:'hashed',sendVerificationOTP:async({email,otp})=>
+        {const mail=signInCodeEmail(otp,{origin:env.AUTH_ORIGIN});return send(email,mail.subject,mail.text,mail.html)}}),
+      magicLink({expiresIn:600,storeToken:'hashed',sendMagicLink:async({email,url})=>{
+        const safe = new URL(url); if(safe.origin!==env.AUTH_ORIGIN)throw new Error('Invalid sign-in origin');
+        const mail=signInLinkEmail(safe.href,{origin:env.AUTH_ORIGIN});return send(email,mail.subject,mail.text,mail.html);
+      }})
+    ],user:{deleteUser:{enabled:false}}
+  };
+}
+export function createAuth(rawEnv,diagnosticContext={}) {return betterAuth(authOptions(rawEnv,diagnosticContext));}

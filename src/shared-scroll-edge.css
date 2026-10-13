@@ -1,0 +1,4 @@
+/* The pseudo-element belongs to its scroller, leaves the last action intact,
+   and never intercepts a pointer or changes the control/footer geometry. */
+.gw-scroll-edge[data-more-below=true]::after{content:'';display:block;position:sticky;inset-block-end:0;block-size:12px;margin-block-start:-12px;background:linear-gradient(to bottom,transparent,var(--surface));pointer-events:none;z-index:2}
+@media(forced-colors:active){.gw-scroll-edge[data-more-below=true]::after{display:none}}

@@ -1,0 +1,474 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-10-06",
+  "assetKind": "native-control recreations",
+  "nativeCapture": false,
+  "assets": [
+    {
+      "id": "ios-safari-compact",
+      "file": "ios-safari-compact.svg",
+      "kind": "recreation",
+      "platform": "iOS",
+      "browser": "Safari",
+      "version": "iOS 26 documented controls; exact build not observed",
+      "createdAt": "2026-10-06",
+      "checkedAt": "2026-10-06",
+      "dimensions": {
+        "width": 360,
+        "height": 242
+      },
+      "layout": "Compact toolbar and cropped Page Menu",
+      "title": "Open the Safari Page Menu and choose Share",
+      "alt": "Recreated compact Safari toolbar. The Page Menu is the three-dot control beside the website address. Its menu contains Share.",
+      "sourceUrls": [
+        "https://support.apple.com/guide/iphone/open-as-web-app-iphea86e5236/26/ios/26"
+      ],
+      "pixelAccuracy": "Original geometric recreation. No native-device screenshot was obtained. Positions, materials and nonessential rows are illustrative; exact build was not observed.",
+      "content": "Public GW app identity plus synthetic neutral chrome only. No family feed or contact suggestions.",
+      "typography": "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif",
+      "auditTypography": "Installed Linux DejaVu Sans surrogate; not a native-OS font validation.",
+      "artwork": [],
+      "sha256": "40023f434df78a67df3ee75d696d6136642c86be04fb401d0fb0e3bd109036fb"
+    },
+    {
+      "id": "ios-safari-direct-share",
+      "file": "ios-safari-direct-share.svg",
+      "kind": "recreation",
+      "platform": "iOS",
+      "browser": "Safari",
+      "version": "iOS 26 documented controls; exact build not observed",
+      "createdAt": "2026-10-06",
+      "checkedAt": "2026-10-06",
+      "dimensions": {
+        "width": 360,
+        "height": 116
+      },
+      "layout": "Top / Bottom toolbar, bottom position illustrated",
+      "title": "Use Safari\u2019s direct Share button",
+      "alt": "Recreated Safari toolbar with the square-and-up-arrow Share button at the bottom. In Top or Bottom layouts, Share is available directly.",
+      "sourceUrls": [
+        "https://support.apple.com/guide/iphone/open-as-web-app-iphea86e5236/26/ios/26"
+      ],
+      "pixelAccuracy": "Original geometric recreation. No native-device screenshot was obtained. Positions, materials and nonessential rows are illustrative; exact build was not observed.",
+      "content": "Public GW app identity plus synthetic neutral chrome only. No family feed or contact suggestions.",
+      "typography": "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif",
+      "auditTypography": "Installed Linux DejaVu Sans surrogate; not a native-OS font validation.",
+      "artwork": [],
+      "sha256": "1743871d4a69c211b652a8b5eebd3b244e7c72db638c00ad915e5989ef434eef"
+    },
+    {
+      "id": "ipados-safari-share",
+      "file": "ipados-safari-share.svg",
+      "kind": "recreation",
+      "platform": "iPadOS",
+      "browser": "Safari",
+      "version": "iPadOS 26 documented controls; exact build not observed",
+      "createdAt": "2026-10-06",
+      "checkedAt": "2026-10-06",
+      "dimensions": {
+        "width": 420,
+        "height": 211
+      },
+      "layout": "Cropped tablet toolbar and share popover",
+      "title": "Open Share on iPad, then More",
+      "alt": "Recreated iPad Safari toolbar with Share near the right edge. A cropped share popover shows the More control. Its actions contain Add to Home Screen.",
+      "sourceUrls": [
+        "https://support.apple.com/guide/ipad/open-as-web-app-ipad8f1f7a29/26/ipados/26"
+      ],
+      "pixelAccuracy": "Original geometric recreation. No native-device screenshot was obtained. Positions, materials and nonessential rows are illustrative; exact build was not observed.",
+      "content": "Public GW app identity plus synthetic neutral chrome only. No family feed or contact suggestions.",
+      "typography": "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif",
+      "auditTypography": "Installed Linux DejaVu Sans surrogate; not a native-OS font validation.",
+      "artwork": [],
+      "sha256": "e7189ee8453096257c4d402cde20ec09548cab8064036f3010932713599b4593"
+    },
+    {
+      "id": "ios-safari-share-sheet",
+      "file": "ios-safari-share-sheet.svg",
+      "kind": "recreation",
+      "platform": "iOS / iPadOS",
+      "browser": "Safari",
+      "version": "iOS / iPadOS 26 documented controls; exact build not observed",
+      "createdAt": "2026-10-06",
+      "checkedAt": "2026-10-06",
+      "dimensions": {
+        "width": 360,
+        "height": 288
+      },
+      "layout": "Tightly cropped iPhone share-sheet action list; tablet may use a popover",
+      "title": "Choose Add to Home Screen in the Share actions",
+      "alt": "Recreated Share action sheet. Below the public Green & White website identity, the action list includes Add to Home Screen with the square-plus icon. Edit Actions is visible at the bottom.",
+      "sourceUrls": [
+        "https://support.apple.com/guide/iphone/open-as-web-app-iphea86e5236/26/ios/26",
+        "https://support.apple.com/guide/ipad/open-as-web-app-ipad8f1f7a29/26/ipados/26"
+      ],
+      "pixelAccuracy": "Original geometric recreation. No native-device screenshot was obtained. Positions, materials and nonessential rows are illustrative; exact build was not observed.",
+      "content": "Public GW app identity plus synthetic neutral chrome only. No family feed or contact suggestions.",
+      "typography": "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif",
+      "auditTypography": "Installed Linux DejaVu Sans surrogate; not a native-OS font validation.",
+      "artwork": [
+        {
+          "source": "Existing approved GW release-candidate public app icon",
+          "sourceFile": "dist/apple-touch-icon.png",
+          "sha256": "511a6897e99fbaa950f741fbdf25c025f6135ec5cf93272b89fcfb6d382d9f70"
+        }
+      ],
+      "sha256": "9b5ae99ecc6d378def3f90c217285637ddee3968e659a75a0a7e4218b7534ac7"
+    },
+    {
+      "id": "ios-safari-add-screen",
+      "file": "ios-safari-add-screen.svg",
+      "kind": "recreation",
+      "platform": "iOS / iPadOS",
+      "browser": "Safari",
+      "version": "iOS / iPadOS 26 documented controls; exact build not observed",
+      "createdAt": "2026-10-06",
+      "checkedAt": "2026-10-06",
+      "dimensions": {
+        "width": 360,
+        "height": 288
+      },
+      "layout": "Cropped Add to Home Screen sheet; Open as Web App enabled",
+      "title": "Leave Open as Web App on, then Add",
+      "alt": "Recreated Add to Home Screen screen. Cancel is at the left and Add at the right. The GW app icon, editable name Green & White, greenwhitefamily.com address, and the green enabled Open as Web App switch are shown.",
+      "sourceUrls": [
+        "https://support.apple.com/guide/iphone/open-as-web-app-iphea86e5236/26/ios/26",
+        "https://support.apple.com/guide/ipad/open-as-web-app-ipad8f1f7a29/26/ipados/26"
+      ],
+      "pixelAccuracy": "Original geometric recreation. No native-device screenshot was obtained. Positions, materials and nonessential rows are illustrative; exact build was not observed.",
+      "content": "Public GW app identity plus synthetic neutral chrome only. No family feed or contact suggestions.",
+      "typography": "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif",
+      "auditTypography": "Installed Linux DejaVu Sans surrogate; not a native-OS font validation.",
+      "artwork": [
+        {
+          "source": "Existing approved GW release-candidate public app icon",
+          "sourceFile": "dist/apple-touch-icon.png",
+          "sha256": "511a6897e99fbaa950f741fbdf25c025f6135ec5cf93272b89fcfb6d382d9f70"
+        }
+      ],
+      "sha256": "a96604d1c1176d62f1cbd0f1ad946d6db0f131e8cb351f42c71243fbb2e10857"
+    },
+    {
+      "id": "android-chrome-more",
+      "file": "android-chrome-more.svg",
+      "kind": "recreation",
+      "platform": "Android",
+      "browser": "Chrome",
+      "version": "Current Google Help checked 2026-10-06; Chrome / Android build unobserved",
+      "createdAt": "2026-10-06",
+      "checkedAt": "2026-10-06",
+      "dimensions": {
+        "width": 360,
+        "height": 97
+      },
+      "layout": "Cropped address bar; More at right",
+      "title": "Open Chrome\u2019s More menu",
+      "alt": "Recreated Chrome on Android address bar for greenwhitefamily.com. The vertical three-dot More button is at the far right.",
+      "sourceUrls": [
+        "https://support.google.com/chrome/answer/9658361?hl=en&co=GENIE.Platform%3DAndroid"
+      ],
+      "pixelAccuracy": "Original geometric recreation. No native-device screenshot was obtained. Positions, materials and nonessential rows are illustrative; exact build was not observed.",
+      "content": "Public GW app identity plus synthetic neutral chrome only. No family feed or contact suggestions.",
+      "typography": "Roboto, Noto Sans, Arial, sans-serif",
+      "auditTypography": "Installed Linux DejaVu Sans surrogate; not a native-OS font validation.",
+      "artwork": [],
+      "sha256": "38dcda8654980b792241d78689eabb9ee82549ceefcdaf3c3c982050c6a76d82"
+    },
+    {
+      "id": "android-chrome-install-option",
+      "file": "android-chrome-install-option.svg",
+      "kind": "recreation",
+      "platform": "Android",
+      "browser": "Chrome",
+      "version": "Current Google Help checked 2026-10-06; exact build unobserved",
+      "createdAt": "2026-10-06",
+      "checkedAt": "2026-10-06",
+      "dimensions": {
+        "width": 360,
+        "height": 228
+      },
+      "layout": "Cropped More menu + install choice; row placement illustrative",
+      "title": "Choose Install and create shortcut, then Install",
+      "alt": "Recreated cropped Chrome menu with Install and create shortcut. A following install choice shows Install. The illustrated menu placement is representative; older versions may use Add to home screen or Install app.",
+      "sourceUrls": [
+        "https://support.google.com/chrome/answer/9658361?hl=en&co=GENIE.Platform%3DAndroid"
+      ],
+      "pixelAccuracy": "Original geometric recreation. No native-device screenshot was obtained. Positions, materials and nonessential rows are illustrative; exact build was not observed.",
+      "content": "Public GW app identity plus synthetic neutral chrome only. No family feed or contact suggestions.",
+      "typography": "Roboto, Noto Sans, Arial, sans-serif",
+      "auditTypography": "Installed Linux DejaVu Sans surrogate; not a native-OS font validation.",
+      "artwork": [],
+      "sha256": "f80538f9f71e4c494fe7dd1207913bd4b8ccd3033edb010ee27a9741f8d5b5d1"
+    },
+    {
+      "id": "android-chrome-confirm",
+      "file": "android-chrome-confirm.svg",
+      "kind": "recreation",
+      "platform": "Android",
+      "browser": "Chrome",
+      "version": "Current Google Help checked 2026-10-06; exact build unobserved",
+      "createdAt": "2026-10-06",
+      "checkedAt": "2026-10-06",
+      "dimensions": {
+        "width": 360,
+        "height": 242
+      },
+      "layout": "Representative Chrome install dialog; no device installation performed",
+      "title": "Confirm installation in Chrome",
+      "alt": "Recreated Chrome install confirmation with the GW icon, Green & White Family name, greenwhitefamily.com address, Cancel, and Install. After installation finishes, open GW from the Home Screen or app drawer.",
+      "sourceUrls": [
+        "https://support.google.com/chrome/answer/9658361?hl=en&co=GENIE.Platform%3DAndroid"
+      ],
+      "pixelAccuracy": "Original geometric recreation. No native-device screenshot was obtained. Positions, materials and nonessential rows are illustrative; exact build was not observed.",
+      "content": "Public GW app identity plus synthetic neutral chrome only. No family feed or contact suggestions.",
+      "typography": "Roboto, Noto Sans, Arial, sans-serif",
+      "auditTypography": "Installed Linux DejaVu Sans surrogate; not a native-OS font validation.",
+      "artwork": [
+        {
+          "source": "Existing approved GW release-candidate public app icon",
+          "sourceFile": "dist/icon-192.png",
+          "sha256": "ad43fd244203798b81b2739df7a9fbcd7e2fd32ee0864a2cc7f994e2e382ecf8"
+        }
+      ],
+      "sha256": "4fa7467b1278a727933f65fb31976da982fb851ef936f22b6548aec61be7f5aa"
+    },
+    {
+      "id": "macos-safari-file-menu",
+      "file": "macos-safari-file-menu.svg",
+      "kind": "recreation",
+      "platform": "macOS",
+      "browser": "Safari",
+      "version": "macOS Sonoma 14+ documented capability; exact OS / Safari build unobserved",
+      "createdAt": "2026-10-06",
+      "checkedAt": "2026-10-06",
+      "dimensions": {
+        "width": 420,
+        "height": 214
+      },
+      "layout": "Cropped macOS menu bar and File menu",
+      "title": "In Safari, choose File, then Add to Dock",
+      "alt": "Recreated Safari menu bar and cropped File menu with Add to Dock. Safari requires macOS Sonoma 14 or later for this action.",
+      "sourceUrls": [
+        "https://support.apple.com/en-us/104996"
+      ],
+      "pixelAccuracy": "Original geometric recreation. No native-device screenshot was obtained. Positions, materials and nonessential rows are illustrative; exact build was not observed.",
+      "content": "Public GW app identity plus synthetic neutral chrome only. No family feed or contact suggestions.",
+      "typography": "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif",
+      "auditTypography": "Installed Linux DejaVu Sans surrogate; not a native-OS font validation.",
+      "artwork": [],
+      "sha256": "3e000af1192d8bd2aa31c89e0df8c64c646429c9d585bc219eb37b0b82cf8ba5"
+    },
+    {
+      "id": "macos-safari-add-dialog",
+      "file": "macos-safari-add-dialog.svg",
+      "kind": "recreation",
+      "platform": "macOS",
+      "browser": "Safari",
+      "version": "macOS Sonoma 14+ documented capability; exact OS / Safari build unobserved",
+      "createdAt": "2026-10-06",
+      "checkedAt": "2026-10-06",
+      "dimensions": {
+        "width": 420,
+        "height": 271
+      },
+      "layout": "Representative Add to Dock confirmation dialog",
+      "title": "Confirm the name, then click Add",
+      "alt": "Recreated Safari Add to Dock dialog. It shows the GW icon, name field, greenwhitefamily.com, Cancel, and Add. No actual Mac installation was performed.",
+      "sourceUrls": [
+        "https://support.apple.com/en-us/104996"
+      ],
+      "pixelAccuracy": "Original geometric recreation. No native-device screenshot was obtained. Positions, materials and nonessential rows are illustrative; exact build was not observed.",
+      "content": "Public GW app identity plus synthetic neutral chrome only. No family feed or contact suggestions.",
+      "typography": "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif",
+      "auditTypography": "Installed Linux DejaVu Sans surrogate; not a native-OS font validation.",
+      "artwork": [
+        {
+          "source": "Existing approved GW release-candidate public app icon",
+          "sourceFile": "dist/apple-touch-icon.png",
+          "sha256": "511a6897e99fbaa950f741fbdf25c025f6135ec5cf93272b89fcfb6d382d9f70"
+        }
+      ],
+      "sha256": "9d13460d748c1f053e78eec7647e207bf11007f781f2330507b39d9331ecc05b"
+    },
+    {
+      "id": "macos-spotlight-open",
+      "file": "macos-spotlight-open.svg",
+      "kind": "recreation",
+      "platform": "macOS",
+      "browser": "Safari web app / Spotlight",
+      "version": "macOS Sonoma 14+ documented launch destination; exact build unobserved",
+      "createdAt": "2026-10-06",
+      "checkedAt": "2026-10-06",
+      "dimensions": {
+        "width": 420,
+        "height": 184
+      },
+      "layout": "Synthetic Spotlight search result for the installed public GW app",
+      "title": "Open GW from Spotlight or the Dock",
+      "alt": "Recreated cropped Spotlight panel. The search Green & White returns a synthetic Green & White application result with the GW icon. Safari apps can be opened from the Dock, Applications, or Spotlight.",
+      "sourceUrls": [
+        "https://support.apple.com/en-us/104996"
+      ],
+      "pixelAccuracy": "Original geometric recreation. No native-device screenshot was obtained. Positions, materials and nonessential rows are illustrative; exact build was not observed.",
+      "content": "Public GW app identity plus synthetic neutral chrome only. No family feed or contact suggestions.",
+      "typography": "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif",
+      "auditTypography": "Installed Linux DejaVu Sans surrogate; not a native-OS font validation.",
+      "artwork": [
+        {
+          "source": "Existing approved GW release-candidate public app icon",
+          "sourceFile": "dist/apple-touch-icon.png",
+          "sha256": "511a6897e99fbaa950f741fbdf25c025f6135ec5cf93272b89fcfb6d382d9f70"
+        }
+      ],
+      "sha256": "a13e63cf92f7a308680b2622887b2ae06e626f55eb5b36b64f766ec939918e51"
+    },
+    {
+      "id": "desktop-chrome-install-menu",
+      "file": "desktop-chrome-install-menu.svg",
+      "kind": "recreation",
+      "platform": "Windows / ChromeOS / macOS",
+      "browser": "Chrome",
+      "version": "Current Google Help checked 2026-10-06; Chrome and OS builds unobserved",
+      "createdAt": "2026-10-06",
+      "checkedAt": "2026-10-06",
+      "dimensions": {
+        "width": 420,
+        "height": 242
+      },
+      "layout": "Cropped Chrome toolbar + menu branch; omitted rows not reconstructed",
+      "title": "Use Chrome\u2019s Install page as app option",
+      "alt": "Recreated Chrome desktop controls. More is at the right edge of the address bar. Cropped menu panels show Cast, save, and share and Install page as app. Their placement is representative, not an observed exact Chrome build.",
+      "sourceUrls": [
+        "https://support.google.com/chrome/answer/9658361?hl=en&co=GENIE.Platform%3DDesktop"
+      ],
+      "pixelAccuracy": "Original geometric recreation. No native-device screenshot was obtained. Positions, materials and nonessential rows are illustrative; exact build was not observed.",
+      "content": "Public GW app identity plus synthetic neutral chrome only. No family feed or contact suggestions.",
+      "typography": "Google Sans, Roboto, Arial, sans-serif",
+      "auditTypography": "Installed Linux DejaVu Sans surrogate; not a native-OS font validation.",
+      "artwork": [],
+      "sha256": "7d477ffb2a8af219bcdc76a61ee37cfd9ce6367153f01c40d9ceca2b9f23b1b7"
+    },
+    {
+      "id": "desktop-chrome-confirm",
+      "file": "desktop-chrome-confirm.svg",
+      "kind": "recreation",
+      "platform": "Windows / ChromeOS / macOS",
+      "browser": "Chrome",
+      "version": "Current Google Help checked 2026-10-06; Chrome and OS builds unobserved",
+      "createdAt": "2026-10-06",
+      "checkedAt": "2026-10-06",
+      "dimensions": {
+        "width": 420,
+        "height": 262
+      },
+      "layout": "Representative browser confirmation; no installation performed",
+      "title": "Confirm the app in Chrome",
+      "alt": "Recreated Chrome desktop install dialog showing Green & White Family, greenwhitefamily.com, the GW app icon, Cancel, and Install. Read your browser\u2019s confirmation before choosing Install.",
+      "sourceUrls": [
+        "https://support.google.com/chrome/answer/9658361?hl=en&co=GENIE.Platform%3DDesktop"
+      ],
+      "pixelAccuracy": "Original geometric recreation. No native-device screenshot was obtained. Positions, materials and nonessential rows are illustrative; exact build was not observed.",
+      "content": "Public GW app identity plus synthetic neutral chrome only. No family feed or contact suggestions.",
+      "typography": "Google Sans, Roboto, Arial, sans-serif",
+      "auditTypography": "Installed Linux DejaVu Sans surrogate; not a native-OS font validation.",
+      "artwork": [
+        {
+          "source": "Existing approved GW release-candidate public app icon",
+          "sourceFile": "dist/icon-192.png",
+          "sha256": "ad43fd244203798b81b2739df7a9fbcd7e2fd32ee0864a2cc7f994e2e382ecf8"
+        }
+      ],
+      "sha256": "2c0835cc380553761c93b3354d04f9c83f32b6d44a49ce9fe1bfb7204625f0fa"
+    },
+    {
+      "id": "windows-chrome-apps-open",
+      "file": "windows-chrome-apps-open.svg",
+      "kind": "recreation",
+      "platform": "Windows",
+      "browser": "Chrome",
+      "version": "Current Google Help checked 2026-10-06; Windows and Chrome builds unobserved",
+      "createdAt": "2026-10-06",
+      "checkedAt": "2026-10-06",
+      "dimensions": {
+        "width": 420,
+        "height": 231
+      },
+      "layout": "Cropped Chrome Apps page with synthetic installed GW item",
+      "title": "Open your app from Chrome Apps or a created shortcut",
+      "alt": "Recreated Chrome Apps page at chrome://apps containing a synthetic GW app tile and app name. Actual installation may create Start menu or desktop shortcuts; use Chrome Apps if no shortcut is shown.",
+      "sourceUrls": [
+        "https://support.google.com/chrome/answer/9658361?hl=en&co=GENIE.Platform%3DDesktop"
+      ],
+      "pixelAccuracy": "Original geometric recreation. No native-device screenshot was obtained. Positions, materials and nonessential rows are illustrative; exact build was not observed.",
+      "content": "Public GW app identity plus synthetic neutral chrome only. No family feed or contact suggestions.",
+      "typography": "Segoe UI, Arial, sans-serif",
+      "auditTypography": "Installed Linux DejaVu Sans surrogate; not a native-OS font validation.",
+      "artwork": [
+        {
+          "source": "Existing approved GW release-candidate public app icon",
+          "sourceFile": "dist/icon-192.png",
+          "sha256": "ad43fd244203798b81b2739df7a9fbcd7e2fd32ee0864a2cc7f994e2e382ecf8"
+        }
+      ],
+      "sha256": "fc4b87941cff2b933e5efc27aa4427e7cecd14eabb5331f7d358dc9cb73e688c"
+    },
+    {
+      "id": "chromeos-launcher-open",
+      "file": "chromeos-launcher-open.svg",
+      "kind": "recreation",
+      "platform": "ChromeOS",
+      "browser": "Chrome web app / Launcher",
+      "version": "Current Google Help checked 2026-10-06; ChromeOS / Chrome builds unobserved",
+      "createdAt": "2026-10-06",
+      "checkedAt": "2026-10-06",
+      "dimensions": {
+        "width": 420,
+        "height": 240
+      },
+      "layout": "Cropped Launcher with synthetic GW search result",
+      "title": "Find GW in the ChromeOS Launcher",
+      "alt": "Recreated cropped ChromeOS Launcher with the search Green & White and one synthetic Green & White Family app result. Managed devices may restrict installation.",
+      "sourceUrls": [
+        "https://support.google.com/chrome/answer/9658361?hl=en&co=GENIE.Platform%3DDesktop"
+      ],
+      "pixelAccuracy": "Original geometric recreation. No native-device screenshot was obtained. Positions, materials and nonessential rows are illustrative; exact build was not observed.",
+      "content": "Public GW app identity plus synthetic neutral chrome only. No family feed or contact suggestions.",
+      "typography": "Google Sans, Roboto, Arial, sans-serif",
+      "auditTypography": "Installed Linux DejaVu Sans surrogate; not a native-OS font validation.",
+      "artwork": [
+        {
+          "source": "Existing approved GW release-candidate public app icon",
+          "sourceFile": "dist/icon-192.png",
+          "sha256": "ad43fd244203798b81b2739df7a9fbcd7e2fd32ee0864a2cc7f994e2e382ecf8"
+        }
+      ],
+      "sha256": "21ae463a0bd75e356b53028c5172c0544c3bb0036f12f0d89b5544d6613a9d05"
+    },
+    {
+      "id": "windows-edge-install-menu",
+      "file": "windows-edge-install-menu.svg",
+      "kind": "recreation",
+      "platform": "Windows",
+      "browser": "Microsoft Edge",
+      "version": "Current Microsoft Help checked 2026-10-06; Edge / Windows builds unobserved",
+      "createdAt": "2026-10-06",
+      "checkedAt": "2026-10-06",
+      "dimensions": {
+        "width": 420,
+        "height": 282
+      },
+      "layout": "Cropped Settings and more path, no speculative full menu",
+      "title": "Use Edge\u2019s app-install menu",
+      "alt": "Recreated cropped Edge menu panels showing Settings and more, More tools, Apps, and Install this site as an app. Microsoft\u2019s documented hierarchy is retained; exact current row position is unobserved.",
+      "sourceUrls": [
+        "https://support.microsoft.com/en-us/edge/install-manage-or-uninstall-apps-in-microsoft-edge"
+      ],
+      "pixelAccuracy": "Original geometric recreation. No native-device screenshot was obtained. Positions, materials and nonessential rows are illustrative; exact build was not observed.",
+      "content": "Public GW app identity plus synthetic neutral chrome only. No family feed or contact suggestions.",
+      "typography": "Segoe UI, Arial, sans-serif",
+      "auditTypography": "Installed Linux DejaVu Sans surrogate; not a native-OS font validation.",
+      "artwork": [],
+      "sha256": "c55d74c5e7f2328015fc7753c068b83f00bf9446cfbec4ef85de48f2ad21f263"
+    }
+  ]
+}

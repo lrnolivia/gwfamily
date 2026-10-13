@@ -1,0 +1,1 @@
+ALTER TABLE profiles ADD COLUMN share_age INTEGER NOT NULL DEFAULT 0 CHECK(share_age IN (0,1));

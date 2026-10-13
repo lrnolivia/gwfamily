@@ -1,0 +1,21 @@
+{
+  "name": "gwfamily-backend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --import ../tests/test-environment-guard.mjs --test tests/*.test.mjs",
+    "check": "node --check src/policy.mjs && node --check src/worker.mjs",
+    "build": "node scripts/build-worker.mjs && node scripts/check-worker-bundle.mjs && node scripts/build-site-worker.mjs && node scripts/check-site-worker.mjs"
+  },
+  "dependencies": {
+    "better-auth": "1.7.7",
+    "hono": "4.10.6",
+    "jose": "6.2.12",
+    "kysely": "0.28.8",
+    "kysely-d1": "0.4.0",
+    "web-push": "3.6.7"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.11"
+  }
+}

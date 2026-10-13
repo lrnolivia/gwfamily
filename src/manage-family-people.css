@@ -1,0 +1,16 @@
+.manage-member-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-block:16px;min-width:0;border-bottom:1px solid var(--line)}
+.manage-member-row>.person-identity{flex:1;min-width:0}
+.manage-member-row>.button{flex:none;margin:0;min-height:44px}
+.manage-report-row{padding-block:12px;min-width:0}
+.membership-review{gap:20px}
+.organizer-role-options{display:grid;gap:12px;min-width:0;margin:0;padding:0;border:0}
+.organizer-role-options>legend{margin-bottom:12px;font-weight:650}
+.organizer-role-options>.check-row{min-height:44px;align-items:center}
+@media(max-width:520px){.manage-member-row{flex-direction:column;align-items:stretch;gap:12px}.manage-member-row>.button{align-self:flex-start}}
+
+.membership-removal{border-top:1px solid var(--line);padding-top:18px;display:grid;gap:8px}
+.membership-removal .button{justify-self:stretch;width:100%;min-height:48px}
+.membership-confirmation{padding:16px;border:1px solid var(--line);border-radius:18px}
+.membership-confirmation h3,.membership-confirmation p,.membership-removal p{margin:0}
+html[data-theme][data-platform] .button.membership-remove.membership-remove{background:var(--destructive-fill,#b04520)!important;color:var(--bright-text,#fffaf0)!important;border:0!important;--gw-control-color:var(--destructive-fill,#b04520);--gw-control-alpha:100%;--button-shadow-color:color-mix(in srgb,var(--destructive-accent) 38%,#000);box-shadow:var(--gw-action-shadow)!important;min-height:48px}
+html[data-theme][data-platform] .gw-optic-control.button.membership-remove.membership-remove>.liquid-glass-tint{background:var(--destructive-fill,#b04520)!important}
