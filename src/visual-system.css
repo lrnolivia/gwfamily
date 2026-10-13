@@ -105,6 +105,13 @@ html[data-theme][data-platform] :is(.choice-chip>input:checked+.choice-chip-face
 .profile-custom-color input[type=color]::-moz-color-swatch{border:0!important;border-radius:50%}
 
 .appearance-panel-heading{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:14px;padding:4px 0 12px;background:var(--surface)}
+/* The sticky title bleeds to the menu edges so it never reads as an inset box.
+   Glass menus are translucent, so the title stays clear at rest and only takes
+   on the glass tint once controls scroll beneath it. */
+.profile-menu .appearance-panel-heading{top:-16px;margin:-16px -16px 0;padding:20px 16px 12px}
+.gw-glass-menu .appearance-panel-heading{background:transparent;transition:background-color .2s ease,box-shadow .2s ease}
+.gw-glass-menu .profile-menu[data-scrolled=true] .appearance-panel-heading{background:color-mix(in srgb,var(--surface) 94%,transparent);-webkit-backdrop-filter:blur(18px) saturate(1.2);backdrop-filter:blur(18px) saturate(1.2);box-shadow:0 1px 0 var(--decorative-line,var(--line))}
+@media(prefers-reduced-transparency:reduce){.gw-glass-menu .profile-menu[data-scrolled=true] .appearance-panel-heading{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none}}
 .appearance-panel-heading h3{margin:0!important;min-width:0}
 html[data-theme][data-platform] .appearance-panel-heading .appearance-back{display:grid;place-items:center;flex:0 0 48px;width:48px;height:48px;min-height:48px;padding:12px;border-radius:50%;background:var(--raised)!important;color:var(--text)!important;border:0!important;box-shadow:none!important;--gw-control-color:var(--raised);--gw-control-alpha:100%}
 .appearance-back .glyph{width:24px;height:24px;transform:none}
