@@ -33,12 +33,14 @@ export function useHistorySearch(query){
 }
 
 // Remove a memory with its feed post and conversation; Undo stays available.
-export function RemoveMemoryControl({memory}){
- const {state,dispatch,openSheet,go,setToast}=useApp(),[confirming,setConfirming]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),lock=useRef(false);
+export function RemoveMemoryControl({memory,confirming:requestedConfirmation,onConfirmingChange}){
+ const {state,dispatch,openSheet,go,setToast}=useApp(),[localConfirming,setLocalConfirming]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),lock=useRef(false),confirmation=useRef(null);
+ const confirming=requestedConfirmation??localConfirming,setConfirming=onConfirmingChange||setLocalConfirming;
+ useEffect(()=>{if(confirming)confirmation.current?.focus()},[confirming]);
  if(!canRemoveMemory(state,memory))return null;
  async function remove(){if(lock.current)return;lock.current=true;setBusy(true);setError('');try{if(await dispatch({type:'DELETE_MEMORY',id:memory.id})){openSheet(null);go({type:'family',tab:'memories'});setToast?.({message:'Memory removed. You can restore it from Recently removed for 30 days.',actions:[{label:'Recently removed',run:()=>go({type:'removed'})}]})}else setError('The memory could not be removed. Try again.')}catch(e){setError(e.message)}finally{lock.current=false;setBusy(false)}}
- if(!confirming)return <Button secondary className="danger-action" data-destructive onClick={()=>setConfirming(true)}>Remove memory</Button>;
- return <div className="content-change" role="group" aria-label="Remove memory" aria-busy={busy}><strong>Remove this memory?</strong><p>The memory, its feed post and its conversation are hidden from the family. Saved and featured references pause. {memory.authorId===state.selfId?'You':'A moderator'} can restore it for 30 days.</p>{error&&<p className="form-error" role="alert">{error}</p>}<div className="row"><Button secondary disabled={busy} onClick={()=>setConfirming(false)}>Keep memory</Button><Button className="danger-action" data-destructive disabled={busy} onClick={remove}>{busy?'Removing…':'Remove memory'}</Button></div></div>;
+ if(!confirming)return onConfirmingChange?null:<Button secondary className="danger-action" data-destructive onClick={()=>setConfirming(true)}>Remove memory</Button>;
+ return <div ref={confirmation} tabIndex={-1} className="content-change" role="group" aria-label="Remove memory" aria-busy={busy} onKeyDown={event=>{if(event.key==='Escape'&&!busy){event.preventDefault();setConfirming(false)}}}><strong>Remove this memory?</strong><p>The memory, its feed post and its conversation are hidden from the family. Saved and featured references pause. {memory.authorId===state.selfId?'You':'A moderator'} can restore it for 30 days.</p>{error&&<p className="form-error" role="alert">{error}</p>}<div className="row"><Button secondary disabled={busy} onClick={()=>setConfirming(false)}>Keep memory</Button><Button className="danger-action" data-destructive disabled={busy} onClick={remove}>{busy?'Removing…':'Remove memory'}</Button></div></div>;
 }
 
 // Recently removed: what this person (or, for moderators, anyone) removed, with Restore.

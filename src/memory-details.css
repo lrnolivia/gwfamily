@@ -1,4 +1,7 @@
 /* Memory metadata stays close to its photo; supporting fields have one clear entry. */
+.memory-details-heading{display:flex;align-items:flex-start;gap:12px;min-width:0}
+.memory-details-heading>h2{flex:1;min-width:0;margin:0;overflow-wrap:anywhere}
+.memory-details-heading>.memory-options-trigger{flex:0 0 44px;width:44px;min-width:44px;height:44px;padding:10px}
 .memory-details-form .form-image-control{width:160px;gap:10px}
 .memory-details-form .form-image-control>.button{width:100%;min-height:44px;padding:10px 12px;gap:8px;font-size:.8125rem;white-space:nowrap}
 .memory-details-form .form-image-control>.button .glyph{width:18px;height:18px}
