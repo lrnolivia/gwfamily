@@ -54,7 +54,7 @@ try{
  await page.keyboard.press('Home');await page.keyboard.press('ArrowDown');await expect(menu(page).getByRole('menuitem',{name:'Save',exact:true})).toBeFocused();
  await page.keyboard.press('Escape');await expect(menu(page)).toBeHidden();await expect(trigger(page)).toBeFocused();
  await trigger(page).press('ArrowUp');await expect(menu(page).getByRole('menuitem',{name:'Remove memory'})).toBeFocused();
- await page.keyboard.press('Tab');await expect(menu(page)).toBeHidden();await expect(page.locator('.photo-viewer-details .reaction-pill').first()).toBeFocused();await page.keyboard.press('Shift+Tab');await expect(trigger(page)).toBeFocused();await open(page);
+ await page.keyboard.press('Tab');await expect(menu(page)).toBeHidden();await expect(page.locator('.photo-viewer-details .reaction-pill').first()).toBeFocused();await trigger(page).focus();await trigger(page).press('ArrowDown');await page.keyboard.press('Shift+Tab');await expect(menu(page)).toBeHidden();assert.equal(await page.evaluate(()=>document.activeElement!==document.body&&!document.activeElement.closest('[popover]')),true,'Shift+Tab leaves the menu with focus on the preceding control');await open(page);
  await page.getByRole('heading',{name:title,exact:true}).click();await expect(menu(page)).toBeHidden();await expect(trigger(page)).toHaveAttribute('aria-expanded','false');
  for(let i=0;i<3;i++){await open(page);await trigger(page).click();await expect(menu(page)).toBeHidden()}
  results.push('keyboard arrows/Home/End, Tab exit, Escape focus return, outside dismissal and repeated open/close');

@@ -81,7 +81,10 @@ function MemoryDetails({memory:m,onDownload,canSavePhoto=false}){
  useEffect(()=>{if(open){const items=menu.current?.querySelectorAll('[role=menuitem]:not(:disabled)');(lastItem.current?items?.[items.length-1]:items?.[0])?.focus()}},[open]);
  function keydown(event){
   if(event.key==='Escape'){event.preventDefault();close(true);return}
-  if(event.key==='Tab'){close(true);return}
+  if(event.key==='Tab'){
+   event.preventDefault();const items=[...document.querySelectorAll('a[href],button,input,select,textarea,[tabindex]')].filter(node=>node.tabIndex>=0&&!node.disabled&&node.getClientRects().length&&!node.closest('[popover]')),at=items.indexOf(anchor.current);
+   close();(items[at+(event.shiftKey?-1:1)]||anchor.current)?.focus();return;
+  }
   if(!['ArrowDown','ArrowUp','Home','End'].includes(event.key))return;
   event.preventDefault();const items=[...menu.current.querySelectorAll('[role=menuitem]:not(:disabled)')],current=items.indexOf(document.activeElement),next=event.key==='Home'?0:event.key==='End'?items.length-1:(current+(event.key==='ArrowDown'?1:-1)+items.length)%items.length;items[next]?.focus();
  }
