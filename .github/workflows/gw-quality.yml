@@ -281,6 +281,15 @@ jobs:
           curl -fsS http://127.0.0.1:4191/api/config
           mkdir -p docs/ci-logs
           CI=true GW_HISTORY_QA_OUTPUT=docs/content-history-qa node tests/content-history-browser.mjs 2>&1 | tee docs/ci-logs/content-history-browser.log
+      - name: Memory details menu browser checks
+        if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          GW_FIXTURE_PORT=4199 node backend/tests/fixture-server.mjs > /tmp/gw-memory-menu-fixture.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4199/api/config && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4199/api/config
+          mkdir -p docs/ci-logs
+          CI=true GW_MEMORY_MENU_QA_OUTPUT=docs/memory-menu-qa node tests/memory-details-menu-browser.mjs 2>&1 | tee docs/ci-logs/memory-menu-browser.log
       - name: Organizer reach, Family Leader and founding-head handover browser checks
         if: ${{ !cancelled() && matrix.group == 'editors' && steps.restore_build.outcome == 'success' && steps.browser_install.outcome == 'success' }}
         timeout-minutes: 6
@@ -435,6 +444,7 @@ jobs:
             docs/membership-qa
             docs/email-preview-qa
             docs/content-actions-qa
+            docs/memory-menu-qa
             backend/build/worker.mjs
             backend/build/worker-provenance.json
             backend/build/site-worker.mjs

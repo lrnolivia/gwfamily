@@ -17,8 +17,8 @@ import {readPreviewFile} from './uploads.js';
 import {batchItemStatus,stepBatchItem,batchSummary,createMemoryBatch,failedKeys,memoryFromBatchItem,retryStep,savedMemoryIds,updateBatchItem} from './memory-batch-model.js';
 import './memory-batch.css';
 import {MemoryGallery} from './field-gallery/MemoryGallery.jsx';
-import React,{useState,useRef} from 'react';
-import {Control,Avatar,Button,Glyph,MemberBadges,InlineFilters,useApp,useSheetForm} from './ui-core.jsx';
+import React,{useEffect,useState,useRef} from 'react';
+import {Control,Avatar,Button,Glyph,MemberBadges,InlineFilters,Popover,useApp,useSheetForm} from './ui-core.jsx';
 import {CommentsView,ReactionBar} from './conversation.jsx';
 import {LoadOlder,RemoveMemoryControl,useDeepLoad,useHistorySearch} from './content-history.jsx';
 import {memoryMatches} from './content-history-model.js';
@@ -67,7 +67,45 @@ export function MemoryFilters(){
 }
 export function MemoryMedia({memory:m,className='memory-large'}){const type=m.mediaType||'image/jpeg';return type.startsWith('video/')?<video className={className} src={m.image} controls playsInline preload="metadata"/>:type.startsWith('audio/')?<audio className={className} src={m.image} controls preload="metadata"/>:type.startsWith('image/')?<img className={className} src={m.image} alt={m.title||'Family memory'}/>:<a className="button" href={m.image} target="_blank" rel="noreferrer">Open memory file</a>}
 export function FeaturedPhotos(){const {state,dispatch}=useApp(),[busy,setBusy]=useState('');const ids=new Set(state.featuredMemoryIds||[]);async function feature(m,approved,primary=false){setBusy(m.id);try{await dispatch({type:'FEATURE_MEMORY',id:m.id,approved,primary})}finally{setBusy('')}}return <section className="stack featured-photos"><div><h2>Photos for the family space</h2><p className="muted">Approve photos for the home and Memories pages. Only signed-in family members can see them.</p></div>{state.memories.filter(m=>!m.mediaType||m.mediaType.startsWith('image/')).map(m=><article key={m.id} className="featured-photo-row"><img src={m.image} alt={m.title||'Family memory'}/><div><strong>{m.title||'Family photo'}</strong><p className="muted small">{state.primaryMemoryId===m.id?'Main photo':ids.has(m.id)?'Approved for the UI':'Not featured'}</p><div className="row"><Button secondary disabled={!!busy} onClick={()=>feature(m,!ids.has(m.id))}>{busy===m.id?'Saving…':ids.has(m.id)?'Remove from featured':'Approve photo'}</Button>{ids.has(m.id)&&state.primaryMemoryId!==m.id&&<Button secondary disabled={!!busy} onClick={()=>feature(m,true,true)}>Use as main photo</Button>}</div></div></article>)}{!state.memories.length&&<p className="muted">Add photos to Memories first. They won’t be featured until you approve them here.</p>}</section>}
-export function MemoryViewer({id}){const {state,openSheet,go,dispatch}=useApp(),m=state.memories.find(x=>x.id===id),deepLoad=useDeepLoad('memory',id,!!m);if(!m)return deepLoad==='loading'?<p role="status">Loading…</p>:null;const saved=(state.favorites||[]).includes(m.id),save=<Button secondary aria-pressed={saved} onClick={()=>dispatch({type:'TOGGLE_FAVORITE',id:m.id})}><Glyph name="heart"/>{saved?'Saved':'Save'}</Button>;const author=state.members.find(x=>x.id===m.authorId);if((m.mediaType||'image/jpeg').startsWith('image/'))return <PhotoViewer kind="memory" id={id}>{m.title&&<h2>{m.title}</h2>}<p className="muted">{[m.category,m.event,m.dateStatus==='suggested'?'Date not confirmed':m.capturedDate||m.year,m.milestone].filter(Boolean).join(' · ')}</p><TaggedFamily ids={m.memberIds||[]}/>{canEditMemoryDetails(state,m)&&<Button secondary onClick={()=>openSheet({type:'memory-edit',id:m.id})}>Add or edit details</Button>}{save}<RemoveMemoryControl memory={m}/></PhotoViewer>;return <div className="stack"><MemoryMedia memory={m}/>{m.title&&<h2>{m.title}</h2>}<Control className="member-link" onClick={()=>{openSheet(null);go({type:'profile',id:m.authorId})}}><Avatar member={author}/><span>{author?.name}</span></Control><p className="muted">{[m.category,m.event,m.dateStatus==='suggested'?'Date not confirmed':m.capturedDate||m.year,m.milestone].filter(Boolean).join(' · ')}</p><TaggedFamily ids={m.memberIds||[]}/><ReactionBar targetId={m.id}/>{save}{canEditMemoryDetails(state,m)&&<Button secondary onClick={()=>openSheet({type:'memory-edit',id:m.id})}>Add or edit details</Button>}<RemoveMemoryControl memory={m}/><h3>Comments</h3><CommentsView targetId={m.id}/></div>}
+export function MemoryViewer({id}){
+ const {state,openSheet,go}=useApp(),m=state.memories.find(x=>x.id===id),deepLoad=useDeepLoad('memory',id,!!m);
+ if(!m)return deepLoad==='loading'?<p role="status">Loading…</p>:null;
+ if((m.mediaType||'image/jpeg').startsWith('image/'))return <PhotoViewer kind="memory" id={id} renderDetails={({download,canSavePhoto})=><MemoryDetails key={m.id} memory={m} onDownload={download} canSavePhoto={canSavePhoto}/>}/>;
+ const author=state.members.find(x=>x.id===m.authorId);
+ return <div className="stack"><MemoryMedia memory={m}/><Control className="member-link" onClick={()=>{openSheet(null);go({type:'profile',id:m.authorId})}}><Avatar member={author}/><span>{author?.name}</span></Control><MemoryDetails key={m.id} memory={m}/><ReactionBar targetId={m.id}/><h3>Comments</h3><CommentsView targetId={m.id}/></div>;
+}
+function MemoryDetails({memory:m,onDownload,canSavePhoto=false}){
+ const {state,openSheet,dispatch,data}=useApp(),saved=(state.favorites||[]).includes(m.id),editable=canEditMemoryDetails(state,m);
+ const [open,setOpen]=useState(false),[confirming,setConfirming]=useState(false),[saving,setSaving]=useState(false),[error,setError]=useState(''),anchor=useRef(null),menu=useRef(null),saveLock=useRef(false),lastItem=useRef(false);
+ const busy=saving||Boolean(data?.pending),close=(restoreFocus=false)=>{setOpen(false);if(restoreFocus)anchor.current?.focus()};
+ useEffect(()=>{if(open){const items=menu.current?.querySelectorAll('[role=menuitem]:not(:disabled)');(lastItem.current?items?.[items.length-1]:items?.[0])?.focus()}},[open]);
+ function keydown(event){
+  if(event.key==='Escape'){event.preventDefault();close(true);return}
+  if(event.key==='Tab'){
+   event.preventDefault();const items=[...document.querySelectorAll('a[href],button,input,select,textarea,[tabindex]')].filter(node=>node.tabIndex>=0&&!node.disabled&&node.getClientRects().length&&!node.closest('[popover]')),at=items.indexOf(anchor.current);
+   close();(items[at+(event.shiftKey?-1:1)]||anchor.current)?.focus();return;
+  }
+  if(!['ArrowDown','ArrowUp','Home','End'].includes(event.key))return;
+  event.preventDefault();const items=[...menu.current.querySelectorAll('[role=menuitem]:not(:disabled)')],current=items.indexOf(document.activeElement),next=event.key==='Home'?0:event.key==='End'?items.length-1:(current+(event.key==='ArrowDown'?1:-1)+items.length)%items.length;items[next]?.focus();
+ }
+ async function toggleSave(){
+  if(saveLock.current||data?.pending)return;saveLock.current=true;setSaving(true);setError('');close(true);
+  try{if(await dispatch({type:'TOGGLE_FAVORITE',id:m.id})===false)setError('The saved memory could not be updated. Try again.')}catch(e){setError(e.message||'The saved memory could not be updated. Try again.')}finally{saveLock.current=false;setSaving(false)}
+ }
+ function confirm(value){setConfirming(value);if(!value)anchor.current?.focus()}
+ return <>
+  <div className="memory-details-heading"><h2>{m.title||'Memory'}</h2><Control ref={anchor} type="button" className="content-options-trigger memory-options-trigger" aria-label="Memory options" aria-haspopup="menu" aria-expanded={open} aria-busy={busy} disabled={busy} onKeyDown={event=>{if(['ArrowDown','ArrowUp'].includes(event.key)){event.preventDefault();lastItem.current=event.key==='ArrowUp';setOpen(true)}}} onClick={()=>{lastItem.current=false;setOpen(value=>!value)}}><svg className="glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></Control></div>
+  <Popover open={open} onClose={()=>close()} anchor={anchor.current} className="post-overflow-pop memory-options-pop"><div ref={menu} className="post-options" role="menu" aria-label="Memory options" onKeyDown={keydown}>
+   {editable&&<Control className="post-menu-item" type="button" role="menuitem" disabled={busy} onClick={()=>{close();openSheet({type:'memory-edit',id:m.id})}}><Glyph name="edit"/><span>Edit details</span></Control>}
+   <Control className="post-menu-item" type="button" role="menuitem" disabled={busy} onClick={toggleSave}><Glyph name="heart"/><span>{saved?'Unsave':'Save'}</span></Control>
+   {canSavePhoto&&onDownload&&<Control className="post-menu-item" type="button" role="menuitem" disabled={busy} onClick={()=>{close(true);void onDownload()}}><Glyph name="image"/><span>Save photo</span></Control>}
+   {editable&&<div className="post-menu-section" role="group" aria-label="Remove"><Control className="post-menu-item post-menu-delete" type="button" role="menuitem" disabled={busy||confirming} data-destructive onClick={()=>{close();setConfirming(true)}}><svg className="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7m4-7v7"/></svg><span>Remove memory</span></Control></div>}
+  </div></Popover>
+  <p className="muted">{[m.category,m.event,m.dateStatus==='suggested'?'Date not confirmed':m.capturedDate||m.year,m.milestone].filter(Boolean).join(' · ')}</p><TaggedFamily ids={m.memberIds||[]}/>
+  <RemoveMemoryControl memory={m} confirming={confirming} onConfirmingChange={confirm}/>
+  {error&&<p className="form-error" role="alert">{error}</p>}
+ </>;
+}
 export function MemoryEditor({id,onSaved,saveLabel,footer}){
  const {state,dispatch,openSheet}=useApp(),existing=state.memories.find(x=>x.id===id),[m,setM]=useState(existing||{id:crypto.randomUUID(),title:'',image:null,authorId:state.selfId,category:'',tags:[],memberIds:[],event:'',year:'',milestone:''}),[error,setError]=useState(''),[fileError,setFileError]=useState(''),[saving,setSaving]=useState(false),[uploading,setUploading]=useState(false),uploadLock=useRef(false),otherMedia=useRef(null),set=(k,v)=>setM(x=>({...x,[k]:v}));
  const allowed=!existing||canEditMemoryDetails(state,existing);const initialMemory=useRef(JSON.stringify(m)),saveLock=useRef(false),formId=useSheetForm({label:allowed?'Save memory details':null,busy:saving||uploading,disabled:!m.image||saving||uploading,dirty:JSON.stringify(m)!==initialMemory.current});

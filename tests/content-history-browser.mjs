@@ -18,7 +18,8 @@ try{
  const upload=await alice.page.request.post(base+'/api/media',{headers:{Origin:base},multipart:{file:{name:'fictional-porch.png',mimeType:'image/png',buffer:createTestPng(240,160)}}});assert.equal(upload.status(),201);
  const file=await upload.json(),memoryId=randomUUID();await command(alice.page,{type:'ADD_MEMORY',memory:{id:memoryId,image:file.url,title:'Fictional porch light'}});
  await alice.navigate(base+'/?qa='+randomUUID()+'#/memory/'+memoryId);
- await alice.page.getByRole('button',{name:'Remove memory'}).click();
+ await alice.page.getByRole('button',{name:'Memory options',exact:true}).click();
+ await alice.page.getByRole('menu',{name:'Memory options',exact:true}).getByRole('menuitem',{name:'Remove memory',exact:true}).click();
  const confirm=alice.page.getByRole('group',{name:'Remove memory'});await expect(confirm).toContainText('can restore it for 30 days');
  await confirm.getByRole('button',{name:'Remove memory'}).click();
  await expect(alice.page.locator('.gw-toast-message',{hasText:'Memory removed.'})).toBeVisible();

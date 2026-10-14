@@ -82,7 +82,8 @@ try {
   // Reopening and dismissing must not leave a filter/observer alive on a sheet.
   await page.locator(galleryImage).click();
   await decoded(page,'.photo-viewer-image',imageSize);
-  await page.getByRole('button',{name:'Add or edit details',exact:true}).click();
+  await page.getByRole('button',{name:'Memory options',exact:true}).click();
+  await page.getByRole('menu',{name:'Memory options',exact:true}).getByRole('menuitem',{name:'Edit details',exact:true}).click();
   await decoded(page,'dialog[open] .image-upload-preview img',imageSize);
   await page.keyboard.press('Escape');
   await page.locator('dialog').waitFor({state:'detached'});

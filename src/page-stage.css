@@ -88,13 +88,9 @@ html[data-stage-enter=from-left] :is(.page-stage-copy,.page-stage ~ *,.page-navi
 html[data-platform] #main .page-stage-copy h1,.page-stage-copy h1{margin:0;font-size:clamp(2rem,8.5vw,3.25rem);line-height:1.05;letter-spacing:-.02em;text-wrap:balance;overflow-wrap:anywhere}
 .page-stage-copy .intro p{margin:6px 0 0;max-width:46ch}
 .page-stage-eyebrow{margin:0;font-size:.8125rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text)}
-/* Meta and chips stay on one line; a narrow screen scrolls the row sideways
-   instead of breaking badges onto a second line. */
-.page-stage-meta{display:flex;flex-wrap:nowrap;align-items:center;gap:10px;margin-top:4px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;
- margin-inline:calc(-1 * var(--stage-gutter,16px));padding-inline:var(--stage-gutter,16px);scroll-padding-inline:var(--stage-gutter,16px)}
-.page-stage-meta::-webkit-scrollbar{display:none}
-.page-stage-line{flex:none;white-space:nowrap;font-size:1.0625rem;font-weight:650;color:var(--text)}
-.page-stage-chip{flex:none;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:4px 12px;border-radius:999px;font-size:.875rem;font-weight:650;
+.page-stage-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-top:4px}
+.page-stage-line{font-size:1.0625rem;font-weight:650;color:var(--text)}
+.page-stage-chip{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:4px 12px;border-radius:999px;font-size:.875rem;font-weight:650;
  background:color-mix(in srgb,var(--surface) 82%,transparent);color:var(--text);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 .page-stage-chip>.glyph{width:16px;height:16px;color:var(--accent)}
 
